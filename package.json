@@ -1,0 +1,252 @@
+{
+	"name": "vscode-msr",
+	"displayName": "vscode-msr",
+	"description": "Find/Replace code by msr for all coding languages + configuration + readme files.",
+	"author": "qualiu@microsoft.com",
+	"version": "0.0.1",
+	"icon": "images/vscode-msr-icon.png",
+	"license": "completely free",
+	"publisher": "qualiu",
+	"engines": {
+		"vscode": "^1.36.0"
+	},
+	"keywords": [
+		"find",
+		"definition",
+		"file",
+		"msr"
+	],
+	"categories": [
+		"Other"
+	],
+	"activationEvents": [
+		"*"
+	],
+	"homepage": "https://github.com/qualiu/vscode-msr/blob/master/README.md",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/qualiu/vscode-msr.git"
+	},
+	"main": "./out/extension.js",
+	"contributes": {
+		"configuration": {
+			"type": "object",
+			"title": "File Peek extension configuration",
+			"properties": {
+				"msr.enabled": {
+					"type": "boolean",
+					"default": true,
+					"description": "Enable extension."
+				},
+				"msr.enable.findDef": {
+					"type": "boolean",
+					"default": true,
+					"description": "Enable finding definitions."
+				},
+				"msr.enable.findRef": {
+					"type": "boolean",
+					"default": true,
+					"description": "Enable finding references."
+				},
+				"msr.default.maxSearchDepth": {
+					"type": "int",
+					"default": 16,
+					"description": "Maximum search depth (start from input path as depth = 1), will be overwritten if search commands has set `-k {n}`."
+				},
+				"msr.descendingSortForVSCode": {
+					"type": "boolean",
+					"default": true,
+					"description": "Descending sort result for `Visual Studio Code`."
+				},
+				"msr.descendingSortForConsoleOutput": {
+					"type": "boolean",
+					"default": false,
+					"description": "Descending sort result for console output channel at bottom of `Visual Studio Code`."
+				},
+				"msr.default.searchAllFilesForReferences": {
+					"type": "boolean",
+					"default": false,
+					"description": "When finding references, search code + configuration + document files."
+				},
+				"msr.default.searchAllFilesForDefinitions": {
+					"type": "boolean",
+					"default": false,
+					"description": "When finding definitions, search code + configuration + document files."
+				},
+				"msr.default.sortResults": {
+					"type": "boolean",
+					"default": true,
+					"description": "Sort matched results of definitions or references."
+				},
+				"msr.default.extraSearchPaths": {
+					"type": "string",
+					"default": "",
+					"description": "Default extra search paths. Multiple paths use ',' to separate. (To search external repositories, dependency sources, or libraries)"
+				},
+				"msr.default.extraSearchPathListFiles": {
+					"type": "string",
+					"default": "",
+					"description": "Default extra search path list files (one path at one line in each file). Multiple paths use ',' to separate."
+				},
+				"msr.verbose": {
+					"type": "boolean",
+					"default": true,
+					"description": "Print detail messages in console."
+				},
+				"msr.debug": {
+					"type": "boolean",
+					"default": false,
+					"description": "Print debug info."
+				},
+				"msr.default.skipFolders": {
+					"type": "string",
+					"default": "^(\\.(git|vs\\w*)|release|debug|node_modules|static|dist|target|site-packages|packages|JsPackages|Monaco|CBT|obj$|bin$|build$|npm-package|__pycache__)",
+					"description": "Default Regex pattern to skip folders."
+				},
+				"msr.default.allFiles": {
+					"type": "string",
+					"default": "\\.(cs\\w*|nuspec|config|c[px]*|h[px]*|java|scala|py|vue|tsx?|jsx?|json|ya?ml|xml|ini|md|md)$|readme",
+					"description": "Default Regex pattern for files to search."
+				},
+				"msr.default.codeFiles": {
+					"type": "string",
+					"default": "\\.(cs|c[px]*|h[px]*|java|scala|py)$",
+					"description": "Default Regex pattern for all code files."
+				},
+				"msr.default.codeFilesPlusUI": {
+					"type": "string",
+					"default": "\\.(cs|c[px]*|h[px]*|java|scala|py|vue|tsx?|jsx?)$",
+					"description": "Default Regex pattern for all code files."
+				},
+				"msr.default.configFiles": {
+					"type": "string",
+					"default": "\\.(config|json|ya?ml|xml|ini)$",
+					"description": "Default Regex pattern for configuration files."
+				},
+				"msr.default.docFiles": {
+					"type": "string",
+					"default": "\\.(md)$|readme",
+					"description": "Default Regex pattern for document files."
+				},
+				"msr.default.codeAndConfigDocs": {
+					"type": "string",
+					"default": "\\.(cs\\w*|nuspec|config|c[px]*|h[px]*|java|scala|py|vue|tsx?|jsx?|json|ya?ml|xml|ini|md)$",
+					"description": "Default Regex pattern for code + configuration + document files."
+				},
+				"msr.default.configAndDocs": {
+					"type": "string",
+					"default": "\\.(config|json|ya?ml|xml|ini|md)$|readme",
+					"description": "Default Regex pattern for code + configuration + document files."
+				},
+				"msr.default.findDef": {
+					"type": "string",
+					"default": "-t \"^\\s*\\w+[^=\\(\\./#;:]+\\s+(%~1)\\s*(?:[\\(\\{:<]|extends|implements|$)\" --nt \"^\\s*(return|await|throw|new|if|for|from|val|case)\\s+|^\\s*p\\w+\\s+%~1\\s*\\(\"",
+					"description": "Default Regex pattern to find definitions of a word (class, method, etc.). Must use `%~1` to be replaced by word to search."
+				},
+				"msr.searchTextHolder": {
+					"type": "string",
+					"default": "%~1",
+					"description": "Search text holder in Regex pattern of `findRef` and `findDef`."
+				},
+				"msr.default.findRef": {
+					"type": "string",
+					"default": "-t \"\\b%~1\\b\"",
+					"description": "Default Regex pattern to find references of a word (class, method, etc.). Must use `%~1` to be replaced by word to search."
+				},
+				"msr.default.extraOptions": {
+					"type": "string",
+					"default": "-I -C -c  Search %~1",
+					"description": "Default extra searching options."
+				},
+				"msr.findDef.extraOptions": {
+					"type": "string",
+					"default": "-H 30 -JIC -c Search %~1",
+					"description": "Default extra searching options for finding definitions: Get top {N} results and jump out."
+				},
+				"msr.findRef.extraOptions": {
+					"type": "string",
+					"default": "-H 300 -JIC -c Search %~1",
+					"description": "Default extra searching options for finding references: Get top {N} results and jump out."
+				},
+				"msr.cs.codeFiles": {
+					"type": "string",
+					"default": "\\.(cs)$",
+					"description": "Regex pattern for C# code files."
+				},
+				"msr.cs.codeAndConfigDocs": {
+					"type": "string",
+					"default": "\\.(cs\\w*|sln|nuspec|config|json|ya?ml|xml|ini|md)$",
+					"description": "Regex pattern for C# code + configuration + document files."
+				},
+				"msr.cpp.codeFiles": {
+					"type": "string",
+					"default": "\\.(cpp|hpp|cxx|h|c)$",
+					"description": "Regex pattern for C++ code files."
+				},
+				"msr.cpp.codeAndConfigDocs": {
+					"type": "string",
+					"default": "\\.(cpp|hpp|cxx|h|c|vcprojx?|makefile|sln|nuspec|config|json|ya?ml|xml|ini|md)$",
+					"description": "Regex pattern for C++ code + configuration + document files."
+				},
+				"msr.py.codeFiles": {
+					"type": "string",
+					"default": "\\.(py)$",
+					"description": "Regex pattern for Python code files."
+				},
+				"msr.py.codeAndConfigDocs": {
+					"type": "string",
+					"default": "\\.(py|json|ya?ml|xml|ini|md)$",
+					"description": "Regex pattern for Python code + configuration + document files."
+				},
+				"msr.py.extraSearchPaths": {
+					"type": "string",
+					"default": "",
+					"description": "Python extra search paths. Multiple paths use ',' to separate. (To search external repositories, dependency sources, or libraries)"
+				},
+				"msr.py.extraSearchPathListFiles": {
+					"type": "string",
+					"default": "",
+					"description": "Python extra search path list files (one path at one line in each file). Multiple paths use ',' to separate."
+				},
+				"msr.java.codeFiles": {
+					"type": "string",
+					"default": "\\.(java|scala)$",
+					"description": "Regex pattern for Java code files."
+				},
+				"msr.java.codeAndConfigDocs": {
+					"type": "string",
+					"default": "\\.(java|scala|json|ya?ml|xml|ini|md)$",
+					"description": "Regex pattern for Java code + configuration + document files."
+				},
+				"msr.ui.codeFiles": {
+					"type": "string",
+					"default": "\\.(vue|tsx?|jsx?)$",
+					"description": "Regex pattern for Front-end code files."
+				},
+				"msr.ui.codeAndConfigDocs": {
+					"type": "string",
+					"default": "\\.(vue|tsx?|jsx?|json|ya?ml|xml|ini|md)$",
+					"description": "Regex pattern for Front-end code + configuration + document files."
+				}
+			}
+		}
+	},
+	"scripts": {
+		"vscode:prepublish": "npm run compile",
+		"compile": "tsc -p ./",
+		"watch": "tsc -watch -p ./",
+		"pretest": "npm run compile",
+		"test": "node ./out/test/runTest.js"
+	},
+	"devDependencies": {
+		"@types/glob": "^7.1.1",
+		"@types/mocha": "^5.2.6",
+		"@types/node": "^10.12.21",
+		"@types/vscode": "^1.36.0",
+		"glob": "^7.1.4",
+		"mocha": "^6.1.4",
+		"typescript": "^3.3.1",
+		"tslint": "^5.12.1",
+		"vscode-test": "^1.0.0-next.0"
+	}
+}

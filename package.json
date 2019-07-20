@@ -1,23 +1,39 @@
 {
 	"name": "vscode-msr",
 	"displayName": "vscode-msr",
-	"description": "Find/Replace code by msr for all coding languages + configuration + readme files.",
+	"description": "Find definition and references in multiple repostory paths by msr for all coding languages + configuration + readme files.",
 	"author": "qualiu@microsoft.com",
-	"version": "0.0.2",
+	"version": "0.0.3",
 	"icon": "images/vscode-msr-icon.png",
 	"license": "completely free",
 	"publisher": "qualiu",
 	"engines": {
 		"vscode": "^1.36.0"
 	},
-	"keywords": [
-		"find",
-		"definition",
-		"file",
-		"msr"
-	],
 	"categories": [
+		"Programming Languages",
 		"Other"
+	],
+	"keywords": [
+		"msr",
+		"find definition",
+		"find references",
+		"find",
+		"search",
+		"jump",
+		"all",
+		"definition",
+		"references",
+		"C++",
+		"C",
+		"C#",
+		"CSharp",
+		"Java",
+		"Scala",
+		"python",
+		"TypScript",
+		"JavaScript",
+		"Vue"
 	],
 	"activationEvents": [
 		"*"

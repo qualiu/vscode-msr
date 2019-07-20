@@ -3,7 +3,7 @@
 	"displayName": "vscode-msr",
 	"description": "Find/Replace code by msr for all coding languages + configuration + readme files.",
 	"author": "qualiu@microsoft.com",
-	"version": "0.0.1",
+	"version": "0.0.2",
 	"icon": "images/vscode-msr-icon.png",
 	"license": "completely free",
 	"publisher": "qualiu",
@@ -135,32 +135,32 @@
 				},
 				"msr.default.findDef": {
 					"type": "string",
-					"default": "-t \"^\\s*\\w+[^=\\(\\./#;:]+\\s+(%~1)\\s*(?:[\\(\\{:<]|extends|implements|$)\" --nt \"^\\s*(return|await|throw|new|if|for|from|val|case)\\s+|^\\s*p\\w+\\s+%~1\\s*\\(\"",
-					"description": "Default Regex pattern to find definitions of a word (class, method, etc.). Must use `%~1` to be replaced by word to search."
+					"default": "-t \"^\\s*\\w+[^=\\(\\./#;:]+\\s+(%1)\\s*(?:[\\(\\{:<]|extends|implements|$)\" --nt \"^\\s*(return|await|throw|except|raise|new|if|for|from|val|case)\\s+|^\\s*p\\w+\\s+%1\\s*\\(\"",
+					"description": "Default Regex pattern to find definitions of a word (class, method, etc.). Must use `%1` to be replaced by word to search."
 				},
 				"msr.searchTextHolder": {
 					"type": "string",
-					"default": "%~1",
+					"default": "%1",
 					"description": "Search text holder in Regex pattern of `findRef` and `findDef`."
 				},
 				"msr.default.findRef": {
 					"type": "string",
-					"default": "-t \"\\b%~1\\b\"",
-					"description": "Default Regex pattern to find references of a word (class, method, etc.). Must use `%~1` to be replaced by word to search."
+					"default": "-t \"\\b%1\\b\"",
+					"description": "Default Regex pattern to find references of a word (class, method, etc.). Must use `%1` to be replaced by word to search."
 				},
 				"msr.default.extraOptions": {
 					"type": "string",
-					"default": "-I -C -c  Search %~1",
+					"default": "-I -C -c  Search %1",
 					"description": "Default extra searching options."
 				},
 				"msr.findDef.extraOptions": {
 					"type": "string",
-					"default": "-H 30 -JIC -c Search %~1",
+					"default": "-H 30 -JIC -c Search %1",
 					"description": "Default extra searching options for finding definitions: Get top {N} results and jump out."
 				},
 				"msr.findRef.extraOptions": {
 					"type": "string",
-					"default": "-H 300 -JIC -c Search %~1",
+					"default": "-H 300 -JIC -c Search %1",
 					"description": "Default extra searching options for finding references: Get top {N} results and jump out."
 				},
 				"msr.cs.codeFiles": {

@@ -24,11 +24,13 @@ const IsVerbose = RootConfig.get('verbose') as boolean;
 const IsDebug = RootConfig.get('debug') as boolean;
 const ConfigAndDocFilesRegex = new RegExp(RootConfig.get('default.configAndDocs') as string || '\\.(json|xml|ini|ya?ml|md)|readme', 'i');
 const CodeAndConfigAndDocFilesRegex = new RegExp(RootConfig.get('default.codeAndConfigDocs') as string || '\\.(cs\\w*|nuspec|config|c[px]*|h[px]*|java|scala|py|vue|tsx?|jsx?|json|ya?ml|xml|ini|md)$|readme', 'i');
-const SearchTextHolder = RootConfig.get('searchTextHolder') as string || '%~1';
+const SearchTextHolder = RootConfig.get('searchTextHolder') as string || '%~?1';
 const SearchTextHolderReplaceRegex = new RegExp(SearchTextHolder, 'g');
 const TrimSearchTextRegex = /^\W+|\W+$/g;
 const DescendingSortForConsoleOutput = RootConfig.get('descendingSortForConsoleOutput') as boolean || false;
 const DescendingSortForVSCode = RootConfig.get('descendingSortForVSCode') as boolean || true;
+
+let isToolExists = false;
 
 const FileExtensionToConfigExtMap = new Map<string, string>()
 	.set('cxx', 'cpp')
@@ -124,28 +126,33 @@ function clearOutputChannel() {
 	getOutputChannel().clear();
 }
 
-let isExeExists = false;
 // Always check tool exists if not exists in previous check, avoid need reloading.
-function checkExeToolExists(forceCheck: boolean = false): boolean {
+function checkSearchToolExists(forceCheck: boolean = false): boolean {
 	const whereCmd = IsWindows ? 'where msr' : 'whereis msr';
-	if (isExeExists && forceCheck) {
+	if (isToolExists && !forceCheck) {
 		return true;
 	}
 
 	try {
-		ChildProcess.execSync(whereCmd).toString();
-		isExeExists = true;
-		return true;
+		let output = ChildProcess.execSync(whereCmd).toString();
+		isToolExists = IsWindows
+			? output.split(/[\r\n]+/).filter(a => !/cygwin/i.test(a) && /msr\.\w+$/i.test(a)).length > 0
+			: output.indexOf('/msr') > 0;
 	} catch (err) {
 		console.warn(err);
+		isToolExists = false;
+	}
+
+	if (!isToolExists) {
+		getOutputChannel().clear();
 		outputError('Not found `msr` in PATH by checking command: ' + whereCmd);
 		outputError('Please take less than 1 minute follow: https://github.com/qualiu/vscode-msr/blob/master/README.md#Requirements');
-		isExeExists = false;
-		return false;
 	}
+
+	return isToolExists;
 }
 
-isExeExists = checkExeToolExists();
+isToolExists = checkSearchToolExists();
 
 // this method is called when your extension is activated
 // your extension is activated the very first time the command is executed
@@ -187,7 +194,7 @@ export class ReferenceFinder implements vscode.ReferenceProvider {
 }
 
 function searchMatchedWords(document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken, configKeyName: string, checkSkipTestPath: boolean) {
-	if (!checkExeToolExists() || token.isCancellationRequested || document.languageId === 'code-runner-output' || document.fileName.startsWith('extension-output-#')) {
+	if (!checkSearchToolExists() || token.isCancellationRequested || document.languageId === 'code-runner-output' || document.fileName.startsWith('extension-output-#')) {
 		return Promise.resolve(null);
 	}
 

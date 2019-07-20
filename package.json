@@ -33,11 +33,6 @@
 			"type": "object",
 			"title": "File Peek extension configuration",
 			"properties": {
-				"msr.enabled": {
-					"type": "boolean",
-					"default": true,
-					"description": "Enable extension."
-				},
 				"msr.enable.findDef": {
 					"type": "boolean",
 					"default": true,

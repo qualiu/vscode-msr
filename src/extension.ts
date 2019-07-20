@@ -124,33 +124,34 @@ function clearOutputChannel() {
 	getOutputChannel().clear();
 }
 
-let isExeExists = true;
-const whereCmd = IsWindows ? 'where msr' : 'whereis msr';
-try {
-	ChildProcess.execSync(whereCmd).toString();
-} catch (err) {
-	console.warn(err);
-	outputError('Not found `msr` in PATH by command: ' + whereCmd);
-	outputError('Please take less than 1 minute follow: https://github.com/qualiu/vscode-msr/blob/master/README.md#Requirements');
-	isExeExists = false;
+let isExeExists = false;
+// Always check tool exists if not exists in previous check, avoid need reloading.
+function checkExeToolExists(forceCheck: boolean = false): boolean {
+	const whereCmd = IsWindows ? 'where msr' : 'whereis msr';
+	if (isExeExists && forceCheck) {
+		return true;
+	}
+
+	try {
+		ChildProcess.execSync(whereCmd).toString();
+		isExeExists = true;
+		return true;
+	} catch (err) {
+		console.warn(err);
+		outputError('Not found `msr` in PATH by checking command: ' + whereCmd);
+		outputError('Please take less than 1 minute follow: https://github.com/qualiu/vscode-msr/blob/master/README.md#Requirements');
+		isExeExists = false;
+		return false;
+	}
 }
+
+isExeExists = checkExeToolExists();
 
 // this method is called when your extension is activated
 // your extension is activated the very first time the command is executed
 export function activate(context: vscode.ExtensionContext) {
-	if (!isExeExists) {
-		return;
-	}
-
 	// Use the console to output diagnostic information (outputLog) and errors (console.error)
 	// This line of code will only be executed once when your extension is activated
-	const isEnabled = RootConfig.get('enabled') as boolean;
-	if (isEnabled) {
-		console.log('Congratulations, your extension "vscode-msr" is now active!');
-	} else {
-		console.warn('Your extension "vscode-msr" is disabled, please change the configuration if you want.');
-		return;
-	}
 
 	// vscode.languages.getLanguages().then((languages: string[]) => { console.log("Known languages: " + languages); });
 
@@ -186,7 +187,7 @@ export class ReferenceFinder implements vscode.ReferenceProvider {
 }
 
 function searchMatchedWords(document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken, configKeyName: string, checkSkipTestPath: boolean) {
-	if (token.isCancellationRequested || document.languageId === 'code-runner-output' || document.fileName.startsWith('extension-output-#')) {
+	if (!checkExeToolExists() || token.isCancellationRequested || document.languageId === 'code-runner-output' || document.fileName.startsWith('extension-output-#')) {
 		return Promise.resolve(null);
 	}
 

@@ -7,24 +7,25 @@ Have you suffered issues of finding `definitions` and `references`:
 - **Missed updates to some types of files** when performed changes like `rename`, `refactor`, `update-versions`, etc.
 - **Quite slow to take a full search** but have to do it and wait ?
   
-Then it's the [light and right tool](https://github.com/qualiu/vscode-msr) for you: (Take **less than 1 minute** for [requirements](#Requirements) before using).
+Then it's the [light and right tool](https://github.com/qualiu/vscode-msr) for you: (Take **less than 1 minute** for [requirements](https://github.com/qualiu/vscode-msr#requirements) before using).
 
 ## Features
 
-- Got search results in **1~3 seconds** for 20000~30000+ code files (stored on a hard drive **not SSD**) after first time.
-
-- Fast find **definitions** + **references** for **all types** of coding languages files, acrosss **multiple related repositories** on local.
-- Also can jump to **definitions** + find **references** from `configuration files` or `readme document files`:
-  - Configuration files (`json`, `yaml`, `xml`, `ini`, etc.)
-  - Document files (`md`, `readme.txt`, etc.)
-
+- Got search results in **1~3 seconds** for 20000~30000+ code files (stored on hard drives **not SSD**) after first time.
+- Fast find **definitions** + **references** for **all types** of coding languages files, across **multiple related repositories** on local.
+- Also can jump to **definitions** + find **references** from **any type of files** + **any type**:
+  - Like `configuration files` (like `json`, `xml`) or `readme document files`(`*.md` or `readme`).
+  - Like words in comments, or a `text-just-typed`.
 - Simple + flexible configuration (`just general Regex` of `C++`,`Java`,`C#`,`Scala`,`Python`) to:
-  - Just set `Regex` patterns, support all types of coding languages, 
-  - Provide command line to search, or replace (just add `-o` `replace-text`), helpful to rename/update all types of files..
-  - Set **include** + **exclude** conditions to filter file, folder, path, size, time, search-depth etc.
+  - Just set `Regex` patterns to support all types of coding languages.
+  - Copy + paste the command line from output to run in a command window, to get colorful output (remove `-C`) or tune the `Regex` pattern.
+  - Set optional **include** + **exclude** conditions to filter file, folder, path, size, time, search-depth etc.
 
 - Just leverage [one tiny exe: msr-EXE](https://github.com/qualiu/msr/blob/master/README.md), without `storage/cache`, `server/service`, `network`, etc.
-
+- Rich trigger and color output:
+  - Trigger by menu (like `Go To Definition`) or keyboard (like press `F12`). This will show command lines + matched results and color output + clickable paths if fast.
+  - Trigger by commands (Press `Ctrl`+`Shift`+`P` then search `msr` to show the group of extended finding commands) and show color output which paths is clickable.
+  
 - Support **64-bit** + **32-bit**: `Windows` + `Linux` (`Ubuntu` / `CentOS` / `Fedora`).
 
 - You can directly use [msr.EXE](https://github.com/qualiu/msr/tree/master/tools) command line in `Visual Studio Code` output channel `MSR-Def-Ref` to **search** + **replace** files.
@@ -39,7 +40,9 @@ Search **Definitions** + **References** for **C++** / **Python** / **Java** in `
 
 ## Requirements
 
-Just **download** the tiny [msr.EXE](https://github.com/qualiu/msr/tree/master/tools) (of your system type) , then **add** it to `%PATH%` or `$PATH`. You can try below command lines:
+Just **download** the tiny [msr.EXE](https://github.com/qualiu/msr/tree/master/tools) (of your system type) , then **add** it to `%PATH%` or `$PATH`. 
+
+You can simply try below command lines, or use/create a tool folder like `~/tools` or `D:\tools` instead of system folder:
 
 - **Windows**：Download + copy to a folder like `%SystemRoot%` (Use **[msr-Win32.exe](https://github.com/qualiu/msr/raw/master/tools/msr-Win32.exe)** for 32-bit system)
 
@@ -57,7 +60,7 @@ If succeeded, run **msr --help** (or **msr -h** or just **msr**) should display 
 
 ## Avoid Security Software Downgrade Search Performance
 
-If you cannot get search results **in 1 second** for just **10000 code files** (ignore the count of other types like `packages` , `build` and `junk files`):
+If you cannot get search results **in 1 second** for just **10000 code files** (will auto skip other types like `packages` , `build` and `junk files`):
 
 Add an exclusion to avoid performance impact from the system security software, just like the impacts to `node.exe` , `pip.exe` and `python.exe` etc.
 
@@ -65,14 +68,16 @@ For example on **Windows** see official doc: [Add an exclusion to Windows Securi
 
 Add **Process** type (name) + **File** type (path) exclusions for [msr.EXE](https://github.com/qualiu/msr/tree/master/tools).
 
-<img src=https://raw.githubusercontent.com/qualiu/vscode-msr/master/images/add-exclusion-on-windows.png>
+<img align='center' src=https://raw.githubusercontent.com/qualiu/vscode-msr/master/images/add-exclusion-on-windows.png width=798 height=489>
 
-## Extension Settings
+## Extension Settings If You Want to Change
+
+You don't need to change settings from [configuration file](https://github.com/qualiu/vscode-msr/blob/master/package.json) unless you want to tune or improve `Regex` patterns, or add **extra search paths** , etc.
 
 ### General/Default Settings Examples
 
-- `msr.enable.findDef`: Enable/disable `find definitions`.
-- `msr.enable.findRef`: Enable/disable `find references`.
+- `msr.enable.definition`: Enable/disable `find definitions`.
+- `msr.enable.reference`: Enable/disable `find references`.
 - `msr.default.maxSearchDepth`: Set `max search depth` when finding definitions or references.
 - `msr.default.codeFiles`: Set `default` Regex pattern for `source code files`.
 - `msr.descendingSortForVSCode`: Descending sort search results for `vscode`.
@@ -80,7 +85,12 @@ Add **Process** type (name) + **File** type (path) exclusions for [msr.EXE](http
 - `msr.default.extraSearchPaths`: **Extra search paths** of external repositories, dependency sources, or libraries, etc.
 - `msr.default.extraSearchPathListFiles`: **Read extra search path list files** of external repositories, dependency sources, or libraries, etc.
 
-These **extra search paths** settings enable searching related files **without loading** them into `Visual Studio Code`.
+These global **extra search paths** settings enable searching related files **without loading** them into `Visual Studio Code`.
+
+If you want to set extra search paths for **a specific project**, like for `d:\git\project1`, you can modify `vscode-msr` configuration file `package.json` in **[your installation folder](https://code.visualstudio.com/docs/editor/extension-gallery#_where-are-extensions-installed)**:
+
+- Locate the installation folder, run a command like: `dir /b %USERPROFILE%\.vscode\extensions\*vscode-msr*` (on Windows).
+- Add **msr.extraPaths.project1** or **msr.extraPathListFiles.project1** and set the paths.
 
 You can also set extra search paths for each type of coding language.
 
@@ -100,7 +110,20 @@ You may just need to add or update the [configuration file](https://github.com/q
 
 Please help to set the `Regex` patterns for them if you want. You can:
 
-- Reference the `findDef` or `findRef` Regex patterns of **default** or a specific language type.
+- Reference the `.definition` and `.reference` Regex patterns of **default** or a specific language type in [configuration file](https://github.com/qualiu/vscode-msr/blob/master/package.json).
+- Debug this extension:
+  - Use `Visual Studio Code` to open [this project](https://github.com/qualiu/vscode-msr) start (press `F5`) to debug, if you've cloned it.
+  - Set/Check `msr.debug` to enable output debugging info, if you just installed this extension.
+- Easy to add, update or tune `Regex` patterns to improve existing or support new coding languages:
+  - Use above debugging method with the output info.
+  - Directly use the tiny and colorful [msr.EXE](https://github.com/qualiu/msr/tree/master/tools) of your [system type](https://github.com/qualiu/vscode-msr#requirements) to test or tune your `Regex` patterns:
+    - Input a string from input-arg (`-z`) or pipe (like `echo`):
+      - msr **-z** `"class CPP_EXPORT MatchThisCppClass"` -t `"^\s*class (\w+\s+)?\bMatchThisCppClass"`
+      - **echo** `class CPP_EXPORT MatchThisCppClass` `|` msr -t `"^\s*class (\w+\s+)?\bMatchThisCppClass"`
+    - Input a file like:
+      - msr **-p** `my-class.hpp` -t `"^\s*class (\w+\s+)?\bMatchThisCppClass"`
+    - Input paths and recursively search like:
+      - msr **-r -p** `my-class.hpp,src,folder2` -t `"^\s*class (\w+\s+)?\bMatchThisCppClass"`
 - Use the rich searching options of [msr-EXE](https://github.com/qualiu/msr/blob/master/README.md) like below, **combine** these **optional** options (**You Can Use All**):
   - Filter text by `line-matching` (default) or `whole-file-text-matching` (add **-S** / **--single-line** Regex mode):
     - Ignore case: 
@@ -132,19 +155,22 @@ Please help to set the `Regex` patterns for them if you want. You can:
 
 ### Check and Update this doc
   
-  Easy to check consistency of [configurations](https://github.com/qualiu/vscode-msr/blob/master/package.json) with `this document` by command lines below:
+  Easy to check consistency of [configurations](https://github.com/qualiu/vscode-msr/blob/master/package.json) with `this document` by command lines below (you can also run command `npm run test` if you're a developer):
 
-  **[nin](https://github.com/qualiu/msr/tree/master/tools)** `README.md` [package.json](https://github.com/qualiu/vscode-msr/blob/master/package.json) **"(msr\\.[\w\\.]+)"** --nt `"msr\.(exe|gcc\w+|cygwin)"` -i -c Should no result
+  **[nin](https://github.com/qualiu/msr/tree/master/tools)** `README.md` [package.json](https://github.com/qualiu/vscode-msr/blob/master/package.json) **"(msr\\.[\w\\.]+)"** --nt `"msr\.(exe|gcc\w+|cygwin)|project1"` -i -c Should no result
 
-  **[nin](https://github.com/qualiu/msr/tree/master/tools)** `README.md` [package.json](https://github.com/qualiu/vscode-msr/blob/master/package.json) **"(msr\\.[\w\\.]+)"** --nt `"msr\.(exe|gcc\w+|cygwin)"` -i **-m** -c Should have results
+  **[nin](https://github.com/qualiu/msr/tree/master/tools)** `README.md` [package.json](https://github.com/qualiu/vscode-msr/blob/master/package.json) **"(msr\\.[\w\\.]+)"** --nt `"msr\.(exe|gcc\w+|cygwin)|project1"` -i **-m** -c Should have results
 
 ## Known Issues
 
 - Performance depends on system hardware conditions.
   
-  For example, it may slower than usual if disk (where code files stored) is busy, or slower than expected if the hardware is too old, or CPU is too busy.
+  For example, it may slower than usual if the disk (where code files stored) is busy, or slower than expected if the hardware is too old, or CPU is too busy.
 
-- Currently Just for `Class` and `Method`.
+- Current support or finding `definition` + `references`:
+  - Near-precise support: Will show **multiple results** for **same name** `classes/methods/etc`, due to this is a light tool without syntax parsing and cache.
+  - Near-precise support `class`, `methods`, `enum`, `field`, `property` for **C#**, **Python**, **Java**, **Scala**, **C++**.
+  - Roughly support `class` and `method` for all type of languages (Often good because searching `same name objects` is not frequent).
 
   Welcome + Please help to improve searching definitions and references for `classes` and `methods`, and add supports for `enum` , `property`, `field` etc.
 

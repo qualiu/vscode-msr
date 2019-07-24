@@ -8,151 +8,26 @@ import { isNullOrUndefined } from 'util';
 import * as stream from "stream";
 import ChildProcess = require('child_process');
 import path = require('path');
-import fs = require('fs');
-import os = require('os');
-import { ParsedPath } from 'path';
-import { createConnection } from 'net';
-import { window } from 'vscode';
+
+import { getSearchPathOptions, getConfig, getOverrideOrDefaultConfig } from './dynamicConfig';
+import { outputError, outputWarn, outputInfo, outputLogInfo, clearOutputChannel, runCommandInTerminal, outDebug } from './outputUtils';
+import { FindType, SearchProperty, FileExtensionToConfigExtMap } from './ranker';
+import { checkSearchToolExists, IsWindows } from './checkTool';
+import { getCurrentWordAndText } from './utils';
+import { FindCommands, runFindingCommand, runFindingCommandByCurrentWord } from './commands';
 
 const GetFileLineTextRegex = new RegExp('(.+?):(\\d+):(.*)');
 const GetSummaryRegex = /^(?:Matched|Replaced) (\d+) /m;
 const NotIgnoreErrorRegex = /^(Matched|Replaced) \d+ .*?(Error|error)/;
 const CheckMaxSearchDepthRegex = /\s+(-k\s*\d+|--max-depth\s+\d+)/;
-const RootConfig = vscode.workspace.getConfiguration('msr');
-const RootPath = vscode.workspace.rootPath || '.';
-const IsVerbose = RootConfig.get('verbose') as boolean;
-const IsDebug = RootConfig.get('debug') as boolean;
-const ConfigAndDocFilesRegex = new RegExp(RootConfig.get('default.configAndDocs') as string || '\\.(json|xml|ini|ya?ml|md)|readme', 'i');
-const CodeAndConfigAndDocFilesRegex = new RegExp(RootConfig.get('default.codeAndConfigDocs') as string || '\\.(cs\\w*|nuspec|config|c[px]*|h[px]*|java|scala|py|vue|tsx?|jsx?|json|ya?ml|xml|ini|md)$|readme', 'i');
-const SearchTextHolder = RootConfig.get('searchTextHolder') as string || '%~?1';
-const SearchTextHolderReplaceRegex = new RegExp(SearchTextHolder, 'g');
-const TrimSearchTextRegex = /^\W+|\W+$/g;
-const DescendingSortForConsoleOutput = RootConfig.get('descendingSortForConsoleOutput') as boolean || false;
-const DescendingSortForVSCode = RootConfig.get('descendingSortForVSCode') as boolean || true;
 
-let isToolExists = false;
-
-const FileExtensionToConfigExtMap = new Map<string, string>()
-	.set('cxx', 'cpp')
-	.set('hpp', 'cpp')
-	.set('h', 'cpp')
-	.set('scala', 'java')
-	.set('vue', 'ui')
-	.set('js', 'ui')
-	.set('ts', 'ui')
-	.set('jsx', 'ui')
-	.set('tsx', 'ui')
-	;
-
-const MappedExtToCodeFileNamePatternMap = new Map<string, string>()
-	.set('java', RootConfig.get('java.codeFiles') as string)
-	.set('ui', RootConfig.get('ui.codeFiles') as string)
-	.set('cpp', RootConfig.get('cpp.codeFiles') as string)
-	.set('default', '.?')
-	;
-
-const DefaultMaxSearchDepth = parseInt(RootConfig.get('default.maxSearchDepth') || '0');
-const SearchAllFilesWhenFindingReferences = RootConfig.get('default.searchAllFilesForReferences') as boolean;
-const SearchAllFilesWhenFindingDefinitions = RootConfig.get('default.searchAllFilesForDefinitions') as boolean;
-const NeedSortResults = RootConfig.get('default.sortResults') as boolean;
-
-const AlphaNumber = "[a-z0-9A-Z]";
-const HeaderBoundary = "(?<!" + AlphaNumber + ")";
-const TailBoundary = "(?!" + AlphaNumber + ")";
-
-const IsWindows = /(win32|windows)/i.test(process.platform);
 // const MsrExePaths = (process.env.Path || '').split(/\s*;\s*/).map(a => path.join(a, 'msr.exe')).filter(a => fs.existsSync(a));
 // const MsrExePath = MsrExePaths.length > 0 ? MsrExePaths[0] : 'msr.exe';
-const ShouldQuotePathRegex = IsWindows ? /[^\w\.,\\/:-]/ : /[^\w\.,\\/-]/;
 
-// Extract single words (exclude "_")  which will split camel case and combination of word and numbers, like cases:
-const SingleWordMatchingPattern =
-	HeaderBoundary + "[A-Z]+[0-9]+[A-Z]?" + TailBoundary + "|"         // Get 'RL28D' 'OFFICE365'
-	+ "[A-Z]?[a-z]+[0-9]+" + "|"                                       // Get 'Office365' 'office365'
-	+ "[A-Z]+[a-z]" + "(?=[\\b_A-Z])" + "|"                            // Get 'IDEAs' from 'IDEAsOlsTest'
-	+ "[A-Z][0-9][A-Z]" + "(?=[\\b_0-9]|[A-Z][a-z0-9])" + "|"          // Get 'U2D' from 'U2DUtils'
-	+ "[A-Z]+[0-9]+[A-Z]" + "(?=[\\b_0-9]|[A-Z][a-z0-9])" + "|"        // Get 'RL28D' from 'RL28D_Office'
-	+ "[A-Z]+[0-9]+" + "|"                                             // Get 'RL28' from 'RL28DEF'
-	+ "[A-Z]+" + "(?=[A-Z][a-z]+)" + "|"                               // Get 'OFFICE' from 'OFFICEData'
-	+ "[A-Z][a-z]+" + "|"                                              // Get 'Office'
-	+ "[a-z][0-9][a-z]" + "(?=[\\b_A-Z0-9])" + "|"                     // Get 'u2d'
-	+ "[0-9]+[A-Z]" + "(?=\\b|[A-Z])" + "|"                            // Get '3D' from '3DTest' '3DTEST'
-	+ "[0-9]+" + "|" + "[A-Z]+" + "|" + "[a-z]+"                       // Get normal successive number or letters
-	;
-const SingleWordMatchingRegex = new RegExp(SingleWordMatchingPattern, 'g');
-
-export function getAllSingleWords(text: string, ignoreCase: boolean = true): Set<string> {
-	let s = new Set<string>();
-	let m;
-	do {
-		m = SingleWordMatchingRegex.exec(text);
-		if (m) {
-			s.add(ignoreCase ? m[0].toLowerCase() : m[0]);
-		}
-	} while (m);
-
-	return s;
-}
-
-let _channel: vscode.OutputChannel;
-function getOutputChannel(): vscode.OutputChannel {
-	if (!_channel) {
-		_channel = vscode.window.createOutputChannel('MSR-Def-Ref');
-	}
-	return _channel;
-}
-
-function outputWarn(message: string) {
-	getOutputChannel().appendLine(message);
-	getOutputChannel().show(true);
-}
-
-function outputError(message: string) {
-	getOutputChannel().appendLine(message);
-	getOutputChannel().show(true);
-}
-
-function outputInfo(message: string) {
-	getOutputChannel().appendLine(message);
-	getOutputChannel().show(true);
-}
-
-function outputLog(message: string) {
-	getOutputChannel().appendLine(message);
-	getOutputChannel().show(true);
-}
-
-function clearOutputChannel() {
-	getOutputChannel().clear();
-}
-
-// Always check tool exists if not exists in previous check, avoid need reloading.
-function checkSearchToolExists(forceCheck: boolean = false): boolean {
-	const whereCmd = IsWindows ? 'where msr' : 'whereis msr';
-	if (isToolExists && !forceCheck) {
-		return true;
-	}
-
-	try {
-		let output = ChildProcess.execSync(whereCmd).toString();
-		isToolExists = IsWindows
-			? output.split(/[\r\n]+/).filter(a => !/cygwin/i.test(a) && /msr\.\w+$/i.test(a)).length > 0
-			: output.indexOf('/msr') > 0;
-	} catch (err) {
-		console.warn(err);
-		isToolExists = false;
-	}
-
-	if (!isToolExists) {
-		getOutputChannel().clear();
-		outputError('Not found `msr` in PATH by checking command: ' + whereCmd);
-		outputError('Please take less than 1 minute follow: https://github.com/qualiu/vscode-msr/blob/master/README.md#Requirements');
-	}
-
-	return isToolExists;
-}
-
-isToolExists = checkSearchToolExists();
+let MyConfig = getConfig();
+let RootConfig = getConfig().RootConfig || vscode.workspace.getConfiguration('msr');
+checkSearchToolExists();
+// vscode.languages.getLanguages().then((languages: string[]) => { console.log("Known languages: " + languages); });
 
 // this method is called when your extension is activated
 // your extension is activated the very first time the command is executed
@@ -160,22 +35,47 @@ export function activate(context: vscode.ExtensionContext) {
 	// Use the console to output diagnostic information (outputLog) and errors (console.error)
 	// This line of code will only be executed once when your extension is activated
 
-	// vscode.languages.getLanguages().then((languages: string[]) => { console.log("Known languages: " + languages); });
-
 	// The command has been defined in the package.json file
 	// Now provide the implementation of the command with registerCommand
 	// The commandId parameter must match the command field in package.json
-	if (RootConfig.get('enable.findDef') as boolean) {
-		context.subscriptions.push(vscode.languages.registerDefinitionProvider('*', new DefinitionFinder));
-	} else {
-		console.warn('Your extension "vscode-msr": find definition is disabled.');
-	}
+	registerExtension(context);
 
-	if (RootConfig.get('enable.findRef') as boolean) {
-		context.subscriptions.push(vscode.languages.registerReferenceProvider('*', new ReferenceFinder));
-	} else {
-		console.warn('Your extension "vscode-msr": find reference is disabled.');
-	}
+	// Listening to configuration changes
+	context.subscriptions.push(vscode.workspace.onDidChangeConfiguration(e => {
+		if (e.affectsConfiguration('msr')) {
+			getConfig(true);
+			RootConfig = vscode.workspace.getConfiguration('msr');
+			outDebug('msr.enable.definition = ' + RootConfig.get('enable.definition'));
+			outDebug('msr.enable.reference = ' + RootConfig.get('enable.reference'));
+			outDebug('msr.enable.findingCommands = ' + RootConfig.get('enable.findingCommands'));
+		}
+	}));
+}
+
+export function registerExtension(context: vscode.ExtensionContext) {
+	RootConfig = vscode.workspace.getConfiguration('msr');
+	context.subscriptions.push(vscode.languages.registerDefinitionProvider('*', new DefinitionFinder));
+	context.subscriptions.push(vscode.languages.registerReferenceProvider('*', new ReferenceFinder));
+
+	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.findall',
+		(textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit, ...args: any[]) =>
+			runFindingCommand(FindCommands.FindReferencesInAllFiles, textEditor, edit, args)));
+
+	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.finddef',
+		(textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit, ...args: any[]) =>
+			runFindingCommand(FindCommands.FindDefinitionInCodeFiles, textEditor, edit, args)));
+
+	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.findref',
+		(textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit, ...args: any[]) =>
+			runFindingCommand(FindCommands.FindReferencesInCodeFiles, textEditor, edit, args)));
+
+	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.finddoc',
+		(textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit, ...args: any[]) =>
+			runFindingCommand(FindCommands.FindReferencesInDocs, textEditor, edit, args)));
+
+	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.findcfg',
+		(textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit, ...args: any[]) =>
+			runFindingCommand(FindCommands.FindReferencesInConfigFiles, textEditor, edit, args)));
 }
 
 // this method is called when your extension is deactivated
@@ -183,123 +83,75 @@ export function deactivate() { }
 
 export class DefinitionFinder implements vscode.DefinitionProvider {
 	public provideDefinition(document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken): Thenable<vscode.Location[] | null> {
-		return searchMatchedWords(document, position, token, 'findDef', true);
+		if (RootConfig.get('enable.definition') as boolean) {
+			return searchMatchedWords(FindType.Definition, document, position, token, 'definition', true);
+		} else {
+			outDebug('Your extension "vscode-msr": find definition is disabled by setting of `msr.enable.definition`.');
+			return Promise.reject(null);
+		}
 	}
 }
 
 export class ReferenceFinder implements vscode.ReferenceProvider {
 	public provideReferences(document: vscode.TextDocument, position: vscode.Position, context: vscode.ReferenceContext, token: vscode.CancellationToken): Thenable<vscode.Location[] | null> {
-		return searchMatchedWords(document, position, token, 'findRef', false);
+		if (RootConfig.get('enable.reference') as boolean) {
+			return searchMatchedWords(FindType.Reference, document, position, token, 'reference', false);
+		} else {
+			outDebug('Your extension "vscode-msr": find reference is disabled by setting of `msr.enable.reference`.');
+			return Promise.reject(null);
+		}
 	}
 }
 
-function searchMatchedWords(document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken, configKeyName: string, checkSkipTestPath: boolean) {
-	if (!checkSearchToolExists() || token.isCancellationRequested || document.languageId === 'code-runner-output' || document.fileName.startsWith('extension-output-#')) {
-		return Promise.resolve(null);
-	}
-
-	clearOutputChannel();
-	const wordRange = document.getWordRangeAtPosition(position);
-	if (!wordRange) {
-		return Promise.reject('No word selected.');
-	}
-
-	const currentText = document.lineAt(position.line).text;
-	let currentWord: string = currentText.slice(wordRange.start.character, wordRange.end.character);
-	currentWord = currentWord.replace(TrimSearchTextRegex, '');
-	if (currentWord.length < 2) {
-		const errorMessage = 'Skip search too short word: "' + currentWord + '".';
-		console.log(errorMessage);
-		return Promise.reject(errorMessage);
-	}
-
-	const parsedFile = path.parse(document.fileName);
-	const extension = parsedFile.ext.substring(1).toLowerCase() || 'default';
-	const mappedExt = FileExtensionToConfigExtMap.get(extension) || extension;
-	const skipFolders = (RootConfig.get(mappedExt + '.skipFolders') || RootConfig.get('default.skipFolders')) as string;
-	let searchOption = (RootConfig.get(mappedExt + '.' + configKeyName) || RootConfig.get('default.' + configKeyName)) as string;
-	if (searchOption.indexOf(SearchTextHolder) < 0) {
-		const errorMessage = 'Not found word-holder: "' + SearchTextHolder + '" in search option, please check configuration of "' + configKeyName + '": ' + searchOption;
-		outputError(errorMessage);
-		return Promise.reject(errorMessage);
-	}
-
-	let extraOptions = (RootConfig.get(configKeyName + '.extraOptions') || RootConfig.get('default.extraOptions')) as string;
-	if (checkSkipTestPath && /test/i.test(document.fileName) === false) {
-		extraOptions = '--np test ' + extraOptions;
-	}
-
-	const [filePattern, searchOptions] = getFileNamePatternAndSearchOption(mappedExt, extension, configKeyName, searchOption, parsedFile);
-
-	const defaultExtraSearchPaths = RootConfig.get('default.extraSearchPaths') as string || '';
-	const defaultExtraSearchPathListFiles = RootConfig.get('default.extraSearchPathListFiles') as string || '';
-	const thisTypeExtraSearchPaths = RootConfig.get(mappedExt + '.extraSearchPaths') as string || '';
-	const thisTypeExtraSearchPathListFiles = RootConfig.get(mappedExt + '.extraSearchPathListFiles') as string || '';
-
-	let searchPathSet = new Set((RootPath + ',' + thisTypeExtraSearchPaths + ',' + defaultExtraSearchPaths).split(/\s*,\s*/));
-	searchPathSet.delete('');
-
-	let searchPathListFileSet = new Set((thisTypeExtraSearchPathListFiles + ',' + defaultExtraSearchPathListFiles).split(/\s*,\s*/));
-	searchPathListFileSet.delete('');
-
-	let pathsText = Array.from(searchPathSet).join(',').replace(/"/g, '');
-	if (ShouldQuotePathRegex.test(pathsText)) {
-		pathsText = '"' + pathsText + '"';
-	}
-
-	let pathFilesText = Array.from(searchPathListFileSet).join(',').replace(/"/g, '');
-	if (ShouldQuotePathRegex.test(pathFilesText)) {
-		pathFilesText = '"' + pathFilesText + '"';
-	}
-
-	const searchPathOptions = '-rp ' + pathsText;
-	const readPathListOptions = searchPathListFileSet.size > 0 ? ' -w "' + pathFilesText + '"' : '';
-	let commandLine = 'msr ' + searchPathOptions + readPathListOptions + ' -f ' + filePattern + ' --nd "' + skipFolders + '" ' + searchOptions + ' ' + extraOptions;
-	if (DefaultMaxSearchDepth > 0 && !CheckMaxSearchDepthRegex.test(commandLine)) {
-		commandLine = commandLine.trim() + ' -k ' + DefaultMaxSearchDepth.toString();
-	} else {
-		commandLine = commandLine.trim();
-	}
-
-	commandLine = commandLine.replace(SearchTextHolderReplaceRegex, currentWord);
-
-	if (IsVerbose) {
-		if (IsDebug) {
-			commandLine += " languageId = " + document.languageId + " fileName = " + document.fileName;
+function searchMatchedWords(findType: FindType, document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken, configKeyName: string, checkSkipTestPath: boolean) {
+	try {
+		const [currentWord, currentText] = getCurrentWordAndText(document, position);
+		if (!checkSearchToolExists() || token.isCancellationRequested || currentWord.length < 2) {
+			return Promise.resolve(null);
 		}
 
-		outputLog('\n' + commandLine + '\n');
-	}
+		clearOutputChannel();
+		const parsedFile = path.parse(document.fileName);
+		const extension = parsedFile.ext.substring(1).toLowerCase() || 'default';
+		const mappedExt = FileExtensionToConfigExtMap.get(extension) || extension;
 
-	return getMatchedLocationsAsync(commandLine, currentWord, currentText, parsedFile, token);
+		let ranker = new SearchProperty(findType, currentWord, currentText, position, parsedFile, mappedExt);
+
+		const [filePattern, searchOptions] = ranker.getFileNamePatternAndSearchOption(ranker, extension, configKeyName, parsedFile);
+		if (filePattern.length < 1 || searchOptions.length < 1) {
+			return Promise.reject('Failed to get filePattern or searchOptions.');
+		}
+
+		let extraOptions = getOverrideOrDefaultConfig(configKeyName, '.extraOptions', false);
+		if (checkSkipTestPath && /test/i.test(document.fileName) === false) {
+			extraOptions = '--np test ' + extraOptions;
+		}
+
+		const searchPathOptions = getSearchPathOptions(mappedExt, FindType.Definition === findType, true);
+		let commandLine = 'msr ' + searchPathOptions + ' -f ' + filePattern + ' ' + searchOptions + ' ' + extraOptions;
+		if (MyConfig.DefaultMaxSearchDepth > 0 && !CheckMaxSearchDepthRegex.test(commandLine)) {
+			commandLine = commandLine.trim() + ' -k ' + MyConfig.DefaultMaxSearchDepth.toString();
+		} else {
+			commandLine = commandLine.trim();
+		}
+
+		commandLine = commandLine.replace(MyConfig.SearchTextHolderReplaceRegex, currentWord);
+
+		if (MyConfig.IsDebug) {
+			commandLine += " languageId = " + document.languageId; // + " fileName = " + document.fileName;
+		}
+
+		outputLogInfo('\n' + commandLine + '\n');
+
+		return getMatchedLocationsAsync(findType, commandLine, ranker, token);
+	} catch (e) {
+		outputError(e.stack.toString());
+		outputError(e.toString());
+		throw e;
+	}
 }
 
-export function getFileNamePatternAndSearchOption(mappedExt: string, extension: string, configKeyName: string, searchOptions: string, parsedFile: ParsedPath): [string, string] {
-	let filePattern = MappedExtToCodeFileNamePatternMap.get(mappedExt) || '\\.' + extension + '$';
-	if (SearchAllFilesWhenFindingReferences && configKeyName === 'findRef') {
-		filePattern = RootConfig.get('default.allFiles') as string;
-		const defaultFindRef = RootConfig.get('default.findRef') as string;
-		if (defaultFindRef.length > 1) {
-			searchOptions = defaultFindRef;
-		}
-	} else if (SearchAllFilesWhenFindingDefinitions && configKeyName === 'findDef') {
-		const codeFilesKey = mappedExt === 'ui' ? 'default.codeFilesPlusUI' : 'default.codeFiles';
-		filePattern = RootConfig.get(codeFilesKey) as string;
-		const defaultFindDef = RootConfig.get('default.findDef') as string;
-		if (defaultFindDef.length > 1) {
-			searchOptions = defaultFindDef;
-		}
-	} else if (ConfigAndDocFilesRegex.test(parsedFile.base)) {
-		filePattern = configKeyName === 'findDef'
-			? RootConfig.get('default.codeFiles') as string
-			: CodeAndConfigAndDocFilesRegex.source;
-	}
-
-	filePattern = '"' + filePattern + '"';
-	return [filePattern, searchOptions];
-}
-
-export function getMatchedLocationsAsync(cmd: string, currentWord: string, currentText: string, currentFile: ParsedPath, token: vscode.CancellationToken): Thenable<vscode.Location[]> {
+function getMatchedLocationsAsync(findType: FindType, cmd: string, ranker: SearchProperty, token: vscode.CancellationToken): Thenable<vscode.Location[]> {
 	const options: ExecOptions = {
 		cwd: vscode.workspace.rootPath,
 		timeout: 60 * 1000,
@@ -312,19 +164,40 @@ export function getMatchedLocationsAsync(cmd: string, currentWord: string, curre
 			if (error) {
 				if (!GetSummaryRegex.test(error.message) || NotIgnoreErrorRegex.test(error.message)) {
 					outputError(error.message);
+				} else {
+					outDebug(error.message);
 				}
 			}
 
 			if (stdout) {
-				allResults = parseCommandOutput(stdout, currentWord, currentText, currentFile);
+				allResults = parseCommandOutput(stdout, ranker);
 			}
 
 			if (stderr) {
 				const summary = GetSummaryRegex.exec(stderr);
 				if (!summary || /(\s+(Error|ERROR|WARN|error|BOM file)\s+|Jumped out)/.test(stderr)) {
 					outputWarn('\n' + stderr);
-				} else if (IsVerbose && summary) {
-					outputInfo('\n' + stderr);
+				} else if (summary) {
+					outputLogInfo('\n' + stderr);
+				}
+
+				if (summary) {
+					const match = /^Matched (\d+) .*?Used (\d+\.\d*) s/.exec(stderr);
+					if (match) {
+						const matchCount = parseInt(match[1]);
+						const costSeconds = parseFloat(match[2]);
+						outDebug('Got matched count = ' + matchCount + ' and time cost = ' + costSeconds + ' from summary.');
+						if (matchCount < 1 && RootConfig.get('enable.useGeneralFindingWhenNoResults') as boolean) {
+							const findCmd = findType === FindType.Definition ? FindCommands.FindDefinitionInCodeFiles : FindCommands.FindDefinitionInCodeFiles;
+							runFindingCommandByCurrentWord(findCmd, ranker.currentWord, ranker.currentFile);
+							outputInfo('Will use general search, please check results of `MSR-RUN-CMD` channel in `TERMINAL` tab. Disable `msr.enable.useGeneralFindingWhenNoResults` if you do not want.');
+						}
+						else if (matchCount > 1 && costSeconds <= MyConfig.ReRunCmdInTerminalIfCostLessThan) {
+							runCommandInTerminal(cmd);
+						}
+					} else {
+						outDebug('Failed to get time cost in summary.');
+					}
 				}
 			}
 
@@ -336,15 +209,14 @@ export function getMatchedLocationsAsync(cmd: string, currentWord: string, curre
 	});
 }
 
-export function parseCommandOutput(stdout: string, currentWord: string, currentText: string, currentFile: ParsedPath): vscode.Location[] {
-	const currentWordRegex = new RegExp('\\b' + currentWord + '\\b');
+function parseCommandOutput(stdout: string, ranker: SearchProperty): vscode.Location[] {
 	const matchedFileLines = stdout.split(/\r\n|\n\r|\n|\r/);
 
 	let allResults: vscode.Location[] = [];
-	if (!NeedSortResults || matchedFileLines.length < 2) {
+	if (!MyConfig.NeedSortResults || matchedFileLines.length < 2) {
 		matchedFileLines.map(line => {
 			outputInfo(line);
-			let a = parseMatchedText(line, currentWordRegex, currentWord, currentText, currentFile)[1];
+			let a = parseMatchedText(line, ranker)[1];
 			if (a) {
 				allResults.push(a);
 			}
@@ -357,7 +229,7 @@ export function parseCommandOutput(stdout: string, currentWord: string, currentT
 	let sum = 0;
 	let scoreToListMap = new Map<Number, [string, vscode.Location][]>();
 	matchedFileLines.map(line => {
-		let scoreLocation = parseMatchedText(line, currentWordRegex, currentWord, currentText, currentFile);
+		let scoreLocation = parseMatchedText(line, ranker);
 		if (!scoreLocation[1]) {
 			return;
 		}
@@ -377,14 +249,14 @@ export function parseCommandOutput(stdout: string, currentWord: string, currentT
 		}
 	});
 
-	const sorted = DescendingSortForVSCode
+	const sorted = MyConfig.DescendingSortForVSCode
 		? [...scoreToListMap.entries()].sort((a, b) => b[0].valueOf() - a[0].valueOf())
 		: [...scoreToListMap.entries()].sort((a, b) => a[0].valueOf() - b[0].valueOf());
 
 	let outList: string[] = [];
 	sorted.forEach(list => {
 		list[1].forEach(a => {
-			if (DescendingSortForConsoleOutput === DescendingSortForVSCode) {
+			if (MyConfig.DescendingSortForConsoleOutput === MyConfig.DescendingSortForVSCode) {
 				outputInfo(a[0]);
 			} else {
 				outList.push(a[0]);
@@ -404,15 +276,15 @@ export function parseCommandOutput(stdout: string, currentWord: string, currentT
 	return allResults;
 }
 
-export function parseMatchedText(text: string, currentWordRegex: RegExp, currentWord: string, currentText: string, currentFile: ParsedPath): [Number, vscode.Location | null] {
+function parseMatchedText(text: string, ranker: SearchProperty): [Number, vscode.Location | null] {
 	let m;
 	if ((m = GetFileLineTextRegex.exec(text)) !== null) {
 		const uri = vscode.Uri.file(m[1]);
-		const wm = currentWordRegex.exec(m[3]);
+		const wm = ranker.currentWordRegex.exec(m[3]);
 		if (wm !== null) {
 			const row = parseInt(m[2]);
 			const pos = new vscode.Position(row - 1, wm.index);
-			const score = NeedSortResults ? getScore(m[1], row, m[3], currentWord, currentText, currentFile) : 1;
+			const score = MyConfig.NeedSortResults ? ranker.getScore(m[1], row, m[3]) : 1;
 			console.log('Score = ' + score + ': ' + text);
 			return [score, new vscode.Location(uri, pos)];
 		} else {
@@ -423,88 +295,7 @@ export function parseMatchedText(text: string, currentWordRegex: RegExp, current
 	return [0, null];
 }
 
-export function getScore(resultFilePath: string, resultRow: Number, resultText: string, currentWord: string, currentText: string, currentFile: ParsedPath): Number {
-	let score = 1;
-	const parsedResultPath = path.parse(resultFilePath);
-	if (!resultText.match('^\\s*(//|#)') && parsedResultPath.name.endsWith('.md')) {
-		score += 100;
-	}
-
-	if (!resultText.match(/;\s*$/)) {
-		score += 20;
-	}
-
-	if (!parsedResultPath.name.match(/test/i)) {
-		score += 100;
-	}
-
-	if (!resultFilePath.match(/test/i)) {
-		score += 50;
-	}
-
-	if (!parsedResultPath.name.match(/^I[A-Z][a-z]/)) {
-		score += 10;
-	}
-
-	if (resultText.match(/^\s*public\s+/)) {
-		score += 50;
-	}
-
-	if (resultText.match(/^\s*(\w+\s+)?static\s+/)) {
-		score += 20;
-	}
-
-	if (resultText.match(/^\s*(internal|protected|private)\s+/)) {
-		score += 10;
-	}
-
-	if (!parsedResultPath.name.match(/\.(json|xml|ya?ml|ini|config|md|txt)$|readme/i)) {
-		score += 100;
-	}
-
-	if (resultText.match(/^\boverride\b/)) {
-		score += 50;
-	}
-
-	const currentWordSet = getAllSingleWords(currentWord);
-	const currentFileNameWordSet = getAllSingleWords(currentFile.name);
-	const currentTextWordSet = getAllSingleWords(currentText);
-
-	const resultFileNameWordSet = getAllSingleWords(parsedResultPath.name);
-	const resultWordSet = getAllSingleWords(resultText);
-
-	currentWordSet.forEach(a => {
-		if (resultFileNameWordSet.has(a)) {
-			score += 20;
-		}
-	});
-
-	currentFileNameWordSet.forEach(a => {
-		if (resultFileNameWordSet.has(a)) {
-			score += 10;
-		}
-	});
-
-	currentTextWordSet.forEach(a => {
-		if (resultWordSet.has(a)) {
-			score += 10;
-		}
-	});
-
-	return score;
-}
-
-export function killProcess(p: ChildProcess.ChildProcess) {
-	if (p) {
-		try {
-			p.kill();
-		} catch (e) {
-			outputWarn('Error killing process: ' + e);
-		}
-	}
-}
-
-export function killProcessTree(processId: number): void {
+function killProcessTree(processId: number): void {
 	const killCommand = IsWindows
 		? `taskkill /F /T /PID ` + processId
 		: `ps -ef | egrep -ie "msr\\s+-rp\\s+.*-c" | xargs kill -9`; // 'kill -9 ' + processId;
@@ -513,5 +304,15 @@ export function killProcessTree(processId: number): void {
 		ChildProcess.execSync(killCommand);
 	} catch (err) {
 		console.warn(err);
+	}
+}
+
+function killProcess(p: ChildProcess.ChildProcess) {
+	if (p) {
+		try {
+			p.kill();
+		} catch (e) {
+			outputWarn('Error killing process: ' + e);
+		}
 	}
 }

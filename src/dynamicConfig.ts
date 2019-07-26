@@ -5,12 +5,22 @@ import path = require('path');
 import { isNullOrUndefined } from 'util';
 import { outDebug } from './outputUtils';
 import { IsWindows } from './checkTool';
+import { stringify } from 'querystring';
+import { getNoDuplicateStringSet } from './utils';
 
 export const IsDebugMode = process.execArgv && process.execArgv.length > 0 && process.execArgv.some((arg) => /^--debug=?/.test(arg) || /^--(debug|inspect)-brk=?/.test(arg));
 export const ShouldQuotePathRegex = IsWindows ? /[^\w\.,\\/:-]/ : /[^\w\.,\\/-]/;
 const SplitPathsRegex = /\s*[,;]\s*/;
+const SplitPathGroupsRegex = /\s*;\s*/;
+const FolderToPathPairRegex = /(\w+\S+?)\s*=\s*(\S+.+)$/;
+export const SearchTextHolder = '%1';
+export const SearchTextHolderReplaceRegex = /%~?1/g;
 
 let MyConfig: DynamicConfig;
+
+export function removeSearchTextForCommandLine(cmd: string): string {
+    return cmd.replace(/(\s+-c\s+.*?)\s*%~?1/, '$1');
+}
 
 export class DynamicConfig {
     public RootConfig: vscode.WorkspaceConfiguration = vscode.workspace.getConfiguration('msr');
@@ -28,10 +38,9 @@ export class DynamicConfig {
     public ConfigAndDocFilesRegex: RegExp = new RegExp('to-load');
     public CodeAndConfigAndDocFilesRegex: RegExp = new RegExp('to-load');
     public DefaultConstantsRegex: RegExp = new RegExp('to-load');
-    public SearchTextHolder: string = '';
-    public SearchTextHolderReplaceRegex: RegExp = new RegExp('to-load');
     public SearchAllFilesWhenFindingReferences: boolean = false;
     public SearchAllFilesWhenFindingDefinitions: boolean = false;
+    public GetSearchTextHolderInCommandLine: RegExp = /\s+-c\s+.*?%~?1/;
 }
 
 export function getConfig(reload: boolean = false): DynamicConfig {
@@ -48,17 +57,12 @@ export function getConfig(reload: boolean = false): DynamicConfig {
     MyConfig.IsDebug = IsDebugMode || RootConfig.get('debug') as boolean;
     MyConfig.DescendingSortForConsoleOutput = RootConfig.get('descendingSortForConsoleOutput') as boolean || false;
     MyConfig.DescendingSortForVSCode = RootConfig.get('descendingSortForVSCode') as boolean || true;
-
     MyConfig.DefaultMaxSearchDepth = parseInt(RootConfig.get('default.maxSearchDepth') || '0');
     MyConfig.NeedSortResults = RootConfig.get('default.sortResults') as boolean;
-
     MyConfig.ReRunCmdInTerminalIfCostLessThan = RootConfig.get('reRunCmdInTerminalIfCostLessThan') as number || 3.3;
-
     MyConfig.ConfigAndDocFilesRegex = new RegExp(RootConfig.get('default.configAndDocs') as string || '\\.(json|xml|ini|ya?ml|md)|readme', 'i');
     MyConfig.CodeAndConfigAndDocFilesRegex = new RegExp(RootConfig.get('default.codeAndConfigDocs') as string || '\\.(cs\\w*|nuspec|config|c[px]*|h[px]*|java|scala|py|vue|tsx?|jsx?|json|ya?ml|xml|ini|md)$|readme', 'i');
     MyConfig.DefaultConstantsRegex = new RegExp(RootConfig.get('default.isConstant') as string);
-    MyConfig.SearchTextHolder = RootConfig.get('searchTextHolder') as string || '%~?1';
-    MyConfig.SearchTextHolderReplaceRegex = new RegExp(MyConfig.SearchTextHolder, 'g');
     MyConfig.SearchAllFilesWhenFindingReferences = RootConfig.get('default.searchAllFilesForReferences') as boolean;
     MyConfig.SearchAllFilesWhenFindingDefinitions = RootConfig.get('default.searchAllFilesForDefinitions') as boolean;
     outDebug('vscode-msr configuration loaded.');
@@ -79,48 +83,66 @@ export function getOverrideOrDefaultConfig(mappedExt: string, suffix: string, al
 
 export function getSearchPathOptions(mappedExt: string, isFindingDefinition: boolean, useExtraSearchPaths: boolean = true): string {
     const RootPath = vscode.workspace.rootPath || '.';
+    const skipFolders = getOverrideOrDefaultConfig(mappedExt, '.skipFolders', false);
+    const skipFolderOptions = skipFolders.length > 1 ? ' --nd "' + skipFolders + '"' : '';
     if (!useExtraSearchPaths) {
-        return '-rp ' + RootPath;
+        return '-rp ' + RootPath + skipFolderOptions;
     }
 
     const parsedPath = path.parse(RootPath);
-    const codeFolderName = parsedPath.base;
+    const folderName = parsedPath.base;
 
-    const RootConfig = getConfig().RootConfig || vscode.workspace.getConfiguration('msr');
-    const specificPaths = (RootConfig.get('extraPaths.' + codeFolderName) as string || '').trim();
-    const specificPathListFiles = (RootConfig.get('extraPathListFiles.' + codeFolderName) as string || '').trim();
+    const extraSearchPathSet = getExtraSearchPathsOrFileLists('default.extraSearchPaths', folderName);
+    const extraSearchPathFileListSet = getExtraSearchPathsOrFileLists('default.extraSearchPathListFiles', folderName);
 
-    const defaultExtraSearchPaths = specificPaths.length > 0 ? '' : (RootConfig.get('default.extraSearchPaths') as string || '').trim();
-    const defaultExtraSearchPathListFiles = specificPathListFiles.length > 0 ? '' : (RootConfig.get('default.extraSearchPathListFiles') as string || '').trim();
+    const thisTypeExtraSearchPaths = !isFindingDefinition ? new Set<string>() : getExtraSearchPathsOrFileLists(mappedExt + '.extraSearchPaths', folderName);
+    const thisTypeExtraSearchPathListFiles = !isFindingDefinition ? new Set<string>() : getExtraSearchPathsOrFileLists(mappedExt + '.extraSearchPathListFiles', folderName);
 
-    const thisTypeExtraSearchPaths = !isFindingDefinition ? '' : (RootConfig.get(mappedExt + '.extraSearchPaths') as string || '').trim();
-    const thisTypeExtraSearchPathListFiles = !isFindingDefinition ? '' : (RootConfig.get(mappedExt + '.extraSearchPathListFiles') as string || '').trim();
-
-    const pathList = (RootPath + ',' + specificPaths + ',' + thisTypeExtraSearchPaths + ',' + defaultExtraSearchPaths).split(SplitPathsRegex);
     let searchPathSet = new Set<string>();
-    let noCasePathSet = new Set<string>();
-    pathList.forEach(a => {
-        let lowerPath = a.replace(/[\\/]+$/, '').toLowerCase();
-        if (lowerPath.length > 0 && !noCasePathSet.has(lowerPath)) {
-            noCasePathSet.add(lowerPath);
-            searchPathSet.add(a);
-        }
-    });
-
-    let searchPathListFileSet = new Set((specificPathListFiles + ',' + thisTypeExtraSearchPathListFiles + ',' + defaultExtraSearchPathListFiles).split(SplitPathsRegex));
-    searchPathListFileSet.delete('');
+    searchPathSet.add(RootPath);
+    thisTypeExtraSearchPaths.forEach(a => searchPathSet.add(a));
+    extraSearchPathSet.forEach(a => searchPathSet.add(a));
+    searchPathSet = getNoDuplicateStringSet(searchPathSet);
 
     let pathsText = Array.from(searchPathSet).join(',').replace(/"/g, '');
     if (ShouldQuotePathRegex.test(pathsText)) {
         pathsText = '"' + pathsText + '"';
     }
 
-    let pathFilesText = Array.from(searchPathListFileSet).join(',').replace(/"/g, '');
+    let pathListFileSet = new Set<string>(thisTypeExtraSearchPathListFiles);
+    extraSearchPathFileListSet.forEach(a => pathListFileSet.add(a));
+    pathListFileSet = getNoDuplicateStringSet(extraSearchPathFileListSet);
+    let pathFilesText = Array.from(pathListFileSet).join(',').replace(/"/g, '');
     if (ShouldQuotePathRegex.test(pathFilesText)) {
         pathFilesText = '"' + pathFilesText + '"';
     }
 
-    const readPathListOptions = searchPathListFileSet.size > 0 ? ' -w "' + pathFilesText + '"' : '';
-    const skipFolders = getOverrideOrDefaultConfig(mappedExt, '.skipFolders', false);
-    return '-rp ' + pathsText + readPathListOptions + (skipFolders.length > 1 ? ' --nd "' + skipFolders + '"' : '');
+    const readPathListOptions = pathListFileSet.size > 0 ? ' -w "' + pathFilesText + '"' : '';
+    return '-rp ' + pathsText + readPathListOptions + skipFolderOptions;
+}
+
+export function getExtraSearchPathsOrFileLists(configKey: string, folderName: string): Set<string> {
+    const RootConfig = getConfig().RootConfig || vscode.workspace.getConfiguration('msr');
+    const extraSearchPathGroups = (RootConfig.get(configKey) as string || '').trim().split(SplitPathGroupsRegex).filter(a => a.length > 0);
+
+    let extraSearchPaths = new Set<string>();
+    let folderNameToPathMap = new Map<string, string>();
+    extraSearchPathGroups.forEach(a => {
+        const m = FolderToPathPairRegex.exec(a);
+        if (m) {
+            folderNameToPathMap.set(m[1], m[2].trim());
+        } else {
+            a.split(SplitPathsRegex).forEach(p => {
+                extraSearchPaths.add(p.trim());
+            });
+        }
+    });
+
+    const specificPaths = folderNameToPathMap.get(folderName) || '';
+    specificPaths.split(SplitPathsRegex).forEach(a => {
+        extraSearchPaths.add(a.trim());
+    });
+
+    extraSearchPaths = getNoDuplicateStringSet(extraSearchPaths);
+    return extraSearchPaths;
 }

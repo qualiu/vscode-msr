@@ -2,6 +2,13 @@
 
 import * as vscode from 'vscode';
 import { getConfig } from './dynamicConfig';
+import { IsWindows } from './checkTool';
+
+// When searching plain text, powershell requires extra escaping (like '$').
+const UsePowershell = false;
+const WindowsShell = UsePowershell ? 'powershell' : 'cmd.exe';
+const ShellPath = IsWindows ? WindowsShell : 'bash';
+const ClearCmd = IsWindows && !UsePowershell ? 'cls' : "clear";
 
 const ShowColorHideCmdRegex = /\s+-[Cc](\s+|$)/g;
 
@@ -10,7 +17,7 @@ let _terminal: vscode.Terminal;
 
 export function getTerminal(): vscode.Terminal {
 	if (!_terminal) {
-		_terminal = vscode.window.createTerminal('MSR-RUN-CMD'); //, IsWindows ? 'cmd.exe' : 'bash');
+		_terminal = vscode.window.createTerminal('MSR-RUN-CMD', ShellPath);
 	}
 
 	return _terminal;
@@ -20,19 +27,13 @@ export function enableColorAndHideSummary(cmd: string): string {
 	return cmd.replace(ShowColorHideCmdRegex, ' ').replace(ShowColorHideCmdRegex, ' ');
 }
 
-export function runCommandInTerminal(cmd: string, showTipOfDisableRunning: boolean = true) {
+export function runCommandInTerminal(cmd: string) {
 	cmd = enableColorAndHideSummary(cmd);
-
 	// cmd += ' -M '; // to hide summary.
 	getTerminal().show(true);
 	//vscode.commands.executeCommand('workbench.action.terminal.clear');
-	getTerminal().sendText('clear'); // IsWindows && IsCmd ? 'cls' : 'clear');
+	getTerminal().sendText(ClearCmd);
 	getTerminal().sendText(cmd);
-	if (showTipOfDisableRunning) {
-		const tip = 'msr -aPA -z "If needless to re-run command here to show color + clickable results, decrease `msr.reRunCmdInTerminalIfCostLessThan` value." -it "((click\\w*)|(msr.\\w+))" -e "(.+)"';
-		getTerminal().sendText(tip);
-	}
-
 	getTerminal().show(true);
 }
 

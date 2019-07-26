@@ -17,3 +17,22 @@ export function getCurrentWordAndText(document: vscode.TextDocument, position: v
     const currentWord: string = currentText.slice(wordRange.start.character, wordRange.end.character).replace(TrimSearchTextRegex, '');
     return [currentWord, currentText];
 }
+
+export function getNoDuplicateStringSet(textSet: Set<string>, deleteEmpty: boolean = true): Set<string> {
+    let noCaseSet = new Set<string>();
+    let newSet = new Set<string>();
+    textSet.forEach(a => {
+        const lowerCase = a.toLowerCase();
+        const preSize = noCaseSet.size;
+        noCaseSet.add(lowerCase);
+        if (noCaseSet.size > preSize) {
+            newSet.add(a);
+        }
+    });
+
+    if (deleteEmpty) {
+        newSet.delete('');
+    }
+
+    return newSet;
+}

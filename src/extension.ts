@@ -9,17 +9,23 @@ import * as stream from "stream";
 import ChildProcess = require('child_process');
 import path = require('path');
 
-import { getSearchPathOptions, getConfig, getOverrideOrDefaultConfig } from './dynamicConfig';
+import { getSearchPathOptions, getConfig, getOverrideOrDefaultConfig, SearchTextHolderReplaceRegex } from './dynamicConfig';
 import { outputError, outputWarn, outputInfo, outputLogInfo, clearOutputChannel, runCommandInTerminal, outDebug } from './outputUtils';
 import { FindType, SearchProperty, FileExtensionToConfigExtMap } from './ranker';
 import { checkSearchToolExists, IsWindows } from './checkTool';
 import { getCurrentWordAndText } from './utils';
-import { FindCommands, runFindingCommand, runFindingCommandByCurrentWord } from './commands';
+import { MyCommandType, runFindingCommand, runFindingCommandByCurrentWord } from './commands';
 
 const GetFileLineTextRegex = new RegExp('(.+?):(\\d+):(.*)');
 const GetSummaryRegex = /^(?:Matched|Replaced) (\d+) /m;
 const NotIgnoreErrorRegex = /^(Matched|Replaced) \d+ .*?(Error|error)/;
 const CheckMaxSearchDepthRegex = /\s+(-k\s*\d+|--max-depth\s+\d+)/;
+
+// Use bytes/second should be more precise.
+const ExpectedMinLinesPerSecond = 30 * 10000;
+const ExpectedMaxTimeCostSecond = 3.0;
+let SearchToCostSumMap = new Map<FindType, Number>();
+let SearchTimesMap = new Map<FindType, Number>();
 
 // const MsrExePaths = (process.env.Path || '').split(/\s*;\s*/).map(a => path.join(a, 'msr.exe')).filter(a => fs.existsSync(a));
 // const MsrExePath = MsrExePaths.length > 0 ? MsrExePaths[0] : 'msr.exe';
@@ -57,25 +63,57 @@ export function registerExtension(context: vscode.ExtensionContext) {
 	context.subscriptions.push(vscode.languages.registerDefinitionProvider('*', new DefinitionFinder));
 	context.subscriptions.push(vscode.languages.registerReferenceProvider('*', new ReferenceFinder));
 
-	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.findall',
+	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.regexFindDefinition',
 		(textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit, ...args: any[]) =>
-			runFindingCommand(FindCommands.FindReferencesInAllFiles, textEditor, edit, args)));
+			runFindingCommand(MyCommandType.RegexFindDefinitionInCodeFiles, textEditor, edit, args)));
 
-	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.finddef',
+	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.regexFindReference',
 		(textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit, ...args: any[]) =>
-			runFindingCommand(FindCommands.FindDefinitionInCodeFiles, textEditor, edit, args)));
+			runFindingCommand(MyCommandType.RegexFindReferencesInCodeFiles, textEditor, edit, args)));
 
-	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.findref',
+	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.regexFindInDocFiles',
 		(textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit, ...args: any[]) =>
-			runFindingCommand(FindCommands.FindReferencesInCodeFiles, textEditor, edit, args)));
+			runFindingCommand(MyCommandType.RegexFindReferencesInDocs, textEditor, edit, args)));
 
-	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.finddoc',
+	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.regexFindInConfigFiles',
 		(textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit, ...args: any[]) =>
-			runFindingCommand(FindCommands.FindReferencesInDocs, textEditor, edit, args)));
+			runFindingCommand(MyCommandType.RegexFindReferencesInConfigFiles, textEditor, edit, args)));
 
-	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.findcfg',
+	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.regexFindInAllProjectFiles',
 		(textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit, ...args: any[]) =>
-			runFindingCommand(FindCommands.FindReferencesInConfigFiles, textEditor, edit, args)));
+			runFindingCommand(MyCommandType.RegexFindReferencesInAllProjectFiles, textEditor, edit, args)));
+
+	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.regexFindInCodeAndConfig',
+		(textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit, ...args: any[]) =>
+			runFindingCommand(MyCommandType.RegexFindReferencesInCodeAndConfig, textEditor, edit, args)));
+
+	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.regexFindInAllSmallFiles',
+		(textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit, ...args: any[]) =>
+			runFindingCommand(MyCommandType.RegexFindReferencesInAllSmallFiles, textEditor, edit, args)));
+
+	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.findSelectedPlainTextInAllProjectFiles',
+		(textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit, ...args: any[]) =>
+			runFindingCommand(MyCommandType.FindPlainTextInAllProjectFiles, textEditor, edit, args)));
+
+	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.findSelectedPlainTextInAllSmallFiles',
+		(textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit, ...args: any[]) =>
+			runFindingCommand(MyCommandType.FindPlainTextInAllSmallFiles, textEditor, edit, args)));
+
+	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.sortProjectFilesBySize',
+		(textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit, ...args: any[]) =>
+			runFindingCommand(MyCommandType.SortProjectFilesBySize, textEditor, edit, args)));
+
+	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.sortProjectFilesByTime',
+		(textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit, ...args: any[]) =>
+			runFindingCommand(MyCommandType.SortProjectFilesByTime, textEditor, edit, args)));
+
+	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.sortAllFilesBySize',
+		(textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit, ...args: any[]) =>
+			runFindingCommand(MyCommandType.SortAllFilesBySize, textEditor, edit, args)));
+
+	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.sortAllFilesByTime',
+		(textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit, ...args: any[]) =>
+			runFindingCommand(MyCommandType.SortAllFilesByTime, textEditor, edit, args)));
 }
 
 // this method is called when your extension is deactivated
@@ -135,7 +173,7 @@ function searchMatchedWords(findType: FindType, document: vscode.TextDocument, p
 			commandLine = commandLine.trim();
 		}
 
-		commandLine = commandLine.replace(MyConfig.SearchTextHolderReplaceRegex, currentWord);
+		commandLine = commandLine.replace(SearchTextHolderReplaceRegex, currentWord);
 
 		if (MyConfig.IsDebug) {
 			commandLine += " languageId = " + document.languageId; // + " fileName = " + document.fileName;
@@ -165,7 +203,7 @@ function getMatchedLocationsAsync(findType: FindType, cmd: string, ranker: Searc
 				if (!GetSummaryRegex.test(error.message) || NotIgnoreErrorRegex.test(error.message)) {
 					outputError(error.message);
 				} else {
-					outDebug(error.message);
+					console.warn(error.message); // outDebug(error.message);
 				}
 			}
 
@@ -176,23 +214,26 @@ function getMatchedLocationsAsync(findType: FindType, cmd: string, ranker: Searc
 			if (stderr) {
 				const summary = GetSummaryRegex.exec(stderr);
 				if (!summary || /(\s+(Error|ERROR|WARN|error|BOM file)\s+|Jumped out)/.test(stderr)) {
-					outputWarn('\n' + stderr);
+					outDebug('\n' + stderr);
 				} else if (summary) {
 					outputLogInfo('\n' + stderr);
 				}
 
 				if (summary) {
-					const match = /^Matched (\d+) .*?Used (\d+\.\d*) s/.exec(stderr);
+					const match = /^Matched (\d+) lines.*?read (\d+) lines.*?Used (\d+\.\d*) s/.exec(stderr);
 					if (match) {
 						const matchCount = parseInt(match[1]);
-						const costSeconds = parseFloat(match[2]);
+						const lineCount = parseInt(match[2]);
+						const costSeconds = parseFloat(match[3]);
 						outDebug('Got matched count = ' + matchCount + ' and time cost = ' + costSeconds + ' from summary.');
+						sumTimeCost(findType, costSeconds, lineCount);
 						if (matchCount < 1 && RootConfig.get('enable.useGeneralFindingWhenNoResults') as boolean) {
-							const findCmd = findType === FindType.Definition ? FindCommands.FindDefinitionInCodeFiles : FindCommands.FindDefinitionInCodeFiles;
+							const findCmd = findType === FindType.Definition ? MyCommandType.RegexFindDefinitionInCodeFiles : MyCommandType.RegexFindDefinitionInCodeFiles;
 							runFindingCommandByCurrentWord(findCmd, ranker.currentWord, ranker.currentFile);
-							outputInfo('Will use general search, please check results of `MSR-RUN-CMD` channel in `TERMINAL` tab. Disable `msr.enable.useGeneralFindingWhenNoResults` if you do not want.');
+							outputInfo('Will run general search, please check results of `MSR-RUN-CMD` channel in `TERMINAL` tab. Disable `msr.enable.useGeneralFindingWhenNoResults` if you do not want.');
 						}
 						else if (matchCount > 1 && costSeconds <= MyConfig.ReRunCmdInTerminalIfCostLessThan) {
+							outputInfo('Will re-run and show clickable + colorful results in `MSR-RUN-CMD` channel in `TERMINAL` tab. Decrease `msr.reRunCmdInTerminalIfCostLessThan` value if you do not want.');
 							runCommandInTerminal(cmd);
 						}
 					} else {
@@ -207,6 +248,22 @@ function getMatchedLocationsAsync(findType: FindType, cmd: string, ranker: Searc
 		token.onCancellationRequested(() =>
 			killProcessTree(process.pid));
 	});
+}
+
+function sumTimeCost(findType: FindType, costSeconds: Number, lineCount: Number) {
+	const times = 1 + (SearchTimesMap.get(findType) || 0).valueOf();
+	SearchTimesMap.set(findType, times);
+
+	const costSum = costSeconds.valueOf() + (SearchToCostSumMap.get(findType) || 0).valueOf();
+	SearchToCostSumMap.set(findType, times === 1 ? Math.min(3, costSum) : costSum);
+
+	const speed = lineCount.valueOf() / costSeconds.valueOf();
+	const average = costSum / times;
+	const message = 'Search-' + FindType[findType] + ' cost ' + costSeconds.toFixed(3) + ' s for ' + lineCount + ' lines, speed = ' + Math.round(speed) + ' lines/s.';
+	outDebug(message);
+	if (times > 3 && average > ExpectedMaxTimeCostSecond && speed < ExpectedMinLinesPerSecond) {
+		outputWarn(message + ' If CPU and disk are not busy, try to be faster: https://github.com/qualiu/vscode-msr/blob/master/README.md#avoid-security-software-downgrade-search-performance');
+	}
 }
 
 function parseCommandOutput(stdout: string, ranker: SearchProperty): vscode.Location[] {

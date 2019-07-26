@@ -21,8 +21,8 @@ suite('Extension Test Suite', () => {
     const ConfigFilePath = path.join(GitRootPath, 'package.json');
     const DocFilePath = path.join(GitRootPath, 'README.md');
     const KeyRegex = /["`](msr[\.\w]+)/g;
-    const ExemptFindAllKeyRegex = /^(msr\.)?find\w+$/;
-    const ExemptNoValueKeyRegex = /extra|skip.definition|^find\w+$/i;
+    const ExemptFindAllKeyRegex = /^(msr\.)?\w*(find|sort)\w+$/i;
+    const ExemptNoValueKeyRegex = /extra|skip.definition|^\w*(find|sort)\w+$/i;
     const NonStringValueRegex = /^(\d+|bool\w*$)/;
 
     before(() => {

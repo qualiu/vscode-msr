@@ -1,6 +1,7 @@
 # vscode-msr
 
 Have you suffered issues of finding `definitions` and `references`:
+
 - **Unable to `jump-to-definition` or `find-references`** if `IDE has problems` or `build failed` or `lack of packages` ?
 - **Unable to coding in IDE for one entire repository** due to `multiple types of coding languages` (`C#` , `C++` , `Java`/`Scala`, `Python`, `Vue` , etc.)
 - **Unable to coding in IDE for multiple related repositories** in multiple root folders ?
@@ -14,8 +15,8 @@ Then it's the [light and right tool](https://github.com/qualiu/vscode-msr) for y
 - Got search results in **1~3 seconds** for 20000~30000+ code files (stored on hard drives **not SSD**) after first time.
 - Fast find **definitions** + **references** for **all types** of coding languages files, across **multiple related repositories** on local.
 - Also can jump to **definitions** + find **references** from **any type of files** + **any type**:
-  - Like `configuration files` (like `json`, `xml`) or `readme document files`(`*.md` or `readme`).
-  - Like words in comments, or a `text-just-typed`.
+  - Any file types: Like `configuration files` (like `json`, `xml`) or `readme document files`(`*.md` or `readme`).
+  - Any input types: Like words in comments, or a `text-just-typed`.
 - Simple + flexible configuration (`just general Regex` of `C++`,`Java`,`C#`,`Scala`,`Python`) to:
   - Just set `Regex` patterns to support all types of coding languages.
   - Copy + paste the command line from output to run in a command window, to get colorful output (remove `-C`) or tune the `Regex` pattern.
@@ -31,7 +32,7 @@ Then it's the [light and right tool](https://github.com/qualiu/vscode-msr) for y
 - You can directly use [msr.EXE](https://github.com/qualiu/msr/tree/master/tools) command line in `Visual Studio Code` output channel `MSR-Def-Ref` to **search** + **replace** files.
   - Just copy the `find reference` command line shown on VS code;
   - Then add [`-o` `replace-to-text`](https://github.com/qualiu/msr/blob/master/README.md) and `-R` (replace files).
-  - Also can use `-j` to just show changed files before use `-R`. 
+  - Also can use `-j` to just show changed files before use `-R`.
   - More types of filters see [doc](https://github.com/qualiu/msr/blob/master/README.md) or just run the [msr-EXE](https://qualiu.github.io/msr/usage-by-running/msr-Windows.html).
 
 Search **Definitions** + **References** for **C++** / **Python** / **Java** in `Visual Studio Code` [Screenshot GIF](https://raw.githubusercontent.com/qualiu/vscode-msr/master/images/find-def-ref.gif):
@@ -40,7 +41,7 @@ Search **Definitions** + **References** for **C++** / **Python** / **Java** in `
 
 ## Requirements
 
-Just **download** the tiny [msr.EXE](https://github.com/qualiu/msr/tree/master/tools) (of your system type) , then **add** it to `%PATH%` or `$PATH`. 
+Just **download** the tiny [msr.EXE](https://github.com/qualiu/msr/tree/master/tools) (of your system type) , then **add** it to `%PATH%` or `$PATH`.
 
 You can simply try below command lines, or use/create a tool folder like `~/tools` or `D:\tools` instead of system folder:
 
@@ -50,11 +51,11 @@ You can simply try below command lines, or use/create a tool folder like `~/tool
   
 - **Cygwin**: copy or make a link (`ln -s msr.cygwin /usr/bin/msr`)
 
-     **wget** https://github.com/qualiu/msr/raw/master/tools/msr.cygwin && `chmod +x msr.cygwin` && `cp msr.cygwin /usr/bin/msr`
+     **wget** <https://github.com/qualiu/msr/raw/master/tools/msr.cygwin> && `chmod +x msr.cygwin` && `cp msr.cygwin /usr/bin/msr`
   
 - **Linux**: `Ubuntu`,`CentOS`,`Fedora`: (gcc/g++ >= 4.8, Use **[msr-i386.gcc48](https://github.com/qualiu/msr/raw/master/tools/msr-i386.gcc48)** for 32-bit system)
 
-    **wget** https://github.com/qualiu/msr/raw/master/tools/msr.gcc48 && `chmod +x msr.gcc48` && `cp msr.gcc48 /usr/bin/msr`
+    **wget** <https://github.com/qualiu/msr/raw/master/tools/msr.gcc48> && `chmod +x msr.gcc48` && `cp msr.gcc48 /usr/bin/msr`
 
 If succeeded, run **msr --help** (or **msr -h** or just **msr**) should display [colorful usages and examples on Windows](https://qualiu.github.io/msr/usage-by-running/msr-Windows.html) or Linux like: [Fedora](https://qualiu.github.io/msr/usage-by-running/msr-Fedora-25.html) and [CentOS](https://qualiu.github.io/msr/usage-by-running/msr-CentOS-7.html).
 
@@ -87,22 +88,34 @@ You don't need to change settings from [configuration file](https://github.com/q
 
 These global **extra search paths** settings enable searching related files **without loading** them into `Visual Studio Code`.
 
-If you want to set extra search paths for **a specific project**, like for `d:\git\project1`, you can modify `vscode-msr` configuration file `package.json` in **[your installation folder](https://code.visualstudio.com/docs/editor/extension-gallery#_where-are-extensions-installed)**:
+If you want to set extra search paths for **a specific project**, use below format to set extra `paths` or `path-list-files`:
 
-- Locate the installation folder, run a command like: `dir /b %USERPROFILE%\.vscode\extensions\*vscode-msr*` (on Windows).
-- Add **msr.extraPaths.project1** or **msr.extraPathListFiles.project1** and set the paths.
+- Value format:  `[Global-Paths]`; `[Project1-Folder-Name = Path1, Path2, Path3]`;  `[Project2-Folder-Name=Path5,Path6]`;
+- Use **semicolon** '**;**' to separate `groups`. A `[group]` is either `paths` or `name=paths`.
+- Use **comma** '**,**' to separate paths in a `[group]`.
+- You can omit `global paths` or specific `name=paths` pairs. Just set what you want, like one or more paths (global).
+
+For example, if you have 2 projects: `d:\git\project1` + `d:\git\project2` + a common/global path = `D:\mylibs\boost` , you can set values like:
+
+- `msr.default.extraSearchPaths` set value: `D:\mylibs\boost; project1=D:\git\baseLib,D:\git\teamLib; project2=d:\git\project1;`
+  - **project1** extra search paths = `D:\mylibs\boost,D:\git\baseLib,D:\git\teamLib`
+  - **project2** extra search paths = `D:\mylibs\boost,d:\git\project1`
+- `msr.default.extraSearchPathListFiles` set value: `project1=d:\paths1.txt,D:\paths2.txt; project2=d:\paths3.txt`
+  - **project1** extra search path list files = `d:\paths1.txt,D:\paths2.txt`
+  - **project2** extra search path list files = `d:\paths3.txt`
 
 You can also set extra search paths for each type of coding language.
 
 ### Specific Coding Language Settings Examples
 
 - `msr.cs.codeFiles`: Regex pattern of `C#` source code file names (extensions).**
-- `msr.cpp.codeAndConfigDocs`: Regex pattern of `C++`  code + configuration + document files.
+- `msr.cpp.codeAndConfigDocs`: Regex pattern of `C++`  / `C` code + configuration + document files.
 - `msr.py.extraSearchPaths`: **Extra search paths** for `Python` code's external repositories, dependency sources, or libraries, etc.
+- `msr.ui.codeFiles`: Regex pattern of `UI` (front-end) code files: *.vue, *.js, *.ts, *.jsx, *.tsx
 
 ## Welcome to Contribute
 
-Github repository: https://github.com/qualiu/vscode-msr
+Github repository: <https://github.com/qualiu/vscode-msr>
 
 You may just need to add or update the [configuration file](https://github.com/qualiu/vscode-msr/blob/master/package.json): Add or update `Regex` patterns of `find-references` or `find-definitions` for various coding languages.
 
@@ -126,12 +139,12 @@ Please help to set the `Regex` patterns for them if you want. You can:
       - msr **-r -p** `my-class.hpp,src,folder2` -t `"^\s*class (\w+\s+)?\bMatchThisCppClass"`
 - Use the rich searching options of [msr-EXE](https://github.com/qualiu/msr/blob/master/README.md) like below, **combine** these **optional** options (**You Can Use All**):
   - Filter text by `line-matching` (default) or `whole-file-text-matching` (add **-S** / **--single-line** Regex mode):
-    - Ignore case: 
+    - Ignore case:
       - Add **-i** (`--ignore-case`)
     - Regex patterns:
       - **-t** `should-match-Regex-pattern`
       - **--nt** `should-not-match-Regex-pattern`
-    - Plain text: 
+    - Plain text:
       - **-x** `should-contain-plain-text`
       - **--nx** `should-not-contain-plain-text`
   - Filter `file name`: **-f** `should-match-Regex` , **--nf** `should-not-match`

@@ -3,7 +3,7 @@
 	"displayName": "Find definition and references for all types.",
 	"description": "Find definition and references in multiple repository paths by msr for all coding languages + configuration + readme files.",
 	"author": "qualiu@microsoft.com",
-	"version": "1.0.1",
+	"version": "1.0.2",
 	"icon": "images/vscode-msr-icon.png",
 	"license": "completely free",
 	"publisher": "qualiu",
@@ -18,6 +18,7 @@
 		"msr",
 		"find definition",
 		"find references",
+		"find all",
 		"find",
 		"search",
 		"jump",
@@ -30,7 +31,7 @@
 		"CSharp",
 		"Java",
 		"Scala",
-		"python",
+		"Python",
 		"TypScript",
 		"JavaScript",
 		"Vue"
@@ -47,8 +48,8 @@
 	"contributes": {
 		"commands": [
 			{
-				"command": "msr.findall",
-				"title": "Find all references in code + configuration + docs.",
+				"command": "msr.regexFindInAllSmallFiles",
+				"title": "Regex find all references in all small files including code + configuration + docs.",
 				"category": "msr",
 				"icon": {
 					"dark": "images/vscode-msr-small.svg",
@@ -56,8 +57,8 @@
 				}
 			},
 			{
-				"command": "msr.finddef",
-				"title": "Find definitions of a class or method roughly in all code files.",
+				"command": "msr.regexFindInAllProjectFiles",
+				"title": "Regex find all references in code + configuration + docs.",
 				"category": "msr",
 				"icon": {
 					"dark": "images/vscode-msr-small.svg",
@@ -65,8 +66,8 @@
 				}
 			},
 			{
-				"command": "msr.findref",
-				"title": "Find all references in code files.",
+				"command": "msr.regexFindInCodeAndConfig",
+				"title": "Regex find all references in code + configuration files.",
 				"category": "msr",
 				"icon": {
 					"dark": "images/vscode-msr-small.svg",
@@ -74,8 +75,8 @@
 				}
 			},
 			{
-				"command": "msr.finddoc",
-				"title": "Find all references in doc files.",
+				"command": "msr.regexFindDefinition",
+				"title": "Regex find definitions of a `class` or `method` roughly in all code files.",
 				"category": "msr",
 				"icon": {
 					"dark": "images/vscode-msr-small.svg",
@@ -83,8 +84,80 @@
 				}
 			},
 			{
-				"command": "msr.findcfg",
-				"title": "Find all references in configuration files.",
+				"command": "msr.regexFindReference",
+				"title": "Regex find all references in code files.",
+				"category": "msr",
+				"icon": {
+					"dark": "images/vscode-msr-small.svg",
+					"light": "images/vscode-msr-small.svg"
+				}
+			},
+			{
+				"command": "msr.regexFindInDocFiles",
+				"title": "Regex find all references in doc files.",
+				"category": "msr",
+				"icon": {
+					"dark": "images/vscode-msr-small.svg",
+					"light": "images/vscode-msr-small.svg"
+				}
+			},
+			{
+				"command": "msr.regexFindInConfigFiles",
+				"title": "Regex find all references in configuration files.",
+				"category": "msr",
+				"icon": {
+					"dark": "images/vscode-msr-small.svg",
+					"light": "images/vscode-msr-small.svg"
+				}
+			},
+			{
+				"command": "msr.findSelectedPlainTextInAllProjectFiles",
+				"title": "Find `selected plain text` in all code + configuration + doc files.",
+				"category": "msr",
+				"icon": {
+					"dark": "images/vscode-msr-small.svg",
+					"light": "images/vscode-msr-small.svg"
+				}
+			},
+			{
+				"command": "msr.findSelectedPlainTextInAllSmallFiles",
+				"title": "Find `selected plain text` in all small files.",
+				"category": "msr",
+				"icon": {
+					"dark": "images/vscode-msr-small.svg",
+					"light": "images/vscode-msr-small.svg"
+				}
+			},
+			{
+				"command": "msr.sortProjectFilesBySize",
+				"title": "Sort project files by file size.",
+				"category": "msr",
+				"icon": {
+					"dark": "images/vscode-msr-small.svg",
+					"light": "images/vscode-msr-small.svg"
+				}
+			},
+			{
+				"command": "msr.sortProjectFilesByTime",
+				"title": "Sort project files by modify time.",
+				"category": "msr",
+				"icon": {
+					"dark": "images/vscode-msr-small.svg",
+					"light": "images/vscode-msr-small.svg"
+				}
+			},
+			{
+				"command": "msr.sortAllFilesBySize",
+				"title": "Sort all files by file size.",
+				"category": "msr",
+				"icon": {
+					"dark": "images/vscode-msr-small.svg",
+					"light": "images/vscode-msr-small.svg"
+				}
+			},
+			{
+				"command": "msr.sortAllFilesByTime",
+				"title": "Sort all files by modify time.",
 				"category": "msr",
 				"icon": {
 					"dark": "images/vscode-msr-small.svg",
@@ -95,23 +168,55 @@
 		"menus": {
 			"commandPalette": [
 				{
-					"command": "msr.findall",
+					"command": "msr.regexFindInAllSmallFiles",
 					"group": "msr"
 				},
 				{
-					"command": "msr.finddef",
+					"command": "msr.regexFindInAllProjectFiles",
 					"group": "msr"
 				},
 				{
-					"command": "msr.findref",
+					"command": "msr.regexFindInCodeAndConfig",
 					"group": "msr"
 				},
 				{
-					"command": "msr.finddoc",
+					"command": "msr.regexFindDefinition",
 					"group": "msr"
 				},
 				{
-					"command": "msr.findcfg",
+					"command": "msr.regexFindReference",
+					"group": "msr"
+				},
+				{
+					"command": "msr.regexFindInDocFiles",
+					"group": "msr"
+				},
+				{
+					"command": "msr.regexFindInConfigFiles",
+					"group": "msr"
+				},
+				{
+					"command": "msr.findSelectedPlainTextInAllProjectFiles",
+					"group": "msr"
+				},
+				{
+					"command": "msr.findSelectedPlainTextInAllSmallFiles",
+					"group": "msr"
+				},
+				{
+					"command": "msr.sortProjectFilesBySize",
+					"group": "msr"
+				},
+				{
+					"command": "msr.sortProjectFilesByTime",
+					"group": "msr"
+				},
+				{
+					"command": "msr.sortAllFilesBySize",
+					"group": "msr"
+				},
+				{
+					"command": "msr.sortAllFilesByTime",
 					"group": "msr"
 				}
 			]
@@ -195,6 +300,11 @@
 					"default": true,
 					"description": "Print extra info like command line."
 				},
+				"msr.default.listSortingFilesOptions": {
+					"type": "boolean",
+					"default": "-l -H 10 -T 10",
+					"description": "Default list file options."
+				},
 				"msr.debug": {
 					"type": "boolean",
 					"default": false,
@@ -212,13 +322,13 @@
 				},
 				"msr.default.codeFiles": {
 					"type": "string",
-					"default": "\\.(cs|c[px]*|h[px]*|java|scala|py)$",
+					"default": "\\.(cs\\w*|c[px]*|h[px]*|java|scala|py)$",
 					"description": "Default Regex pattern for all code files."
 				},
 				"msr.default.codeFilesPlusUI": {
 					"type": "string",
 					"default": "\\.(cs|c[px]*|h[px]*|java|scala|py|vue|tsx?|jsx?)$",
-					"description": "Default Regex pattern for all code files."
+					"description": "Default Regex pattern for all UI (front-end) code files."
 				},
 				"msr.default.configFiles": {
 					"type": "string",
@@ -230,15 +340,20 @@
 					"default": "\\.(md)$|readme",
 					"description": "Default Regex pattern for document files."
 				},
+				"msr.default.codeAndConfig": {
+					"type": "string",
+					"default": "\\.(cs\\w*|nuspec|config|c[px]*|h[px]*|java|scala|py|vue|tsx?|jsx?|json|ya?ml|xml|ini)$",
+					"description": "Default Regex pattern for code + configuration + document files."
+				},
 				"msr.default.codeAndConfigDocs": {
 					"type": "string",
-					"default": "\\.(cs\\w*|nuspec|config|c[px]*|h[px]*|java|scala|py|vue|tsx?|jsx?|json|ya?ml|xml|ini|md)$",
+					"default": "\\.(cs\\w*|nuspec|config|c[px]*|h[px]*|java|scala|py|vue|tsx?|jsx?|json|ya?ml|xml|ini|md)$|readme",
 					"description": "Default Regex pattern for code + configuration + document files."
 				},
 				"msr.default.configAndDocs": {
 					"type": "string",
 					"default": "\\.(config|json|ya?ml|xml|ini|md)$|readme",
-					"description": "Default Regex pattern for code + configuration + document files."
+					"description": "Default Regex pattern for configuration + document files."
 				},
 				"msr.default.skip.definition": {
 					"type": "string",
@@ -250,29 +365,29 @@
 					"default": "^\\s*#\\s*define\\s+(%1)\\b|^\\s*\\w+[^=\\(\\./#;:]+\\s+(%1)\\s*(?:[\\(\\{:<]|extends|implements|$)",
 					"description": "Default Regex pattern to find definitions of a word (class, method, etc.). Must use `%1` to be replaced by word to search."
 				},
-				"msr.searchTextHolder": {
-					"type": "string",
-					"default": "%1",
-					"description": "Search text holder in Regex pattern of finding `reference` and `definition`."
-				},
 				"msr.default.reference": {
 					"type": "string",
 					"default": "\\b%1\\b",
 					"description": "Default Regex pattern to find references of a word (class, method, etc.). Must use `%1` to be replaced by word to search."
 				},
+				"msr.allSmallFiles.extraOptions": {
+					"type": "string",
+					"default": "-I -C --s1 1B --s2 1.0MB -c Search %1 in all small files",
+					"description": "Default extra searching options."
+				},
 				"msr.default.extraOptions": {
 					"type": "string",
-					"default": "-I -C --s1 10B --s2 12.0MB -c Search %1",
+					"default": "-I -C --s1 1B --s2 12.0MB -c Search %1",
 					"description": "Default extra searching options."
 				},
 				"msr.definition.extraOptions": {
 					"type": "string",
-					"default": "-H 30 --s1 20B --s2 1.6MB -J -I -C -c Search %1",
+					"default": "-H 30 --s1 1B --s2 1.6MB -J -I -C -c Search %1",
 					"description": "Default extra searching options for finding definitions: Get top {N} results and jump out."
 				},
 				"msr.reference.extraOptions": {
 					"type": "string",
-					"default": "-H 300 --s1 10B --s2 12.0MB -J -I -C -c Search %1",
+					"default": "-H 300 --s1 1B --s2 12.0MB -J -I -C -c Search %1",
 					"description": "Default extra searching options for finding references: Get top {N} results and jump out."
 				},
 				"msr.default.isClass": {
@@ -312,7 +427,7 @@
 				},
 				"msr.cs.codeFiles": {
 					"type": "string",
-					"default": "\\.(cs)$",
+					"default": "\\.(cs\\w*)$",
 					"description": "Regex pattern for C# code files."
 				},
 				"msr.cs.codeAndConfigDocs": {
@@ -352,7 +467,7 @@
 				},
 				"msr.cpp.codeFiles": {
 					"type": "string",
-					"default": "\\.(cpp|hpp|cxx|h|c)$",
+					"default": "\\.(hp*|cpp|cxx|cc?|c\\+{2})$",
 					"description": "Regex pattern for C++ or C code files."
 				},
 				"msr.cpp.codeAndConfigDocs": {

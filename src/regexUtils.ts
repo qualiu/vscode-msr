@@ -1,6 +1,8 @@
 
 'use strict';
 
+export const NormalTextRegex = /^[\w\.:\\/-]+$/;
+
 const AlphaNumber = "[a-z0-9A-Z]";
 const HeaderBoundary = "(?<!" + AlphaNumber + ")";
 const TailBoundary = "(?!" + AlphaNumber + ")";
@@ -32,4 +34,8 @@ export function getAllSingleWords(text: string, ignoreCase: boolean = true): Set
 	} while (m);
 
 	return s;
+}
+
+export function escapeRegExp(text: string): string {
+	return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/"/g, '\\"');
 }

@@ -3,9 +3,9 @@
 import * as vscode from 'vscode';
 import { ParsedPath } from 'path';
 import path = require('path');
-import { getAllSingleWords } from './singleWordRegex';
+import { getAllSingleWords } from './regexUtils';
 import { outputError, outDebug } from './outputUtils';
-import { getConfig, getOverrideOrDefaultConfig } from './dynamicConfig';
+import { getConfig, getOverrideOrDefaultConfig, SearchTextHolderReplaceRegex, SearchTextHolder } from './dynamicConfig';
 import { strict } from 'assert';
 
 export enum FindType {
@@ -19,6 +19,8 @@ const EmptyRegexp: RegExp = new RegExp('^\\.#x#'); // Workaround for empty RegEx
 
 export const FileExtensionToConfigExtMap = new Map<string, string>()
 	.set('cxx', 'cpp')
+	.set('c++', 'cpp')
+	.set('cc', 'cpp')
 	.set('hpp', 'cpp')
 	.set('h', 'cpp')
 	.set('c', 'cpp')
@@ -34,7 +36,7 @@ const MappedExtToCodeFileNamePatternMap = new Map<string, string>()
 	.set('java', RootConfig.get('java.codeFiles') as string)
 	.set('ui', RootConfig.get('ui.codeFiles') as string)
 	.set('cpp', RootConfig.get('cpp.codeFiles') as string)
-	.set('default', '.?')
+	.set('default', '')
 	;
 
 export class SearchProperty {
@@ -76,11 +78,11 @@ export class SearchProperty {
 		this.currentFile = currentFile;
 		this.mappedExt = mappedExt;
 
-		this.isClassPattern = getOverrideOrDefaultConfig(mappedExt, '.isClass', false).replace(MyConfig.SearchTextHolderReplaceRegex, currentWord);
-		this.isMethodPattern = getOverrideOrDefaultConfig(mappedExt, '.isMethod', false).replace(MyConfig.SearchTextHolderReplaceRegex, currentWord);
-		this.isClassOrMethodPattern = getOverrideOrDefaultConfig(mappedExt, '.isClassOrMethod', false).replace(MyConfig.SearchTextHolderReplaceRegex, currentWord);
-		this.isMemberPattern = getOverrideOrDefaultConfig(mappedExt, '.isMember', false).replace(MyConfig.SearchTextHolderReplaceRegex, currentWord);
-		this.isEnumOrMemberPattern = getOverrideOrDefaultConfig(mappedExt, '.isEnumOrMember', false).replace(MyConfig.SearchTextHolderReplaceRegex, currentWord);
+		this.isClassPattern = getOverrideOrDefaultConfig(mappedExt, '.isClass', false).replace(SearchTextHolderReplaceRegex, currentWord);
+		this.isMethodPattern = getOverrideOrDefaultConfig(mappedExt, '.isMethod', false).replace(SearchTextHolderReplaceRegex, currentWord);
+		this.isClassOrMethodPattern = getOverrideOrDefaultConfig(mappedExt, '.isClassOrMethod', false).replace(SearchTextHolderReplaceRegex, currentWord);
+		this.isMemberPattern = getOverrideOrDefaultConfig(mappedExt, '.isMember', false).replace(SearchTextHolderReplaceRegex, currentWord);
+		this.isEnumOrMemberPattern = getOverrideOrDefaultConfig(mappedExt, '.isEnumOrMember', false).replace(SearchTextHolderReplaceRegex, currentWord);
 
 		this.isClassRegex = this.isClassPattern.length < 1 ? EmptyRegexp : new RegExp(this.isClassPattern);
 		this.isMethodRegex = this.isMethodPattern.length < 1 ? EmptyRegexp : new RegExp(this.isMethodPattern);
@@ -120,8 +122,8 @@ export class SearchProperty {
 		const MyConfig = getConfig();
 
 		let searchPattern = getOverrideOrDefaultConfig(mappedExt, '.' + configKeyName, false);
-		if (searchPattern.indexOf(MyConfig.SearchTextHolder) < 0) {
-			outputError('Not found word-holder: "' + MyConfig.SearchTextHolder + '" in search option, please check configuration of "' + configKeyName + '": ' + searchPattern);
+		if (searchPattern.indexOf(SearchTextHolder) < 0) {
+			outputError('Not found word-holder: "' + SearchTextHolder + '" in search option, please check configuration of "' + configKeyName + '": ' + searchPattern);
 			return ['', ''];
 		}
 

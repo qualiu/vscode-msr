@@ -111,7 +111,7 @@ You can also set extra search paths for each type of coding language.
 - `msr.cs.codeFiles`: Regex pattern of `C#` source code file names (extensions).**
 - `msr.cpp.codeAndConfigDocs`: Regex pattern of `C++`  / `C` code + configuration + document files.
 - `msr.py.extraSearchPaths`: **Extra search paths** for `Python` code's external repositories, dependency sources, or libraries, etc.
-- `msr.ui.codeFiles`: Regex pattern of `UI` (front-end) code files: *.vue, *.js, *.ts, *.jsx, *.tsx
+- `msr.ui.codeFiles`: Regex pattern of `UI` (front-end) code files: `*.vue`, `*.js`, `*.ts`, `*.jsx`, `*.tsx`.
 
 ## Welcome to Contribute
 
@@ -173,6 +173,8 @@ Please help to set the `Regex` patterns for them if you want. You can:
   **[nin](https://github.com/qualiu/msr/tree/master/tools)** `README.md` [package.json](https://github.com/qualiu/vscode-msr/blob/master/package.json) **"(msr\\.[\w\\.]+)"** --nt `"msr\.(exe|gcc\w+|cygwin)|project1"` -i -c Should no result
 
   **[nin](https://github.com/qualiu/msr/tree/master/tools)** `README.md` [package.json](https://github.com/qualiu/vscode-msr/blob/master/package.json) **"(msr\\.[\w\\.]+)"** --nt `"msr\.(exe|gcc\w+|cygwin)|project1"` -i **-m** -c Should have results
+
+  **[nin](https://github.com/qualiu/msr/tree/master/tools)** [package.json](https://github.com/qualiu/vscode-msr/blob/master/package.json) nul -p -d -k 2 -x description -c Should no unreasonable duplicate descriptions.
 
 ## Known Issues
 

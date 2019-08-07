@@ -23,18 +23,58 @@ export function getTerminal(): vscode.Terminal {
 	return _terminal;
 }
 
+export function runCommandInTerminal(cmd: string, mustShowTerminal: boolean = false) {
+	cmd = enableColorAndHideSummary(cmd);
+	// cmd += ' -M '; // to hide summary.
+	showTerminal(mustShowTerminal);
+	//vscode.commands.executeCommand('workbench.action.terminal.clear');
+	getTerminal().sendText(ClearCmd);
+	getTerminal().sendText(cmd);
+	showTerminal(mustShowTerminal);
+}
+
+export function outputWarn(message: string) {
+	getOutputChannel().appendLine(message);
+	showOutputChannel();
+}
+
+export function outputError(message: string) {
+	getOutputChannel().appendLine(message);
+	showOutputChannel();
+}
+
+export function outputInfo(message: string) {
+	if (getConfig().ShowInfo) {
+		getOutputChannel().appendLine(message);
+		showOutputChannel();
+	}
+}
+
+export function outputDebug(message: string) {
+	if (getConfig().IsDebug) {
+		getOutputChannel().appendLine(message);
+		showOutputChannel();
+	}
+}
+
+export function clearOutputChannel() {
+	getOutputChannel().clear();
+}
+
 export function enableColorAndHideSummary(cmd: string): string {
 	return cmd.replace(ShowColorHideCmdRegex, ' ').replace(ShowColorHideCmdRegex, ' ');
 }
 
-export function runCommandInTerminal(cmd: string) {
-	cmd = enableColorAndHideSummary(cmd);
-	// cmd += ' -M '; // to hide summary.
-	getTerminal().show(true);
-	//vscode.commands.executeCommand('workbench.action.terminal.clear');
-	getTerminal().sendText(ClearCmd);
-	getTerminal().sendText(cmd);
-	getTerminal().show(true);
+function showTerminal(mustShowTerminal: boolean = false) {
+	if (mustShowTerminal || getConfig().IsQuiet !== true) {
+		getTerminal().show(true);
+	}
+}
+
+function showOutputChannel() {
+	if (getConfig().IsQuiet !== true) {
+		getOutputChannel().show(true);
+	}
 }
 
 function getOutputChannel(): vscode.OutputChannel {
@@ -43,37 +83,4 @@ function getOutputChannel(): vscode.OutputChannel {
 	}
 
 	return _channel;
-}
-
-export function outputWarn(message: string) {
-	getOutputChannel().appendLine(message);
-	getOutputChannel().show(true);
-}
-
-export function outputError(message: string) {
-	getOutputChannel().appendLine(message);
-	getOutputChannel().show(true);
-}
-
-export function outputInfo(message: string) {
-	getOutputChannel().appendLine(message);
-	getOutputChannel().show(true);
-}
-
-export function outputLogInfo(message: string) {
-	if (getConfig().ShowInfo) {
-		getOutputChannel().appendLine(message);
-		getOutputChannel().show(true);
-	}
-}
-
-export function clearOutputChannel() {
-	getOutputChannel().clear();
-}
-
-export function outDebug(message: string) {
-	if (getConfig().IsDebug) {
-		getOutputChannel().appendLine(message);
-		getOutputChannel().show(true);
-	}
 }

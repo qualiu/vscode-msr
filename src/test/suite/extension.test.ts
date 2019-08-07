@@ -13,7 +13,7 @@ import { execSync } from 'child_process';
 import { IsWindows } from '../../checkTool';
 import { getConfig } from '../../dynamicConfig';
 import { match } from 'minimatch';
-import { outputLogInfo } from '../../outputUtils';
+import { outputInfo } from '../../outputUtils';
 import { stringify } from 'querystring';
 
 suite('Extension Test Suite', () => {

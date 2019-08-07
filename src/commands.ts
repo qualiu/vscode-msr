@@ -4,13 +4,13 @@ import * as vscode from 'vscode';
 import path = require('path');
 
 import { getConfig, getSearchPathOptions, SearchTextHolderReplaceRegex, removeSearchTextForCommandLine } from './dynamicConfig';
-import { runCommandInTerminal, enableColorAndHideSummary, outDebug } from './outputUtils';
+import { runCommandInTerminal, enableColorAndHideSummary, outputDebug } from './outputUtils';
 import { getCurrentWordAndText } from './utils';
 import { FileExtensionToConfigExtMap } from './ranker';
 import { escapeRegExp, NormalTextRegex } from './regexUtils';
 import { stringify } from 'querystring';
 
-const SkipJumpOutForHeadResultsRegex = /\s+-J?H\s*\d+(\s+|$)/;
+const SkipJumpOutForHeadResultsRegex = /\s+(-J\s+-H|-J?H)\s*\d+(\s+-J)?(\s+|$)/;
 
 export enum MyCommandType {
     RegexFindDefinitionInCodeFiles,
@@ -31,7 +31,7 @@ export enum MyCommandType {
 export function runFindingCommand(findCmd: MyCommandType, textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit, ...args: any[]) {
     const RootConfig = vscode.workspace.getConfiguration('msr');
     if (RootConfig.get('enable.findingCommands') as boolean !== true) {
-        outDebug('Your extension "vscode-msr": finding-commands is disabled by setting of `msr.enable.findingCommands`.');
+        outputDebug('Your extension "vscode-msr": finding-commands is disabled by setting of `msr.enable.findingCommands`.');
     }
 
     const findCmdText = MyCommandType[findCmd];
@@ -73,7 +73,7 @@ export function runFindingCommandByCurrentWord(findCmd: MyCommandType, searchTex
     switch (findCmd) {
         case MyCommandType.RegexFindDefinitionInCodeFiles:
         case MyCommandType.RegexFindReferencesInCodeFiles:
-            filePattern = RootConfig.get('default.codeFiles') as string;
+            filePattern = RootConfig.get('default.codeFilesPlusUI') as string;
             break;
 
         case MyCommandType.RegexFindReferencesInDocs:
@@ -141,7 +141,7 @@ export function runFindingCommandByCurrentWord(findCmd: MyCommandType, searchTex
 
     command = command.replace(SearchTextHolderReplaceRegex, searchText).trim();
     if (findCmd === MyCommandType.RegexFindDefinitionInCodeFiles && NormalTextRegex.test(rawSearchText)) {
-        command = command.replace('Search ' + searchText, 'Search ' + searchText + ' as a class or method roughly');
+        command = command.replace('Search ' + searchText, 'Search ' + searchText + ' roughly');
     }
 
     if (!isSorting) {
@@ -150,5 +150,5 @@ export function runFindingCommandByCurrentWord(findCmd: MyCommandType, searchTex
 
     command = enableColorAndHideSummary(command);
 
-    runCommandInTerminal(command);
+    runCommandInTerminal(command, true);
 }

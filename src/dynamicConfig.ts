@@ -3,18 +3,19 @@
 import * as vscode from 'vscode';
 import path = require('path');
 import { isNullOrUndefined } from 'util';
-import { outDebug } from './outputUtils';
+import { outputDebug } from './outputUtils';
 import { IsWindows } from './checkTool';
 import { stringify } from 'querystring';
 import { getNoDuplicateStringSet } from './utils';
 
 export const IsDebugMode = process.execArgv && process.execArgv.length > 0 && process.execArgv.some((arg) => /^--debug=?/.test(arg) || /^--(debug|inspect)-brk=?/.test(arg));
 export const ShouldQuotePathRegex = IsWindows ? /[^\w\.,\\/:-]/ : /[^\w\.,\\/-]/;
+export const SearchTextHolder = '%1';
+export const SearchTextHolderReplaceRegex = /%~?1/g;
+
 const SplitPathsRegex = /\s*[,;]\s*/;
 const SplitPathGroupsRegex = /\s*;\s*/;
 const FolderToPathPairRegex = /(\w+\S+?)\s*=\s*(\S+.+)$/;
-export const SearchTextHolder = '%1';
-export const SearchTextHolderReplaceRegex = /%~?1/g;
 
 let MyConfig: DynamicConfig;
 
@@ -26,6 +27,7 @@ export class DynamicConfig {
     public RootConfig: vscode.WorkspaceConfiguration = vscode.workspace.getConfiguration('msr');
     public RootPath: string = '';
     public ShowInfo: boolean = false;
+    public IsQuiet: boolean = false;
     public IsDebug: boolean = false;
     public DescendingSortForConsoleOutput: boolean = false;
     public DescendingSortForVSCode: boolean = false;
@@ -54,18 +56,19 @@ export function getConfig(reload: boolean = false): DynamicConfig {
 
     MyConfig.RootPath = vscode.workspace.rootPath || '.';
     MyConfig.ShowInfo = RootConfig.get('showInfo') as boolean;
+    MyConfig.IsQuiet = RootConfig.get('quiet') as boolean;
     MyConfig.IsDebug = IsDebugMode || RootConfig.get('debug') as boolean;
     MyConfig.DescendingSortForConsoleOutput = RootConfig.get('descendingSortForConsoleOutput') as boolean || false;
     MyConfig.DescendingSortForVSCode = RootConfig.get('descendingSortForVSCode') as boolean || true;
     MyConfig.DefaultMaxSearchDepth = parseInt(RootConfig.get('default.maxSearchDepth') || '0');
     MyConfig.NeedSortResults = RootConfig.get('default.sortResults') as boolean;
-    MyConfig.ReRunCmdInTerminalIfCostLessThan = RootConfig.get('reRunCmdInTerminalIfCostLessThan') as number || 3.3;
+    MyConfig.ReRunCmdInTerminalIfCostLessThan = RootConfig.get('reRunSearchInTerminalIfCostLessThan') as number || 3.3;
     MyConfig.ConfigAndDocFilesRegex = new RegExp(RootConfig.get('default.configAndDocs') as string || '\\.(json|xml|ini|ya?ml|md)|readme', 'i');
     MyConfig.CodeAndConfigAndDocFilesRegex = new RegExp(RootConfig.get('default.codeAndConfigDocs') as string || '\\.(cs\\w*|nuspec|config|c[px]*|h[px]*|java|scala|py|vue|tsx?|jsx?|json|ya?ml|xml|ini|md)$|readme', 'i');
     MyConfig.DefaultConstantsRegex = new RegExp(RootConfig.get('default.isConstant') as string);
     MyConfig.SearchAllFilesWhenFindingReferences = RootConfig.get('default.searchAllFilesForReferences') as boolean;
     MyConfig.SearchAllFilesWhenFindingDefinitions = RootConfig.get('default.searchAllFilesForDefinitions') as boolean;
-    outDebug('vscode-msr configuration loaded.');
+    outputDebug('vscode-msr configuration loaded.');
     return MyConfig;
 }
 
@@ -73,12 +76,13 @@ export function getOverrideOrDefaultConfig(mappedExt: string, suffix: string, al
     const RootConfig = getConfig().RootConfig || vscode.workspace.getConfiguration('msr');
     let overwriteValue = RootConfig.get(mappedExt + suffix);
     if (overwriteValue !== undefined) {
-        if (allowEmpty || (overwriteValue as string).length > 0) {
-            return overwriteValue as string || '';
+        if (allowEmpty || (overwriteValue && String(overwriteValue).length > 0)) {
+            return !overwriteValue ? '' : String(overwriteValue);
         }
     }
 
-    return RootConfig.get('default' + suffix) as string || '';
+    const defaultValue = RootConfig.get('default' + suffix);
+    return !defaultValue ? '' : String(defaultValue);
 }
 
 export function getSearchPathOptions(mappedExt: string, isFindingDefinition: boolean, useExtraSearchPaths: boolean = true): string {

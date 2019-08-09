@@ -2,6 +2,7 @@
 'use strict';
 
 export const NormalTextRegex = /^[\w\.:\\/-]+$/;
+export const EmptyRegex: RegExp = new RegExp('^@#x$'); // Workaround for empty RegExp.
 
 const AlphaNumber = "[a-z0-9A-Z]";
 const HeaderBoundary = "(?<!" + AlphaNumber + ")";

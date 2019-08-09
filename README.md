@@ -43,7 +43,9 @@ Search **Definitions** + **References** for **C++** / **Python** / **Java** in `
 
 Just **download** the tiny [msr.EXE](https://github.com/qualiu/msr/tree/master/tools) (of your system type) , then **add** it to `%PATH%` or `$PATH`.
 
-You can simply try below command lines, or use/create a tool folder like `~/tools` or `D:\tools` instead of system folder:
+**If you skip downloading**, will auto download it to `~/msr` (on **Linux**) or `%USERPROFILE%\Desktop\msr.exe` (on **Windows**).
+
+Suggest you use/create a tool folder like `~/tools` or `D:\tools` instead of `system folder` for 1 command line below:
 
 - **Windows**：Download + copy to a folder like `%SystemRoot%` (Use **[msr-Win32.exe](https://github.com/qualiu/msr/raw/master/tools/msr-Win32.exe)** for 32-bit system)
 
@@ -77,6 +79,7 @@ You don't need to change settings from [configuration file](https://github.com/q
 
 ### General/Default Settings Examples
 
+- `msr.disable.extensionPatterns`: Regex pattern of file extensions to disable `find definition and references`.
 - `msr.enable.definition`: Enable/disable `find definitions`.
 - `msr.enable.reference`: Enable/disable `find references`.
 - `msr.default.maxSearchDepth`: Set `max search depth` when finding definitions or references.
@@ -88,6 +91,8 @@ You don't need to change settings from [configuration file](https://github.com/q
 
 These global **extra search paths** settings enable searching related files **without loading** them into `Visual Studio Code`.
 
+#### Specific Extra Search Paths Settings
+
 If you want to set extra search paths for **a specific project**, use below format to set extra `paths` or `path-list-files`:
 
 - Value format:  `[Global-Paths]`; `[Project1-Folder-Name = Path1, Path2, Path3]`;  `[Project2-Folder-Name=Path5,Path6]`;
@@ -95,14 +100,20 @@ If you want to set extra search paths for **a specific project**, use below form
 - Use **comma** '**,**' to separate paths in a `[group]`.
 - You can omit `global paths` or specific `name=paths` pairs. Just set what you want, like one or more paths (global).
 
-For example, if you have 2 projects: `d:\git\project1` + `d:\git\project2` + a common/global path = `D:\mylibs\boost` , you can set values like:
+**For example**, if you have 2 projects: `d:\git\`**project1** + `d:\git\`**project2** + a common/global path = `D:\myLibs\boost`
 
-- `msr.default.extraSearchPaths` set value: `D:\mylibs\boost; project1=D:\git\baseLib,D:\git\teamLib; project2=d:\git\project1;`
-  - **project1** extra search paths = `D:\mylibs\boost,D:\git\baseLib,D:\git\teamLib`
-  - **project2** extra search paths = `D:\mylibs\boost,d:\git\project1`
-- `msr.default.extraSearchPathListFiles` set value: `project1=d:\paths1.txt,D:\paths2.txt; project2=d:\paths3.txt`
-  - **project1** extra search path list files = `d:\paths1.txt,D:\paths2.txt`
-  - **project2** extra search path list files = `d:\paths3.txt`
+You can set values for the projects like below, and their `extra search paths` will be below:
+
+- `msr.default.extraSearchPaths`
+  - Set value like: `D:\myLibs\boost;  project1 = D:\git\baseLib,D:\git\teamLib;  project2=d:\git\project1;`
+  - Then paths will be:
+    - **project1** extra search paths = `D:\myLibs\boost,D:\git\baseLib,D:\git\teamLib`
+    - **project2** extra search paths = `D:\myLibs\boost,d:\git\project1`
+- `msr.default.extraSearchPathListFiles`
+  - Set value like: `project1=d:\paths1.txt,D:\paths2.txt;   project2 = d:\paths3.txt`
+  - Then paths will be:
+    - **project1** extra search path list files = `d:\paths1.txt,D:\paths2.txt`
+    - **project2** extra search path list files = `d:\paths3.txt`
 
 You can also set extra search paths for each type of coding language.
 
@@ -164,7 +175,7 @@ Please help to set the `Regex` patterns for them if you want. You can:
   - Skip/Exclude link folders: **--xd**
   - **Quickly** pick up `head{N}` results + **Jump out**(`-J`), like: **-H** `30` **-J** or **-J** **-H** `300` or **-JH** `300` etc.
   - Not coloring matched text: **-C**  (`Faster` to output, and **must be set** for `Linux/Cygwin` to further process).
-  - Output summary `info` to stderr: **-I** (You can see **-I -C** or **-IC** or **-J -I -C** or **-JIC** etc. in [package.json](https://github.com/qualiu/vscode-msr/blob/master/package.json))
+  - Output summary `info` to **stderr** + **hide** `warnings in stderr` (like BOM encoding): **-I** : You can see **-I -C** or **-IC** or **-J -I -C** or **-JIC** etc. in [package.json](https://github.com/qualiu/vscode-msr/blob/master/package.json)
 
 ### Check and Update this doc
   

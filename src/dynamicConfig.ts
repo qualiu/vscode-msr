@@ -7,6 +7,7 @@ import { outputDebug } from './outputUtils';
 import { IsWindows } from './checkTool';
 import { stringify } from 'querystring';
 import { getNoDuplicateStringSet } from './utils';
+import { EmptyRegex } from './regexUtils';
 
 export const IsDebugMode = process.execArgv && process.execArgv.length > 0 && process.execArgv.some((arg) => /^--debug=?/.test(arg) || /^--(debug|inspect)-brk=?/.test(arg));
 export const ShouldQuotePathRegex = IsWindows ? /[^\w\.,\\/:-]/ : /[^\w\.,\\/-]/;
@@ -43,6 +44,7 @@ export class DynamicConfig {
     public SearchAllFilesWhenFindingReferences: boolean = false;
     public SearchAllFilesWhenFindingDefinitions: boolean = false;
     public GetSearchTextHolderInCommandLine: RegExp = /\s+-c\s+.*?%~?1/;
+    public DisabledFileExtensionRegex : RegExp = new RegExp('to-load');
 }
 
 export function getConfig(reload: boolean = false): DynamicConfig {
@@ -64,10 +66,12 @@ export function getConfig(reload: boolean = false): DynamicConfig {
     MyConfig.NeedSortResults = RootConfig.get('default.sortResults') as boolean;
     MyConfig.ReRunCmdInTerminalIfCostLessThan = RootConfig.get('reRunSearchInTerminalIfCostLessThan') as number || 3.3;
     MyConfig.ConfigAndDocFilesRegex = new RegExp(RootConfig.get('default.configAndDocs') as string || '\\.(json|xml|ini|ya?ml|md)|readme', 'i');
-    MyConfig.CodeAndConfigAndDocFilesRegex = new RegExp(RootConfig.get('default.codeAndConfigDocs') as string || '\\.(cs\\w*|nuspec|config|c[px]*|h[px]*|java|scala|py|vue|tsx?|jsx?|json|ya?ml|xml|ini|md)$|readme', 'i');
+    MyConfig.CodeAndConfigAndDocFilesRegex = new RegExp(RootConfig.get('default.codeAndConfigDocs') as string || '\\.(cs\\w*|nuspec|config|c[px]*|h[px]*|java|scala|py|go|php|vue|tsx?|jsx?|json|ya?ml|xml|ini|md)$|readme', 'i');
     MyConfig.DefaultConstantsRegex = new RegExp(RootConfig.get('default.isConstant') as string);
     MyConfig.SearchAllFilesWhenFindingReferences = RootConfig.get('default.searchAllFilesForReferences') as boolean;
     MyConfig.SearchAllFilesWhenFindingDefinitions = RootConfig.get('default.searchAllFilesForDefinitions') as boolean;
+    const disabledExtensionPatterns = (RootConfig.get('disable.extensionPatterns') as string).trim() || '';
+    MyConfig.DisabledFileExtensionRegex = disabledExtensionPatterns.length > 0 ? new RegExp(disabledExtensionPatterns) : EmptyRegex;
     outputDebug('vscode-msr configuration loaded.');
     return MyConfig;
 }

@@ -4,6 +4,18 @@ All notable changes to the "vscode-msr" extension will be documented in this fil
 
 Detail see `vscode-msr` extension [commit history](https://github.com/qualiu/vscode-msr/commits/master).
 
+## [1.0.4]
+
+- Show part of `commandPalette` commands in `editor/context` menu.
+- Support auto detect and recover terminal if closed.
+- Re-run more searches if got multiple results (increased default value in configuration file).
+- Support auto download the msr exe if not downloaded, and added version check each Tuesday morning 09:00~11:00 when opening vscode.
+- Update `extra search path` descriptions in configuration file.
+- Support both with or without `-I` in command line: output summary to stdout or stderr.
+- Default menu `Find All References` will not search extra paths (disabled in configuration as default).
+- Added `msr.disable.extensionPatterns`: Regex pattern of file extensions to disable `find definition and references`.
+- Improved sorting results.
+
 ## [1.0.3]
 
 - Improved sorting for search results + search types.

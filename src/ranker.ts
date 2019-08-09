@@ -3,7 +3,7 @@
 import * as vscode from 'vscode';
 import { ParsedPath } from 'path';
 import path = require('path');
-import { getAllSingleWords } from './regexUtils';
+import { getAllSingleWords, EmptyRegex } from './regexUtils';
 import { outputError, outputDebug } from './outputUtils';
 import { getConfig, getOverrideOrDefaultConfig, SearchTextHolderReplaceRegex, SearchTextHolder } from './dynamicConfig';
 import { strict } from 'assert';
@@ -15,8 +15,6 @@ export enum FindType {
 }
 
 let RootConfig = getConfig().RootConfig || vscode.workspace.getConfiguration('msr');
-
-const EmptyRegex: RegExp = new RegExp('^\\.#x#'); // Workaround for empty RegExp.
 
 export const FileExtensionToConfigExtMap = new Map<string, string>()
 	.set('cxx', 'cpp')
@@ -349,16 +347,29 @@ export class SearchProperty {
 		}
 
 		if (!parsedResultPath.name.match(/test/i)) {
-			score += 300;
-		}
-
-		if (!resultFilePath.match(/test/i)) {
 			score += 500;
 		}
 
-		// if not interface
+		if (!resultFilePath.match(/test/i)) {
+			score += 300;
+		}
+
+		if (!parsedResultPath.name.match(/Mock/i)) {
+			score += 300;
+		}
+
+		if (!resultFilePath.match(/Mock/i)) {
+			score += 200;
+		}
+
+		// if not interface in file name
 		if (!parsedResultPath.name.match(/^I[A-Z][a-z]/)) {
-			score += 10;
+			score += 100;
+		}
+
+		// if not interface
+		if (!resultText.match(/\s+(interface|abstract)\s+/)) {
+			score += 100;
 		}
 
 		if (resultText.match(/^\s*public\s+/)) {
@@ -389,7 +400,6 @@ export class SearchProperty {
 			score += 50;
 		}
 
-
 		const resultFileNameWordSet = getAllSingleWords(parsedResultPath.name);
 		const resultWordSet = getAllSingleWords(resultText);
 		const resultFilePathWordSet = getAllSingleWords(resultFilePath);
@@ -411,7 +421,6 @@ export class SearchProperty {
 				score += 10;
 			}
 		});
-
 
 		this.scoreWordSet.forEach(a => {
 			if (resultWordSet.has(a)) {

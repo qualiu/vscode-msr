@@ -22,7 +22,7 @@ suite('Extension Test Suite', () => {
     const DocFilePath = path.join(GitRootPath, 'README.md');
     const KeyRegex = /["`](msr[\.\w]+)/g;
     const ExemptFindAllKeyRegex = /^(msr\.)?\w*(find|sort)\w+$/i;
-    const ExemptNoValueKeyRegex = /extra|skip.definition|^\w*(find|sort)\w+$/i;
+    const ExemptNoValueKeyRegex = /extra|skip.definition|disable.extensionPatterns|^\w*(find|sort)\w+$/i;
     const NonStringValueRegex = /^(\d+|bool\w*$)/;
 
     before(() => {

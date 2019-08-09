@@ -36,3 +36,13 @@ export function getNoDuplicateStringSet(textSet: Set<string>, deleteEmpty: boole
 
     return newSet;
 }
+
+export function replaceText(sourceText: string, toFind: string, replaceTo: string): string {
+    let newText = sourceText.replace(toFind, replaceTo);
+    while (newText !== sourceText) {
+        sourceText = newText;
+        newText = newText.replace(toFind, replaceTo);
+    }
+
+    return newText;
+}

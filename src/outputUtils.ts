@@ -4,6 +4,9 @@ import * as vscode from 'vscode';
 import { getConfig } from './dynamicConfig';
 import { IsWindows } from './checkTool';
 
+export const RunCmdTerminalName = 'MSR-RUN-CMD';
+const OutputChannelName = 'MSR-Def-Ref';
+
 // When searching plain text, powershell requires extra escaping (like '$').
 const UsePowershell = false;
 const WindowsShell = UsePowershell ? 'powershell' : 'cmd.exe';
@@ -13,14 +16,21 @@ const ClearCmd = IsWindows && !UsePowershell ? 'cls' : "clear";
 const ShowColorHideCmdRegex = /\s+-[Cc](\s+|$)/g;
 
 let _channel: vscode.OutputChannel;
-let _terminal: vscode.Terminal;
+let _terminal: vscode.Terminal | undefined;
 
 export function getTerminal(): vscode.Terminal {
 	if (!_terminal) {
-		_terminal = vscode.window.createTerminal('MSR-RUN-CMD', ShellPath);
+		_terminal = vscode.window.createTerminal(RunCmdTerminalName, ShellPath);
 	}
 
 	return _terminal;
+}
+
+export function disposeTerminal() {
+	if (_terminal) {
+		_terminal.dispose();
+		_terminal = undefined;
+	}
 }
 
 export function runCommandInTerminal(cmd: string, mustShowTerminal: boolean = false) {
@@ -79,7 +89,7 @@ function showOutputChannel() {
 
 function getOutputChannel(): vscode.OutputChannel {
 	if (!_channel) {
-		_channel = vscode.window.createOutputChannel('MSR-Def-Ref');
+		_channel = vscode.window.createOutputChannel(OutputChannelName);
 	}
 
 	return _channel;

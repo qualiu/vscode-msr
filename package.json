@@ -1,9 +1,9 @@
 {
 	"name": "vscode-msr",
 	"displayName": "Find definition and references for all types.",
-	"description": "Find definition and references in multiple repository paths by msr for all coding languages + configuration + readme files.",
+	"description": "Find definition and references in multiple repository paths by msr for all coding languages + configuration + doc files.",
 	"author": "qualiu@microsoft.com",
-	"version": "1.0.3",
+	"version": "1.0.4",
 	"icon": "images/vscode-msr-icon.png",
 	"license": "completely free",
 	"publisher": "qualiu",
@@ -49,7 +49,7 @@
 		"commands": [
 			{
 				"command": "msr.regexFindInAllSmallFiles",
-				"title": "Regex find all references in all small files including code + configuration + docs.",
+				"title": "Regex find all references in all small files.",
 				"category": "msr",
 				"icon": {
 					"dark": "images/vscode-msr-small.svg",
@@ -58,7 +58,7 @@
 			},
 			{
 				"command": "msr.regexFindInAllProjectFiles",
-				"title": "Regex find all references in code + configuration + docs.",
+				"title": "Regex find all references in code + config + doc.",
 				"category": "msr",
 				"icon": {
 					"dark": "images/vscode-msr-small.svg",
@@ -67,7 +67,7 @@
 			},
 			{
 				"command": "msr.regexFindInCodeAndConfig",
-				"title": "Regex find all references in code + configuration files.",
+				"title": "Regex find all references in code + config.",
 				"category": "msr",
 				"icon": {
 					"dark": "images/vscode-msr-small.svg",
@@ -75,8 +75,8 @@
 				}
 			},
 			{
-				"command": "msr.regexFindDefinition",
-				"title": "Regex find definitions of a `class` or `method` roughly in all code files.",
+				"command": "msr.regexFindDefinitionInCodeFiles",
+				"title": "Regex find as `class` or `method` definition roughly.",
 				"category": "msr",
 				"icon": {
 					"dark": "images/vscode-msr-small.svg",
@@ -84,8 +84,17 @@
 				}
 			},
 			{
-				"command": "msr.regexFindReference",
+				"command": "msr.regexFindReferenceInCodeFiles",
 				"title": "Regex find all references in code files.",
+				"category": "msr",
+				"icon": {
+					"dark": "images/vscode-msr-small.svg",
+					"light": "images/vscode-msr-small.svg"
+				}
+			},
+			{
+				"command": "msr.regexFindPureReferenceInCodeFiles",
+				"title": "Regex find all pure references in code files.",
 				"category": "msr",
 				"icon": {
 					"dark": "images/vscode-msr-small.svg",
@@ -103,7 +112,43 @@
 			},
 			{
 				"command": "msr.regexFindInConfigFiles",
-				"title": "Regex find all references in configuration files.",
+				"title": "Regex find all references in config files.",
+				"category": "msr",
+				"icon": {
+					"dark": "images/vscode-msr-small.svg",
+					"light": "images/vscode-msr-small.svg"
+				}
+			},
+			{
+				"command": "msr.findSelectedPlainTextInCodeFiles",
+				"title": "Find `selected plain text` in code files.",
+				"category": "msr",
+				"icon": {
+					"dark": "images/vscode-msr-small.svg",
+					"light": "images/vscode-msr-small.svg"
+				}
+			},
+			{
+				"command": "msr.findSelectedPlainTextInCodeAndConfigFiles",
+				"title": "Find `selected plain text` in code + config.",
+				"category": "msr",
+				"icon": {
+					"dark": "images/vscode-msr-small.svg",
+					"light": "images/vscode-msr-small.svg"
+				}
+			},
+			{
+				"command": "msr.findSelectedPlainTextInConfigFiles",
+				"title": "Find `selected plain text` in config files.",
+				"category": "msr",
+				"icon": {
+					"dark": "images/vscode-msr-small.svg",
+					"light": "images/vscode-msr-small.svg"
+				}
+			},
+			{
+				"command": "msr.findSelectedPlainTextInDocFiles",
+				"title": "Find `selected plain text` in doc files.",
 				"category": "msr",
 				"icon": {
 					"dark": "images/vscode-msr-small.svg",
@@ -112,7 +157,7 @@
 			},
 			{
 				"command": "msr.findSelectedPlainTextInAllProjectFiles",
-				"title": "Find `selected plain text` in all code + configuration + doc files.",
+				"title": "Find `selected plain text` in code + config + doc.",
 				"category": "msr",
 				"icon": {
 					"dark": "images/vscode-msr-small.svg",
@@ -130,7 +175,7 @@
 			},
 			{
 				"command": "msr.sortProjectFilesBySize",
-				"title": "Sort project files by file size.",
+				"title": "Sort project files by size.",
 				"category": "msr",
 				"icon": {
 					"dark": "images/vscode-msr-small.svg",
@@ -139,7 +184,7 @@
 			},
 			{
 				"command": "msr.sortProjectFilesByTime",
-				"title": "Sort project files by modify time.",
+				"title": "Sort project files by write time.",
 				"category": "msr",
 				"icon": {
 					"dark": "images/vscode-msr-small.svg",
@@ -148,7 +193,7 @@
 			},
 			{
 				"command": "msr.sortAllFilesBySize",
-				"title": "Sort all files by file size.",
+				"title": "Sort all files by size.",
 				"category": "msr",
 				"icon": {
 					"dark": "images/vscode-msr-small.svg",
@@ -157,7 +202,7 @@
 			},
 			{
 				"command": "msr.sortAllFilesByTime",
-				"title": "Sort all files by modify time.",
+				"title": "Sort all files by write time.",
 				"category": "msr",
 				"icon": {
 					"dark": "images/vscode-msr-small.svg",
@@ -166,6 +211,36 @@
 			}
 		],
 		"menus": {
+			"editor/context": [
+				{
+					"command": "msr.regexFindInAllProjectFiles",
+					"group": "msr"
+				},
+				{
+					"command": "msr.regexFindDefinitionInCodeFiles",
+					"group": "msr"
+				},
+				{
+					"command": "msr.regexFindInAllSmallFiles",
+					"group": "msr"
+				},
+				{
+					"command": "msr.regexFindReferenceInCodeFiles",
+					"group": "msr"
+				},
+				{
+					"command": "msr.regexFindPureReferenceInCodeFiles",
+					"group": "msr"
+				},
+				{
+					"command": "msr.findSelectedPlainTextInAllProjectFiles",
+					"group": "msr"
+				},
+				{
+					"command": "msr.findSelectedPlainTextInAllSmallFiles",
+					"group": "msr"
+				}
+			],
 			"commandPalette": [
 				{
 					"command": "msr.regexFindInAllSmallFiles",
@@ -180,11 +255,15 @@
 					"group": "msr"
 				},
 				{
-					"command": "msr.regexFindDefinition",
+					"command": "msr.regexFindDefinitionInCodeFiles",
 					"group": "msr"
 				},
 				{
-					"command": "msr.regexFindReference",
+					"command": "msr.regexFindReferenceInCodeFiles",
+					"group": "msr"
+				},
+				{
+					"command": "msr.regexFindPureReferenceInCodeFiles",
 					"group": "msr"
 				},
 				{
@@ -193,6 +272,22 @@
 				},
 				{
 					"command": "msr.regexFindInConfigFiles",
+					"group": "msr"
+				},
+				{
+					"command": "msr.findSelectedPlainTextInCodeFiles",
+					"group": "msr"
+				},
+				{
+					"command": "msr.findSelectedPlainTextInCodeAndConfigFiles",
+					"group": "msr"
+				},
+				{
+					"command": "msr.findSelectedPlainTextInConfigFiles",
+					"group": "msr"
+				},
+				{
+					"command": "msr.findSelectedPlainTextInDocFiles",
 					"group": "msr"
 				},
 				{
@@ -243,12 +338,22 @@
 				"msr.default.removeLowScoreResultsFactor": {
 					"type": "number",
 					"default": 0.8,
-					"description": "Remove low score results (if enabled sortResults) which score lower than average plus this factor. (To disable this: set a large value like 10)"
+					"description": "Remove low score definition search results (if enabled sortResults) which score lower than average plus this factor. (To disable this: set a large value like 10)"
+				},
+				"msr.disable.extensionPatterns": {
+					"type": "string",
+					"default": "",
+					"description": "Regex pattern for for file extensions to disable finding definition and references. Example:  cs|cpp|java|py|go|php|js|vue"
 				},
 				"msr.findingCommands.useExtraPaths": {
 					"type": "boolean",
 					"default": true,
-					"description": "Use extra paths as same as finding references and definitions for finding commands."
+					"description": "Use extra paths for finding commands in context menu or command platte."
+				},
+				"msr.findReference.useExtraPaths": {
+					"type": "boolean",
+					"default": false,
+					"description": "Use extra paths for finding references."
 				},
 				"msr.enable.useGeneralFindingWhenNoResults": {
 					"type": "boolean",
@@ -282,7 +387,7 @@
 				},
 				"msr.reRunSearchInTerminalIfCostLessThan": {
 					"type": "number",
-					"default": 3.3,
+					"default": 6.3,
 					"description": "Re-run search in a terminal if got multiple results (to get colorful + clickable results) and time cost seconds less than this."
 				},
 				"msr.default.searchAllFilesForReferences": {
@@ -298,12 +403,17 @@
 				"msr.default.extraSearchPaths": {
 					"type": "string",
 					"default": "",
-					"description": "Default global extra search paths. Multiple paths use ',' to separate. (To search external repositories, dependency sources, or libraries)"
+					"description": "Default extra search paths. Use ';' to separate groups (`global-paths` or `git-folder-name=paths` pairs), use ',' to separate paths. (See doc: https://github.com/qualiu/vscode-msr/blob/master/README.md#specific-extra-search-paths-settings)"
 				},
 				"msr.default.extraSearchPathListFiles": {
 					"type": "string",
 					"default": "",
-					"description": "Default global extra search path list files (one path at one line in each file). Multiple paths use ',' to separate."
+					"description": "Default extra search path list files (one path at one line in each file). Use ';' to separate groups (`global-paths` or `git-folder-name=paths` pairs), use ',' to separate paths. (See doc: https://github.com/qualiu/vscode-msr/blob/master/README.md#specific-extra-search-paths-settings)"
+				},
+				"msr.default.pureReferenceSkip": {
+					"type": "string",
+					"default": "^\\s*[^\\s\\w]|^.{260,}",
+					"description": "Regex pattern to skip junk results like comments when finding references in code files."
 				},
 				"msr.showInfo": {
 					"type": "boolean",
@@ -327,17 +437,17 @@
 				},
 				"msr.default.allFiles": {
 					"type": "string",
-					"default": "\\.(cs\\w*|nuspec|config|cpp|cxx|h|hpp|cc?|c\\+{2}|vcx?proj|sln|java|scala|py|vue|tsx?|jsx?|json|ya?ml|xml|ini|md)$|^readme|^make\\w*",
+					"default": "\\.(cs\\w*|cpp|cxx|h|hpp|cc?|c\\+{2}|vcx?proj|sln|nuspec|config|props|java|scala|py|go|php|vue|tsx?|jsx?|json|ya?ml|xml|ini|md)$|^readme|^make\\w*",
 					"description": "Default Regex pattern for files to search."
 				},
 				"msr.default.codeFiles": {
 					"type": "string",
-					"default": "\\.(cs\\w*|cpp|cxx|h|hpp|cc?|c\\+{2}|vcx?proj|sln|java|scala|py)$|^make\\w*",
+					"default": "\\.(cs\\w*|cpp|cxx|h|hpp|cc?|c\\+{2}|vcx?proj|sln|nuspec|config|props|java|scala|py)$|^make\\w*",
 					"description": "Default Regex pattern for all code files."
 				},
 				"msr.default.codeFilesPlusUI": {
 					"type": "string",
-					"default": "\\.(cs\\w*|cpp|cxx|h|hpp|cc?|c\\+{2}|vcx?proj|sln|java|scala|py|vue|tsx?|jsx?)$|^make\\w*",
+					"default": "\\.(cs\\w*|cpp|cxx|h|hpp|cc?|c\\+{2}|vcx?proj|sln|nuspec|config|props|java|scala|py|go|php|vue|tsx?|jsx?)$|^make\\w*",
 					"description": "Default Regex pattern for all UI (front-end) code files."
 				},
 				"msr.default.configFiles": {
@@ -352,12 +462,12 @@
 				},
 				"msr.default.codeAndConfig": {
 					"type": "string",
-					"default": "\\.(cs\\w*|nuspec|config|cpp|cxx|h|hpp|cc?|c\\+{2}|vcx?proj|sln|java|scala|py|vue|tsx?|jsx?|json|ya?ml|xml|ini)$|^make\\w*",
+					"default": "\\.(cs\\w*|cpp|cxx|h|hpp|cc?|c\\+{2}|vcx?proj|sln|nuspec|config|props|java|scala|py|go|php|vue|tsx?|jsx?|json|ya?ml|xml|ini)$|^make\\w*",
 					"description": "Default Regex pattern for code + configuration files."
 				},
 				"msr.default.codeAndConfigDocs": {
 					"type": "string",
-					"default": "\\.(cs\\w*|nuspec|config|cpp|cxx|h|hpp|cc?|c\\+{2}|vcx?proj|sln|java|scala|py|vue|tsx?|jsx?|json|ya?ml|xml|ini|md)$|^readme|^make\\w*",
+					"default": "\\.(cs\\w*|cpp|cxx|h|hpp|cc?|c\\+{2}|vcx?proj|sln|nuspec|config|props|java|scala|py|go|php|vue|tsx?|jsx?|json|ya?ml|xml|ini|md)$|^readme|^make\\w*",
 					"description": "Default Regex pattern for code + configuration + document files."
 				},
 				"msr.default.configAndDocs": {
@@ -382,12 +492,12 @@
 				},
 				"msr.allSmallFiles.extraOptions": {
 					"type": "string",
-					"default": "-I -C --s1 1B --s2 1.0MB -c Search %1 in all small files",
+					"default": "--s1 1B --s2 1.6MB -I -C -c Search %1 in all small files",
 					"description": "Default extra searching options for small files."
 				},
 				"msr.default.extraOptions": {
 					"type": "string",
-					"default": "-I -C --s1 1B --s2 12.0MB -c Search %1",
+					"default": "--s1 1B --s2 3.6MB -I -C -c Search %1",
 					"description": "Default extra searching options."
 				},
 				"msr.definition.extraOptions": {
@@ -397,7 +507,7 @@
 				},
 				"msr.reference.extraOptions": {
 					"type": "string",
-					"default": "--s1 1B --s2 12.0MB -H 300 -J -I -C -c Search %1",
+					"default": "--s1 1B --s2 3.6MB -H 300 -J -I -C -c Search %1",
 					"description": "Default extra searching options for finding references: Get top {N} results and jump out."
 				},
 				"msr.default.isClass": {
@@ -457,7 +567,7 @@
 				},
 				"msr.cs.codeAndConfigDocs": {
 					"type": "string",
-					"default": "\\.(cs\\w*|sln|nuspec|config|json|ya?ml|xml|ini|md)$",
+					"default": "\\.(cs\\w*|sln|nuspec|config|props|json|ya?ml|xml|ini|md)$",
 					"description": "Regex pattern for C# code + configuration + document files."
 				},
 				"msr.cs.isClass": {
@@ -492,7 +602,7 @@
 				},
 				"msr.cpp.codeAndConfigDocs": {
 					"type": "string",
-					"default": "\\.(cpp|cxx|h|hpp|cc?|c\\+{2}|vcx?proj|sln|nuspec|config|json|ya?ml|xml|ini|md)$|^make\\w*",
+					"default": "\\.(cpp|cxx|h|hpp|cc?|c\\+{2}|vcx?proj|sln|nuspec|config|props|json|ya?ml|xml|ini|md)$|^make\\w*",
 					"description": "Regex pattern for C++ or C code + configuration + document files."
 				},
 				"msr.cpp.isClass": {
@@ -553,12 +663,12 @@
 				"msr.py.extraSearchPaths": {
 					"type": "string",
 					"default": "",
-					"description": "Python extra search paths. Multiple paths use ',' to separate. (To search external repositories, dependency sources, or libraries)"
+					"description": "Python extra search paths. Use ';' to separate groups (`global-paths` or `git-folder-name=paths` pairs), use ',' to separate paths. (See doc: https://github.com/qualiu/vscode-msr/blob/master/README.md#specific-extra-search-paths-settings)"
 				},
 				"msr.py.extraSearchPathListFiles": {
 					"type": "string",
 					"default": "",
-					"description": "Python extra search path list files (one path at one line in each file). Multiple paths use ',' to separate."
+					"description": "Python extra search path list files (one path at one line in each file). Use ';' to separate groups (`global-paths` or `git-folder-name=paths` pairs), use ',' to separate paths. (See doc: https://github.com/qualiu/vscode-msr/blob/master/README.md#specific-extra-search-paths-settings)"
 				},
 				"msr.py.isMember": {
 					"type": "string",

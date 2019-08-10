@@ -8,12 +8,13 @@ Have you suffered issues of finding `definitions` and `references`:
 - **Missed updates to some types of files** when performed changes like `rename`, `refactor`, `update-versions`, etc.
 - **Quite slow to take a full search** but have to do it and wait ?
   
-Then it's the [light and right tool](https://github.com/qualiu/vscode-msr) for you: (Take **less than 1 minute** for [requirements](https://github.com/qualiu/vscode-msr#requirements) before using).
+Then it's the [light and right tool](https://github.com/qualiu/vscode-msr) for you: (Take **less than 1 minute** for [requirements](https://github.com/qualiu/vscode-msr#requirements) before using for better experience).
 
 ## Features
 
 - Got search results in **1~3 seconds** for 20000~30000+ code files (stored on hard drives **not SSD**) after first time.
 - Fast find **definitions** + **references** for **all types** of coding languages files, across **multiple related repositories** on local.
+- Support **64-bit** + **32-bit**: `Windows` + `Linux` (`Ubuntu` / `CentOS` / `Fedora`).
 - Also can jump to **definitions** + find **references** from **any type of files** + **any type**:
   - Any file types: Like `configuration files` (like `json`, `xml`) or `readme document files`(`*.md` or `readme`).
   - Any input types: Like words in comments, or a `text-just-typed`.
@@ -26,8 +27,6 @@ Then it's the [light and right tool](https://github.com/qualiu/vscode-msr) for y
 - Rich trigger and color output:
   - Trigger by menu (like `Go To Definition`) or keyboard (like press `F12`). This will show command lines + matched results and color output + clickable paths if fast.
   - Trigger by commands (Press `Ctrl`+`Shift`+`P` then search `msr` to show the group of extended finding commands) and show color output which paths is clickable.
-  
-- Support **64-bit** + **32-bit**: `Windows` + `Linux` (`Ubuntu` / `CentOS` / `Fedora`).
 
 - You can directly use [msr.EXE](https://github.com/qualiu/msr/tree/master/tools) command line in `Visual Studio Code` output channel `MSR-Def-Ref` to **search** + **replace** files.
   - Just copy the `find reference` command line shown on VS code;
@@ -49,7 +48,7 @@ Suggest you use/create a tool folder like `~/tools` or `D:\tools` instead of `sy
 
 - **Windows**：Download + copy to a folder like `%SystemRoot%` (Use **[msr-Win32.exe](https://github.com/qualiu/msr/raw/master/tools/msr-Win32.exe)** for 32-bit system)
 
-     **Powershell** `-Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri https://github.com/qualiu/msr/blob/master/tools/msr.exe?raw=true -OutFile msr.exe"` && **copy** [msr.exe](https://github.com/qualiu/msr/raw/master/tools/msr.exe) `%SystemRoot%\`
+     **Powershell** `-Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri 'https://github.com/qualiu/msr/blob/master/tools/msr.exe?raw=true' -OutFile msr.exe"` && **copy** [msr.exe](https://github.com/qualiu/msr/raw/master/tools/msr.exe) `%SystemRoot%\`
   
 - **Cygwin**: copy or make a link (`ln -s msr.cygwin /usr/bin/msr`)
 

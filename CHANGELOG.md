@@ -4,6 +4,12 @@ All notable changes to the "vscode-msr" extension will be documented in this fil
 
 Detail see `vscode-msr` extension [commit history](https://github.com/qualiu/vscode-msr/commits/master).
 
+## [1.0.5]
+
+- Skipped sorting and removing lower score results when finding references.
+- Improved auto downloading tool command line.
+- Improved re-creating terminal if user closed it. (Seems to be a vscode IDE bug to be solved)
+
 ## [1.0.4]
 
 - Show part of `commandPalette` commands in `editor/context` menu.

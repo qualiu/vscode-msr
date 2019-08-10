@@ -35,9 +35,13 @@ const MatchExeMd5Regex = new RegExp('^(\\S+)\\s+' + MsrExeSourceName + '\\s*$', 
 const [IsExistIcacls, _] = IsWindows ? isToolExistsInPath('icacls') : [false, ''];
 const SetExecutableForWindows = IsExistIcacls ? ' && icacls "' + TmpMsrExePath + '" /grant %USERNAME%:RX' : '';
 const WindowsDownloadCmd = 'Powershell -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; '
-	+ "Invoke-WebRequest -Uri '" + SourceExeUrl + "' -OutFile '" + TmpMsrExePath + "'" + '"' + SetExecutableForWindows;
+	+ "Invoke-WebRequest -Uri '" + SourceExeUrl + "' -OutFile '" + TmpMsrExePath + '.tmp' + "'" + '"'
+	+ ' && move /y "' + TmpMsrExePath + '.tmp" "' + TmpMsrExePath + '"'
+	+ SetExecutableForWindows;
 
-const LinuxDownloadCmd = 'wget "' + SourceExeUrl + '" -O ' + TmpMsrExePath + ' && chmod +x ' + TmpMsrExePath;
+const LinuxDownloadCmd = 'wget "' + SourceExeUrl + '" -O "' + TmpMsrExePath + '.tmp"'
+	+ ' && mv -f "' + TmpMsrExePath + '.tmp" "' + TmpMsrExePath + '" '
+	+ ' && chmod +x "' + TmpMsrExePath + '"';
 
 const DownloadCommand = IsWindows ? WindowsDownloadCmd : LinuxDownloadCmd;
 
@@ -130,9 +134,9 @@ function checkToolNewVersion() {
 		return;
 	}
 
-	const now = new Date();
-	const hour = now.getHours();
 	if (!IsDebugMode) {
+		const now = new Date();
+		const hour = now.getHours();
 		if (now.getDay() !== 2 || hour < 9 || hour > 11) {
 			return;
 		}

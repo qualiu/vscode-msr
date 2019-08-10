@@ -17,10 +17,12 @@ const ShowColorHideCmdRegex = /\s+-[Cc](\s+|$)/g;
 
 let _channel: vscode.OutputChannel;
 let _terminal: vscode.Terminal | undefined;
+let _shouldCreateTerminal = false;
 
 export function getTerminal(): vscode.Terminal {
-	if (!_terminal) {
+	if (!_terminal || _shouldCreateTerminal) {
 		_terminal = vscode.window.createTerminal(RunCmdTerminalName, ShellPath);
+		_shouldCreateTerminal = false;
 	}
 
 	return _terminal;
@@ -28,8 +30,9 @@ export function getTerminal(): vscode.Terminal {
 
 export function disposeTerminal() {
 	if (_terminal) {
-		_terminal.dispose();
-		_terminal = undefined;
+		_shouldCreateTerminal = true;
+		// _terminal.dispose();
+		// _terminal = undefined;
 	}
 }
 

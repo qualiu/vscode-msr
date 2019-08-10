@@ -3,7 +3,7 @@
 	"displayName": "Find definition and references for all types.",
 	"description": "Find definition and references in multiple repository paths by msr for all coding languages + configuration + doc files.",
 	"author": "qualiu@microsoft.com",
-	"version": "1.0.4",
+	"version": "1.0.5",
 	"icon": "images/vscode-msr-icon.png",
 	"license": "completely free",
 	"publisher": "qualiu",

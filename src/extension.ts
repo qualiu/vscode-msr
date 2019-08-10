@@ -349,7 +349,7 @@ function parseCommandOutput(stdout: string, findType: FindType, cmd: string, ran
 	}
 
 	let allResults: vscode.Location[] = [];
-	if (!MyConfig.NeedSortResults || matchedFileLines.length < 2) {
+	if (findType !== FindType.Definition || !MyConfig.NeedSortResults || matchedFileLines.length < 2) {
 		matchedFileLines.map(line => {
 			const [score, location] = parseMatchedText(line, ranker);
 			if (location) {

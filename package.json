@@ -3,7 +3,7 @@
 	"displayName": "Find definition and references for all types.",
 	"description": "Find definition and references in multiple repository paths by msr for all coding languages + configuration + doc files.",
 	"author": "qualiu@microsoft.com",
-	"version": "1.0.5",
+	"version": "1.0.6",
 	"icon": "images/vscode-msr-icon.png",
 	"license": "completely free",
 	"publisher": "qualiu",
@@ -348,7 +348,7 @@
 				"msr.findingCommands.useExtraPaths": {
 					"type": "boolean",
 					"default": true,
-					"description": "Use extra paths for finding commands in context menu or command platte."
+					"description": "Use extra paths for finding commands in context menu or command palette."
 				},
 				"msr.findReference.useExtraPaths": {
 					"type": "boolean",
@@ -412,7 +412,7 @@
 				},
 				"msr.default.pureReferenceSkip": {
 					"type": "string",
-					"default": "^\\s*[^\\s\\w]|^.{260,}",
+					"default": "^\\s*[#/:]|^.{260,}",
 					"description": "Regex pattern to skip junk results like comments when finding references in code files."
 				},
 				"msr.showInfo": {

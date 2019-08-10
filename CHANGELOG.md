@@ -4,6 +4,11 @@ All notable changes to the "vscode-msr" extension will be documented in this fil
 
 Detail see `vscode-msr` extension [commit history](https://github.com/qualiu/vscode-msr/commits/master).
 
+## [1.0.6]
+
+- Updated default skip pattern for finding pure references in confgiuration file.
+- Added description doc for difference between **normal** `find definition/reference` to **extensive** `finding commands`.
+
 ## [1.0.5]
 
 - Skipped sorting and removing lower score results when finding references.

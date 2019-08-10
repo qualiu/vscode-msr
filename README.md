@@ -10,20 +10,33 @@ Have you suffered issues of finding `definitions` and `references`:
   
 Then it's the [light and right tool](https://github.com/qualiu/vscode-msr) for you: (Take **less than 1 minute** for [requirements](https://github.com/qualiu/vscode-msr#requirements) before using for better experience).
 
+Note: Support **64-bit** + **32-bit** : **Windows** + **Linux** (`Ubuntu` / `CentOS` / `Fedora` which `gcc`/`g++` version >= `4.8`).
+
 ## Features
 
 - Got search results in **1~3 seconds** for 20000~30000+ code files (stored on hard drives **not SSD**) after first time.
+
 - Fast find **definitions** + **references** for **all types** of coding languages files, across **multiple related repositories** on local.
-- Support **64-bit** + **32-bit**: `Windows` + `Linux` (`Ubuntu` / `CentOS` / `Fedora`).
+
 - Also can jump to **definitions** + find **references** from **any type of files** + **any type**:
   - Any file types: Like `configuration files` (like `json`, `xml`) or `readme document files`(`*.md` or `readme`).
   - Any input types: Like words in comments, or a `text-just-typed`.
+
 - Simple + flexible configuration (`just general Regex` of `C++`,`Java`,`C#`,`Scala`,`Python`) to:
   - Just set `Regex` patterns to support all types of coding languages.
   - Copy + paste the command line from output to run in a command window, to get colorful output (remove `-C`) or tune the `Regex` pattern.
   - Set optional **include** + **exclude** conditions to filter file, folder, path, size, time, search-depth etc.
 
-- Just leverage [one tiny exe: msr-EXE](https://github.com/qualiu/msr/blob/master/README.md), without `storage/cache`, `server/service`, `network`, etc.
+- Just leverage [one tiny exe: msr-EXE](https://github.com/qualiu/msr/blob/master/README.md), use one **repeatible** + **flexible** command line, **without** `storage/cache`, `server/service`, `network`, etc.
+  
+- Normal Search + Extensive Search
+  - Normal search:
+    - Find definition (`Go to Definition` menu): Precise search **project root** + **extra paths** if set.
+    - Find references (`Find All References` menu): **Only** search **project root**, **skip** extra paths even if set.
+  - Extensive search:
+    - **Plain-text** and **Regex** searching groups in **command palette** and partially in **editor context menu**  (`Find plain text in xxx` or `Regex find xxx`)
+    - Provide specific searching in **project root** + **extra paths** if set. For example, `Regex find pure references in code files` will skip comments and long text in code.
+
 - Rich trigger and color output:
   - Trigger by menu (like `Go To Definition`) or keyboard (like press `F12`). This will show command lines + matched results and color output + clickable paths if fast.
   - Trigger by commands (Press `Ctrl`+`Shift`+`P` then search `msr` to show the group of extended finding commands) and show color output which paths is clickable.

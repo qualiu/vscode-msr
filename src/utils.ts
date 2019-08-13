@@ -3,9 +3,24 @@
 import * as vscode from 'vscode';
 export const TrimSearchTextRegex = /^[^\w\.-]+|[^\w\.-]+$/g;
 
-export function getCurrentWordAndText(document: vscode.TextDocument, position: vscode.Position): [string, vscode.Range | undefined, string] {
+export function getCurrentWordAndText(document: vscode.TextDocument, position: vscode.Position, textEditor: vscode.TextEditor | undefined = undefined)
+    : [string, vscode.Range | undefined, string] {
+
     if (document.languageId === 'code-runner-output' || document.fileName.startsWith('extension-output-#')) {
         return ['', undefined, ''];
+    }
+
+    const currentText = document.lineAt(position.line).text;
+    if (!textEditor) {
+        textEditor = vscode.window.activeTextEditor;
+    }
+
+    if (textEditor) {
+        const selectedText = textEditor.document.getText(textEditor.selection);
+        const isValidSelect = selectedText.length > 2 && /\w+/.test(selectedText);
+        if (isValidSelect) {
+            return [selectedText, textEditor.selection, currentText];
+        }
     }
 
     const wordRange = document.getWordRangeAtPosition(position);
@@ -13,7 +28,6 @@ export function getCurrentWordAndText(document: vscode.TextDocument, position: v
         return ['', undefined, ''];
     }
 
-    const currentText = document.lineAt(position.line).text;
     const currentWord: string = currentText.slice(wordRange.start.character, wordRange.end.character).replace(TrimSearchTextRegex, '');
     return [currentWord, wordRange, currentText];
 }
@@ -42,6 +56,16 @@ export function replaceText(sourceText: string, toFind: string, replaceTo: strin
     while (newText !== sourceText) {
         sourceText = newText;
         newText = newText.replace(toFind, replaceTo);
+    }
+
+    return newText;
+}
+
+export function replaceTextByRegex(sourceText: string, toFindRegex: RegExp, replaceTo: string): string {
+    let newText = sourceText.replace(toFindRegex, replaceTo);
+    while (newText !== sourceText) {
+        sourceText = newText;
+        newText = newText.replace(toFindRegex, replaceTo);
     }
 
     return newText;

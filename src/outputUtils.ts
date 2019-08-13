@@ -3,6 +3,7 @@
 import * as vscode from 'vscode';
 import { getConfig } from './dynamicConfig';
 import { IsWindows } from './checkTool';
+import { replaceTextByRegex } from './utils';
 
 export const RunCmdTerminalName = 'MSR-RUN-CMD';
 const OutputChannelName = 'MSR-Def-Ref';
@@ -17,27 +18,21 @@ const ShowColorHideCmdRegex = /\s+-[Cc](\s+|$)/g;
 
 let _channel: vscode.OutputChannel;
 let _terminal: vscode.Terminal | undefined;
-let _shouldCreateTerminal = false;
 
 export function getTerminal(): vscode.Terminal {
-	if (!_terminal || _shouldCreateTerminal) {
+	if (!_terminal) {
 		_terminal = vscode.window.createTerminal(RunCmdTerminalName, ShellPath);
-		_shouldCreateTerminal = false;
 	}
 
 	return _terminal;
 }
 
 export function disposeTerminal() {
-	if (_terminal) {
-		_shouldCreateTerminal = true;
-		// _terminal.dispose();
-		// _terminal = undefined;
-	}
+	_terminal = undefined;
 }
 
 export function runCommandInTerminal(cmd: string, mustShowTerminal: boolean = false) {
-	cmd = enableColorAndHideSummary(cmd);
+	cmd = enableColorAndHideCommandline(cmd);
 	// cmd += ' -M '; // to hide summary.
 	showTerminal(mustShowTerminal);
 	//vscode.commands.executeCommand('workbench.action.terminal.clear');
@@ -57,16 +52,24 @@ export function outputError(message: string) {
 }
 
 export function outputInfo(message: string) {
-	if (getConfig().ShowInfo) {
+	if (getConfig().ShowInfo && !getConfig().IsQuiet) {
 		getOutputChannel().appendLine(message);
 		showOutputChannel();
 	}
 }
 
-export function outputDebug(message: string) {
+export function outputInfoOrDebug(isDebug: boolean, message: string) {
+	if (isDebug) {
+		outputDebug(message);
+	} else {
+		outputInfo(message);
+	}
+}
+
+export function outputDebug(message: string, showWindow: boolean = true) {
 	if (getConfig().IsDebug) {
 		getOutputChannel().appendLine(message);
-		showOutputChannel();
+		showOutputChannel(showWindow);
 	}
 }
 
@@ -74,18 +77,18 @@ export function clearOutputChannel() {
 	getOutputChannel().clear();
 }
 
-export function enableColorAndHideSummary(cmd: string): string {
-	return cmd.replace(ShowColorHideCmdRegex, ' ').replace(ShowColorHideCmdRegex, ' ');
+export function enableColorAndHideCommandline(cmd: string): string {
+	return replaceTextByRegex(cmd, ShowColorHideCmdRegex, '$1');
 }
 
 function showTerminal(mustShowTerminal: boolean = false) {
-	if (mustShowTerminal || getConfig().IsQuiet !== true) {
+	if (mustShowTerminal || !getConfig().IsQuiet) {
 		getTerminal().show(true);
 	}
 }
 
-function showOutputChannel() {
-	if (getConfig().IsQuiet !== true) {
+function showOutputChannel(showWindow: boolean = true) {
+	if (showWindow && !getConfig().IsQuiet) {
 		getOutputChannel().show(true);
 	}
 }

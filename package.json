@@ -3,7 +3,7 @@
 	"displayName": "Find definition and references for all types.",
 	"description": "Find definition and references in multiple repository paths by msr for all coding languages + configuration + doc files.",
 	"author": "qualiu@microsoft.com",
-	"version": "1.0.6",
+	"version": "1.0.7",
 	"icon": "images/vscode-msr-icon.png",
 	"license": "completely free",
 	"publisher": "qualiu",
@@ -48,6 +48,24 @@
 	"contributes": {
 		"commands": [
 			{
+				"command": "msr.regexFindDefinitionInCurrentFile",
+				"title": "Regex find definition in current file.",
+				"category": "msr",
+				"icon": {
+					"dark": "images/vscode-msr-small.svg",
+					"light": "images/vscode-msr-small.svg"
+				}
+			},
+			{
+				"command": "msr.regexFindReferencesInCurrentFile",
+				"title": "Regex find references in current file.",
+				"category": "msr",
+				"icon": {
+					"dark": "images/vscode-msr-small.svg",
+					"light": "images/vscode-msr-small.svg"
+				}
+			},
+			{
 				"command": "msr.regexFindInAllSmallFiles",
 				"title": "Regex find all references in all small files.",
 				"category": "msr",
@@ -66,7 +84,7 @@
 				}
 			},
 			{
-				"command": "msr.regexFindInCodeAndConfig",
+				"command": "msr.regexFindReferencesInCodeAndConfig",
 				"title": "Regex find all references in code + config.",
 				"category": "msr",
 				"icon": {
@@ -102,7 +120,7 @@
 				}
 			},
 			{
-				"command": "msr.regexFindInDocFiles",
+				"command": "msr.regexFindReferencesInDocs",
 				"title": "Regex find all references in doc files.",
 				"category": "msr",
 				"icon": {
@@ -111,7 +129,7 @@
 				}
 			},
 			{
-				"command": "msr.regexFindInConfigFiles",
+				"command": "msr.regexFindReferencesInConfigFiles",
 				"title": "Regex find all references in config files.",
 				"category": "msr",
 				"icon": {
@@ -213,36 +231,116 @@
 		"menus": {
 			"editor/context": [
 				{
-					"command": "msr.regexFindInAllProjectFiles",
+					"when": "config.msr.menu.visible && config.msr.regexFindDefinitionInCurrentFile.menu.visible",
+					"command": "msr.regexFindDefinitionInCurrentFile",
 					"group": "msr"
 				},
 				{
-					"command": "msr.regexFindDefinitionInCodeFiles",
+					"when": "config.msr.menu.visible && config.msr.regexFindReferencesInCurrentFile.menu.visible",
+					"command": "msr.regexFindReferencesInCurrentFile",
 					"group": "msr"
 				},
 				{
+					"when": "config.msr.menu.visible && config.msr.regexFindInAllSmallFiles.menu.visible",
 					"command": "msr.regexFindInAllSmallFiles",
 					"group": "msr"
 				},
 				{
+					"when": "config.msr.menu.visible && config.msr.regexFindInAllProjectFiles.menu.visible",
+					"command": "msr.regexFindInAllProjectFiles",
+					"group": "msr"
+				},
+				{
+					"when": "config.msr.menu.visible && config.msr.regexFindReferencesInCodeAndConfig.menu.visible",
+					"command": "msr.regexFindReferencesInCodeAndConfig",
+					"group": "msr"
+				},
+				{
+					"when": "config.msr.menu.visible && config.msr.regexFindDefinitionInCodeFiles.menu.visible",
+					"command": "msr.regexFindDefinitionInCodeFiles",
+					"group": "msr"
+				},
+				{
+					"when": "config.msr.menu.visible && config.msr.regexFindReferenceInCodeFiles.menu.visible",
 					"command": "msr.regexFindReferenceInCodeFiles",
 					"group": "msr"
 				},
 				{
+					"when": "config.msr.menu.visible && config.msr.regexFindPureReferenceInCodeFiles.menu.visible",
 					"command": "msr.regexFindPureReferenceInCodeFiles",
 					"group": "msr"
 				},
 				{
+					"when": "config.msr.menu.visible && config.msr.regexFindReferencesInDocs.menu.visible",
+					"command": "msr.regexFindReferencesInDocs",
+					"group": "msr"
+				},
+				{
+					"when": "config.msr.menu.visible && config.msr.regexFindReferencesInConfigFiles.menu.visible",
+					"command": "msr.regexFindReferencesInConfigFiles",
+					"group": "msr"
+				},
+				{
+					"when": "config.msr.menu.visible && config.msr.findSelectedPlainTextInCodeFiles.menu.visible",
+					"command": "msr.findSelectedPlainTextInCodeFiles",
+					"group": "msr"
+				},
+				{
+					"when": "config.msr.menu.visible && config.msr.findSelectedPlainTextInCodeAndConfigFiles.menu.visible",
+					"command": "msr.findSelectedPlainTextInCodeAndConfigFiles",
+					"group": "msr"
+				},
+				{
+					"when": "config.msr.menu.visible && config.msr.findSelectedPlainTextInConfigFiles.menu.visible",
+					"command": "msr.findSelectedPlainTextInConfigFiles",
+					"group": "msr"
+				},
+				{
+					"when": "config.msr.menu.visible && config.msr.findSelectedPlainTextInDocFiles.menu.visible",
+					"command": "msr.findSelectedPlainTextInDocFiles",
+					"group": "msr"
+				},
+				{
+					"when": "config.msr.menu.visible && config.msr.findSelectedPlainTextInAllProjectFiles.menu.visible",
 					"command": "msr.findSelectedPlainTextInAllProjectFiles",
 					"group": "msr"
 				},
 				{
+					"when": "config.msr.menu.visible && config.msr.findSelectedPlainTextInAllSmallFiles.menu.visible",
 					"command": "msr.findSelectedPlainTextInAllSmallFiles",
+					"group": "msr"
+				},
+				{
+					"when": "config.msr.menu.visible && config.msr.sortProjectFilesBySize.menu.visible",
+					"command": "msr.sortProjectFilesBySize",
+					"group": "msr"
+				},
+				{
+					"when": "config.msr.menu.visible && config.msr.sortProjectFilesByTime.menu.visible",
+					"command": "msr.sortProjectFilesByTime",
+					"group": "msr"
+				},
+				{
+					"when": "config.msr.menu.visible && config.msr.sortAllFilesBySize.menu.visible",
+					"command": "msr.sortAllFilesBySize",
+					"group": "msr"
+				},
+				{
+					"when": "config.msr.menu.visible && config.msr.sortAllFilesByTime.menu.visible",
+					"command": "msr.sortAllFilesByTime",
 					"group": "msr"
 				}
 			],
 			"commandPalette": [
 				{
+					"command": "msr.regexFindDefinitionInCurrentFile",
+					"group": "msr"
+				},
+				{
+					"command": "msr.regexFindReferencesInCurrentFile",
+					"group": "msr"
+				},
+				{
 					"command": "msr.regexFindInAllSmallFiles",
 					"group": "msr"
 				},
@@ -251,7 +349,7 @@
 					"group": "msr"
 				},
 				{
-					"command": "msr.regexFindInCodeAndConfig",
+					"command": "msr.regexFindReferencesInCodeAndConfig",
 					"group": "msr"
 				},
 				{
@@ -267,11 +365,11 @@
 					"group": "msr"
 				},
 				{
-					"command": "msr.regexFindInDocFiles",
+					"command": "msr.regexFindReferencesInDocs",
 					"group": "msr"
 				},
 				{
-					"command": "msr.regexFindInConfigFiles",
+					"command": "msr.regexFindReferencesInConfigFiles",
 					"group": "msr"
 				},
 				{
@@ -320,6 +418,91 @@
 			"type": "object",
 			"title": "File Peek extension configuration",
 			"properties": {
+				"msr.menu.visible": {
+					"type": "boolean",
+					"default": true,
+					"description": "If false, will hide all `msr` context menus (menu by right-click to prommpt) of `Regex find xxx` or `Find plain text`."
+				},
+				"msr.regexFindDefinitionInCurrentFile.menu.visible": {
+					"type": "boolean",
+					"default": true
+				},
+				"msr.regexFindReferencesInCurrentFile.menu.visible": {
+					"type": "boolean",
+					"default": true
+				},
+				"msr.regexFindInAllSmallFiles.menu.visible": {
+					"type": "boolean",
+					"default": true
+				},
+				"msr.regexFindInAllProjectFiles.menu.visible": {
+					"type": "boolean",
+					"default": true
+				},
+				"msr.regexFindReferencesInCodeAndConfig.menu.visible": {
+					"type": "boolean",
+					"default": false
+				},
+				"msr.regexFindDefinitionInCodeFiles.menu.visible": {
+					"type": "boolean",
+					"default": true
+				},
+				"msr.regexFindReferenceInCodeFiles.menu.visible": {
+					"type": "boolean",
+					"default": false
+				},
+				"msr.regexFindPureReferenceInCodeFiles.menu.visible": {
+					"type": "boolean",
+					"default": true
+				},
+				"msr.regexFindReferencesInDocs.menu.visible": {
+					"type": "boolean",
+					"default": false
+				},
+				"msr.regexFindReferencesInConfigFiles.menu.visible": {
+					"type": "boolean",
+					"default": false
+				},
+				"msr.findSelectedPlainTextInCodeFiles.menu.visible": {
+					"type": "boolean",
+					"default": false
+				},
+				"msr.findSelectedPlainTextInCodeAndConfigFiles.menu.visible": {
+					"type": "boolean",
+					"default": false
+				},
+				"msr.findSelectedPlainTextInConfigFiles.menu.visible": {
+					"type": "boolean",
+					"default": false
+				},
+				"msr.findSelectedPlainTextInDocFiles.menu.visible": {
+					"type": "boolean",
+					"default": false
+				},
+				"msr.findSelectedPlainTextInAllProjectFiles.menu.visible": {
+					"type": "boolean",
+					"default": true
+				},
+				"msr.findSelectedPlainTextInAllSmallFiles.menu.visible": {
+					"type": "boolean",
+					"default": true
+				},
+				"msr.sortProjectFilesBySize.menu.visible": {
+					"type": "boolean",
+					"default": false
+				},
+				"msr.sortProjectFilesByTime.menu.visible": {
+					"type": "boolean",
+					"default": false
+				},
+				"msr.sortAllFilesBySize.menu.visible": {
+					"type": "boolean",
+					"default": false
+				},
+				"msr.sortAllFilesByTime.menu.visible": {
+					"type": "boolean",
+					"default": false
+				},
 				"msr.quiet": {
 					"type": "boolean",
 					"default": false,
@@ -354,6 +537,11 @@
 					"type": "boolean",
 					"default": false,
 					"description": "Use extra paths for finding references."
+				},
+				"msr.findDefinition.useExtraPaths": {
+					"type": "boolean",
+					"default": true,
+					"description": "Use extra paths for finding defintion."
 				},
 				"msr.enable.useGeneralFindingWhenNoResults": {
 					"type": "boolean",
@@ -412,7 +600,7 @@
 				},
 				"msr.default.pureReferenceSkip": {
 					"type": "string",
-					"default": "^\\s*[#/:]|^.{260,}",
+					"default": "^\\s*(#|/|:|\\*|(or|from|import)\\s+)|^.{260,}",
 					"description": "Regex pattern to skip junk results like comments when finding references in code files."
 				},
 				"msr.showInfo": {
@@ -433,7 +621,7 @@
 				"msr.default.skipFolders": {
 					"type": "string",
 					"default": "^([\\.\\$]\\w+|Release|Debug|node_modules|static|dist|target|site-packages|packages|JsPackages|Monaco|CBT$|obj$|bin$|build$|npm-package|__pycache__)",
-					"description": "Default Regex pattern to skip folders."
+					"description": "Default Regex pattern to skip folders. You can set each project's additional skip patterns: `msr.{git-folder-name}.skipFolders` in file (see doc): https://code.visualstudio.com/docs/getstarted/settings#_settings-file-locations like: %APPDATA%\\Code\\User\\settings.json on Windows"
 				},
 				"msr.default.allFiles": {
 					"type": "string",
@@ -482,7 +670,7 @@
 				},
 				"msr.default.definition": {
 					"type": "string",
-					"default": "^\\s*#\\s*define\\s+(%1)\\b|^\\s*\\w+[^=\\(\\./#;:]+\\s+(%1)\\s*(?:[\\(\\{:<]|extends|implements|$)",
+					"default": "^\\s*(#\\s*define\\s+|(p\\w+|internal|readonly|const|static)\\s+[\\w\\s]*?)\\b(%1)\\b|^\\s*\\w+[^=\\(\\./#;:]+\\s+(%1)\\s*(?:[\\(\\{:<]|extends|implements|$)",
 					"description": "Default Regex pattern to find definitions of a word (class, method, etc.). Must use `(%1)` to be replaced by word to search."
 				},
 				"msr.default.reference": {
@@ -502,17 +690,17 @@
 				},
 				"msr.definition.extraOptions": {
 					"type": "string",
-					"default": "--s1 1B --s2 1.6MB -H 30 -J -I -C -c Search %1",
+					"default": "--s1 1B --s2 1.6MB -H 60 -J -I -C -c Search %1",
 					"description": "Default extra searching options for finding definitions: Get top {N} results and jump out."
 				},
 				"msr.reference.extraOptions": {
 					"type": "string",
-					"default": "--s1 1B --s2 3.6MB -H 300 -J -I -C -c Search %1",
+					"default": "--s1 1B --s2 3.6MB -H 360 -J -I -C -c Search %1",
 					"description": "Default extra searching options for finding references: Get top {N} results and jump out."
 				},
 				"msr.default.isClass": {
 					"type": "string",
-					"default": "\\b(class|struct|object)\\s+\\w+|\\b(new|is|as)\\s+(%1)\\b|\\s+(%1)\\.\\w+\\s*\\(|\\b(%1)\\s*[<>]|[<\\[]\\s*(%1)\\b|\\b(%1)\\s*[\\[>]",
+					"default": "\\b(class|struct|object)\\s+\\w+|\\b(new|is|as)\\s+(%1)\\b|=\\s*(%1)\\s*\\(|\\s+(%1)\\.\\w+\\s*\\(|\\b(%1)\\s*[<>]|[<\\[]\\s*(%1)\\b|\\b(%1)\\s*[\\[>]",
 					"description": "Default Regex pattern to check if what-to-find is a `class`."
 				},
 				"msr.default.isClassOrEnum": {
@@ -582,7 +770,7 @@
 				},
 				"msr.cs.method.definition": {
 					"type": "string",
-					"default": "^\\s*\\w+[\\w\\[\\]\\.\\(\\)<>,\\s]*?\\s+(%1)\\s*(<.+>)?\\s*\\([^;]*$",
+					"default": "^\\s*\\w+[\\w\\[\\]\\.\\(\\)<>,\\s]*?\\s+(%1)\\s*(?:<.+>)?\\s*\\([^;]*$",
 					"description": "Regex pattern to search C# method definitions."
 				},
 				"msr.cs.enum.definition": {
@@ -607,7 +795,7 @@
 				},
 				"msr.cpp.isClass": {
 					"type": "string",
-					"default": "\\b(class|struct)\\s+\\w+|\\b(new|is|as)\\s+(%1)\\b|\\s+(%1)\\.\\w+\\s*\\(|\\b(%1)\\s*[<>]|\\[\\s*(%1)\\s*\\(|\\b(%1)\\s*[\\*\\&]?\\s+\\w+",
+					"default": "\\b(class|struct)\\s+\\w+|\\b(new|is|as)\\s+(%1)\\b|=\\s*(%1)\\s*\\(|\\s+(%1)\\.\\w+\\s*\\(|\\b(%1)\\s*[<>]|\\[\\s*(%1)\\s*\\(|\\b(%1)\\s*[\\*\\&]?\\s+\\w+",
 					"description": "Regex pattern to check if what-to-find is a C++ `class`."
 				},
 				"msr.cpp.constant.definition": {
@@ -677,7 +865,7 @@
 				},
 				"msr.py.isClass": {
 					"type": "string",
-					"default": "\\b(new|is|as)\\s+(%1)\\b|class\\s+(%1)\\b|\\b(except|raise)\\s+(%1)|(%1)\\.\\w+|^\\s*from\\s+\\S+\\s+import\\s+(%1)|\\[[\\w,\\s]*?(%1)|(%1)[\\w,\\s*]*?\\]",
+					"default": "\\b(new|is|as)\\s+(%1)\\b|=\\s*(%1)\\s*\\(|class\\s+(%1)\\b|\\b(except|raise)\\s+(%1)|(%1)\\.\\w+|^\\s*from\\s+\\S+\\s+import\\s+(%1)|\\[[\\w,\\s]*?(%1)|(%1)[\\w,\\s*]*?\\]",
 					"description": "Regex pattern for Python to check if what-to-find is a `class`."
 				},
 				"msr.py.class.definition": {
@@ -725,15 +913,20 @@
 					"default": "\\b(class|struct|enum|interface|const)\\s+(%1)\\b",
 					"description": "Regex pattern to search UI `class` definition."
 				},
-				"msr.ui.method.definition": {
-					"type": "string",
-					"default": "^\\s*(p\\w+|function)\\s+(%1)\\b",
-					"description": "Regex pattern to search UI `method` definition."
-				},
 				"msr.ui.member.definition": {
 					"type": "string",
 					"default": "\\b(const|public|private|protected|readonly)\\s+(\\w+\\s)*?(%1)\\b(\\s*:\\s*\\w+)?\\s*[=;]",
 					"description": "Regex pattern to search UI `member` definition."
+				},
+				"msr.ui.method.definition": {
+					"type": "string",
+					"default": "^[\\w\\s]*?(function|public|private|protected|internal)\\s+\\b(%1)\\b",
+					"description": "Regex pattern to search UI `method` definition."
+				},
+				"msr.ui.method.skip.definition": {
+					"type": "string",
+					"default": "^\\s*(return|await|throw|except|raise|new|(el)?if|for|from|val)\\s+",
+					"description": "Default Regex pattern to filter non-definitions."
 				}
 			}
 		}

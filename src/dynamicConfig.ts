@@ -9,10 +9,12 @@ import { stringify } from 'querystring';
 import { getNoDuplicateStringSet } from './utils';
 import { EmptyRegex } from './regexUtils';
 
-export const IsDebugMode = process.execArgv && process.execArgv.length > 0 && process.execArgv.some((arg) => /^--debug=?/.test(arg) || /^--(debug|inspect)-brk=?/.test(arg));
+export const IsDebugMode = false; // process.execArgv && process.execArgv.length > 0 && process.execArgv.some((arg) => /^--debug=?/.test(arg) || /^--(debug|inspect)-brk=?/.test(arg));
 export const ShouldQuotePathRegex = IsWindows ? /[^\w\.,\\/:-]/ : /[^\w\.,\\/-]/;
 export const SearchTextHolder = '%1';
 export const SearchTextHolderReplaceRegex = /%~?1/g;
+
+export const GitFolderName = path.parse(vscode.workspace.rootPath || '.').base;
 
 const SplitPathsRegex = /\s*[,;]\s*/;
 const SplitPathGroupsRegex = /\s*;\s*/;
@@ -44,7 +46,7 @@ export class DynamicConfig {
     public SearchAllFilesWhenFindingReferences: boolean = false;
     public SearchAllFilesWhenFindingDefinitions: boolean = false;
     public GetSearchTextHolderInCommandLine: RegExp = /\s+-c\s+.*?%~?1/;
-    public DisabledFileExtensionRegex : RegExp = new RegExp('to-load');
+    public DisabledFileExtensionRegex: RegExp = new RegExp('to-load');
 }
 
 export function getConfig(reload: boolean = false): DynamicConfig {
@@ -89,22 +91,35 @@ export function getOverrideOrDefaultConfig(mappedExt: string, suffix: string, al
     return !defaultValue ? '' : String(defaultValue);
 }
 
-export function getSearchPathOptions(mappedExt: string, isFindingDefinition: boolean, useExtraSearchPaths: boolean = true): string {
+export function getSearchPathOptions(mappedExt: string,
+    isFindingDefinition: boolean,
+    useExtraSearchPathsForReference: boolean = true,
+    useExtraSearchPathsForDefinition: boolean = true): string {
+
+    const RootConfig = getConfig().RootConfig;
     const RootPath = vscode.workspace.rootPath || '.';
-    const skipFolders = getOverrideOrDefaultConfig(mappedExt, '.skipFolders', false);
-    const skipFolderOptions = skipFolders.length > 1 ? ' --nd "' + skipFolders + '"' : '';
-    if (!useExtraSearchPaths) {
+    const commonSkipFolders = getOverrideOrDefaultConfig(mappedExt, '.skipFolders', false).trim();
+    const projectSkipFolders = (RootConfig.get(GitFolderName + '.skipFolders') as string || '').trim();
+    const skipFolderPatternSet: Set<string> = new Set<string>()
+        .add(commonSkipFolders)
+        .add(projectSkipFolders);
+    skipFolderPatternSet.delete('');
+    const skipFoldersPattern = Array.from(skipFolderPatternSet).join('|');
+    const skipFolderOptions = skipFoldersPattern.length > 1 ? ' --nd "' + skipFoldersPattern + '"' : '';
+    if ((isFindingDefinition && !useExtraSearchPathsForDefinition) || (!isFindingDefinition && !useExtraSearchPathsForReference)) {
         return '-rp ' + RootPath + skipFolderOptions;
     }
 
-    const parsedPath = path.parse(RootPath);
-    const folderName = parsedPath.base;
+    let extraSearchPathSet = getExtraSearchPathsOrFileLists('default.extraSearchPaths', GitFolderName);
+    getExtraSearchPathsOrFileLists('default.extraSearchPathGroups', GitFolderName).forEach(a => extraSearchPathSet.add(a));
+    splitPathList(RootConfig.get(GitFolderName + '.extraSearchPaths') as string).forEach((a => extraSearchPathSet.add(a)));
 
-    const extraSearchPathSet = getExtraSearchPathsOrFileLists('default.extraSearchPaths', folderName);
-    const extraSearchPathFileListSet = getExtraSearchPathsOrFileLists('default.extraSearchPathListFiles', folderName);
+    let extraSearchPathFileListSet = getExtraSearchPathsOrFileLists('default.extraSearchPathListFiles', GitFolderName);
+    getExtraSearchPathsOrFileLists('default.extraSearchPathListFileGroups', GitFolderName).forEach(a => extraSearchPathFileListSet.add(a));
+    splitPathList(RootConfig.get(GitFolderName + '.extraSearchPathListFiles') as string).forEach((a => extraSearchPathFileListSet.add(a)));
 
-    const thisTypeExtraSearchPaths = !isFindingDefinition ? new Set<string>() : getExtraSearchPathsOrFileLists(mappedExt + '.extraSearchPaths', folderName);
-    const thisTypeExtraSearchPathListFiles = !isFindingDefinition ? new Set<string>() : getExtraSearchPathsOrFileLists(mappedExt + '.extraSearchPathListFiles', folderName);
+    const thisTypeExtraSearchPaths = !isFindingDefinition ? new Set<string>() : getExtraSearchPathsOrFileLists(mappedExt + '.extraSearchPaths', GitFolderName);
+    const thisTypeExtraSearchPathListFiles = !isFindingDefinition ? new Set<string>() : getExtraSearchPathsOrFileLists(mappedExt + '.extraSearchPathListFiles', GitFolderName);
 
     let searchPathSet = new Set<string>();
     searchPathSet.add(RootPath);
@@ -130,10 +145,26 @@ export function getSearchPathOptions(mappedExt: string, isFindingDefinition: boo
 }
 
 export function getExtraSearchPathsOrFileLists(configKey: string, folderName: string): Set<string> {
-    const RootConfig = getConfig().RootConfig || vscode.workspace.getConfiguration('msr');
-    const extraSearchPathGroups = (RootConfig.get(configKey) as string || '').trim().split(SplitPathGroupsRegex).filter(a => a.length > 0);
-
     let extraSearchPaths = new Set<string>();
+    const RootConfig = getConfig().RootConfig || vscode.workspace.getConfiguration('msr');
+    const extraPathObject = RootConfig.get(configKey);
+    if (!extraPathObject) {
+        return extraSearchPaths;
+    }
+
+    const valueType = typeof extraPathObject;
+    let extraSearchPathGroups: string[] = [];
+    if (valueType === 'string') {
+        extraSearchPathGroups = (extraPathObject as string || '').trim().split(SplitPathGroupsRegex).filter(a => a.length > 0);
+    } else {
+        const pathArray = extraPathObject as string[];
+        if (pathArray) {
+            pathArray.forEach(a => {
+                a.trim().split(SplitPathGroupsRegex).filter(a => a.length > 0).forEach(g => extraSearchPathGroups.push(a));
+            });
+        }
+    }
+
     let folderNameToPathMap = new Map<string, string>();
     extraSearchPathGroups.forEach(a => {
         const m = FolderToPathPairRegex.exec(a);
@@ -147,7 +178,17 @@ export function getExtraSearchPathsOrFileLists(configKey: string, folderName: st
     });
 
     const specificPaths = folderNameToPathMap.get(folderName) || '';
-    specificPaths.split(SplitPathsRegex).forEach(a => {
+    splitPathList(specificPaths).forEach(a => extraSearchPaths.add(a));
+    return getNoDuplicateStringSet(extraSearchPaths);
+}
+
+function splitPathList(pathListText: string) {
+    let extraSearchPaths = new Set<string>();
+    if (!pathListText) {
+        return extraSearchPaths;
+    }
+
+    pathListText.split(SplitPathsRegex).forEach(a => {
         extraSearchPaths.add(a.trim());
     });
 

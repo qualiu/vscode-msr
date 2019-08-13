@@ -20,7 +20,8 @@ suite('Extension Test Suite', () => {
     const GitRootPath = path.resolve(__dirname, '../../../');
     const ConfigFilePath = path.join(GitRootPath, 'package.json');
     const DocFilePath = path.join(GitRootPath, 'README.md');
-    const KeyRegex = /["`](msr[\.\w]+)/g;
+    const KeyRegex = /["`](msr\.\w+[\.\w]*)/g;
+    const SkipKeysRegex = /^(msr.xxx)|\.project\d+|default.extra\w*Groups|\.My/i;
     const ExemptFindAllKeyRegex = /^(msr\.)?\w*(find|sort)\w+$/i;
     const ExemptNoValueKeyRegex = /extra|skip.definition|disable.extensionPatterns|^\w*(find|sort)\w+$/i;
     const NonStringValueRegex = /^(\d+|bool\w*$)/;
@@ -47,7 +48,7 @@ suite('Extension Test Suite', () => {
                 keyCount++;
                 const fullKey = m[1];
                 console.log('Found doc key = ' + fullKey + ' in ' + DocFilePath);
-                assert.ok(allKeys.has(fullKey), 'Not found in configuration file: Key = ' + fullKey + ' in ' + DocFilePath);
+                assert.ok(allKeys.has(fullKey) || SkipKeysRegex.test(fullKey), 'Not found in configuration file: Key = ' + fullKey + ' in ' + DocFilePath);
             }
         } while (m);
 

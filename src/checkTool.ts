@@ -156,7 +156,7 @@ function checkToolNewVersion() {
 						outputInfo('You can download the new exe by command as below:');
 						outputInfo(replaceText(DownloadCommand, TmpMsrExePath, MsrExePath));
 					} else {
-						outputDebug('Great! Your `msr` exe is latest! md5 = ' + md5 + ' , exe = ' + MsrExePath);
+						outputDebug('Great! Your `msr` exe is latest! md5 = ' + md5 + ' , exe = ' + MsrExePath + ' , sourceMD5 = ' + SourceMd5FileUrl);
 					}
 				}
 			}
@@ -166,7 +166,7 @@ function checkToolNewVersion() {
 	request.end();
 
 	request.on('error', (err) => {
-		outputDebug('Failed to read source md5: ' + err.message);
+		outputDebug('Failed to read source md5 from ' + SourceMd5FileUrl + ': ' + err.message);
 	});
 }
 

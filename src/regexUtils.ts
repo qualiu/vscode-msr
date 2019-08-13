@@ -22,6 +22,7 @@ const SingleWordMatchingPattern =
 	+ "[0-9]+[A-Z]" + "(?=\\b|[A-Z])" + "|"                            // Get '3D' from '3DTest' '3DTEST'
 	+ "[0-9]+" + "|" + "[A-Z]+" + "|" + "[a-z]+"                       // Get normal successive number or letters
 	;
+
 const SingleWordMatchingRegex = new RegExp(SingleWordMatchingPattern, 'g');
 
 export function getAllSingleWords(text: string, ignoreCase: boolean = true): Set<string> {
@@ -39,4 +40,12 @@ export function getAllSingleWords(text: string, ignoreCase: boolean = true): Set
 
 export function escapeRegExp(text: string): string {
 	return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/"/g, '\\"');
+}
+
+export function createRegex(pattern: string, flags: string | undefined = undefined): RegExp {
+	if (!pattern || pattern.length < 1) {
+		return EmptyRegex;
+	}
+
+	return new RegExp(pattern, flags);
 }

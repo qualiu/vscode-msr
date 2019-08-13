@@ -1,17 +1,34 @@
 # vscode-msr
 
-Have you suffered issues of finding `definitions` and `references`:
+Have you suffered issues of finding `definitions` and `references`:- [vscode-msr](#vscode-msr)
 
 - **Unable to `jump-to-definition` or `find-references`** if `IDE has problems` or `build failed` or `lack of packages` ?
-- **Unable to coding in IDE for one entire repository** due to `multiple types of coding languages` (`C#` , `C++` , `Java`/`Scala`, `Python`, `Vue` , etc.)
+- **Unable to coding in IDE for one entire repository** due to `multiple languages` (`C#` , `C++` , `Java`/`Scala`, `Python`, `Vue`, etc.) ?
 - **Unable to coding in IDE for multiple related repositories** in multiple root folders ?
 - **Missed updates to some types of files** when performed changes like `rename`, `refactor`, `update-versions`, etc.
 - **Quite slow to take a full search** but have to do it and wait ?
   
-Then it's the [light and right tool](https://github.com/qualiu/vscode-msr) for you: (Take **less than 1 minute** for [requirements](https://github.com/qualiu/vscode-msr#requirements) before using for better experience).
+Then it's the [light and right tool](https://github.com/qualiu/vscode-msr) for you (Take **less than 1 minute** for [requirements](https://github.com/qualiu/vscode-msr#requirements) before using for better experience).
 
 Note: Support **64-bit** + **32-bit** : **Windows** + **Linux** (`Ubuntu` / `CentOS` / `Fedora` which `gcc`/`g++` version >= `4.8`).
 
+- [vscode-msr](#vscode-msr)
+  - [Features](#features)
+  - [Requirements](#requirements)
+  - [Avoid Security Software Downgrade Search Performance](#avoid-security-software-downgrade-search-performance)
+  - [Hide or Show More Context Menus](#hide-or-show-more-context-menus)
+  - [Extension Settings If You Want to Change](#extension-settings-if-you-want-to-change)
+    - [General/Default Settings Examples](#generaldefault-settings-examples)
+      - [Additional Settings in Your Personal Settings file](#additional-settings-in-your-personal-settings-file)
+      - [Extra Paths Settings](#extra-paths-settings)
+      - [Specific Extra Search Paths Settings](#specific-extra-search-paths-settings)
+    - [Specific Coding Language Settings Examples](#specific-coding-language-settings-examples)
+  - [Welcome to Contribute](#welcome-to-contribute)
+    - [Add New Support or Improve](#add-new-support-or-improve)
+    - [Check and Update this doc](#check-and-update-this-doc)
+  - [Known Issues](#known-issues)
+  - [Release Notes](#release-notes)
+  
 ## Features
 
 - Got search results in **1~3 seconds** for 20000~30000+ code files (stored on hard drives **not SSD**) after first time.
@@ -26,7 +43,7 @@ Note: Support **64-bit** + **32-bit** : **Windows** + **Linux** (`Ubuntu` / `Cen
   - Just set `Regex` patterns to support all types of coding languages.
   - Copy + paste the command line from output to run in a command window, to get colorful output (remove `-C`) or tune the `Regex` pattern.
   - Set optional **include** + **exclude** conditions to filter file, folder, path, size, time, search-depth etc.
-
+  
 - Just leverage [one tiny exe: msr-EXE](https://github.com/qualiu/msr/blob/master/README.md), use one **repeatible** + **flexible** command line, **without** `storage/cache`, `server/service`, `network`, etc.
   
 - Normal Search + Extensive Search
@@ -47,6 +64,14 @@ Note: Support **64-bit** + **32-bit** : **Windows** + **Linux** (`Ubuntu` / `Cen
   - Also can use `-j` to just show changed files before use `-R`.
   - More types of filters see [doc](https://github.com/qualiu/msr/blob/master/README.md) or just run the [msr-EXE](https://qualiu.github.io/msr/usage-by-running/msr-Windows.html).
 
+- Free to enable or disable all or each specific functions
+  - Hide or show context menus: [Hide or Show More Context Menus](https://github.com/qualiu/vscode-msr#hide-or-show-more-context-menus) etc.
+  - Enable or disable finding `defintion` or `reference`
+    - Disable for all types of files:
+      - Change values of `msr.enable.definition` + `msr.enable.reference` in [user settings](https://code.visualstudio.com/docs/getstarted/settings) .
+    - Disable for specific types of files:
+      - [Set Regex patterns for file extension](https://github.com/qualiu/vscode-msr#generaldefault-settings-examples) in [personal setting file](https://code.visualstudio.com/docs/getstarted/settings#_settings-file-locations) for `msr.disable.extensionPatterns`.
+
 Search **Definitions** + **References** for **C++** / **Python** / **Java** in `Visual Studio Code` [Screenshot GIF](https://raw.githubusercontent.com/qualiu/vscode-msr/master/images/find-def-ref.gif):
 
 <img src=https://raw.githubusercontent.com/qualiu/vscode-msr/master/images/find-def-ref.gif width=956 height=480>
@@ -55,7 +80,7 @@ Search **Definitions** + **References** for **C++** / **Python** / **Java** in `
 
 Just **download** the tiny [msr.EXE](https://github.com/qualiu/msr/tree/master/tools) (of your system type) , then **add** it to `%PATH%` or `$PATH`.
 
-**If you skip downloading**, will auto download it to `~/msr` (on **Linux**) or `%USERPROFILE%\Desktop\msr.exe` (on **Windows**).
+**If you skipped downloading**, will auto download it to `~/msr` (on **Linux**) or `%USERPROFILE%\Desktop\msr.exe` (on **Windows**).
 
 Suggest you use/create a tool folder like `~/tools` or `D:\tools` instead of `system folder` for 1 command line below:
 
@@ -85,19 +110,61 @@ Add **Process** type (name) + **File** type (path) exclusions for [msr.EXE](http
 
 <img align='center' src=https://raw.githubusercontent.com/qualiu/vscode-msr/master/images/add-exclusion-on-windows.png width=798 height=489>
 
+## Hide or Show More Context Menus
+
+Provided 20 `Plain-text find` + `Regex find` + `Sort` context menu items, but just show a few of them by default settings.
+
+Set `msr.menu.visible` = `false` to hide all menus.
+
+To show or hide more menus, [open user settings](https://code.visualstudio.com/docs/getstarted/settings#_creating-user-and-workspace-settings) like [screenshot](https://raw.githubusercontent.com/qualiu/vscode-msr/master/images/editor-context-menu.png) below:
+
+<img align='center' src=https://raw.githubusercontent.com/qualiu/vscode-msr/master/images/editor-context-menu.png width=711 height=269>
+
 ## Extension Settings If You Want to Change
 
 You don't need to change settings from [configuration file](https://github.com/qualiu/vscode-msr/blob/master/package.json) unless you want to tune or improve `Regex` patterns, or add **extra search paths** , etc.
 
 ### General/Default Settings Examples
 
-- `msr.disable.extensionPatterns`: Regex pattern of file extensions to disable `find definition and references`.
-- `msr.enable.definition`: Enable/disable `find definitions`.
-- `msr.enable.reference`: Enable/disable `find references`.
+Note: Check [**your personal settings**](https://code.visualstudio.com/docs/getstarted/settings#_settings-file-locations) (`msr.xxx` in file) with the latest tuned github settings, especially for `Regex`  patterns.
+
+- `msr.disable.extensionPatterns`:
+
+  Regex pattern of **file name extensions** to **disable** `find definition and references`.
+  
+  For example: Set `\.(cs|java|scala)$` to disable for `C#` and `Java`/`Scala` files.
+- `msr.enable.definition`: **Enable** `find definitions`.
+- `msr.enable.reference`: **Enable** `find references`.
 - `msr.default.maxSearchDepth`: Set `max search depth` when finding definitions or references.
 - `msr.default.codeFiles`: Set `default` Regex pattern for `source code files`.
 - `msr.descendingSortForVSCode`: Descending sort search results for `vscode`.
 - `msr.descendingSortForConsoleOutput`: Descending sort search results for output channel in `vscode` bottom.
+- `msr.default.skipFolders`: Set `default`/`common` skip folders Regex pattern.
+  
+#### Additional Settings in [Your Personal Settings file](https://code.visualstudio.com/docs/getstarted/settings#_settings-file-locations)
+
+- Set `skipFolders` for Specific Project
+  
+  Besides the common skip pattern `default.skipFolders`, you can set additional patterns for each project in [your personal settings file](https://code.visualstudio.com/docs/getstarted/settings#_settings-file-locations).
+  
+  Like adding `msr.{git-folder-name}.skipFolders` + value in `%APPDATA%\Code\User\settings.json` on Windows:
+
+  ```json
+  "msr.My-Git-Project-Root-Folder-Name.skipFolders": "^(uint|tests)$|other-partial-contained-folder-names"
+  ```
+
+- Promote Scores for Specific Project Folders or Paths
+  
+  Set below items if you need in [your personal settings file](https://code.visualstudio.com/docs/getstarted/settings#_settings-file-locations) like `%APPDATA%\Code\User\settings.json` on Windows.
+
+  Regex pattern to promote scores for sorting definition (`Go To Definition`) or references (`Find All References`):
+  - `msr.{git-folder-name}.promoteFolderPattern`: Regex pattern to promte folder scores for result file folders.
+  - `msr.{git-folder-name}.promotePathPattern`: Regex pattern to promte path scores for result file paths.
+  - `msr.{git-folder-name}.promoteFolderScore`: Recommended value is 100 to 1000. Default = 200.
+  - `msr.{git-folder-name}.promotePathScore`:  Recommended value is 100 to 1000. Default = 200.
+
+#### Extra Paths Settings
+
 - `msr.default.extraSearchPaths`: **Extra search paths** of external repositories, dependency sources, or libraries, etc.
 - `msr.default.extraSearchPathListFiles`: **Read extra search path list files** of external repositories, dependency sources, or libraries, etc.
 
@@ -126,6 +193,23 @@ You can set values for the projects like below, and their `extra search paths` w
   - Then paths will be:
     - **project1** extra search path list files = `d:\paths1.txt,D:\paths2.txt`
     - **project2** extra search path list files = `d:\paths3.txt`
+
+**Since 1.0.7** : Much easier to set in [your personal settings file](https://code.visualstudio.com/docs/getstarted/settings#_settings-file-locations) like `%APPDATA%\Code\User\settings.json` on Windows:
+
+- `msr.project1.extraSearchPaths` : `"D:\myLibs\boost,D:\git\baseLib,D:\git\teamLib"`
+- `msr.project2.extraSearchPaths` : `"D:\myLibs\boost,d:\git\project1"`
+
+- Same to `msr.xxx.extraSearchPathListFiles` settings.
+
+- You can also use `msr.default.extraSearchPathGroups` + `msr.default.extraSearchPathListFileGroups` which should use **array** values like:
+
+```json
+"msr.default.extraSearchPathGroups": [
+    "D:\\myLibs\\boost, d:\\myLibs\\common",
+    "Project1 = D:\\git\\baseLib, D:\\git\\teamLib",
+    "Project2 = D:\\git\\Project1 , D:\\git\\baseLib , D:\\git\\teamLib"
+]
+```
 
 You can also set extra search paths for each type of coding language.
 
@@ -193,9 +277,9 @@ Please help to set the `Regex` patterns for them if you want. You can:
   
   Easy to check consistency of [configurations](https://github.com/qualiu/vscode-msr/blob/master/package.json) with `this document` by command lines below (you can also run command `npm run test` if you're a developer):
 
-  **[nin](https://github.com/qualiu/msr/tree/master/tools)** `README.md` [package.json](https://github.com/qualiu/vscode-msr/blob/master/package.json) **"(msr\\.[\w\\.]+)"** --nt `"msr\.(exe|gcc\w+|cygwin)|project1"` -i -c Should no result
+  **[nin](https://github.com/qualiu/msr/tree/master/tools)** `README.md` [package.json](https://github.com/qualiu/vscode-msr/blob/master/package.json) **"(msr\\.[\w\\.]+)"** --nt `"msr\.(exe|gcc\w+|cygwin)|project\d+|\.(My|xxx|extra\w+Group)"` -i -c Should no result
 
-  **[nin](https://github.com/qualiu/msr/tree/master/tools)** `README.md` [package.json](https://github.com/qualiu/vscode-msr/blob/master/package.json) **"(msr\\.[\w\\.]+)"** --nt `"msr\.(exe|gcc\w+|cygwin)|project1"` -i **-m** -c Should have results
+  **[nin](https://github.com/qualiu/msr/tree/master/tools)** `README.md` [package.json](https://github.com/qualiu/vscode-msr/blob/master/package.json) **"(msr\\.[\w\\.]+)"** --nt `"msr\.(exe|gcc\w+|cygwin)|project\d+|\.(My|xxx|extra\w+Group)"` -i **-m** -c Should have results
 
   **[nin](https://github.com/qualiu/msr/tree/master/tools)** [package.json](https://github.com/qualiu/vscode-msr/blob/master/package.json) nul -p -d -k 2 -x description -c Should no unreasonable duplicate descriptions.
 
@@ -207,7 +291,7 @@ Please help to set the `Regex` patterns for them if you want. You can:
 
 - Current support or finding `definition` + `references`:
   - Near-precise support: Will show **multiple results** for **same name** `classes/methods/etc`, due to this is a light tool without syntax parsing and cache.
-  - Near-precise support `class`, `methods`, `enum`, `field`, `property` for **C#**, **Python**, **Java**, **Scala**, **C++**.
+  - Near-precise support `class`, `methods`, `enum`, `field`, `property` for **C#**, **Python**, **Java**, **Scala**, **C++** / **C**.
   - Roughly support `class` and `method` for all type of languages (Often good because searching `same name objects` is not frequent).
 
   Welcome + Please help to improve searching definitions and references for `classes` and `methods`, and add supports for `enum` , `property`, `field` etc.
@@ -216,7 +300,7 @@ Please help to set the `Regex` patterns for them if you want. You can:
 
 ## Release Notes
 
-See `vscode-msr` extension [commit history](https://github.com/qualiu/vscode-msr/commits/master).
+See [CHANGELOG](https://github.com/qualiu/vscode-msr/blob/master/CHANGELOG.md) or `vscode-msr` extension [commit history](https://github.com/qualiu/vscode-msr/commits/master).
 
 -----------------------------------------------------------------------------------------------------------
 

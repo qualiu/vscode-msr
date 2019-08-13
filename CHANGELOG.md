@@ -4,6 +4,15 @@ All notable changes to the "vscode-msr" extension will be documented in this fil
 
 Detail see `vscode-msr` extension [commit history](https://github.com/qualiu/vscode-msr/commits/master).
 
+## [1.0.7]
+
+- Added configuration of `findDefinition.useExtraPaths`.
+- Added 2 context menus: Find definition or references in `current file`.
+- Enabled showing or hiding more context menus (20 menus in total).
+- Tuned more `Regex` patterns and Improved result sorting.
+- Supported promoting specific folder and path matching scores for each project.
+- Search current file if not found results after normal search.
+
 ## [1.0.6]
 
 - Updated default skip pattern for finding pure references in confgiuration file.

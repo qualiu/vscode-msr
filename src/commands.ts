@@ -3,18 +3,20 @@
 import * as vscode from 'vscode';
 import path = require('path');
 
-import { getConfig, getSearchPathOptions, SearchTextHolderReplaceRegex, removeSearchTextForCommandLine, getOverrideOrDefaultConfig } from './dynamicConfig';
-import { runCommandInTerminal, enableColorAndHideSummary, outputDebug } from './outputUtils';
+import { getConfig, getSearchPathOptions, SearchTextHolderReplaceRegex, removeSearchTextForCommandLine, getOverrideOrDefaultConfig, ShouldQuotePathRegex } from './dynamicConfig';
+import { runCommandInTerminal, enableColorAndHideCommandline, outputDebug } from './outputUtils';
 import { getCurrentWordAndText } from './utils';
-import { FileExtensionToConfigExtMap } from './ranker';
+import { FileExtensionToConfigExtMap, SearchProperty } from './ranker';
 import { escapeRegExp, NormalTextRegex } from './regexUtils';
 import { stringify } from 'querystring';
 import { MsrExe } from './checkTool';
 
-const SkipJumpOutForHeadResultsRegex = /\s+(-J\s+-H|-J?H)\s*\d+(\s+-J)?(\s+|$)/;
+export const SkipJumpOutForHeadResultsRegex = /\s+(-J\s+-H|-J?H)\s*\d+(\s+-J)?(\s+|$)/;
 
 export enum FindCommandType {
     RegexFindDefinitionInCodeFiles,
+    RegexFindDefinitionInCurrentFile,
+    RegexFindReferencesInCurrentFile,
     RegexFindReferencesInCodeFiles,
     RegexFindPureReferencesInCodeFiles,
     RegexFindReferencesInConfigFiles,
@@ -41,10 +43,8 @@ export function runFindingCommand(findCmd: FindCommandType, textEditor: vscode.T
     }
 
     const findCmdText = FindCommandType[findCmd];
-    const selectedText = textEditor.document.getText(textEditor.selection);
-    const isValidSelect = selectedText.length > 2 && /\w+/.test(selectedText);
-    const [currentWord] = getCurrentWordAndText(textEditor.document, textEditor.selection.active);
-    const rawSearchText = isValidSelect ? selectedText : currentWord;
+    const [currentWord] = getCurrentWordAndText(textEditor.document, textEditor.selection.active, textEditor);
+    const rawSearchText = currentWord;
     const searchText = findCmdText.match(/Regex/i) ? escapeRegExp(rawSearchText) : rawSearchText;
 
     const parsedFile = path.parse(textEditor.document.fileName);
@@ -52,11 +52,19 @@ export function runFindingCommand(findCmd: FindCommandType, textEditor: vscode.T
 }
 
 export function runFindingCommandByCurrentWord(findCmd: FindCommandType, searchText: string, parsedFile: path.ParsedPath, rawSearchText: string = '') {
+    const command = getFindingCommandByCurrentWord(findCmd, searchText, parsedFile, rawSearchText, undefined);
+    runCommandInTerminal(command, true);
+}
+
+export function getFindingCommandByCurrentWord(findCmd: FindCommandType, searchText: string, parsedFile: path.ParsedPath, rawSearchText: string = '', ranker: SearchProperty | undefined): string {
+    const extension = parsedFile.ext.substring(1).toLowerCase() || 'default';
+    const mappedExt = FileExtensionToConfigExtMap.get(extension) || extension;
+
     const findCmdText = FindCommandType[findCmd];
     const isSorting = findCmdText.match(/Sort/i);
 
     if (!isSorting && searchText.length < 2) {
-        return;
+        return '';
     }
 
     rawSearchText = rawSearchText.length < 1 ? searchText : rawSearchText;
@@ -78,6 +86,29 @@ export function runFindingCommandByCurrentWord(findCmd: FindCommandType, searchT
     let filePattern = '';
 
     switch (findCmd) {
+        case FindCommandType.RegexFindDefinitionInCurrentFile:
+            let definitionPatterns = new Set<string>()
+                .add(getOverrideOrDefaultConfig(mappedExt, '.class.definition'))
+                .add(getOverrideOrDefaultConfig(mappedExt, '.member.definition'))
+                .add(getOverrideOrDefaultConfig(mappedExt, '.constant.definition'))
+                .add(getOverrideOrDefaultConfig(mappedExt, '.enum.definition'))
+                .add(getOverrideOrDefaultConfig(mappedExt, '.method.definition'));
+
+            definitionPatterns.delete('');
+
+            if (definitionPatterns.size < 1) {
+                definitionPatterns.add((RootConfig.get('default.definition') as string || '').trim());
+            }
+
+            searchPattern = Array.from(definitionPatterns).join('|');
+            skipTextPattern = ranker ? ranker.getSkipPatternForDefinition() : getOverrideOrDefaultConfig(mappedExt, '.skip.definition');
+            break;
+
+        case FindCommandType.RegexFindReferencesInCurrentFile:
+            searchPattern = '\\b(' + searchText + ')\\b';
+            skipTextPattern = '';
+            break;
+
         case FindCommandType.RegexFindDefinitionInCodeFiles:
         case FindCommandType.RegexFindReferencesInCodeFiles:
         case FindCommandType.FindPlainTextInCodeFiles:
@@ -120,9 +151,6 @@ export function runFindingCommandByCurrentWord(findCmd: FindCommandType, searchT
             break;
     }
 
-    const extension = parsedFile.ext.substring(1).toLowerCase() || 'default';
-    const mappedExt = FileExtensionToConfigExtMap.get(extension) || extension;
-
     if (isSorting) {
         searchPattern = '';
         skipTextPattern = '';
@@ -143,12 +171,26 @@ export function runFindingCommandByCurrentWord(findCmd: FindCommandType, searchT
     }
 
     const useExtraPaths = !isSorting && RootConfig.get('findingCommands.useExtraPaths') as boolean;
-    const searchPathsOptions = getSearchPathOptions(mappedExt, FindCommandType.RegexFindDefinitionInCodeFiles === findCmd, useExtraPaths);
+    const searchPathsOptions = getSearchPathOptions(mappedExt, FindCommandType.RegexFindDefinitionInCodeFiles === findCmd, useExtraPaths, useExtraPaths);
     if (filePattern.length > 0) {
         filePattern = ' -f "' + filePattern + '"';
     }
 
-    let command = MsrExe + ' ' + searchPathsOptions + filePattern + searchPattern;
+    let filePath = path.join(parsedFile.dir, parsedFile.base);
+    if (ShouldQuotePathRegex.test(filePath)) {
+        filePath = '"' + filePath + '"';
+    }
+
+    let command = '';
+    if (findCmd === FindCommandType.RegexFindDefinitionInCurrentFile) {
+        command = MsrExe + ' -p ' + filePath + searchPattern;
+    }
+    else if (findCmd === FindCommandType.RegexFindReferencesInCurrentFile) {
+        command = MsrExe + ' -p ' + filePath + ' -e "\\b((public)|protected|private|internal|(static)|(readonly|const))\\b"' + searchPattern;
+    } else {
+        command = MsrExe + ' ' + searchPathsOptions + filePattern + searchPattern;
+    }
+
     if (skipTextPattern && skipTextPattern.length > 1) {
         command += ' --nt "' + skipTextPattern + '"';
     }
@@ -168,7 +210,7 @@ export function runFindingCommandByCurrentWord(findCmd: FindCommandType, searchT
         command = command.replace(SkipJumpOutForHeadResultsRegex, ' ').trim();
     }
 
-    command = enableColorAndHideSummary(command).replace(/\s+Search\s*$/, '');
-
-    runCommandInTerminal(command, true);
+    command = enableColorAndHideCommandline(command);
+    command = command.replace(/\s+Search\s*$/, '');
+    return command;
 }

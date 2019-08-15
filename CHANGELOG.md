@@ -4,6 +4,12 @@ All notable changes to the "vscode-msr" extension will be documented in this fil
 
 Detail see `vscode-msr` extension [commit history](https://github.com/qualiu/vscode-msr/commits/master).
 
+## [1.0.8]
+
+- Added `msr.disable.projectRootFolderNamePattern` to disable finding defintion/references functions for specific projects.
+- Renamed `msr.disable.extensionPatterns` to `msr.disable.extensionPattern`.
+- Updated doc.
+
 ## [1.0.7]
 
 - Added configuration of `findDefinition.useExtraPaths`.
@@ -33,7 +39,7 @@ Detail see `vscode-msr` extension [commit history](https://github.com/qualiu/vsc
 - Update `extra search path` descriptions in configuration file.
 - Support both with or without `-I` in command line: output summary to stdout or stderr.
 - Default menu `Find All References` will not search extra paths (disabled in configuration as default).
-- Added `msr.disable.extensionPatterns`: Regex pattern of file extensions to disable `find definition and references`.
+- Added `msr.disable.extensionPattern`: Regex pattern of file extensions to disable `find definition and references`.
 - Improved sorting results.
 
 ## [1.0.3]

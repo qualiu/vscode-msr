@@ -3,7 +3,7 @@
 	"displayName": "Find definition and references for all types.",
 	"description": "Find definition and references in multiple repository paths by msr for all coding languages + configuration + doc files.",
 	"author": "qualiu@microsoft.com",
-	"version": "1.0.7",
+	"version": "1.0.8",
 	"icon": "images/vscode-msr-icon.png",
 	"license": "completely free",
 	"publisher": "qualiu",
@@ -523,7 +523,12 @@
 					"default": 0.8,
 					"description": "Remove low score definition search results (if enabled sortResults) which score lower than average plus this factor. (To disable this: set a large value like 10)"
 				},
-				"msr.disable.extensionPatterns": {
+				"msr.disable.projectRootFolderNamePattern": {
+					"type": "string",
+					"default": "",
+					"description": "Regex pattern of project root folder names to disable finding definition and references."
+				},
+				"msr.disable.extensionPattern": {
 					"type": "string",
 					"default": "",
 					"description": "Regex pattern for for file extensions to disable finding definition and references. Example:  cs|cpp|java|py|go|php|js|vue"
@@ -591,7 +596,7 @@
 				"msr.default.extraSearchPaths": {
 					"type": "string",
 					"default": "",
-					"description": "Default extra search paths. Use ';' to separate groups (`global-paths` or `git-folder-name=paths` pairs), use ',' to separate paths. (See doc: https://github.com/qualiu/vscode-msr/blob/master/README.md#specific-extra-search-paths-settings)"
+					"description": "Default extra search paths. Use ';' to separate groups (`global-paths` or `git-folder-name=paths` pairs), use ',' to separate paths. You can also set `msr.{project-root-folder-name}.extraSearchPaths` in `%APPDATA%\\Code\\User\\settings.json` on Windows (See doc: https://github.com/qualiu/vscode-msr/blob/master/README.md#specific-extra-search-paths-settings)"
 				},
 				"msr.default.extraSearchPathListFiles": {
 					"type": "string",

@@ -7,7 +7,7 @@ import { outputDebug } from './outputUtils';
 import { IsWindows } from './checkTool';
 import { stringify } from 'querystring';
 import { getNoDuplicateStringSet } from './utils';
-import { EmptyRegex } from './regexUtils';
+import { EmptyRegex, createRegex } from './regexUtils';
 
 export const IsDebugMode = false; // process.execArgv && process.execArgv.length > 0 && process.execArgv.some((arg) => /^--debug=?/.test(arg) || /^--(debug|inspect)-brk=?/.test(arg));
 export const ShouldQuotePathRegex = IsWindows ? /[^\w\.,\\/:-]/ : /[^\w\.,\\/-]/;
@@ -47,6 +47,7 @@ export class DynamicConfig {
     public SearchAllFilesWhenFindingDefinitions: boolean = false;
     public GetSearchTextHolderInCommandLine: RegExp = /\s+-c\s+.*?%~?1/;
     public DisabledFileExtensionRegex: RegExp = new RegExp('to-load');
+    public DisabledGitRootFolderNameRegex: RegExp = new RegExp('to-load');
 }
 
 export function getConfig(reload: boolean = false): DynamicConfig {
@@ -72,8 +73,9 @@ export function getConfig(reload: boolean = false): DynamicConfig {
     MyConfig.DefaultConstantsRegex = new RegExp(RootConfig.get('default.isConstant') as string);
     MyConfig.SearchAllFilesWhenFindingReferences = RootConfig.get('default.searchAllFilesForReferences') as boolean;
     MyConfig.SearchAllFilesWhenFindingDefinitions = RootConfig.get('default.searchAllFilesForDefinitions') as boolean;
-    const disabledExtensionPatterns = (RootConfig.get('disable.extensionPatterns') as string).trim() || '';
-    MyConfig.DisabledFileExtensionRegex = disabledExtensionPatterns.length > 0 ? new RegExp(disabledExtensionPatterns) : EmptyRegex;
+    MyConfig.DisabledFileExtensionRegex = createRegex(RootConfig.get('disable.extensionPattern') as string, 'i');
+    MyConfig.DisabledGitRootFolderNameRegex = createRegex(RootConfig.get('disable.projectRootFolderNamePattern') as string);
+
     outputDebug('vscode-msr configuration loaded.');
     return MyConfig;
 }

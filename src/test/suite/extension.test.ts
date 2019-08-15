@@ -23,7 +23,7 @@ suite('Extension Test Suite', () => {
     const KeyRegex = /["`](msr\.\w+[\.\w]*)/g;
     const SkipKeysRegex = /^(msr.xxx)|\.project\d+|default.extra\w*Groups|\.My/i;
     const ExemptFindAllKeyRegex = /^(msr\.)?\w*(find|sort)\w+$/i;
-    const ExemptNoValueKeyRegex = /extra|skip.definition|disable.extensionPatterns|^\w*(find|sort)\w+$/i;
+    const ExemptNoValueKeyRegex = /extra|skip.definition|extensionPattern|projectRootFolderNamePattern|^\w*(find|sort)\w+$/i;
     const NonStringValueRegex = /^(\d+|bool\w*$)/;
 
     before(() => {

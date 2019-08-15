@@ -9,7 +9,7 @@ import * as stream from "stream";
 import ChildProcess = require('child_process');
 import path = require('path');
 
-import { getSearchPathOptions, getConfig, getOverrideOrDefaultConfig, SearchTextHolderReplaceRegex, ShouldQuotePathRegex } from './dynamicConfig';
+import { getSearchPathOptions, getConfig, getOverrideOrDefaultConfig, SearchTextHolderReplaceRegex, ShouldQuotePathRegex, GitFolderName } from './dynamicConfig';
 import { outputError, outputWarn, outputInfo, clearOutputChannel, runCommandInTerminal, outputDebug, RunCmdTerminalName, disposeTerminal, outputInfoOrDebug as outputDebugOrInfo } from './outputUtils';
 import { FindType, SearchProperty, FileExtensionToConfigExtMap } from './ranker';
 import { checkSearchToolExists, IsWindows, MsrExe } from './checkTool';
@@ -59,7 +59,7 @@ export function activate(context: vscode.ExtensionContext) {
 			outputDebug('msr.enable.findingCommands = ' + RootConfig.get('enable.findingCommands'));
 			outputDebug('msr.quiet = ' + RootConfig.get('quiet'));
 			outputDebug('msr.debug = ' + RootConfig.get('debug'));
-			outputDebug('msr.disable.extensionPatterns = ' + RootConfig.get('disable.extensionPatterns'));
+			outputDebug('msr.disable.extensionPattern = ' + RootConfig.get('disable.extensionPattern'));
 		}
 	}));
 }
@@ -211,13 +211,19 @@ function isTooFrequentSearch() {
 function getCurrentFileSearchInfo(document: vscode.TextDocument, position: vscode.Position): [path.ParsedPath, string, string, vscode.Range, string] {
 	const parsedFile = path.parse(document.fileName);
 	const extension = parsedFile.ext.replace(/^\./, '').toLowerCase() || 'default';
+	let shouldSkip = 0;
 	if (MyConfig.DisabledFileExtensionRegex.test('.' + extension)) {
-		outputDebug('Disabled for `*.' + extension + '` file in configuration: `msr.disable.extensionPatterns`');
-		return [parsedFile, extension, '', new vscode.Range(new vscode.Position(0, 0), new vscode.Position(0, 0)), ''];
+		outputDebug('Disabled for `*.' + extension + '` file in configuration: `msr.disable.extensionPattern`');
+		shouldSkip += 1;
+	}
+
+	if (MyConfig.DisabledGitRootFolderNameRegex.test(GitFolderName)) {
+		outputDebug('Disabled for this git root folder file in configuration: `msr.disable.projectRootFolderNamePattern`');
+		shouldSkip += 1;
 	}
 
 	const [currentWord, currentWordRange, currentText] = getCurrentWordAndText(document, position);
-	if (!checkSearchToolExists() || currentWord.length < 2 || !currentWordRange) {
+	if (shouldSkip > 0 || currentWord.length < 2 || !currentWordRange || !checkSearchToolExists()) {
 		return [parsedFile, extension, '', new vscode.Range(new vscode.Position(0, 0), new vscode.Position(0, 0)), ''];
 	}
 
@@ -290,11 +296,11 @@ function searchDefinitionInCurrentFile(document: vscode.TextDocument, position: 
 	let ranker = new SearchProperty(FindType.Definition, currentWord, currentWordRange, currentText, parsedFile, mappedExt, true);
 
 	let command = getFindingCommandByCurrentWord(FindCommandType.RegexFindDefinitionInCurrentFile, currentWord, parsedFile, '', ranker);
-	if (/\s+-[A-Z]*?I[A-Z]*(\s+|$)/.test(command) === false) {
+	if (/\s+-[A-Zc]*?I[A-Zc]*(\s+|$)/.test(command) === false) {
 		command = command.trim() + ' -I';
 	}
 
-	if (/\s+-[A-Z]*?C[A-Z]*(\s+|$)/.test(command) === false) {
+	if (/\s+-[A-Zc]*?C[A-Zc]*(\s+|$)/.test(command) === false) {
 		command = command.trim() + ' -C';
 	}
 

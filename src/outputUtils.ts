@@ -58,7 +58,7 @@ export function outputInfo(message: string) {
 	}
 }
 
-export function outputInfoOrDebug(isDebug: boolean, message: string) {
+export function outputDebugOrInfo(isDebug: boolean, message: string) {
 	if (isDebug) {
 		outputDebug(message);
 	} else {

@@ -4,6 +4,10 @@ All notable changes to the "vscode-msr" extension will be documented in this fil
 
 Detail see `vscode-msr` extension [commit history](https://github.com/qualiu/vscode-msr/commits/master).
 
+## [1.1.0]
+
+- Improved checking tool in PATH on Linux and replace command line for re-running in terminal.
+  
 ## [1.0.9]
 
 - Changed `msr.{git-folder-name}.skipFolders` role from **additional** to **overwrite** to improve performance.

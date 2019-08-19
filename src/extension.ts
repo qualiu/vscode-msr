@@ -10,9 +10,9 @@ import ChildProcess = require('child_process');
 import path = require('path');
 
 import { getSearchPathOptions, getConfig, getOverrideOrDefaultConfig, SearchTextHolderReplaceRegex, ShouldQuotePathRegex, GitFolderName } from './dynamicConfig';
-import { outputError, outputWarn, outputInfo, clearOutputChannel, runCommandInTerminal, outputDebug, RunCmdTerminalName, disposeTerminal, outputInfoOrDebug as outputDebugOrInfo } from './outputUtils';
+import { outputError, outputWarn, outputInfo, clearOutputChannel, runCommandInTerminal, outputDebug, RunCmdTerminalName, disposeTerminal, outputDebugOrInfo } from './outputUtils';
 import { FindType, SearchProperty, FileExtensionToConfigExtMap } from './ranker';
-import { checkSearchToolExists, IsWindows, MsrExe } from './checkTool';
+import { checkSearchToolExists, IsWindows, MsrExe, toRunnableToolPath } from './checkTool';
 import { getCurrentWordAndText } from './utils';
 import { FindCommandType, runFindingCommand, runFindingCommandByCurrentWord, SkipJumpOutForHeadResultsRegex, getFindingCommandByCurrentWord } from './commands';
 
@@ -410,7 +410,7 @@ function findAndProcessSummary(skipIfNotMatch: boolean, summaryText: string, fin
 		else if (matchCount > 1 && costSeconds <= MyConfig.ReRunCmdInTerminalIfCostLessThan) {
 			if (!ranker.isSearchOneFile) {
 				outputInfo('Will re-run and show clickable + colorful results in `MSR-RUN-CMD` channel in `TERMINAL` tab. Decrease `msr.reRunSearchInTerminalIfCostLessThan` value if you do not want.');
-				runCommandInTerminal(cmd.replace(SkipJumpOutForHeadResultsRegex, ' ').trim());
+				runCommandInTerminal(toRunnableToolPath(cmd).replace(SkipJumpOutForHeadResultsRegex, ' ').trim());
 			}
 		}
 	} else if (!ranker.isSearchOneFile) {

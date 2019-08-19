@@ -47,6 +47,14 @@ const LinuxDownloadCmd = 'wget "' + SourceExeUrl + '" -O "' + TmpMsrExePath + '.
 
 const DownloadCommand = IsWindows ? WindowsDownloadCmd : LinuxDownloadCmd;
 
+export function toRunnableToolPath(commandLine: string) {
+	if (MsrExePath === TmpMsrExePath) {
+		return (ShouldQuotePathRegex.test(TmpMsrExePath) ? '"' + TmpMsrExePath + '"' : TmpMsrExePath) + commandLine.replace(/^msr\s+/, ' ');
+	} else {
+		return commandLine;
+	}
+}
+
 // Always check tool exists if not exists in previous check, avoid need reloading.
 export function checkSearchToolExists(forceCheck: boolean = false, clearOutputBeforeWarning: boolean = true): boolean {
 	if (isToolExists && !forceCheck) {
@@ -89,7 +97,7 @@ function isToolExistsInPath(exeToolName: string): [boolean, string] {
 				return [true, exePaths[0]];
 			}
 		} else {
-			const exeMatch = new RegExp('(\\S+/' + exeToolName + ') \\s+').exec(output);
+			const exeMatch = new RegExp('(\\S+/' + exeToolName + ')(\\s+|$)').exec(output);
 			if (exeMatch) {
 				return [true, exeMatch[1]];
 			}

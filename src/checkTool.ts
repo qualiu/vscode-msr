@@ -16,7 +16,9 @@ let MsrExePath: string = '';
 
 const SourceMd5FileUrl = 'https://raw.githubusercontent.com/qualiu/msr/master/tools/md5.txt';
 
-export const IsWindows = /(win32|windows)/i.test(process.platform);
+export const IsWindows = /win32|windows/i.test(process.platform);
+export const IsSupportedSystem = /win32|Windows|Linux/i.test(process.platform);
+
 const WhereCmd = IsWindows ? 'where' : 'whereis';
 const PathEnvName = IsWindows ? '%PATH%' : '$PATH';
 
@@ -49,6 +51,12 @@ const DownloadCommand = IsWindows ? WindowsDownloadCmd : LinuxDownloadCmd;
 export function checkSearchToolExists(forceCheck: boolean = false, clearOutputBeforeWarning: boolean = true): boolean {
 	if (isToolExists && !forceCheck) {
 		return true;
+	}
+
+	if (!IsSupportedSystem) {
+		outputError('Sorry, "' + process.platform + ' platform" is not supported yet: Support 64-bit + 32-bit : Windows + Linux (Ubuntu / CentOS / Fedora which gcc/g++ version >= 4.8).');
+		outputError('https://github.com/qualiu/vscode-msr/blob/master/README.md');
+		return false;
 	}
 
 	[isToolExists, MsrExePath] = isToolExistsInPath('msr');

@@ -4,6 +4,11 @@ All notable changes to the "vscode-msr" extension will be documented in this fil
 
 Detail see `vscode-msr` extension [commit history](https://github.com/qualiu/vscode-msr/commits/master).
 
+## [1.0.9]
+
+- Changed `msr.{git-folder-name}.skipFolders` role from **additional** to **overwrite** to improve performance.
+- Added warning for platforms not supported.
+
 ## [1.0.8]
 
 - Added `msr.disable.projectRootFolderNamePattern` to disable finding defintion/references functions for specific projects.

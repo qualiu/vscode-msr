@@ -80,7 +80,7 @@ Note: Support **64-bit** + **32-bit** : **Windows** + **Linux** (`Ubuntu` / `Cen
       - `msr original search command ... -t "xxx" ...` **-o** `"replace-to"` **-j**
     - Replace files (**-R**):
       - `msr original search command ... -t "xxx" ...` **-o** `"replace-to"` **-R**
-      - Add **-K** if you want to backup changed files. 
+      - Add **-K** if you want to backup changed files.
       - Add **--force** to replace files with `BOM` header except `UTF-8 0xEFBBBF`.
   
    More powerfull usages see [overview doc](https://github.com/qualiu/msr/blob/master/README.md) or just run [msr-EXE](https://qualiu.github.io/msr/usage-by-running/msr-Windows.html) you will see [colorful text doc of usage + examples](https://qualiu.github.io/msr/usage-by-running/msr-Windows.html) (on Windows, [Linux at here](https://qualiu.github.io/msr/usage-by-running/msr-CentOS-7.html)) or [doc without color](https://raw.githubusercontent.com/qualiu/msr/master/tools/readme.txt).
@@ -180,7 +180,7 @@ Note: Check [**your personal settings**](https://code.visualstudio.com/docs/gets
 
 - Set `skipFolders` for Specific Project
   
-  Besides the common skip pattern `default.skipFolders`, you can set additional patterns for each project in [your personal settings file](https://code.visualstudio.com/docs/getstarted/settings#_settings-file-locations).
+  You can set `skipFolders` pattern for each project to **overwrite** `default.skipFolders` in [your personal settings file](https://code.visualstudio.com/docs/getstarted/settings#_settings-file-locations).
   
   Like adding `msr.{git-folder-name}.skipFolders` + value in `%APPDATA%\Code\User\settings.json` on Windows:
 
@@ -195,8 +195,8 @@ Note: Check [**your personal settings**](https://code.visualstudio.com/docs/gets
   Regex pattern to promote scores for sorting definition (`Go To Definition`) or references (`Find All References`):
   - `msr.{git-folder-name}.promoteFolderPattern`: Regex pattern to promte folder scores for result file folders.
   - `msr.{git-folder-name}.promotePathPattern`: Regex pattern to promte path scores for result file paths.
-  - `msr.{git-folder-name}.promoteFolderScore`: Recommended value is 100 to 1000. Default = 200.
-  - `msr.{git-folder-name}.promotePathScore`:  Recommended value is 100 to 1000. Default = 200.
+  - `msr.{git-folder-name}.promoteFolderScore`: Recommended value is 100 to 1000. Default = 200 if not set.
+  - `msr.{git-folder-name}.promotePathScore`:  Recommended value is 100 to 1000. Default = 200 if not set.
 
 #### Extra Paths Settings
 

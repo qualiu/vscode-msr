@@ -102,9 +102,7 @@ export function getSearchPathOptions(mappedExt: string,
     const RootPath = vscode.workspace.rootPath || '.';
     const commonSkipFolders = getOverrideOrDefaultConfig(mappedExt, '.skipFolders', false).trim();
     const projectSkipFolders = (RootConfig.get(GitFolderName + '.skipFolders') as string || '').trim();
-    const skipFolderPatternSet: Set<string> = new Set<string>()
-        .add(commonSkipFolders)
-        .add(projectSkipFolders);
+    let skipFolderPatternSet: Set<string> = new Set<string>().add(projectSkipFolders.length > 0 ? projectSkipFolders : commonSkipFolders);
     skipFolderPatternSet.delete('');
     const skipFoldersPattern = Array.from(skipFolderPatternSet).join('|');
     const skipFolderOptions = skipFoldersPattern.length > 1 ? ' --nd "' + skipFoldersPattern + '"' : '';

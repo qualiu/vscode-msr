@@ -3,12 +3,11 @@
 import * as vscode from 'vscode';
 import path = require('path');
 
-import { getConfig, getSearchPathOptions, SearchTextHolderReplaceRegex, removeSearchTextForCommandLine, getOverrideOrDefaultConfig, ShouldQuotePathRegex } from './dynamicConfig';
+import { getSearchPathOptions, SearchTextHolderReplaceRegex, removeSearchTextForCommandLine, getOverrideOrDefaultConfig, ShouldQuotePathRegex, GitFolderName, getOverrideConfigByPriority, getConfig } from './dynamicConfig';
 import { runCommandInTerminal, enableColorAndHideCommandline, outputDebug } from './outputUtils';
 import { getCurrentWordAndText } from './utils';
 import { FileExtensionToConfigExtMap, SearchProperty } from './ranker';
 import { escapeRegExp, NormalTextRegex } from './regexUtils';
-import { stringify } from 'querystring';
 import { MsrExe } from './checkTool';
 
 export const SkipJumpOutForHeadResultsRegex = /\s+(-J\s+-H|-J?H)\s*\d+(\s+-J)?(\s+|$)/;
@@ -70,29 +69,43 @@ export function getFindingCommandByCurrentWord(findCmd: FindCommandType, searchT
     rawSearchText = rawSearchText.length < 1 ? searchText : rawSearchText;
 
     const RootConfig = vscode.workspace.getConfiguration('msr');
-    const isFindDefinition = FindCommandType.RegexFindDefinitionInCodeFiles === findCmd;
+    const isFindDefinition = findCmdText.indexOf('Definition') >= 0;
+    const isFindReference = findCmdText.indexOf('Reference') >= 0;
+    const isFindPlainText = findCmdText.indexOf('FindPlainText') >= 0;
+
     let extraOptions = isFindDefinition
-        ? RootConfig.get('definition.extraOptions') || RootConfig.get('default.extraOptions')
-        : RootConfig.get('reference.extraOptions') || RootConfig.get('default.extraOptions');
+        ? getOverrideConfigByPriority([mappedExt + '.definition', 'definition', 'default'], 'extraOptions')
+        : (isFindReference
+            ? getOverrideConfigByPriority([mappedExt + '.reference', 'reference', 'default'], 'extraOptions')
+            : getOverrideConfigByPriority([mappedExt, 'default'], 'extraOptions')
+        );
+
+    extraOptions = getConfig().RootFolderExtraOptions + extraOptions;
 
     let searchPattern = isFindDefinition
-        ? RootConfig.get('default.definition') as string
-        : RootConfig.get('default.reference') as string;
+        ? getOverrideConfigByPriority([mappedExt, 'default'], 'definition')
+        : (isFindReference
+            ? getOverrideConfigByPriority([mappedExt, 'default'], 'reference')
+            : ''
+        );
 
     let skipTextPattern = isFindDefinition
-        ? RootConfig.get('default.skip.definition') as string || ''
-        : RootConfig.get('default.skip.reference') as string || '';
+        ? getOverrideConfigByPriority([mappedExt, 'default'], 'skip.definition')
+        : (isFindReference
+            ? getOverrideConfigByPriority([mappedExt, 'default'], 'skip.reference')
+            : ''
+        );
 
     let filePattern = '';
 
     switch (findCmd) {
         case FindCommandType.RegexFindDefinitionInCurrentFile:
             let definitionPatterns = new Set<string>()
-                .add(getOverrideOrDefaultConfig(mappedExt, '.class.definition'))
-                .add(getOverrideOrDefaultConfig(mappedExt, '.member.definition'))
-                .add(getOverrideOrDefaultConfig(mappedExt, '.constant.definition'))
-                .add(getOverrideOrDefaultConfig(mappedExt, '.enum.definition'))
-                .add(getOverrideOrDefaultConfig(mappedExt, '.method.definition'));
+                .add(getOverrideOrDefaultConfig(mappedExt, 'class.definition'))
+                .add(getOverrideOrDefaultConfig(mappedExt, 'member.definition'))
+                .add(getOverrideOrDefaultConfig(mappedExt, 'constant.definition'))
+                .add(getOverrideOrDefaultConfig(mappedExt, 'enum.definition'))
+                .add(getOverrideOrDefaultConfig(mappedExt, 'method.definition'));
 
             definitionPatterns.delete('');
 
@@ -101,7 +114,7 @@ export function getFindingCommandByCurrentWord(findCmd: FindCommandType, searchT
             }
 
             searchPattern = Array.from(definitionPatterns).join('|');
-            skipTextPattern = ranker ? ranker.getSkipPatternForDefinition() : getOverrideOrDefaultConfig(mappedExt, '.skip.definition');
+            skipTextPattern = ranker ? ranker.getSkipPatternForDefinition() : getOverrideOrDefaultConfig(mappedExt, 'skip.definition');
             break;
 
         case FindCommandType.RegexFindReferencesInCurrentFile:
@@ -147,16 +160,16 @@ export function getFindingCommandByCurrentWord(findCmd: FindCommandType, searchT
         case FindCommandType.FindPlainTextInAllSmallFiles:
         default:
             filePattern = '';
-            extraOptions = RootConfig.get('allSmallFiles.extraOptions');
+            extraOptions = getConfig().RootFolderExtraOptions + (RootConfig.get('allSmallFiles.extraOptions') as string || '').trim();
             break;
     }
 
     if (isSorting) {
         searchPattern = '';
         skipTextPattern = '';
-        extraOptions = RootConfig.get('default.listSortingFilesOptions') as string || '-l -H 10 -T 10';
+        extraOptions = getConfig().RootFolderExtraOptions + RootConfig.get('default.listSortingFilesOptions') as string || '-l -H 10 -T 10';
         extraOptions = ' ' + (extraOptions as string).trim() + ' ' + (findCmdText.match(/BySize/i) ? '--sz --wt' : '--wt --sz');
-    } else if (findCmdText.match(/Plain/i)) {
+    } else if (isFindPlainText) {
         searchPattern = ' -x "' + rawSearchText.replace(/"/g, '\\"') + '"';
         skipTextPattern = '';
     } else if (searchPattern.length > 0) {
@@ -164,13 +177,13 @@ export function getFindingCommandByCurrentWord(findCmd: FindCommandType, searchT
     }
 
     if (findCmd === FindCommandType.RegexFindPureReferencesInCodeFiles) {
-        const skipPattern = getOverrideOrDefaultConfig(mappedExt, '.pureReferenceSkip', true).trim();
+        const skipPattern = getOverrideOrDefaultConfig(mappedExt, 'pureReferenceSkip', true).trim();
         if (skipPattern.length > 0 && /\s+--nt\s+/.test(searchPattern) !== true) {
             searchPattern += ' --nt "' + skipPattern + '"';
         }
     }
 
-    const useExtraPaths = !isSorting && RootConfig.get('findingCommands.useExtraPaths') as boolean;
+    const useExtraPaths = !isSorting && 'true' === getOverrideConfigByPriority([GitFolderName + '.' + mappedExt, GitFolderName, ''], 'findingCommands.useExtraPaths');
     const searchPathsOptions = getSearchPathOptions(mappedExt, FindCommandType.RegexFindDefinitionInCodeFiles === findCmd, useExtraPaths, useExtraPaths);
     if (filePattern.length > 0) {
         filePattern = ' -f "' + filePattern + '"';

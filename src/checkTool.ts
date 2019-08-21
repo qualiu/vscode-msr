@@ -75,7 +75,7 @@ export function checkSearchToolExists(forceCheck: boolean = false, clearOutputBe
 		}
 
 		outputError('Not found `msr` in ' + PathEnvName + ' by checking command: ' + WhereCmd + ' msr');
-		outputError('Please take less than 1 minute (you can just copy + paste the command line to download it) follow: https://github.com/qualiu/vscode-msr/blob/master/README.md#Requirements');
+		outputError('Please take less than 1 minute (you can just copy + paste the command line to download it) follow: https://github.com/qualiu/vscode-msr/blob/master/README.md#more-freely-to-use-and-help-you-more');
 
 		isToolExists = autoDownloadTool();
 	}
@@ -135,8 +135,14 @@ function autoDownloadTool(): boolean {
 	MsrExePath = TmpMsrExePath;
 
 	const exeFolder = path.parse(TmpMsrExePath).dir;
-	const oldPathValue = process.env['PATH'] || '';
-	if (oldPathValue.indexOf(exeFolder) < 0) {
+	const oldPathValue = process.env['PATH'] || (IsWindows ? '%PATH%' : '$PATH');
+	const paths = oldPathValue.split(IsWindows ? ';' : ':');
+	const trimTailRegex = IsWindows ? new RegExp('[\\s\\\\]+$') : new RegExp('/$');
+	const foundFolders = IsWindows
+		? paths.filter(a => a.trim().replace(trimTailRegex, '').toLowerCase() === exeFolder.toLowerCase())
+		: paths.filter(a => a.replace(trimTailRegex, '') === exeFolder);
+
+	if (foundFolders.length < 1) {
 		process.env['PATH'] = oldPathValue + (IsWindows ? ';' : ':') + exeFolder;
 		outputInfo('Temporarily added tool ' + MsrSaveName + ' folder: ' + exeFolder + ' to ' + PathEnvName);
 		outputInfo('Suggest permanently add exe folder to ' + PathEnvName + ' to freely use it by name `msr` everywhere.');
@@ -168,8 +174,8 @@ function checkToolNewVersion() {
 				if (latestMd5Match) {
 					const md5 = latestMd5Match[1];
 					if (currentMd5.toLowerCase() !== md5.toLowerCase()) {
-						outputInfo('Found new version of `msr` which md5 = ' + md5 + ' , currentMd5 = ' + currentMd5);
-						outputInfo('You can download the new exe by command as below:');
+						outputInfo('Found new version of `msr` which md5 = ' + md5 + ' , currentMd5 = ' + currentMd5 + ' , source-info = ' + SourceMd5FileUrl);
+						outputInfo('You can download + update the exe by 1 command below:');
 						outputInfo(replaceText(DownloadCommand, TmpMsrExePath, MsrExePath));
 					} else {
 						outputDebug('Great! Your `msr` exe is latest! md5 = ' + md5 + ' , exe = ' + MsrExePath + ' , sourceMD5 = ' + SourceMd5FileUrl);

@@ -6,8 +6,6 @@ import path = require('path');
 import { getAllSingleWords, EmptyRegex, createRegex } from './regexUtils';
 import { outputError, outputDebug } from './outputUtils';
 import { getConfig, getOverrideOrDefaultConfig, SearchTextHolderReplaceRegex, SearchTextHolder, GitFolderName } from './dynamicConfig';
-import { strict } from 'assert';
-import { stringify } from 'querystring';
 
 export enum FindType {
 	Definition = 1,
@@ -87,10 +85,15 @@ export class SearchProperty {
 	private currentFilePathWordSet: Set<string>;
 	private highScoreWordSet: Set<string> = new Set<string>();
 
-	private promoteFolderScoreRegex: RegExp;
+	private promoteFolderRegex: RegExp;
 	private promoteFolderScore: number;
-	private promotePathScoreRegex: RegExp;
+	private promotePathRegex: RegExp;
 	private promotePathScore: number;
+
+	private demoteFolderRegex: RegExp;
+	private demoteFolderScore: number;
+	private demotePathRegex: RegExp;
+	private demotePathScore: number;
 
 	constructor(findType: FindType, currentWord: string, currentWordRange: vscode.Range, currentText: string, currentFile: ParsedPath, mappedExt: string, isSearchOneFile: boolean = false) {
 		this.isSearchOneFile = isSearchOneFile;
@@ -103,11 +106,11 @@ export class SearchProperty {
 		this.mappedExt = mappedExt;
 		this.extension = currentFile.ext.replace(/^\./, '');
 
-		this.isClassPattern = getOverrideOrDefaultConfig(mappedExt, '.isClass', false).replace(SearchTextHolderReplaceRegex, currentWord);
-		this.isMethodPattern = getOverrideOrDefaultConfig(mappedExt, '.isMethod', false).replace(SearchTextHolderReplaceRegex, currentWord);
-		this.isMemberPattern = getOverrideOrDefaultConfig(mappedExt, '.isMember', false).replace(SearchTextHolderReplaceRegex, currentWord);
-		this.isEnumValuePattern = getOverrideOrDefaultConfig(mappedExt, '.isEnumValue', false).replace(SearchTextHolderReplaceRegex, currentWord);
-		this.isClassOrEnumPattern = getOverrideOrDefaultConfig(mappedExt, '.isClassOrEnum', false).replace(SearchTextHolderReplaceRegex, currentWord);
+		this.isClassPattern = getOverrideOrDefaultConfig(mappedExt, 'isClass', false).replace(SearchTextHolderReplaceRegex, currentWord);
+		this.isMethodPattern = getOverrideOrDefaultConfig(mappedExt, 'isMethod', false).replace(SearchTextHolderReplaceRegex, currentWord);
+		this.isMemberPattern = getOverrideOrDefaultConfig(mappedExt, 'isMember', false).replace(SearchTextHolderReplaceRegex, currentWord);
+		this.isEnumValuePattern = getOverrideOrDefaultConfig(mappedExt, 'isEnumValue', false).replace(SearchTextHolderReplaceRegex, currentWord);
+		this.isClassOrEnumPattern = getOverrideOrDefaultConfig(mappedExt, 'isClassOrEnum', false).replace(SearchTextHolderReplaceRegex, currentWord);
 
 		this.isClassRegex = this.isClassPattern.length < 1 ? EmptyRegex : new RegExp(this.isClassPattern);
 		this.isMethodRegex = this.isMethodPattern.length < 1 ? EmptyRegex : new RegExp(this.isMethodPattern);
@@ -147,10 +150,17 @@ export class SearchProperty {
 
 		const promoteFolderPattern = (RootConfig.get(GitFolderName + '.promoteFolderPattern') as string || '').trim();
 		const promotePathPattern = (RootConfig.get(GitFolderName + '.promotePathPattern') as string || '').trim();
-		this.promoteFolderScoreRegex = createRegex(promoteFolderPattern, 'i');
-		this.promotePathScoreRegex = createRegex(promotePathPattern, 'i');
-		this.promoteFolderScore = RootConfig.get(GitFolderName + '.promoteFolderScore') || 200;
-		this.promotePathScore = RootConfig.get(GitFolderName + '.promotePathScore') || 200;
+		this.promoteFolderRegex = createRegex(promoteFolderPattern, 'i');
+		this.promotePathRegex = createRegex(promotePathPattern, 'i');
+		this.promoteFolderScore = parseInt(getOverrideOrDefaultConfig(GitFolderName, 'promoteFolderScore') || '200');
+		this.promotePathScore = parseInt(getOverrideOrDefaultConfig(GitFolderName, 'promotePathScore') || '200');
+
+		const demoteFolderPattern = (RootConfig.get(GitFolderName + '.demoteFolderPattern') as string || '').trim();
+		const demotePathPattern = (RootConfig.get(GitFolderName + '.demotePathPattern') as string || '').trim();
+		this.demoteFolderRegex = createRegex(demoteFolderPattern, 'i');
+		this.demotePathRegex = createRegex(demotePathPattern, 'i');
+		this.demoteFolderScore = parseInt(getOverrideOrDefaultConfig(GitFolderName, 'demoteFolderScore') || '200');
+		this.demotePathScore = parseInt(getOverrideOrDefaultConfig(GitFolderName, 'demotePathScore') || '200');
 
 		const isUpperCaseWord = /^[A-Z]\w+$/.test(this.currentWord);
 		if (!this.isClass && !this.isMember && !this.isMethod && !this.isEnumValue) {
@@ -165,16 +175,16 @@ export class SearchProperty {
 			outputDebug('Final-Check: isMember = ' + this.isMember + ', isClass = ' + this.isClass + ' , isMethod = ' + this.isMethod + ' , isEnumValue = ' + this.isEnumValue);
 		}
 
-		const classPattern = getOverrideOrDefaultConfig(mappedExt, '.class.definition', false).replace(SearchTextHolderReplaceRegex, currentWord);
+		const classPattern = getOverrideOrDefaultConfig(mappedExt, 'class.definition', false).replace(SearchTextHolderReplaceRegex, currentWord);
 		this.classDefinitionRegex = classPattern.length < 1 ? EmptyRegex : new RegExp(classPattern);
 
-		const methodPattern = getOverrideOrDefaultConfig(mappedExt, '.method.definition', false).replace(SearchTextHolderReplaceRegex, currentWord);
+		const methodPattern = getOverrideOrDefaultConfig(mappedExt, 'method.definition', false).replace(SearchTextHolderReplaceRegex, currentWord);
 		this.methodDefinitionRegex = methodPattern.length < 1 ? EmptyRegex : new RegExp(methodPattern);
 
-		const memberPattern = getOverrideOrDefaultConfig(mappedExt, '.member.definition', false).replace(SearchTextHolderReplaceRegex, currentWord);
+		const memberPattern = getOverrideOrDefaultConfig(mappedExt, 'member.definition', false).replace(SearchTextHolderReplaceRegex, currentWord);
 		this.memberDefinitionRegex = memberPattern.length < 1 ? EmptyRegex : new RegExp(memberPattern);
 
-		const enumPattern = getOverrideOrDefaultConfig(mappedExt, '.enum.definition', false).replace(SearchTextHolderReplaceRegex, currentWord);
+		const enumPattern = getOverrideOrDefaultConfig(mappedExt, 'enum.definition', false).replace(SearchTextHolderReplaceRegex, currentWord);
 		this.enumDefinitionRegex = enumPattern.length < 1 ? EmptyRegex : new RegExp(enumPattern);
 
 		outputDebug('isConstant = ' + this.isConstant + ' , isConstantPattern = "' + MyConfig.DefaultConstantsRegex.source + '" , nonConstRegex = "' + this.methodQuoteRegex.source + '"');
@@ -189,9 +199,12 @@ export class SearchProperty {
 		outputDebug('memberDefinitionRegex = "' + this.memberDefinitionRegex.source + '"');
 		outputDebug('enumDefinitionRegex = "' + this.enumDefinitionRegex.source + '"');
 
-		outputDebug('scoreWordsText = "' + this.scoreWordsText + '" , scoreWordSet[' + this.scoreWordSet.size + '] = ' + Array.from(this.scoreWordSet).join(' '));
-		outputDebug('promoteFolderScore = ' + this.promoteFolderScore + ' , promoteFolderPattern = "' + this.promoteFolderScoreRegex.source + '"');
-		outputDebug('promotePathScore = ' + this.promotePathScore + ' , promotePathPattern = "' + this.promotePathScoreRegex.source + '"');
+		outputDebug('scoreWordsText = ' + this.scoreWordsText);
+		outputDebug('scoreWordSet[' + this.scoreWordSet.size + '] = ' + Array.from(this.scoreWordSet).join(' '));
+		outputDebug('promoteFolderScore = ' + this.promoteFolderScore + ' , promoteFolderPattern = "' + this.promoteFolderRegex.source + '"');
+		outputDebug('promotePathScore = ' + this.promotePathScore + ' , promotePathPattern = "' + this.promotePathRegex.source + '"');
+		outputDebug('demoteFolderScore = ' + this.demoteFolderScore + ' , demoteFolderPattern = "' + this.demoteFolderRegex.source + '"');
+		outputDebug('demotePathScore = ' + this.demotePathScore + ' , demotePathPattern = "' + this.demotePathRegex.source + '"');
 	}
 
 	private getScoreText() {
@@ -212,7 +225,7 @@ export class SearchProperty {
 			scoreText += rightMatchedText;
 		}
 
-		return scoreText;
+		return scoreText.trim();
 	}
 
 	private isConstantDefinition(word: string, lineText: string): boolean {
@@ -226,7 +239,7 @@ export class SearchProperty {
 		parsedFile: ParsedPath): [string, string] {
 		const MyConfig = getConfig();
 
-		let searchPattern = getOverrideOrDefaultConfig(this.mappedExt, '.' + configKeyName, false);
+		let searchPattern = getOverrideOrDefaultConfig(this.mappedExt, configKeyName, false);
 		if (searchPattern.indexOf(SearchTextHolder) < 0) {
 			outputError('Not found word-holder: "' + SearchTextHolder + '" in search option, please check configuration of "' + configKeyName + '": ' + searchPattern);
 			return ['', ''];
@@ -260,42 +273,42 @@ export class SearchProperty {
 				let specificPatterns = new Set<string>();
 
 				if (this.isClass || this.isClassOrEnum) {
-					specificPatterns.add(getOverrideOrDefaultConfig(this.mappedExt, '.class.definition'));
+					specificPatterns.add(getOverrideOrDefaultConfig(this.mappedExt, 'class.definition'));
 				}
 
 				if (this.isConstant) {
-					specificPatterns.add(getOverrideOrDefaultConfig(this.mappedExt, '.constant.definition', false));
+					specificPatterns.add(getOverrideOrDefaultConfig(this.mappedExt, 'constant.definition', false));
 					if (this.currentText.indexOf(this.currentWord + '.') >= 0) {
-						specificPatterns.add(getOverrideOrDefaultConfig(this.mappedExt, '.class.definition'));
+						specificPatterns.add(getOverrideOrDefaultConfig(this.mappedExt, 'class.definition'));
 					}
 				}
 
 				if (this.isEnumValue) {
-					specificPatterns.add(getOverrideOrDefaultConfig(this.mappedExt, '.enum.definition'));
+					specificPatterns.add(getOverrideOrDefaultConfig(this.mappedExt, 'enum.definition'));
 				}
 
 				if (this.isMember) {
-					specificPatterns.add(getOverrideOrDefaultConfig(this.mappedExt, '.member.definition'));
+					specificPatterns.add(getOverrideOrDefaultConfig(this.mappedExt, 'member.definition'));
 
 					// For languages that can omit quotes for methods: this.mappedExt.match(/py|java/)
 					if (this.extension.match(/py|scala/)) {
-						specificPatterns.add(getOverrideOrDefaultConfig(this.mappedExt, '.method.definition'));
+						specificPatterns.add(getOverrideOrDefaultConfig(this.mappedExt, 'method.definition'));
 					}
 				}
 
 				if (this.isMethod) {
-					specificPatterns.add(getOverrideOrDefaultConfig(this.mappedExt, '.method.definition'));
+					specificPatterns.add(getOverrideOrDefaultConfig(this.mappedExt, 'method.definition'));
 				}
 
 				// Default: Will be slower if more items.
 				if (specificPatterns.size < 1) { // if (this.isEnumOrMember) {
-					specificPatterns.add(getOverrideOrDefaultConfig(this.mappedExt, '.class.definition'));
-					specificPatterns.add(getOverrideOrDefaultConfig(this.mappedExt, '.member.definition'));
-					specificPatterns.add(getOverrideOrDefaultConfig(this.mappedExt, '.method.definition'));
+					specificPatterns.add(getOverrideOrDefaultConfig(this.mappedExt, 'class.definition'));
+					specificPatterns.add(getOverrideOrDefaultConfig(this.mappedExt, 'member.definition'));
+					specificPatterns.add(getOverrideOrDefaultConfig(this.mappedExt, 'method.definition'));
 				}
 				else if (this.isMember && !this.isClass) {
 					if (this.currentWord.match(/^[A-Z][a-z]+\w+/) && new RegExp('\\w+\.' + this.currentWord + '\\b').test(this.currentText)) {
-						specificPatterns.add(getOverrideOrDefaultConfig(this.mappedExt, '.class.definition'));
+						specificPatterns.add(getOverrideOrDefaultConfig(this.mappedExt, 'class.definition'));
 					}
 				}
 
@@ -321,25 +334,25 @@ export class SearchProperty {
 	public getSkipPatternForDefinition() {
 		let skipPatternSet = new Set<string>();
 		if (this.isClass) {
-			skipPatternSet.add(getOverrideOrDefaultConfig(this.mappedExt, '.class.skip.definition'));
+			skipPatternSet.add(getOverrideOrDefaultConfig(this.mappedExt, 'class.skip.definition'));
 		}
 
 		if (this.isMember && !this.isEnumValue) {
-			skipPatternSet.add(getOverrideOrDefaultConfig(this.mappedExt, '.member.skip.definition'));
+			skipPatternSet.add(getOverrideOrDefaultConfig(this.mappedExt, 'member.skip.definition'));
 		}
 
 		if (this.isEnumValue) {
-			skipPatternSet.add(getOverrideOrDefaultConfig(this.mappedExt, '.enum.skip.definition'));
+			skipPatternSet.add(getOverrideOrDefaultConfig(this.mappedExt, 'enum.skip.definition'));
 		}
 
 		if (this.isMethod) {
-			skipPatternSet.add(getOverrideOrDefaultConfig(this.mappedExt, '.method.skip.definition'));
+			skipPatternSet.add(getOverrideOrDefaultConfig(this.mappedExt, 'method.skip.definition'));
 		}
 
 		skipPatternSet.delete('');
 
 		if (skipPatternSet.size < 1) {
-			skipPatternSet.add(getOverrideOrDefaultConfig(this.mappedExt, '.skip.definition'));
+			skipPatternSet.add(getOverrideOrDefaultConfig(this.mappedExt, 'skip.definition'));
 		}
 
 		skipPatternSet.delete('');
@@ -511,17 +524,25 @@ export class SearchProperty {
 			score += 200;
 		}
 
-		if (this.promoteFolderScoreRegex.source !== EmptyRegex.source) {
+		if (this.promoteFolderRegex.source !== EmptyRegex.source || this.demoteFolderRegex.source !== EmptyRegex.source) {
 			parsedResultPath.dir.split(/[\\/]/).forEach(a => {
-				if (this.promoteFolderScoreRegex.test(a)) {
+				if (this.promoteFolderRegex.test(a)) {
 					score += this.promoteFolderScore;
+				}
+
+				if (this.demoteFolderRegex.test(a)) {
+					score -= this.demoteFolderScore;
 				}
 			});
 		}
 
-		if (this.promotePathScoreRegex.source !== EmptyRegex.source) {
-			if (this.promotePathScoreRegex.test(resultFilePath)) {
+		if (this.promotePathRegex.source !== EmptyRegex.source || this.demotePathRegex.source !== EmptyRegex.source) {
+			if (this.promotePathRegex.test(resultFilePath)) {
 				score += this.promotePathScore;
+			}
+
+			if (this.demotePathRegex.test(resultFilePath)) {
+				score -= this.demotePathScore;
 			}
 		}
 

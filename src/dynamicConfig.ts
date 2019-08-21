@@ -2,12 +2,11 @@
 
 import * as vscode from 'vscode';
 import path = require('path');
-import { isNullOrUndefined } from 'util';
 import { outputDebug } from './outputUtils';
 import { IsWindows } from './checkTool';
-import { stringify } from 'querystring';
 import { getNoDuplicateStringSet } from './utils';
-import { EmptyRegex, createRegex } from './regexUtils';
+import { createRegex } from './regexUtils';
+import { isNullOrUndefined } from 'util';
 
 export const IsDebugMode = false; // process.execArgv && process.execArgv.length > 0 && process.execArgv.some((arg) => /^--debug=?/.test(arg) || /^--(debug|inspect)-brk=?/.test(arg));
 export const ShouldQuotePathRegex = IsWindows ? /[^\w\.,\\/:-]/ : /[^\w\.,\\/-]/;
@@ -48,6 +47,7 @@ export class DynamicConfig {
     public GetSearchTextHolderInCommandLine: RegExp = /\s+-c\s+.*?%~?1/;
     public DisabledFileExtensionRegex: RegExp = new RegExp('to-load');
     public DisabledGitRootFolderNameRegex: RegExp = new RegExp('to-load');
+    public RootFolderExtraOptions: string = '';
 }
 
 export function getConfig(reload: boolean = false): DynamicConfig {
@@ -63,8 +63,8 @@ export function getConfig(reload: boolean = false): DynamicConfig {
     MyConfig.ShowInfo = RootConfig.get('showInfo') as boolean;
     MyConfig.IsQuiet = RootConfig.get('quiet') as boolean;
     MyConfig.IsDebug = IsDebugMode || RootConfig.get('debug') as boolean;
-    MyConfig.DescendingSortForConsoleOutput = RootConfig.get('descendingSortForConsoleOutput') as boolean || false;
-    MyConfig.DescendingSortForVSCode = RootConfig.get('descendingSortForVSCode') as boolean || true;
+    MyConfig.DescendingSortForConsoleOutput = RootConfig.get('descendingSortForConsoleOutput') as boolean;
+    MyConfig.DescendingSortForVSCode = RootConfig.get('descendingSortForVSCode') as boolean;
     MyConfig.DefaultMaxSearchDepth = parseInt(RootConfig.get('default.maxSearchDepth') || '0');
     MyConfig.NeedSortResults = RootConfig.get('default.sortResults') as boolean;
     MyConfig.ReRunCmdInTerminalIfCostLessThan = RootConfig.get('reRunSearchInTerminalIfCostLessThan') as number || 3.3;
@@ -76,21 +76,38 @@ export function getConfig(reload: boolean = false): DynamicConfig {
     MyConfig.DisabledFileExtensionRegex = createRegex(RootConfig.get('disable.extensionPattern') as string, 'i');
     MyConfig.DisabledGitRootFolderNameRegex = createRegex(RootConfig.get('disable.projectRootFolderNamePattern') as string);
 
-    outputDebug('vscode-msr configuration loaded.');
+    let folderExtraOptions = (RootConfig.get(GitFolderName + '.extraOptions') as string || '').trim();
+    if (folderExtraOptions.length > 0) {
+        folderExtraOptions += ' ';
+    }
+
+    MyConfig.RootFolderExtraOptions = folderExtraOptions;
+
+    outputDebug('----- vscode-msr configuration loaded. -----');
+    printConfigInfo(RootConfig);
     return MyConfig;
 }
 
-export function getOverrideOrDefaultConfig(mappedExt: string, suffix: string, allowEmpty: boolean = true): string {
+export function getOverrideConfigByPriority(priorityPrefixList: string[], configNameTail: string, allowEmpty: boolean = true): string {
     const RootConfig = getConfig().RootConfig || vscode.workspace.getConfiguration('msr');
-    let overwriteValue = RootConfig.get(mappedExt + suffix);
-    if (overwriteValue !== undefined) {
-        if (allowEmpty || (overwriteValue && String(overwriteValue).length > 0)) {
-            return !overwriteValue ? '' : String(overwriteValue);
+    for (let k = 0; k < priorityPrefixList.length; k++) {
+        const name = (priorityPrefixList[k].length > 0 ? priorityPrefixList[k] + '.' : priorityPrefixList[k]) + configNameTail;
+        let valueObject = RootConfig.get(name);
+        if (valueObject === undefined || valueObject === null) {
+            continue;
+        }
+
+        const valueText = String(valueObject);
+        if (valueText.length > 0 || allowEmpty) {
+            return valueText;
         }
     }
 
-    const defaultValue = RootConfig.get('default' + suffix);
-    return !defaultValue ? '' : String(defaultValue);
+    return '';
+}
+
+export function getOverrideOrDefaultConfig(mappedExtOrFolderName: string, suffix: string, allowEmpty: boolean = true): string {
+    return getOverrideConfigByPriority([mappedExtOrFolderName, 'default'], suffix, allowEmpty);
 }
 
 export function getSearchPathOptions(mappedExt: string,
@@ -100,11 +117,8 @@ export function getSearchPathOptions(mappedExt: string,
 
     const RootConfig = getConfig().RootConfig;
     const RootPath = vscode.workspace.rootPath || '.';
-    const commonSkipFolders = getOverrideOrDefaultConfig(mappedExt, '.skipFolders', false).trim();
-    const projectSkipFolders = (RootConfig.get(GitFolderName + '.skipFolders') as string || '').trim();
-    let skipFolderPatternSet: Set<string> = new Set<string>().add(projectSkipFolders.length > 0 ? projectSkipFolders : commonSkipFolders);
-    skipFolderPatternSet.delete('');
-    const skipFoldersPattern = Array.from(skipFolderPatternSet).join('|');
+    const subName = isFindingDefinition ? 'definition' : 'reference';
+    const skipFoldersPattern = getOverrideConfigByPriority([GitFolderName + '.' + subName + '.' + mappedExt, GitFolderName + '.' + subName, GitFolderName, mappedExt, 'default'], 'skipFolders');
     const skipFolderOptions = skipFoldersPattern.length > 1 ? ' --nd "' + skipFoldersPattern + '"' : '';
     if ((isFindingDefinition && !useExtraSearchPathsForDefinition) || (!isFindingDefinition && !useExtraSearchPathsForReference)) {
         return '-rp ' + RootPath + skipFolderOptions;
@@ -194,4 +208,14 @@ function splitPathList(pathListText: string) {
 
     extraSearchPaths = getNoDuplicateStringSet(extraSearchPaths);
     return extraSearchPaths;
+}
+
+export function printConfigInfo(config: vscode.WorkspaceConfiguration) {
+    outputDebug('msr.enable.definition = ' + config.get('enable.definition'));
+    outputDebug('msr.enable.reference = ' + config.get('enable.reference'));
+    outputDebug('msr.enable.findingCommands = ' + config.get('enable.findingCommands'));
+    outputDebug('msr.quiet = ' + config.get('quiet'));
+    outputDebug('msr.debug = ' + config.get('debug'));
+    outputDebug('msr.disable.extensionPattern = ' + config.get('disable.extensionPattern'));
+    outputDebug('msr.disable.projectRootFolderNamePattern = ' + config.get('disable.projectRootFolderNamePattern'));
 }

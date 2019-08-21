@@ -51,6 +51,11 @@ export function outputError(message: string) {
 	showOutputChannel();
 }
 
+export function outputResult(text: string) {
+	getOutputChannel().appendLine(text);
+	showOutputChannel();
+}
+
 export function outputInfo(message: string) {
 	if (getConfig().ShowInfo && !getConfig().IsQuiet) {
 		getOutputChannel().appendLine(message);

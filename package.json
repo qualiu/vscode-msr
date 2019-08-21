@@ -3,7 +3,7 @@
 	"displayName": "Find definition and references for all types.",
 	"description": "Find definition and references in multiple repository paths by msr for all coding languages + configuration + doc files.",
 	"author": "qualiu@microsoft.com",
-	"version": "1.1.0",
+	"version": "1.1.1",
 	"icon": "images/vscode-msr-icon.png",
 	"license": "completely free",
 	"publisher": "qualiu",
@@ -521,7 +521,12 @@
 				"msr.default.removeLowScoreResultsFactor": {
 					"type": "number",
 					"default": 0.8,
-					"description": "Remove low score definition search results (if enabled sortResults) which score lower than average plus this factor. (To disable this: set a large value like 10)"
+					"description": "Remove low score definition search results (if enabled sortResults) which score lower than average plus this factor. To disable this: set a large value like 10. Overwrite with `msr.{root-folder-name}.removeLowScoreResultsFactor`."
+				},
+				"msr.default.keepHighScoreResultCount": {
+					"type": "number",
+					"default": -1,
+					"description": "Keep high score result count. Default -1 means keep all results. Overwrite with `msr.{root-folder-name}.keepHighScoreResultCount`."
 				},
 				"msr.disable.projectRootFolderNamePattern": {
 					"type": "string",
@@ -568,6 +573,26 @@
 					"default": 16,
 					"description": "Maximum search depth (start from input path as depth = 1), will be overwritten if search commands has set `-k {n}`."
 				},
+				"msr.default.promoteFolderScore": {
+					"type": "int",
+					"default": 200,
+					"description": "Default promotion score for matched folders."
+				},
+				"msr.default.promotePathScore": {
+					"type": "int",
+					"default": 200,
+					"description": "Default promotion score for matched paths."
+				},
+				"msr.default.demoteFolderScore": {
+					"type": "int",
+					"default": 200,
+					"description": "Default demotion score for matched folders."
+				},
+				"msr.default.demotePathScore": {
+					"type": "int",
+					"default": 200,
+					"description": "Default demotion score for matched paths."
+				},
 				"msr.descendingSortForVSCode": {
 					"type": "boolean",
 					"default": true,
@@ -581,7 +606,7 @@
 				"msr.reRunSearchInTerminalIfCostLessThan": {
 					"type": "number",
 					"default": 6.3,
-					"description": "Re-run search in a terminal if got multiple results (to get colorful + clickable results) and time cost seconds less than this."
+					"description": "Re-run search in a terminal if got multiple results and time cost seconds less than this. Will show colorful + clickable results."
 				},
 				"msr.default.searchAllFilesForReferences": {
 					"type": "boolean",
@@ -596,12 +621,12 @@
 				"msr.default.extraSearchPaths": {
 					"type": "string",
 					"default": "",
-					"description": "Default extra search paths. Use ';' to separate groups (`global-paths` or `git-folder-name=paths` pairs), use ',' to separate paths. You can also set `msr.{project-root-folder-name}.extraSearchPaths` in `%APPDATA%\\Code\\User\\settings.json` on Windows (See doc: https://github.com/qualiu/vscode-msr/blob/master/README.md#specific-extra-search-paths-settings)"
+					"description": "Default extra search paths. Use ';' to separate groups (`global-paths` or `root-folder-name=paths` pairs), use ',' to separate paths. You can also set `msr.{root-folder-name}.extraSearchPaths` in your personal settings file like `%APPDATA%\\Code\\User\\settings.json` on Windows (See doc: https://github.com/qualiu/vscode-msr/blob/master/README.md#specific-extra-search-paths-settings)"
 				},
 				"msr.default.extraSearchPathListFiles": {
 					"type": "string",
 					"default": "",
-					"description": "Default extra search path list files (one path at one line in each file). Use ';' to separate groups (`global-paths` or `git-folder-name=paths` pairs), use ',' to separate paths. (See doc: https://github.com/qualiu/vscode-msr/blob/master/README.md#specific-extra-search-paths-settings)"
+					"description": "Default extra search path list files (one path at one line in each file). Use ';' to separate groups (`global-paths` or `root-folder-name=paths` pairs), use ',' to separate paths. (See doc: https://github.com/qualiu/vscode-msr/blob/master/README.md#specific-extra-search-paths-settings)"
 				},
 				"msr.default.pureReferenceSkip": {
 					"type": "string",
@@ -625,22 +650,22 @@
 				},
 				"msr.default.skipFolders": {
 					"type": "string",
-					"default": "^([\\.\\$]\\w+|Release|Debug|node_modules|static|dist|target|site-packages|packages|JsPackages|Monaco|CBT$|obj$|bin$|build$|npm-package|__pycache__)",
-					"description": "Default Regex pattern to skip folders. You can set each project's additional skip patterns: `msr.{git-folder-name}.skipFolders` in file (see doc): https://code.visualstudio.com/docs/getstarted/settings#_settings-file-locations like: %APPDATA%\\Code\\User\\settings.json on Windows"
+					"default": "^([\\.\\$]|(Release|Debug|obj|bin|node_modules|static|dist|target|(Js)?Packages|\\w+-packages?)$|__pycache__)",
+					"description": "Default Regex pattern to skip folders. You can set each project's additional skip patterns: `msr.{root-folder-name}.definition.skipFolders` or `msr.{root-folder-name}.reference.skipFolders` in your personal settings file like `%APPDATA%\\Code\\User\\settings.json` on Windows (See doc: https://github.com/qualiu/vscode-msr/blob/master/README.md#specific-extra-search-paths-settings)."
 				},
 				"msr.default.allFiles": {
 					"type": "string",
-					"default": "\\.(cs\\w*|cpp|cxx|h|hpp|cc?|c\\+{2}|vcx?proj|sln|nuspec|config|props|java|scala|py|go|php|vue|tsx?|jsx?|json|ya?ml|xml|ini|md)$|^readme|^make\\w*",
+					"default": "\\.(cs\\w*|cpp|cxx|h|hpp|cc?|c\\+{2}|vcx?proj|sln|nuspec|config|props|java|scala|py|go|php|vue|tsx?|jsx?|json|ya?ml|xml|ini|md)$|^readme|^make\\w+$",
 					"description": "Default Regex pattern for files to search."
 				},
 				"msr.default.codeFiles": {
 					"type": "string",
-					"default": "\\.(cs\\w*|cpp|cxx|h|hpp|cc?|c\\+{2}|vcx?proj|sln|nuspec|config|props|java|scala|py)$|^make\\w*",
+					"default": "\\.(cs\\w*|cpp|cxx|h|hpp|cc?|c\\+{2}|vcx?proj|sln|nuspec|config|props|java|scala|py)$|^make\\w+$",
 					"description": "Default Regex pattern for all code files."
 				},
 				"msr.default.codeFilesPlusUI": {
 					"type": "string",
-					"default": "\\.(cs\\w*|cpp|cxx|h|hpp|cc?|c\\+{2}|vcx?proj|sln|nuspec|config|props|java|scala|py|go|php|vue|tsx?|jsx?)$|^make\\w*",
+					"default": "\\.(cs\\w*|cpp|cxx|h|hpp|cc?|c\\+{2}|vcx?proj|sln|nuspec|config|props|java|scala|py|go|php|vue|tsx?|jsx?)$|^make\\w+$",
 					"description": "Default Regex pattern for all UI (front-end) code files."
 				},
 				"msr.default.configFiles": {
@@ -655,12 +680,12 @@
 				},
 				"msr.default.codeAndConfig": {
 					"type": "string",
-					"default": "\\.(cs\\w*|cpp|cxx|h|hpp|cc?|c\\+{2}|vcx?proj|sln|nuspec|config|props|java|scala|py|go|php|vue|tsx?|jsx?|json|ya?ml|xml|ini)$|^make\\w*",
+					"default": "\\.(cs\\w*|cpp|cxx|h|hpp|cc?|c\\+{2}|vcx?proj|sln|nuspec|config|props|java|scala|py|go|php|vue|tsx?|jsx?|json|ya?ml|xml|ini)$|^make\\w+$",
 					"description": "Default Regex pattern for code + configuration files."
 				},
 				"msr.default.codeAndConfigDocs": {
 					"type": "string",
-					"default": "\\.(cs\\w*|cpp|cxx|h|hpp|cc?|c\\+{2}|vcx?proj|sln|nuspec|config|props|java|scala|py|go|php|vue|tsx?|jsx?|json|ya?ml|xml|ini|md)$|^readme|^make\\w*",
+					"default": "\\.(cs\\w*|cpp|cxx|h|hpp|cc?|c\\+{2}|vcx?proj|sln|nuspec|config|props|java|scala|py|go|php|vue|tsx?|jsx?|json|ya?ml|xml|ini|md)$|^readme|^make\\w+$",
 					"description": "Default Regex pattern for code + configuration + document files."
 				},
 				"msr.default.configAndDocs": {
@@ -686,22 +711,22 @@
 				"msr.allSmallFiles.extraOptions": {
 					"type": "string",
 					"default": "--s1 1B --s2 1.6MB -I -C -c Search %1 in all small files",
-					"description": "Default extra searching options for small files."
+					"description": "Default extra searching options for small files. Will merge `msr.{root-folder-name}.extraOptions` if you set in your personal settings file like `%APPDATA%\\Code\\User\\settings.json` on Windows (See doc: https://github.com/qualiu/vscode-msr/blob/master/README.md#specific-extra-search-paths-settings)."
 				},
 				"msr.default.extraOptions": {
 					"type": "string",
 					"default": "--s1 1B --s2 3.6MB -I -C -c Search %1",
-					"description": "Default extra searching options."
+					"description": "Default extra searching options. Like: --xd --xf --s1 1B --s2 3.6MB -I -C -c Search %1"
 				},
 				"msr.definition.extraOptions": {
 					"type": "string",
 					"default": "--s1 1B --s2 1.6MB -H 60 -J -I -C -c Search %1",
-					"description": "Default extra searching options for finding definitions: Get top {N} results and jump out."
+					"description": "Default extra searching options for finding definitions: Get top {N} results and jump out. Will merge `msr.{root-folder-name}.extraOptions` if you set in your personal settings file like `%APPDATA%\\Code\\User\\settings.json` on Windows (See doc: https://github.com/qualiu/vscode-msr/blob/master/README.md#specific-extra-search-paths-settings)."
 				},
 				"msr.reference.extraOptions": {
 					"type": "string",
 					"default": "--s1 1B --s2 3.6MB -H 360 -J -I -C -c Search %1",
-					"description": "Default extra searching options for finding references: Get top {N} results and jump out."
+					"description": "Default extra searching options for finding references: Get top {N} results and jump out. Will merge `msr.{root-folder-name}.extraOptions` if you set in your personal settings file like `%APPDATA%\\Code\\User\\settings.json` on Windows (See doc: https://github.com/qualiu/vscode-msr/blob/master/README.md#specific-extra-search-paths-settings)."
 				},
 				"msr.default.isClass": {
 					"type": "string",
@@ -795,7 +820,7 @@
 				},
 				"msr.cpp.codeAndConfigDocs": {
 					"type": "string",
-					"default": "\\.(cpp|cxx|h|hpp|cc?|c\\+{2}|vcx?proj|sln|nuspec|config|props|json|ya?ml|xml|ini|md)$|^make\\w*",
+					"default": "\\.(cpp|cxx|h|hpp|cc?|c\\+{2}|vcx?proj|sln|nuspec|config|props|json|ya?ml|xml|ini|md)$|^make\\w+$",
 					"description": "Regex pattern for C++ or C code + configuration + document files."
 				},
 				"msr.cpp.isClass": {
@@ -856,12 +881,7 @@
 				"msr.py.extraSearchPaths": {
 					"type": "string",
 					"default": "",
-					"description": "Python extra search paths. Use ';' to separate groups (`global-paths` or `git-folder-name=paths` pairs), use ',' to separate paths. (See doc: https://github.com/qualiu/vscode-msr/blob/master/README.md#specific-extra-search-paths-settings)"
-				},
-				"msr.py.extraSearchPathListFiles": {
-					"type": "string",
-					"default": "",
-					"description": "Python extra search path list files (one path at one line in each file). Use ';' to separate groups (`global-paths` or `git-folder-name=paths` pairs), use ',' to separate paths. (See doc: https://github.com/qualiu/vscode-msr/blob/master/README.md#specific-extra-search-paths-settings)"
+					"description": "Python extra search paths. Use ';' to separate groups (`global-paths` or `root-folder-name=paths` pairs), use ',' to separate paths. (See doc: https://github.com/qualiu/vscode-msr/blob/master/README.md#specific-extra-search-paths-settings)"
 				},
 				"msr.py.isMember": {
 					"type": "string",
@@ -931,7 +951,7 @@
 				"msr.ui.method.skip.definition": {
 					"type": "string",
 					"default": "^\\s*(return|await|throw|except|raise|new|(el)?if|for|from|val)\\s+",
-					"description": "Default Regex pattern to filter non-definitions."
+					"description": "Regex pattern to filter non-definitions of UI code."
 				}
 			}
 		}

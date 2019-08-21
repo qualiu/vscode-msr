@@ -4,13 +4,22 @@ All notable changes to the "vscode-msr" extension will be documented in this fil
 
 Detail see `vscode-msr` extension [commit history](https://github.com/qualiu/vscode-msr/commits/master).
 
+## [1.1.1]
+
+- Escape search-text as `Regex` pattern for `finding definition or references`.
+- Added `msr.default.demoteFolderScore` + `msr.default.demotePathScore`
+- Added `msr.default.keepHighScoreResultCount` to easy set desired result count.
+- Wrote default values of `msr.default.promoteFolderScore` + `msr.default.promotePathScore` to configuration file.
+- Improved temporary tool path checking.
+- Supported more levels of configuration overriding like overriding additional `extraOptions` settings.
+
 ## [1.1.0]
 
 - Improved checking tool in PATH on Linux and replace command line for re-running in terminal.
   
 ## [1.0.9]
 
-- Changed `msr.{git-folder-name}.skipFolders` role from **additional** to **overwrite** to improve performance.
+- Changed `msr.{root-folder-name}.skipFolders` role from **additional** to **overwrite** to improve performance.
 - Added warning for platforms not supported.
 
 ## [1.0.8]

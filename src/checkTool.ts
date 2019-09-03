@@ -5,7 +5,7 @@ import fs = require('fs');
 import https = require('https');
 import crypto = require('crypto');
 import ChildProcess = require('child_process');
-import { outputError, clearOutputChannel, outputInfo, outputDebug } from './outputUtils';
+import { outputError, clearOutputChannel, outputInfo, outputDebug, outputWarn } from './outputUtils';
 import { ShouldQuotePathRegex, IsDebugMode } from './dynamicConfig';
 import { replaceText } from './utils';
 
@@ -27,23 +27,23 @@ const MsrExtension = IsWindows ? '.exe' : '.gcc48';
 const MsrExeSourceName = (Is64BitOS ? 'msr' : (IsWindows ? 'msr-Win32' : 'msr-i386')) + MsrExtension;
 const MsrSaveName = IsWindows ? 'msr.exe' : 'msr';
 
-const TmpMsrExePath = IsWindows
-	? path.join(process.env['USERPROFILE'] || '', 'Desktop', MsrSaveName)
-	: path.join(process.env['HOME'] || '', MsrSaveName);
+export const HomeFolder = IsWindows ? path.join(process.env['USERPROFILE'] || '', 'Desktop') : process.env['HOME'] || '.';
+const TmpMsrExePath = path.join(HomeFolder, MsrSaveName);
 
-const SourceExeUrl = 'https://github.com/qualiu/msr/blob/master/tools/' + MsrExeSourceName + '?raw=true';
+const SourceExeUrl = 'https://github.com/qualiu/msr/raw/master/tools/' + MsrExeSourceName; //+ '?raw=true';
 const MatchExeMd5Regex = new RegExp('^(\\S+)\\s+' + MsrExeSourceName + '\\s*$', 'm');
 
 const [IsExistIcacls, _] = IsWindows ? isToolExistsInPath('icacls') : [false, ''];
 const SetExecutableForWindows = IsExistIcacls ? ' && icacls "' + TmpMsrExePath + '" /grant %USERNAME%:RX' : '';
-const WindowsDownloadCmd = 'Powershell -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; '
-	+ "Invoke-WebRequest -Uri '" + SourceExeUrl + "' -OutFile '" + TmpMsrExePath + '.tmp' + "'" + '"'
-	+ ' && move /y "' + TmpMsrExePath + '.tmp" "' + TmpMsrExePath + '"'
-	+ SetExecutableForWindows;
 
-const LinuxDownloadCmd = 'wget "' + SourceExeUrl + '" -O "' + TmpMsrExePath + '.tmp"'
-	+ ' && mv -f "' + TmpMsrExePath + '.tmp" "' + TmpMsrExePath + '" '
-	+ ' && chmod +x "' + TmpMsrExePath + '"';
+const RenameFileSetExecutableCmd = IsWindows
+	? 'move /y "' + TmpMsrExePath + '.tmp" "' + TmpMsrExePath + '"' + SetExecutableForWindows
+	: 'mv -f "' + TmpMsrExePath + '.tmp" "' + TmpMsrExePath + '" ' + ' && chmod +x "' + TmpMsrExePath + '"';
+
+const WindowsDownloadCmd = 'Powershell -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; '
+	+ "Invoke-WebRequest -Uri '" + SourceExeUrl + "' -OutFile '" + TmpMsrExePath + '.tmp' + "'" + '" && ' + RenameFileSetExecutableCmd;
+
+const LinuxDownloadCmd = 'wget "' + SourceExeUrl + '" -O "' + TmpMsrExePath + '.tmp" && ' + RenameFileSetExecutableCmd;
 
 const DownloadCommand = IsWindows ? WindowsDownloadCmd : LinuxDownloadCmd;
 
@@ -117,7 +117,8 @@ function autoDownloadTool(): boolean {
 			let output = ChildProcess.execSync(DownloadCommand).toString();
 			outputInfo(output);
 		} catch (err) {
-			outputError('Failed to download tool: ' + err);
+			outputError('\n' + 'Failed to download tool: ' + err);
+			outputError('\n' + 'Please manually download the tool and add its folder to ' + PathEnvName + ': ' + SourceExeUrl);
 			return false;
 		}
 
@@ -131,6 +132,11 @@ function autoDownloadTool(): boolean {
 		outputInfo('Found existing tmp tool: ' + TmpMsrExePath + ' , skip downloading.');
 	}
 
+	addTmpExeToPath();
+	return true;
+}
+
+function addTmpExeToPath() {
 	MsrExe = TmpMsrExePath;
 	MsrExePath = TmpMsrExePath;
 
@@ -147,8 +153,6 @@ function autoDownloadTool(): boolean {
 		outputInfo('Temporarily added tool ' + MsrSaveName + ' folder: ' + exeFolder + ' to ' + PathEnvName);
 		outputInfo('Suggest permanently add exe folder to ' + PathEnvName + ' to freely use it by name `msr` everywhere.');
 	}
-
-	return true;
 }
 
 function checkToolNewVersion() {

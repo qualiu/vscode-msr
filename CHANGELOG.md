@@ -4,6 +4,13 @@ All notable changes to the "vscode-msr" extension will be documented in this fil
 
 Detail see `vscode-msr` extension [commit history](https://github.com/qualiu/vscode-msr/commits/master).
 
+## [1.1.2]
+
+- Support **command shortcut** (`doskey` / `alias`) of finding commands for both general + project specific.
+- Update default doc patterns (add `*.ipynb`) + Update default skip folders pattern.
+- Tuned command line args position to be easy modified.
+- Reduced context menus.
+
 ## [1.1.1]
 
 - Escape search-text as `Regex` pattern for `finding definition or references`.
@@ -74,7 +81,7 @@ Detail see `vscode-msr` extension [commit history](https://github.com/qualiu/vsc
 - Reduced unimportant configuration keys.
 - Improved extra paths settings experience.
 - Support finding selected text other than just word.
-- Added more finding commands (Type `Ctrl + Shift + P` and then type `msr` to show these commands).
+- Added more finding commands (Press `F12` and then type `msr` to show these commands).
 - Use `cmd.exe` on Windows as default shell (`Powershell` requires extra escaping for characters like `'$'`).
 
 ## [1.0.1]
@@ -82,7 +89,7 @@ Detail see `vscode-msr` extension [commit history](https://github.com/qualiu/vsc
 - Updated configuration structure to support more precise searching.
 - Refactored code to support:
   - Precise searching and flexibility.
-  - Added finding commands (Type `Ctrl + Shift + P` and then type `msr` to show these commands).
+  - Added finding commands (Press `F12` and then type `msr` to show these commands).
   - Auto detect configuration change.
   - Added unit tests.
 

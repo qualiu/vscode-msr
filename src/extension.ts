@@ -6,7 +6,7 @@ import { exec, ExecOptions, ExecException } from 'child_process';
 import ChildProcess = require('child_process');
 import path = require('path');
 
-import { getSearchPathOptions, getConfig, getOverrideOrDefaultConfig, SearchTextHolderReplaceRegex, ShouldQuotePathRegex, GitFolderName, printConfigInfo, getOverrideConfigByPriority } from './dynamicConfig';
+import { getSearchPathOptions, getConfig, getOverrideOrDefaultConfig, SearchTextHolderReplaceRegex, ShouldQuotePathRegex, GitFolderName, printConfigInfo, getOverrideConfigByPriority, cookShortcutCommandFile } from './dynamicConfig';
 import { outputError, outputWarn, outputInfo, clearOutputChannel, runCommandInTerminal, outputDebug, RunCmdTerminalName, disposeTerminal, outputDebugOrInfo, outputResult } from './outputUtils';
 import { FindType, SearchProperty, FileExtensionToConfigExtMap } from './ranker';
 import { checkSearchToolExists, IsWindows, MsrExe, toRunnableToolPath } from './checkTool';
@@ -150,6 +150,22 @@ export function registerExtension(context: vscode.ExtensionContext) {
 	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.sortAllFilesByTime',
 		(textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit, ...args: any[]) =>
 			runFindingCommand(FindCommandType.SortAllFilesByTime, textEditor, edit, args)));
+
+	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.cookCmdAlias',
+		(textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit, ...args: any[]) =>
+			cookShortcutCommandFile(false, false)));
+
+	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.cookCmdAliasByProject',
+		(textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit, ...args: any[]) =>
+			cookShortcutCommandFile(true, false)));
+
+	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.cookCmdAliasFiles',
+		(textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit, ...args: any[]) =>
+			cookShortcutCommandFile(false, true)));
+
+	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.cookCmdAliasFilesByProject',
+		(textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit, ...args: any[]) =>
+			cookShortcutCommandFile(true, true)));
 }
 
 // this method is called when your extension is deactivated
@@ -252,14 +268,18 @@ function searchMatchedWords(findType: FindType, document: vscode.TextDocument, p
 		const useExtraSearchPathsForDefinition = 'true' === getOverrideConfigByPriority([GitFolderName + '.' + mappedExt, GitFolderName, ''], 'findDefinition.useExtraPaths');
 
 		const searchPathOptions = getSearchPathOptions(mappedExt, isFindDefinition, useExtraSearchPathsForReference, useExtraSearchPathsForDefinition);
-		let commandLine = 'msr ' + searchPathOptions + ' -f ' + filePattern + ' ' + searchOptions + ' ' + extraOptions;
+		let commandLine = 'msr ' + searchPathOptions + ' -f ' + filePattern;
 		if (MyConfig.DefaultMaxSearchDepth > 0 && !CheckMaxSearchDepthRegex.test(commandLine)) {
-			commandLine = commandLine.trim() + ' -k ' + MyConfig.DefaultMaxSearchDepth.toString();
-		} else {
-			commandLine = commandLine.trim();
+			extraOptions = extraOptions.trimRight() + ' -k ' + MyConfig.DefaultMaxSearchDepth.toString();
 		}
 
-		commandLine = commandLine.replace(SearchTextHolderReplaceRegex, currentWord);
+		if (FindType.Definition === findType) {
+			commandLine += ' ' + searchOptions + ' ' + extraOptions;
+		} else {
+			commandLine += ' ' + extraOptions + ' ' + searchOptions;
+		}
+
+		commandLine = commandLine.trim().replace(SearchTextHolderReplaceRegex, currentWord);
 		outputInfo('\n' + commandLine + '\n');
 
 		return getMatchedLocationsAsync(findType, commandLine, ranker, token);
@@ -388,7 +408,7 @@ function findAndProcessSummary(skipIfNotMatch: boolean, summaryText: string, fin
 			if (!ranker.isSearchOneFile) {
 				runFindingCommandByCurrentWord(findCmd, ranker.currentWord, ranker.currentFile);
 				outputInfo('Will run general search, please check results of `MSR-RUN-CMD` channel in `TERMINAL` tab. Disable `msr.enable.useGeneralFindingWhenNoResults` if you do not want.');
-				outputInfo('Try extensive search if still no results. Use context menu or: Click a word or select a text  --> Press `Ctrl + Shift + P` --> Type `msr` + `find` and choose to search.');
+				outputInfo('Try extensive search if still no results. Use context menu or: Click a word or select a text  --> Press `F12` --> Type `msr` + `find` and choose to search.');
 			}
 		}
 		else if (matchCount > 1 && costSeconds <= MyConfig.ReRunCmdInTerminalIfCostLessThan) {

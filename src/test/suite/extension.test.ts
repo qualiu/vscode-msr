@@ -21,9 +21,9 @@ suite('Extension Test Suite', () => {
     const ConfigFilePath = path.join(GitRootPath, 'package.json');
     const DocFilePath = path.join(GitRootPath, 'README.md');
     const KeyRegex = /["`](msr\.\w+[\.\w]*)/g;
-    const SkipKeysRegex = /^(msr.xxx)|\.project\d+|default.extra\w*Groups|\.My/i;
-    const ExemptFindAllKeyRegex = /^(msr\.)?\w*(find|sort)\w+$/i;
-    const ExemptNoValueKeyRegex = /extra|skip.definition|extensionPattern|projectRootFolderNamePattern|^\w*(find|sort)\w+$/i;
+    const SkipKeysRegex = /^(msr.xxx)|\.project\d+|default.extra\w*Groups|\.My|^msr.py.extra\w*/i;
+    const ExemptDuplicateKeyRegex = /^(msr\.)?\w*(find|sort|make)\w+$|^msr.cookCmdAlias\w*/i;
+    const ExemptNoValueKeyRegex = /extra|skip.definition|extensionPattern|projectRootFolderNamePattern|cmdAlias\w*|^\w*(find|sort)\w+$/i;
     const NonStringValueRegex = /^(\d+|bool\w*$)/;
 
     before(() => {
@@ -74,7 +74,7 @@ suite('Extension Test Suite', () => {
                     console.info('Key = ' + fullKey + ' , value = ' + valueText);
                 }
 
-                if (ExemptFindAllKeyRegex.test(key) === false) {
+                if (ExemptDuplicateKeyRegex.test(key) === false) {
                     assert.notEqual(value, undefined, 'Value should not be undefined for key = ' + fullKey);
                 }
 
@@ -96,7 +96,7 @@ suite('Extension Test Suite', () => {
         let keySet = new Set<string>();
         allKeys.forEach(a => {
             if (keySet.has(a)) {
-                if (!ExemptFindAllKeyRegex.test(a)) {
+                if (!ExemptDuplicateKeyRegex.test(a)) {
                     assert.fail('Duplicate key: ' + a + ' in ' + ConfigFilePath);
                 }
             } else {

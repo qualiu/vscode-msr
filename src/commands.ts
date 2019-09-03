@@ -179,7 +179,7 @@ export function getFindingCommandByCurrentWord(findCmd: FindCommandType, searchT
     if (findCmd === FindCommandType.RegexFindPureReferencesInCodeFiles) {
         const skipPattern = getOverrideOrDefaultConfig(mappedExt, 'pureReferenceSkip', true).trim();
         if (skipPattern.length > 0 && /\s+--nt\s+/.test(searchPattern) !== true) {
-            searchPattern += ' --nt "' + skipPattern + '"';
+            skipTextPattern = skipPattern;
         }
     }
 
@@ -194,21 +194,23 @@ export function getFindingCommandByCurrentWord(findCmd: FindCommandType, searchT
         filePath = '"' + filePath + '"';
     }
 
+    if (skipTextPattern && skipTextPattern.length > 1) {
+        skipTextPattern = ' --nt "' + skipTextPattern + '"';
+    }
+
+    if (extraOptions && extraOptions.length > 1) {
+        extraOptions = ' ' + extraOptions;
+    }
+
     let command = '';
     if (findCmd === FindCommandType.RegexFindDefinitionInCurrentFile) {
-        command = MsrExe + ' -p ' + filePath + searchPattern;
+        command = MsrExe + ' -p ' + filePath + skipTextPattern + extraOptions + ' ' + searchPattern;
     }
     else if (findCmd === FindCommandType.RegexFindReferencesInCurrentFile) {
-        command = MsrExe + ' -p ' + filePath + ' -e "\\b((public)|protected|private|internal|(static)|(readonly|const))\\b"' + searchPattern;
+        command = MsrExe + ' -p ' + filePath + ' -e "\\b((public)|protected|private|internal|(static)|(readonly|const))\\b"' + skipTextPattern + extraOptions + ' ' + searchPattern;
     } else {
-        command = MsrExe + ' ' + searchPathsOptions + filePattern + searchPattern;
+        command = MsrExe + ' ' + searchPathsOptions + filePattern + skipTextPattern + extraOptions + ' ' + searchPattern;
     }
-
-    if (skipTextPattern && skipTextPattern.length > 1) {
-        command += ' --nt "' + skipTextPattern + '"';
-    }
-
-    command += ' ' + extraOptions as string;
 
     if (!NormalTextRegex.test(rawSearchText)) {
         command = removeSearchTextForCommandLine(command);
@@ -216,7 +218,7 @@ export function getFindingCommandByCurrentWord(findCmd: FindCommandType, searchT
 
     command = command.replace(SearchTextHolderReplaceRegex, searchText).trim();
     if (findCmd === FindCommandType.RegexFindDefinitionInCodeFiles && NormalTextRegex.test(rawSearchText)) {
-        command = command.replace('Search ' + searchText, 'Search ' + searchText + ' roughly');
+        // command = command.replace('Search ' + searchText, 'Search ' + searchText + ' roughly');
     }
 
     if (!isSorting) {
@@ -224,6 +226,5 @@ export function getFindingCommandByCurrentWord(findCmd: FindCommandType, searchT
     }
 
     command = enableColorAndHideCommandline(command);
-    command = command.replace(/\s+Search\s*$/, '');
     return command;
 }

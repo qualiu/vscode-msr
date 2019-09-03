@@ -26,6 +26,8 @@ Note: Support **64-bit** + **32-bit** : **Windows** + **Linux** (`Ubuntu` / `Cen
 
 - Easy + Fast to **reuse** the command line of [msr.EXE](https://github.com/qualiu/msr/blob/master/README.md) to [**Search Further** or **Replace Files**](#reuse-the-command-to-search-further-or-replace-files).
 
+- [Powerfull + covenient **command shortcuts**](#make-command-shortcuts-to-search-or-replace-in-or-out-of-vscode) (alias/doskey) to **search**/**replace** code/config/doc files **in**/**out** `Visual Studio Code`.
+
 - [Every function is **under your control**](#every-function-is-under-your-control-and-easy-to-change) and easy to enable or disable.
   
 - Just leverage [one tiny exe: msr-EXE](https://github.com/qualiu/msr/blob/master/README.md) **without** `storage`/`cache`, `server`/`service`, `network`, etc.
@@ -74,9 +76,28 @@ Add **Process** type (name) + **File** type (path) exclusions for [msr.EXE](http
 
 <img align='center' src=https://raw.githubusercontent.com/qualiu/vscode-msr/master/images/add-exclusion-on-windows.png width=798 height=489>
 
+## Make Command Shortcuts to Search or Replace In or Out of VSCODE
+
+You can generate the command shortcuts (alias/doskey) to directly use for searching or replacing in or out the IDE.
+
+- One single shortcuts file:
+  - Click the menu `"Cook general command alias/doskey"` (or choose command palette by pressing `F12`) to make general command shortcuts.
+  - Choose `"Cook command alias/doskey by project"` (press `F12`) based on a specific project.
+- Multiple script files choose menus below: More freely to use (**in other script files** or **nested command lines** like pipe)
+  - `"Cook general command alias/doskey script files"`
+  - `"Cook command alias/doskey script files by project"`
+
+Each time it will write 1 or multiple script files to the folder of `msr.cmdAlias.saveFolder`, if not set:
+  
+- Single alias/doskey file: Save to `%USERPROFILE%\Desktop` on Windows or `~/` on Linux.
+
+- Multiple script files: Save to `%USERPROFILE%\Desktop\cmdAlias` on Windows or `~/cmdAlias/` on Linux.
+  
+You can search **in vscode terminal** like: `find-def MyClass` or `find-ref "class\s+MyClass"` then **click** the results to **open and locate** them.
+
 ## Every Function is Under Your Control and Easy to Change
 
-## Hide or Show More Context Menus
+### Hide or Show More Context Menus
 
 To show or hide more menus, [open user settings](https://code.visualstudio.com/docs/getstarted/settings#_creating-user-and-workspace-settings) check/un-check menus like [screenshot](https://raw.githubusercontent.com/qualiu/vscode-msr/master/images/editor-context-menu.png) below:
 
@@ -244,7 +265,7 @@ Besides the [overview doc](https://github.com/qualiu/msr/blob/master/README.md) 
 
 - Easy to add, update or tune `Regex` patterns to improve existing or support new coding languages:
   - Use above debugging method with the output info.
-  - Directly use the tiny and colorful [msr.EXE](https://github.com/qualiu/msr/tree/master/tools) of your [system type](#requirements) to test or tune your `Regex` patterns:
+  - Directly use the tiny and colorful [msr.EXE](https://github.com/qualiu/msr/tree/master/tools) of your [system type](#more-freely-to-use-and-help-you-more) to test or tune your `Regex` patterns:
     - Input a string from input-arg (`-z`) or pipe (like `echo`):
       - msr **-z** `"class CPP_EXPORT MatchThisCppClass"` -t `"^\s*class (\w+\s+)?\bMatchThisCppClass"`
       - **echo** `class CPP_EXPORT MatchThisCppClass` `|` msr -t `"^\s*class (\w+\s+)?\bMatchThisCppClass"`
@@ -265,6 +286,8 @@ Besides the [overview doc](https://github.com/qualiu/msr/blob/master/README.md) 
   - Filter `file name`: **-f** `should-match-Regex` , **--nf** `should-not-match`
   - Filter `directory name`: **-d** `at-least-one-match` , **--nd** `none-should-match`
   - Filter `full path pattern`: **--pp** `should-match` , **--np** `should-not-match`
+  - Skip full or sub paths: **--xp** d:\win\dir,my\sub
+  - Try to read once for link files: **-G** (link files' folders must be or under input root paths of `-p` or/and `-w`)
   - Filter `file size`: **--s1** <= size <= **s2** , like set one or two: **--s1** `1B` **--s2** `1.5MB`
   - Filter `file time`: like **--w1** `2019-07`, **--w2** `"2019-07-16 13:20"` or `2019-07-16T13:20:01` (quote it if has spaces).
   - Filter rows by begin + end row numbers: like **-L** 10 **-N** 200 (for each file).
@@ -301,9 +324,9 @@ Please help to set the `Regex` patterns for them if you want. You can:
   
   Easy to check consistency of [configurations](https://github.com/qualiu/vscode-msr/blob/master/package.json) with `this document` by command lines below (you can also run command `npm run test` if you're a developer):
 
-  **[nin](https://github.com/qualiu/msr/tree/master/tools)** `README.md` [package.json](https://github.com/qualiu/vscode-msr/blob/master/package.json) **"(msr\\.[\w\\.]+)"** --nt `"msr\.(exe|gcc\w+|cygwin)|project\d+|\.(My|xxx|extra\w+Group)"` -i -c Should no result
+  **[nin](https://github.com/qualiu/msr/tree/master/tools)** `README.md` [package.json](https://github.com/qualiu/vscode-msr/blob/master/package.json) **"(msr\\.[\w\\.]+)"** --nt `"msr\.(exe|gcc\w+|cygwin)|project\d+|\.(My|xxx|extra\w+Group)"` --nx msr.py.extra -i -c Should no result
 
-  **[nin](https://github.com/qualiu/msr/tree/master/tools)** `README.md` [package.json](https://github.com/qualiu/vscode-msr/blob/master/package.json) **"(msr\\.[\w\\.]+)"** --nt `"msr\.(exe|gcc\w+|cygwin)|project\d+|\.(My|xxx|extra\w+Group)"` -i **-m** -c Should have results
+  **[nin](https://github.com/qualiu/msr/tree/master/tools)** `README.md` [package.json](https://github.com/qualiu/vscode-msr/blob/master/package.json) **"(msr\\.[\w\\.]+)"** --nt `"msr\.(exe|gcc\w+|cygwin)|project\d+|\.(My|xxx|extra\w+Group)"` --nx msr.py.extra -i **-m** -c Should have results
 
   **[nin](https://github.com/qualiu/msr/tree/master/tools)** [package.json](https://github.com/qualiu/vscode-msr/blob/master/package.json) nul -p -d -k 2 -x description -c Should no unreasonable duplicate descriptions.
 

@@ -1,6 +1,8 @@
 'use strict';
 
 import * as vscode from 'vscode';
+import { execSync } from 'child_process';
+import { outputError, outputMessage, MessageLevel } from './outputUtils';
 export const TrimSearchTextRegex = /^[^\w\.-]+|[^\w\.-]+$/g;
 
 export function getCurrentWordAndText(document: vscode.TextDocument, position: vscode.Position, textEditor: vscode.TextEditor | undefined = undefined)
@@ -69,4 +71,18 @@ export function replaceTextByRegex(sourceText: string, toFindRegex: RegExp, repl
     }
 
     return newText;
+}
+
+export function runCommandGetInfo(command: string, showCmdLevel: MessageLevel = MessageLevel.INFO, errorOutputLevel: MessageLevel = MessageLevel.ERROR, outputLevel: MessageLevel = MessageLevel.INFO): [string, any] {
+    try {
+        outputMessage(showCmdLevel, command);
+        const output = execSync(command).toString();
+        if (output.length > 0) {
+            outputMessage(outputLevel, output);
+        }
+        return [output, null];
+    } catch (err) {
+        outputMessage(errorOutputLevel, '\n' + err.toString());
+        return ['', err];
+    }
 }

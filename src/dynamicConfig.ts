@@ -3,7 +3,7 @@
 import * as vscode from 'vscode';
 import path = require('path');
 import fs = require('fs');
-import { outputDebug, enableColorAndHideCommandline, outputInfo, outputError, runCommandInTerminal, MessageLevel, outputKeyInfo, outputMessage } from './outputUtils';
+import { outputDebug, enableColorAndHideCommandline, outputInfo, outputError, runCommandInTerminal, MessageLevel, outputKeyInfo, outputMessage, clearOutputChannel } from './outputUtils';
 import { IsWindows, HomeFolder } from './checkTool';
 import { getNoDuplicateStringSet, replaceTextByRegex, runCommandGetInfo, replaceText } from './utils';
 import { createRegex } from './regexUtils';
@@ -225,6 +225,7 @@ export function printConfigInfo(config: vscode.WorkspaceConfiguration) {
 }
 
 export function cookShortcutCommandFile(useProjectSpecific: boolean, outputEveryScriptFile: boolean) {
+    clearOutputChannel();
     const rootConfig = getConfig().RootConfig;
     const saveFolder = rootConfig.get('cmdAlias.saveFolder') as string || HomeFolder;
     const fileName = (useProjectSpecific ? GitFolderName + '.' : '') + 'msr-cmd-alias' + (IsWindows ? '.doskeys' : '.bashrc');

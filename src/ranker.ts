@@ -254,6 +254,14 @@ export class SearchProperty {
 			if (defaultFindRef.length > 1) {
 				searchPattern = defaultFindRef;
 			}
+
+			if (/^\W/.test(this.currentWord) && searchPattern.startsWith('\\b')) {
+				searchPattern = searchPattern.substring(2);
+			}
+
+			if (/\W$/.test(this.currentWord) && searchPattern.endsWith('\\b')) {
+				searchPattern = searchPattern.substring(0, searchPattern.length - 2);
+			}
 		} else if (MyConfig.SearchAllFilesWhenFindingDefinitions && configKeyName === 'definition') {
 			const codeFilesKey = this.mappedExt === 'ui' ? 'default.codeFilesPlusUI' : 'default.codeFiles';
 			filePattern = RootConfig.get(codeFilesKey) as string;

@@ -89,6 +89,16 @@ export function getFindingCommandByCurrentWord(findCmd: FindCommandType, searchT
             : ''
         );
 
+    if (isFindReference) {
+        if (/^\W/.test(searchText) && searchPattern.startsWith('\\b')) {
+            searchPattern = searchPattern.substring(2);
+        }
+
+        if (/\W$/.test(searchText) && searchPattern.endsWith('\\b')) {
+            searchPattern = searchPattern.substring(0, searchPattern.length - 2);
+        }
+    }
+
     let skipTextPattern = isFindDefinition
         ? getOverrideConfigByPriority([mappedExt, 'default'], 'skip.definition')
         : (isFindReference

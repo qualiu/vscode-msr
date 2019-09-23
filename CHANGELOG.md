@@ -4,6 +4,10 @@ All notable changes to the "vscode-msr" extension will be documented in this fil
 
 Detail see `vscode-msr` extension [commit history](https://github.com/qualiu/vscode-msr/commits/master).
 
+## [1.1.3]
+
+Improved find-reference when selected text not begin or start with word.
+
 ## [1.1.2]
 
 - Support **command shortcut** (`doskey` / `alias`) of finding commands for both general + project specific.

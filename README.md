@@ -107,13 +107,24 @@ Provided 20 `Plain-text find` + `Regex find` + `Sort` context menu items, but ju
 
 Set `msr.menu.visible` = `false` to hide all context menus of `Regex find xxx` + `Find xxx` etc.
 
-### Disable Finding for Specific File Types
+### Disable Finding Definition or References for Specific File Types
 
 - `msr.disable.extensionPattern`
 
   Regex pattern of **file name extensions** to **disable** `find definition and references`.
   
-  For example: Set `\.(cs|java|scala)$` to disable for `C#` and `Java`/`Scala` files.
+  For example:
+  - Set `tsx?|jsx?`  for `TypeScript` and `JavaScript` files.
+  - Set `cs|java|scala` for `C#` and `Java`/`Scala` files .
+
+### Disable Finding Definition for Specific File Types
+
+- `msr.disable.findDef.extensionPattern`
+
+  Regex pattern of **file name extensions** to **disable** `find definition`.
+  
+  For example:
+  - Set `tsx?|jsx?`  for `TypeScript` and `JavaScript` files.
 
 ### Disable Finding for Specific Projects By Root Folder Name
 

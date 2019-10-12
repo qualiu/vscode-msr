@@ -213,12 +213,18 @@ function isTooFrequentSearch() {
 	return ms < 900;
 }
 
-function getCurrentFileSearchInfo(document: vscode.TextDocument, position: vscode.Position, escapeTextForRegex: boolean = true): [path.ParsedPath, string, string, vscode.Range, string] {
+function getCurrentFileSearchInfo(findType: FindType, document: vscode.TextDocument, position: vscode.Position, escapeTextForRegex: boolean = true): [path.ParsedPath, string, string, vscode.Range, string] {
 	const parsedFile = path.parse(document.fileName);
 	const extension = parsedFile.ext.replace(/^\./, '').toLowerCase() || 'default';
 	let shouldSkip = 0;
-	if (MyConfig.DisabledFileExtensionRegex.test('.' + extension)) {
+
+	if (MyConfig.DisabledFileExtensionRegex.test(extension)) {
 		outputDebug('Disabled for `*.' + extension + '` file in configuration: `msr.disable.extensionPattern`');
+		shouldSkip += 1;
+	}
+
+	if (FindType.Definition === findType && MyConfig.DisableFindDefinitionFileExtensionRegex.test(extension)) {
+		outputDebug('Disabled for `*.' + extension + '` file in configuration: `msr.disable.findDef.extensionPattern`');
 		shouldSkip += 1;
 	}
 
@@ -238,7 +244,7 @@ function getCurrentFileSearchInfo(document: vscode.TextDocument, position: vscod
 
 function searchMatchedWords(findType: FindType, document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken, skipTestPathFiles: boolean): Thenable<vscode.Location[]> {
 	try {
-		const [parsedFile, extension, currentWord, currentWordRange, currentText] = getCurrentFileSearchInfo(document, position);
+		const [parsedFile, extension, currentWord, currentWordRange, currentText] = getCurrentFileSearchInfo(findType, document, position);
 		if (!checkSearchToolExists() || token.isCancellationRequested || currentWord.length < 2 || !currentWordRange) {
 			return Promise.reject();
 		}
@@ -291,7 +297,7 @@ function searchMatchedWords(findType: FindType, document: vscode.TextDocument, p
 }
 
 function searchDefinitionInCurrentFile(document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken): Thenable<vscode.Location[]> {
-	const [parsedFile, extension, currentWord, currentWordRange, currentText] = getCurrentFileSearchInfo(document, position);
+	const [parsedFile, extension, currentWord, currentWordRange, currentText] = getCurrentFileSearchInfo(FindType.Definition, document, position);
 	if (!checkSearchToolExists() || token.isCancellationRequested || currentWord.length < 2 || !currentWordRange) {
 		return Promise.reject();
 	}
@@ -317,7 +323,7 @@ function searchDefinitionInCurrentFile(document: vscode.TextDocument, position: 
 }
 
 function searchLocalVariableDefinitionInCurrentFile(document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken): Thenable<vscode.Location[]> {
-	const [parsedFile, extension, currentWord, currentWordRange, currentText] = getCurrentFileSearchInfo(document, position);
+	const [parsedFile, extension, currentWord, currentWordRange, currentText] = getCurrentFileSearchInfo(FindType.Definition, document, position);
 	if (!checkSearchToolExists() || token.isCancellationRequested || currentWord.length < 2 || !currentWordRange) {
 		return Promise.reject();
 	}

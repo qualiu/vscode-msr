@@ -4,9 +4,16 @@ All notable changes to the "vscode-msr" extension will be documented in this fil
 
 Detail see `vscode-msr` extension [commit history](https://github.com/qualiu/vscode-msr/commits/master).
 
+## [1.1.5]
+
+- Disabled `find definition` for TypeScript and JavaScript files as default in config: `msr.disable.extensionPattern`
+- Added config: `msr.disable.findDef.extensionPattern`
+- Updated command alias/shortcut: `find-script`
+(It's in fact version 1.1.4 which was published but lost and cannot be re-published, so increased the version number to 1.1.5)
+
 ## [1.1.3]
 
-Improved find-reference when selected text not begin or start with word.
+- Improved find-reference when selected text not begin or start with a word, which not match Regex: `^\w`.
 
 ## [1.1.2]
 

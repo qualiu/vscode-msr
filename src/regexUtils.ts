@@ -42,10 +42,10 @@ export function escapeRegExp(text: string): string {
 	return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/"/g, '\\"');
 }
 
-export function createRegex(pattern: string, flags: string | undefined = undefined): RegExp {
+export function createRegex(pattern: string, flags: string | undefined = undefined, setFullMatch: boolean = false): RegExp {
 	if (!pattern || pattern.length < 1) {
 		return EmptyRegex;
 	}
 
-	return new RegExp(pattern, flags);
+	return new RegExp(setFullMatch ? '^(' + pattern + ')$' : pattern, flags);
 }

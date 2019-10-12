@@ -3,7 +3,7 @@
 	"displayName": "Search code + Replace files + Find definition and references for all types.",
 	"description": "Search code + Replace files + Find definition and references in multiple repository paths by msr for all coding languages + configuration + doc files.",
 	"author": "qualiu@microsoft.com",
-	"version": "1.1.3",
+	"version": "1.1.5",
 	"icon": "images/vscode-msr-icon.png",
 	"license": "completely free",
 	"publisher": "qualiu",
@@ -630,8 +630,13 @@
 				},
 				"msr.disable.extensionPattern": {
 					"type": "string",
+					"default": "tsx?|jsx?",
+					"description": "Regex pattern of file extensions to disable finding definition and references. Example: tsx?|jsx?"
+				},
+				"msr.disable.findDef.extensionPattern": {
+					"type": "string",
 					"default": "",
-					"description": "Regex pattern for for file extensions to disable finding definition and references. Example:  cs|cpp|java|py|go|php|js|vue"
+					"description": "Regex pattern of file extensions to disable finding definition. Example: tsx?|jsx?"
 				},
 				"msr.findingCommands.useExtraPaths": {
 					"type": "boolean",
@@ -808,9 +813,9 @@
 					"default": "--s1 1B --s2 1.6MB -I -C -c",
 					"description": "Default extra searching options for small files. Will merge `msr.{root-folder-name}.extraOptions` if you set in your personal settings file like `%APPDATA%\\Code\\User\\settings.json` on Windows (See doc: https://github.com/qualiu/vscode-msr/blob/master/README.md#specific-extra-search-paths-settings)."
 				},
-				"msr.defaut.scriptFiles": {
+				"msr.default.scriptFiles": {
 					"type": "string",
-					"default": "\\.(bat|cmd|ps1|sh|bash|[kzc]sh)$",
+					"default": "\\.(bat|cmd|ps1|sh|bash|[kzct]sh)$",
 					"description": "Default Regex pattern for script files."
 				},
 				"msr.cmdAlias.saveFolder": {

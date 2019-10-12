@@ -51,6 +51,7 @@ export class DynamicConfig {
     public GetSearchTextHolderInCommandLine: RegExp = /\s+-c\s+.*?%~?1/;
     public DisabledFileExtensionRegex: RegExp = new RegExp('to-load');
     public DisabledGitRootFolderNameRegex: RegExp = new RegExp('to-load');
+    public DisableFindDefinitionFileExtensionRegex: RegExp = new RegExp('to-load');
     public RootFolderExtraOptions: string = '';
 }
 
@@ -77,8 +78,10 @@ export function getConfig(reload: boolean = false): DynamicConfig {
     MyConfig.DefaultConstantsRegex = new RegExp(rootConfig.get('default.isConstant') as string);
     MyConfig.SearchAllFilesWhenFindingReferences = rootConfig.get('default.searchAllFilesForReferences') as boolean;
     MyConfig.SearchAllFilesWhenFindingDefinitions = rootConfig.get('default.searchAllFilesForDefinitions') as boolean;
-    MyConfig.DisabledFileExtensionRegex = createRegex(rootConfig.get('disable.extensionPattern') as string, 'i');
     MyConfig.DisabledGitRootFolderNameRegex = createRegex(rootConfig.get('disable.projectRootFolderNamePattern') as string);
+
+    MyConfig.DisabledFileExtensionRegex = createRegex(rootConfig.get('disable.extensionPattern') as string, 'i', true);
+    MyConfig.DisableFindDefinitionFileExtensionRegex = createRegex(rootConfig.get('disable.findDef.extensionPattern') as string, 'i', true);
 
     let folderExtraOptions = (rootConfig.get(GitFolderName + '.extraOptions') as string || '').trim();
     if (folderExtraOptions.length > 0) {
@@ -93,7 +96,7 @@ export function getConfig(reload: boolean = false): DynamicConfig {
 }
 
 export function getOverrideConfigByPriority(priorityPrefixList: string[], configNameTail: string, allowEmpty: boolean = true): string {
-    const RootConfig = getConfig().RootConfig || vscode.workspace.getConfiguration('msr');
+    const RootConfig = vscode.workspace.getConfiguration('msr');
     for (let k = 0; k < priorityPrefixList.length; k++) {
         const name = (priorityPrefixList[k].length > 0 ? priorityPrefixList[k] + '.' : priorityPrefixList[k]) + configNameTail;
         let valueObject = RootConfig.get(name);
@@ -221,6 +224,7 @@ export function printConfigInfo(config: vscode.WorkspaceConfiguration) {
     outputDebug('msr.quiet = ' + config.get('quiet'));
     outputDebug('msr.debug = ' + config.get('debug'));
     outputDebug('msr.disable.extensionPattern = ' + config.get('disable.extensionPattern'));
+    outputDebug('msr.disable.findDef.extensionPattern = ' + config.get('disable.findDef.extensionPattern'));
     outputDebug('msr.disable.projectRootFolderNamePattern = ' + config.get('disable.projectRootFolderNamePattern'));
 }
 
@@ -302,12 +306,13 @@ export function cookShortcutCommandFile(useProjectSpecific: boolean, outputEvery
     });
 
     // msr.cpp.member.definition msr.py.class.definition msr.default.class.definition msr.default.definition
-    const additionlFileTypes = ['allFiles', 'docFiles', 'configFiles'];
+    const additionlFileTypes = ['allFiles', 'docFiles', 'configFiles', 'scriptFiles'];
     additionlFileTypes.forEach(fp => {
         const filePattern = getOverrideConfigByPriority([projectKey, 'default'], fp);
 
         // find-all
         const cmdName = 'find-' + fp.replace(/[A-Z]\w*$/, '');
+
         // msr.definition.extraOptions msr.default.extraOptions
         const extraOption = addFullPathHideWarningOption(getOverrideConfigByPriority([projectKey, 'default'], 'extraOptions'));
         let body = 'msr -rp . --nd "' + skipFoldersPattern + '" -f "' + filePattern + '" ' + extraOption;
@@ -316,12 +321,11 @@ export function cookShortcutCommandFile(useProjectSpecific: boolean, outputEvery
     });
 
     // find-nd find-code find-ndp find-small find-all
-    const allCodeFilePattern = getOverrideConfigByPriority([projectKey, 'default'], 'codeFiles');
+    const allCodeFilePattern = getOverrideConfigByPriority([projectKey, 'default', ''], 'codeFiles');
     const extraOption = addFullPathHideWarningOption(getOverrideConfigByPriority([projectKey, 'default'], 'extraOptions'));
     commands.push(getCommandAlias('find-nd', 'msr -rp . --nd "' + skipFoldersPattern + '" ', false));
     commands.push(getCommandAlias('find-ndp', 'msr -rp %1 --nd "' + skipFoldersPattern + '" ', false));
     commands.push(getCommandAlias('find-code', 'msr -rp . --nd "' + skipFoldersPattern + '" -f "' + allCodeFilePattern + '" ' + extraOption, false));
-    commands.push(getCommandAlias('find-script', 'msr -rp . --nd "' + skipFoldersPattern + '" -f "\.(bat|cmd|ps1|sh)$" ' + extraOption, false));
 
     const allSmallFilesOptions = getOverrideConfigByPriority([projectKey, 'default', ''], 'allSmallFiles.extraOptions');
     commands.push(getCommandAlias('find-small', 'msr -rp . --nd "' + skipFoldersPattern + '" ' + allSmallFilesOptions, false));

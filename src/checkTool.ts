@@ -1,13 +1,11 @@
-'use strict';
-
 import path = require('path');
 import fs = require('fs');
 import https = require('https');
 import crypto = require('crypto');
 import ChildProcess = require('child_process');
-import { outputError, clearOutputChannel, outputInfo, outputDebug, outputWarn } from './outputUtils';
-import { ShouldQuotePathRegex, IsDebugMode } from './dynamicConfig';
-import { replaceText } from './utils';
+import { outputError, clearOutputChannel, outputInfo, outputDebug } from './outputUtils';
+import { replaceText, quotePaths } from './utils';
+import { IsWindows, HomeFolder, IsSupportedSystem, IsDebugMode } from './constants';
 
 let isToolExists = false;
 
@@ -15,9 +13,6 @@ export let MsrExe = 'msr';
 let MsrExePath: string = '';
 
 const SourceMd5FileUrl = 'https://raw.githubusercontent.com/qualiu/msr/master/tools/md5.txt';
-
-export const IsWindows = /win32|windows/i.test(process.platform);
-export const IsSupportedSystem = /win32|Windows|Linux/i.test(process.platform);
 
 const WhereCmd = IsWindows ? 'where' : 'whereis';
 const PathEnvName = IsWindows ? '%PATH%' : '$PATH';
@@ -27,7 +22,6 @@ const MsrExtension = IsWindows ? '.exe' : '.gcc48';
 const MsrExeSourceName = (Is64BitOS ? 'msr' : (IsWindows ? 'msr-Win32' : 'msr-i386')) + MsrExtension;
 const MsrSaveName = IsWindows ? 'msr.exe' : 'msr';
 
-export const HomeFolder = IsWindows ? path.join(process.env['USERPROFILE'] || '', 'Desktop') : process.env['HOME'] || '.';
 const TmpMsrExePath = path.join(HomeFolder, MsrSaveName);
 
 const SourceExeUrl = 'https://github.com/qualiu/msr/raw/master/tools/' + MsrExeSourceName; //+ '?raw=true';
@@ -49,7 +43,7 @@ const DownloadCommand = IsWindows ? WindowsDownloadCmd : LinuxDownloadCmd;
 
 export function toRunnableToolPath(commandLine: string) {
 	if (MsrExePath === TmpMsrExePath) {
-		return (ShouldQuotePathRegex.test(TmpMsrExePath) ? '"' + TmpMsrExePath + '"' : TmpMsrExePath) + commandLine.replace(/^msr\s+/, ' ');
+		return quotePaths(TmpMsrExePath) + commandLine.replace(/^msr\s+/, ' ');
 	} else {
 		return commandLine;
 	}

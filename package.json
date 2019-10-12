@@ -3,7 +3,7 @@
 	"displayName": "Search code + Replace files + Find definition and references for all types.",
 	"description": "Search code + Replace files + Find definition and references in multiple repository paths by msr for all coding languages + configuration + doc files.",
 	"author": "qualiu@microsoft.com",
-	"version": "1.1.5",
+	"version": "1.1.6",
 	"icon": "images/vscode-msr-icon.png",
 	"license": "completely free",
 	"publisher": "qualiu",
@@ -693,6 +693,16 @@
 					"default": 200,
 					"description": "Default demotion score for matched paths."
 				},
+				"msr.definition.searchAllWorkspaces": {
+					"type": "boolean",
+					"default": true,
+					"description": "Search definition in all current workspaces."
+				},
+				"msr.reference.searchAllWorkspaces": {
+					"type": "boolean",
+					"default": true,
+					"description": "Search references in all current workspaces."
+				},
 				"msr.descendingSortForVSCode": {
 					"type": "boolean",
 					"default": true,
@@ -815,7 +825,7 @@
 				},
 				"msr.default.scriptFiles": {
 					"type": "string",
-					"default": "\\.(bat|cmd|ps1|sh|bash|[kzct]sh)$",
+					"default": "\\.(bat|cmd|psm?1|sh|bash|[kzct]sh)$",
 					"description": "Default Regex pattern for script files."
 				},
 				"msr.cmdAlias.saveFolder": {

@@ -6,14 +6,14 @@ import { exec, ExecOptions, ExecException } from 'child_process';
 import ChildProcess = require('child_process');
 import path = require('path');
 
-import { getSearchPathOptions, getConfig, getOverrideOrDefaultConfig, SearchTextHolderReplaceRegex, ShouldQuotePathRegex, GitFolderName, printConfigInfo, getOverrideConfigByPriority, cookShortcutCommandFile } from './dynamicConfig';
+import { getSearchPathOptions, getConfig, printConfigInfo, getOverrideConfigByPriority, cookShortcutCommandFile, getRootFolderName, getRootFolderExtraOptions } from './dynamicConfig';
 import { outputError, outputWarn, outputInfo, clearOutputChannel, runCommandInTerminal, outputDebug, RunCmdTerminalName, disposeTerminal, outputDebugOrInfo, outputResult } from './outputUtils';
 import { FindType, SearchProperty, FileExtensionToConfigExtMap } from './ranker';
-import { checkSearchToolExists, IsWindows, MsrExe, toRunnableToolPath } from './checkTool';
-import { getCurrentWordAndText } from './utils';
-import { FindCommandType, runFindingCommand, runFindingCommandByCurrentWord, SkipJumpOutForHeadResultsRegex, getFindingCommandByCurrentWord } from './commands';
+import { checkSearchToolExists, MsrExe, toRunnableToolPath } from './checkTool';
+import { getCurrentWordAndText, quotePaths } from './utils';
+import { FindCommandType, runFindingCommand, runFindingCommandByCurrentWord, getFindingCommandByCurrentWord } from './commands';
 import { escapeRegExp } from './regexUtils';
-import { endianness } from 'os';
+import { SearchTextHolderReplaceRegex, IsWindows, SkipJumpOutForHeadResultsRegex } from './constants';
 
 const GetFileLineTextRegex = new RegExp('(.+?):(\\d+):(.*)');
 
@@ -153,19 +153,19 @@ export function registerExtension(context: vscode.ExtensionContext) {
 
 	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.cookCmdAlias',
 		(textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit, ...args: any[]) =>
-			cookShortcutCommandFile(false, false)));
+			cookShortcutCommandFile(textEditor.document.uri.fsPath, false, false)));
 
 	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.cookCmdAliasByProject',
 		(textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit, ...args: any[]) =>
-			cookShortcutCommandFile(true, false)));
+			cookShortcutCommandFile(textEditor.document.uri.fsPath, true, false)));
 
 	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.cookCmdAliasFiles',
 		(textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit, ...args: any[]) =>
-			cookShortcutCommandFile(false, true)));
+			cookShortcutCommandFile(textEditor.document.uri.fsPath, false, true)));
 
 	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.cookCmdAliasFilesByProject',
 		(textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit, ...args: any[]) =>
-			cookShortcutCommandFile(true, true)));
+			cookShortcutCommandFile(textEditor.document.uri.fsPath, true, true)));
 }
 
 // this method is called when your extension is deactivated
@@ -228,8 +228,9 @@ function getCurrentFileSearchInfo(findType: FindType, document: vscode.TextDocum
 		shouldSkip += 1;
 	}
 
-	if (MyConfig.DisabledGitRootFolderNameRegex.test(GitFolderName)) {
-		outputDebug('Disabled for this git root folder in configuration: `msr.disable.projectRootFolderNamePattern` = ' + MyConfig.DisabledGitRootFolderNameRegex.source);
+	const rootFolderName = getRootFolderName(document.uri.fsPath);
+	if (MyConfig.DisabledRootFolderNameRegex.test(rootFolderName)) {
+		outputDebug('Disabled for this git root folder in configuration: `msr.disable.projectRootFolderNamePattern` = ' + MyConfig.DisabledRootFolderNameRegex.source);
 		shouldSkip += 1;
 	}
 
@@ -251,6 +252,8 @@ function searchMatchedWords(findType: FindType, document: vscode.TextDocument, p
 
 		clearOutputChannel();
 
+		const rootFolderName = getRootFolderName(document.uri.fsPath);
+
 		const mappedExt = FileExtensionToConfigExtMap.get(extension) || extension;
 		if (MyConfig.IsDebug) {
 			outputDebug('mappedExt = ' + mappedExt + ' , languageId = ' + document.languageId + ' , file = ' + document.fileName);
@@ -264,16 +267,16 @@ function searchMatchedWords(findType: FindType, document: vscode.TextDocument, p
 			return Promise.reject('Failed to get filePattern or searchOptions.');
 		}
 
-		let extraOptions = getConfig().RootFolderExtraOptions + getOverrideConfigByPriority([GitFolderName + '.' + configKeyName, configKeyName, mappedExt, 'default'], 'extraOptions');
+		let extraOptions = getRootFolderExtraOptions(rootFolderName) + getOverrideConfigByPriority([rootFolderName + '.' + configKeyName, configKeyName, mappedExt, 'default'], 'extraOptions');
 		if (skipTestPathFiles && /test/i.test(document.fileName) === false && /\s+--np\s+/.test(extraOptions) === false) {
 			extraOptions = '--np test ' + extraOptions;
 		}
 
 		const isFindDefinition = FindType.Definition === findType;
-		const useExtraSearchPathsForReference = 'true' === getOverrideConfigByPriority([GitFolderName + '.' + mappedExt, GitFolderName, ''], 'findReference.useExtraPaths');
-		const useExtraSearchPathsForDefinition = 'true' === getOverrideConfigByPriority([GitFolderName + '.' + mappedExt, GitFolderName, ''], 'findDefinition.useExtraPaths');
+		const useExtraSearchPathsForReference = 'true' === getOverrideConfigByPriority([rootFolderName + '.' + mappedExt, rootFolderName, ''], 'findReference.useExtraPaths');
+		const useExtraSearchPathsForDefinition = 'true' === getOverrideConfigByPriority([rootFolderName + '.' + mappedExt, rootFolderName, ''], 'findDefinition.useExtraPaths');
 
-		const searchPathOptions = getSearchPathOptions(mappedExt, isFindDefinition, useExtraSearchPathsForReference, useExtraSearchPathsForDefinition);
+		const searchPathOptions = getSearchPathOptions(document.uri.fsPath, mappedExt, isFindDefinition, useExtraSearchPathsForReference, useExtraSearchPathsForDefinition);
 		let commandLine = 'msr ' + searchPathOptions + ' -f ' + filePattern;
 		if (MyConfig.DefaultMaxSearchDepth > 0 && !CheckMaxSearchDepthRegex.test(commandLine)) {
 			extraOptions = extraOptions.trimRight() + ' -k ' + MyConfig.DefaultMaxSearchDepth.toString();
@@ -334,7 +337,7 @@ function searchLocalVariableDefinitionInCurrentFile(document: vscode.TextDocumen
 	const pattern = '\\w+\\s+(' + currentWord + ')\\s*=' + '|'
 		+ '\\([\\w\\s]*?' + currentWord + '\\s*(in|:)\\s*\\w+';
 
-	const filePath = ShouldQuotePathRegex.test(document.fileName) ? '"' + document.fileName + '"' : document.fileName;
+	const filePath = quotePaths(document.fileName);
 	let command = MsrExe + ' -p ' + filePath + ' -t "' + pattern + '" -N ' + Math.max(0, position.line - 1) + ' -T 1 -I -C';
 	outputDebug('\n' + command + '\n');
 	return getMatchedLocationsAsync(FindType.Definition, command, ranker, token);
@@ -481,7 +484,8 @@ function parseCommandOutput(stdout: string, findType: FindType, cmd: string, ran
 	}
 
 	const subName = FindType[findType].toLowerCase();
-	const priorityList = [GitFolderName + '.' + ranker.mappedExt + '.' + subName, GitFolderName + '.' + subName, GitFolderName, ranker.mappedExt, 'default'];
+	const rootFolderName = getRootFolderName(path.join(ranker.currentFile.dir, ranker.currentFile.base));
+	const priorityList = [rootFolderName + '.' + ranker.mappedExt + '.' + subName, rootFolderName + '.' + subName, rootFolderName, ranker.mappedExt, 'default'];
 	const removeLowScoreResultsFactor = Number(getOverrideConfigByPriority(priorityList, 'removeLowScoreResultsFactor') || 0.8);
 	const keepHighScoreResultCount = Number(getOverrideConfigByPriority(priorityList, 'keepHighScoreResultCount') || -1);
 

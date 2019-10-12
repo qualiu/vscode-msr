@@ -1,16 +1,13 @@
-'use strict';
-
 import * as vscode from 'vscode';
 import path = require('path');
 
-import { getSearchPathOptions, SearchTextHolderReplaceRegex, removeSearchTextForCommandLine, getOverrideOrDefaultConfig, ShouldQuotePathRegex, GitFolderName, getOverrideConfigByPriority, getConfig } from './dynamicConfig';
+import { getSearchPathOptions, removeSearchTextForCommandLine, getOverrideOrDefaultConfig, getOverrideConfigByPriority, getRootFolderName, getRootFolderExtraOptions } from './dynamicConfig';
 import { runCommandInTerminal, enableColorAndHideCommandline, outputDebug } from './outputUtils';
-import { getCurrentWordAndText } from './utils';
+import { getCurrentWordAndText, quotePaths } from './utils';
 import { FileExtensionToConfigExtMap, SearchProperty } from './ranker';
 import { escapeRegExp, NormalTextRegex } from './regexUtils';
 import { MsrExe } from './checkTool';
-
-export const SkipJumpOutForHeadResultsRegex = /\s+(-J\s+-H|-J?H)\s*\d+(\s+-J)?(\s+|$)/;
+import { SearchTextHolderReplaceRegex, SkipJumpOutForHeadResultsRegex } from './constants';
 
 export enum FindCommandType {
     RegexFindDefinitionInCodeFiles,
@@ -80,7 +77,8 @@ export function getFindingCommandByCurrentWord(findCmd: FindCommandType, searchT
             : getOverrideConfigByPriority([mappedExt, 'default'], 'extraOptions')
         );
 
-    extraOptions = getConfig().RootFolderExtraOptions + extraOptions;
+    const rootFolderName = getRootFolderName(path.join(parsedFile.dir, parsedFile.base));
+    extraOptions = getRootFolderExtraOptions(rootFolderName) + extraOptions;
 
     let searchPattern = isFindDefinition
         ? getOverrideConfigByPriority([mappedExt, 'default'], 'definition')
@@ -170,14 +168,14 @@ export function getFindingCommandByCurrentWord(findCmd: FindCommandType, searchT
         case FindCommandType.FindPlainTextInAllSmallFiles:
         default:
             filePattern = '';
-            extraOptions = getConfig().RootFolderExtraOptions + (RootConfig.get('allSmallFiles.extraOptions') as string || '').trim();
+            extraOptions = getRootFolderExtraOptions(rootFolderName) + (RootConfig.get('allSmallFiles.extraOptions') as string || '').trim();
             break;
     }
 
     if (isSorting) {
         searchPattern = '';
         skipTextPattern = '';
-        extraOptions = getConfig().RootFolderExtraOptions + RootConfig.get('default.listSortingFilesOptions') as string || '-l -H 10 -T 10';
+        extraOptions = getRootFolderExtraOptions(rootFolderName) + RootConfig.get('default.listSortingFilesOptions') as string || '-l -H 10 -T 10';
         extraOptions = ' ' + (extraOptions as string).trim() + ' ' + (findCmdText.match(/BySize/i) ? '--sz --wt' : '--wt --sz');
     } else if (isFindPlainText) {
         searchPattern = ' -x "' + rawSearchText.replace(/"/g, '\\"') + '"';
@@ -193,16 +191,13 @@ export function getFindingCommandByCurrentWord(findCmd: FindCommandType, searchT
         }
     }
 
-    const useExtraPaths = !isSorting && 'true' === getOverrideConfigByPriority([GitFolderName + '.' + mappedExt, GitFolderName, ''], 'findingCommands.useExtraPaths');
-    const searchPathsOptions = getSearchPathOptions(mappedExt, FindCommandType.RegexFindDefinitionInCodeFiles === findCmd, useExtraPaths, useExtraPaths);
+    const useExtraPaths = !isSorting && 'true' === getOverrideConfigByPriority([rootFolderName + '.' + mappedExt, rootFolderName, ''], 'findingCommands.useExtraPaths');
+    const searchPathsOptions = getSearchPathOptions(path.join(parsedFile.dir, parsedFile.base), mappedExt, FindCommandType.RegexFindDefinitionInCodeFiles === findCmd, useExtraPaths, useExtraPaths);
     if (filePattern.length > 0) {
         filePattern = ' -f "' + filePattern + '"';
     }
 
-    let filePath = path.join(parsedFile.dir, parsedFile.base);
-    if (ShouldQuotePathRegex.test(filePath)) {
-        filePath = '"' + filePath + '"';
-    }
+    const filePath = quotePaths(path.join(parsedFile.dir, parsedFile.base));
 
     if (skipTextPattern && skipTextPattern.length > 1) {
         skipTextPattern = ' --nt "' + skipTextPattern + '"';

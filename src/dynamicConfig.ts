@@ -1,23 +1,12 @@
-'use strict';
-
 import * as vscode from 'vscode';
 import path = require('path');
 import fs = require('fs');
-import { outputDebug, enableColorAndHideCommandline, outputInfo, outputError, runCommandInTerminal, MessageLevel, outputKeyInfo, outputMessage, clearOutputChannel } from './outputUtils';
-import { IsWindows, HomeFolder } from './checkTool';
-import { getNoDuplicateStringSet, replaceTextByRegex, runCommandGetInfo, replaceText } from './utils';
+import { outputDebug, enableColorAndHideCommandline, outputError, runCommandInTerminal, MessageLevel, outputKeyInfo, clearOutputChannel } from './outputUtils';
+import { getNoDuplicateStringSet, replaceTextByRegex, runCommandGetInfo, replaceText, quotePaths } from './utils';
 import { createRegex } from './regexUtils';
 import { isNullOrUndefined } from 'util';
 import { stringify } from 'querystring';
-import { execSync } from 'child_process';
-import { fstat } from 'fs';
-
-export const IsDebugMode = false; // process.execArgv && process.execArgv.length > 0 && process.execArgv.some((arg) => /^--debug=?/.test(arg) || /^--(debug|inspect)-brk=?/.test(arg));
-export const ShouldQuotePathRegex = IsWindows ? /[^\w\.,\\/:-]/ : /[^\w\.,\\/-]/;
-export const SearchTextHolder = '%1';
-export const SearchTextHolderReplaceRegex = /%~?1/g;
-
-export const GitFolderName = path.parse(vscode.workspace.rootPath || '.').base;
+import { IsDebugMode, HomeFolder, IsWindows, SearchTextHolderReplaceRegex } from './constants';
 
 const SplitPathsRegex = /\s*[,;]\s*/;
 const SplitPathGroupsRegex = /\s*;\s*/;
@@ -50,9 +39,10 @@ export class DynamicConfig {
     public SearchAllFilesWhenFindingDefinitions: boolean = false;
     public GetSearchTextHolderInCommandLine: RegExp = /\s+-c\s+.*?%~?1/;
     public DisabledFileExtensionRegex: RegExp = new RegExp('to-load');
-    public DisabledGitRootFolderNameRegex: RegExp = new RegExp('to-load');
+    public DisabledRootFolderNameRegex: RegExp = new RegExp('to-load');
     public DisableFindDefinitionFileExtensionRegex: RegExp = new RegExp('to-load');
-    public RootFolderExtraOptions: string = '';
+    public SearchDefinitionInAllWorkspaces: boolean = true;
+    public SearchReferencesInAllWorkspaces: boolean = true;
 }
 
 export function getConfig(reload: boolean = false): DynamicConfig {
@@ -78,21 +68,54 @@ export function getConfig(reload: boolean = false): DynamicConfig {
     MyConfig.DefaultConstantsRegex = new RegExp(rootConfig.get('default.isConstant') as string);
     MyConfig.SearchAllFilesWhenFindingReferences = rootConfig.get('default.searchAllFilesForReferences') as boolean;
     MyConfig.SearchAllFilesWhenFindingDefinitions = rootConfig.get('default.searchAllFilesForDefinitions') as boolean;
-    MyConfig.DisabledGitRootFolderNameRegex = createRegex(rootConfig.get('disable.projectRootFolderNamePattern') as string);
+    MyConfig.DisabledRootFolderNameRegex = createRegex(rootConfig.get('disable.projectRootFolderNamePattern') as string);
 
     MyConfig.DisabledFileExtensionRegex = createRegex(rootConfig.get('disable.extensionPattern') as string, 'i', true);
     MyConfig.DisableFindDefinitionFileExtensionRegex = createRegex(rootConfig.get('disable.findDef.extensionPattern') as string, 'i', true);
 
-    let folderExtraOptions = (rootConfig.get(GitFolderName + '.extraOptions') as string || '').trim();
-    if (folderExtraOptions.length > 0) {
-        folderExtraOptions += ' ';
-    }
-
-    MyConfig.RootFolderExtraOptions = folderExtraOptions;
+    MyConfig.SearchDefinitionInAllWorkspaces = rootConfig.get('definition.searchAllWorkspaces') as boolean;
+    MyConfig.SearchReferencesInAllWorkspaces = rootConfig.get('reference.searchAllWorkspaces') as boolean;
 
     outputDebug('----- vscode-msr configuration loaded. -----');
     printConfigInfo(rootConfig);
     return MyConfig;
+}
+
+export function getRootFolder(filePath: string): string {
+    const folderUri = vscode.workspace.getWorkspaceFolder(vscode.Uri.file(filePath));
+    if (!folderUri || !folderUri.uri || !folderUri.uri.fsPath) {
+        return '.';
+    }
+
+    return folderUri.uri.fsPath;
+}
+
+export function getRootFolderName(filePath: string): string {
+    const folderUri = vscode.workspace.getWorkspaceFolder(vscode.Uri.file(filePath));
+    if (!folderUri || !folderUri.uri || !folderUri.uri.fsPath) {
+        return '';
+    }
+
+    return path.parse(folderUri.uri.fsPath).base;
+}
+
+export function getRootFolders(): string {
+    if (!vscode.workspace.workspaceFolders || vscode.workspace.workspaceFolders.length < 1) {
+        return '.';
+    }
+
+    return vscode.workspace.workspaceFolders
+        .map(a => a.uri.fsPath)
+        .join(',');
+}
+
+export function getRootFolderExtraOptions(rootFolderName: string): string {
+    let folderExtraOptions = (MyConfig.RootConfig.get(rootFolderName + '.extraOptions') as string || '').trim();
+    if (folderExtraOptions.length > 0) {
+        folderExtraOptions += ' ';
+    }
+
+    return folderExtraOptions;
 }
 
 export function getOverrideConfigByPriority(priorityPrefixList: string[], configNameTail: string, allowEmpty: boolean = true): string {
@@ -117,49 +140,51 @@ export function getOverrideOrDefaultConfig(mappedExtOrFolderName: string, suffix
     return getOverrideConfigByPriority([mappedExtOrFolderName, 'default'], suffix, allowEmpty);
 }
 
-export function getSearchPathOptions(mappedExt: string,
+export function getSearchPathOptions(
+    codeFilePath: string,
+    mappedExt: string,
     isFindingDefinition: boolean,
     useExtraSearchPathsForReference: boolean = true,
     useExtraSearchPathsForDefinition: boolean = true): string {
 
-    const RootConfig = getConfig().RootConfig;
-    const RootPath = vscode.workspace.rootPath || '.';
+    const rootConfig = getConfig().RootConfig;
+    const rootFolderName = getRootFolderName(codeFilePath);
+    const rootPaths = (isFindingDefinition && !MyConfig.SearchDefinitionInAllWorkspaces || !isFindingDefinition && !MyConfig.SearchReferencesInAllWorkspaces)
+        ? getRootFolder(codeFilePath)
+        : getRootFolders();
+
     const subName = isFindingDefinition ? 'definition' : 'reference';
-    const skipFoldersPattern = getOverrideConfigByPriority([GitFolderName + '.' + subName + '.' + mappedExt, GitFolderName + '.' + subName, GitFolderName, mappedExt, 'default'], 'skipFolders');
+    const skipFoldersPattern = getOverrideConfigByPriority([rootFolderName + '.' + subName + '.' + mappedExt, rootFolderName + '.' + subName, rootFolderName, mappedExt, 'default'], 'skipFolders');
     const skipFolderOptions = skipFoldersPattern.length > 1 ? ' --nd "' + skipFoldersPattern + '"' : '';
     if ((isFindingDefinition && !useExtraSearchPathsForDefinition) || (!isFindingDefinition && !useExtraSearchPathsForReference)) {
-        return '-rp ' + RootPath + skipFolderOptions;
+        return '-rp ' + quotePaths(rootPaths) + skipFolderOptions;
     }
 
-    let extraSearchPathSet = getExtraSearchPathsOrFileLists('default.extraSearchPaths', GitFolderName);
-    getExtraSearchPathsOrFileLists('default.extraSearchPathGroups', GitFolderName).forEach(a => extraSearchPathSet.add(a));
-    splitPathList(RootConfig.get(GitFolderName + '.extraSearchPaths') as string).forEach((a => extraSearchPathSet.add(a)));
+    let extraSearchPathSet = getExtraSearchPathsOrFileLists('default.extraSearchPaths', rootFolderName);
+    getExtraSearchPathsOrFileLists('default.extraSearchPathGroups', rootFolderName).forEach(a => extraSearchPathSet.add(a));
+    splitPathList(rootConfig.get(rootFolderName + '.extraSearchPaths') as string).forEach((a => extraSearchPathSet.add(a)));
 
-    let extraSearchPathFileListSet = getExtraSearchPathsOrFileLists('default.extraSearchPathListFiles', GitFolderName);
-    getExtraSearchPathsOrFileLists('default.extraSearchPathListFileGroups', GitFolderName).forEach(a => extraSearchPathFileListSet.add(a));
-    splitPathList(RootConfig.get(GitFolderName + '.extraSearchPathListFiles') as string).forEach((a => extraSearchPathFileListSet.add(a)));
+    let extraSearchPathFileListSet = getExtraSearchPathsOrFileLists('default.extraSearchPathListFiles', rootFolderName);
+    getExtraSearchPathsOrFileLists('default.extraSearchPathListFileGroups', rootFolderName).forEach(a => extraSearchPathFileListSet.add(a));
+    splitPathList(rootConfig.get(rootFolderName + '.extraSearchPathListFiles') as string).forEach((a => extraSearchPathFileListSet.add(a)));
 
-    const thisTypeExtraSearchPaths = !isFindingDefinition ? new Set<string>() : getExtraSearchPathsOrFileLists(mappedExt + '.extraSearchPaths', GitFolderName);
-    const thisTypeExtraSearchPathListFiles = !isFindingDefinition ? new Set<string>() : getExtraSearchPathsOrFileLists(mappedExt + '.extraSearchPathListFiles', GitFolderName);
+    const thisTypeExtraSearchPaths = !isFindingDefinition ? new Set<string>() : getExtraSearchPathsOrFileLists(mappedExt + '.extraSearchPaths', rootFolderName);
+    const thisTypeExtraSearchPathListFiles = !isFindingDefinition ? new Set<string>() : getExtraSearchPathsOrFileLists(mappedExt + '.extraSearchPathListFiles', rootFolderName);
 
     let searchPathSet = new Set<string>();
-    searchPathSet.add(RootPath);
+    rootPaths.split(',').forEach(a => searchPathSet.add(a));
     thisTypeExtraSearchPaths.forEach(a => searchPathSet.add(a));
     extraSearchPathSet.forEach(a => searchPathSet.add(a));
     searchPathSet = getNoDuplicateStringSet(searchPathSet);
 
     let pathsText = Array.from(searchPathSet).join(',').replace(/"/g, '');
-    if (ShouldQuotePathRegex.test(pathsText)) {
-        pathsText = '"' + pathsText + '"';
-    }
+    pathsText = quotePaths(pathsText);
 
     let pathListFileSet = new Set<string>(thisTypeExtraSearchPathListFiles);
     extraSearchPathFileListSet.forEach(a => pathListFileSet.add(a));
     pathListFileSet = getNoDuplicateStringSet(extraSearchPathFileListSet);
     let pathFilesText = Array.from(pathListFileSet).join(',').replace(/"/g, '');
-    if (ShouldQuotePathRegex.test(pathFilesText)) {
-        pathFilesText = '"' + pathFilesText + '"';
-    }
+    pathFilesText = quotePaths(pathFilesText);
 
     const readPathListOptions = pathListFileSet.size > 0 ? ' -w "' + pathFilesText + '"' : '';
     return '-rp ' + pathsText + readPathListOptions + skipFolderOptions;
@@ -228,14 +253,19 @@ export function printConfigInfo(config: vscode.WorkspaceConfiguration) {
     outputDebug('msr.disable.projectRootFolderNamePattern = ' + config.get('disable.projectRootFolderNamePattern'));
 }
 
-export function cookShortcutCommandFile(useProjectSpecific: boolean, outputEveryScriptFile: boolean) {
+export function cookShortcutCommandFile(currentFilePath: string, useProjectSpecific: boolean, outputEveryScriptFile: boolean) {
     clearOutputChannel();
     const rootConfig = getConfig().RootConfig;
     const saveFolder = rootConfig.get('cmdAlias.saveFolder') as string || HomeFolder;
-    const fileName = (useProjectSpecific ? GitFolderName + '.' : '') + 'msr-cmd-alias' + (IsWindows ? '.doskeys' : '.bashrc');
+    const rootFolderName = getRootFolderName(currentFilePath);
+    if (isNullOrUndefined(rootFolderName)) {
+        useProjectSpecific = false;
+    }
+
+    const fileName = (useProjectSpecific ? rootFolderName + '.' : '') + 'msr-cmd-alias' + (IsWindows ? '.doskeys' : '.bashrc');
     const cmdAliasFile = path.join(saveFolder, fileName);
 
-    const projectKey = useProjectSpecific ? GitFolderName : 'notUseProject';
+    const projectKey = useProjectSpecific ? rootFolderName : 'notUseProject';
     const configText = stringify(rootConfig);
     const configKeyHeads = new Set<string>(configText.split(/=(true|false)?(&|$)/));
     const skipFoldersPattern = getOverrideConfigByPriority([projectKey, 'default'], 'skipFolders') || '^([\\.\\$]|(Release|Debug|objd?|bin|node_modules|static|dist|target|(Js)?Packages|\\w+-packages?)$|__pycache__)';
@@ -330,7 +360,7 @@ export function cookShortcutCommandFile(useProjectSpecific: boolean, outputEvery
     const allSmallFilesOptions = getOverrideConfigByPriority([projectKey, 'default', ''], 'allSmallFiles.extraOptions');
     commands.push(getCommandAlias('find-small', 'msr -rp . --nd "' + skipFoldersPattern + '" ' + allSmallFilesOptions, false));
 
-    const quotedFile = ShouldQuotePathRegex.test(cmdAliasFile) ? '"' + cmdAliasFile + '"' : cmdAliasFile;
+    const quotedFile = quotePaths(cmdAliasFile);
     if (IsWindows) {
         cmdAliasMap.set('alias', 'alias=doskey /macros 2>&1 | msr -PI -t "^($1)" $2 $3 $4 $5 $6 $7 $8 $9');
         cmdAliasMap.set('update-doskeys', 'update-doskeys=msr -p ' + quotedFile + ' -t .+ -o "doskey $0" --nt "\\s+&&?\\s+" -XA $*');

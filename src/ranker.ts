@@ -1,11 +1,10 @@
-'use strict';
-
 import * as vscode from 'vscode';
 import { ParsedPath } from 'path';
 import path = require('path');
 import { getAllSingleWords, EmptyRegex, createRegex } from './regexUtils';
 import { outputError, outputDebug } from './outputUtils';
-import { getConfig, getOverrideOrDefaultConfig, SearchTextHolderReplaceRegex, SearchTextHolder, GitFolderName } from './dynamicConfig';
+import { getConfig, getOverrideOrDefaultConfig, getRootFolderName } from './dynamicConfig';
+import { SearchTextHolderReplaceRegex, SearchTextHolder } from './constants';
 
 export enum FindType {
 	Definition = 1,
@@ -135,7 +134,7 @@ export class SearchProperty {
 		this.currentWordSet = getAllSingleWords(this.currentWord);
 		this.currentFileNameWordSet = getAllSingleWords(this.currentFile.name);
 		this.scoreWordSet = getAllSingleWords(this.scoreWordsText);
-		this.currentFilePathWordSet = getAllSingleWords(path.join(this.currentFile.dir, this.currentFile.name));
+		this.currentFilePathWordSet = getAllSingleWords(path.join(this.currentFile.dir, this.currentFile.base));
 		const highScoreRegex = new RegExp('(\\w+)(?:\\.|::|->)' + this.currentWord + '\\b' + '|' + '\\b(' + this.currentWord + ')(?:\\.|::|->)\\w+');
 		const highScoreMatch = highScoreRegex.exec(this.currentText);
 		if (highScoreMatch) {
@@ -148,19 +147,20 @@ export class SearchProperty {
 			}
 		}
 
-		const promoteFolderPattern = (RootConfig.get(GitFolderName + '.promoteFolderPattern') as string || '').trim();
-		const promotePathPattern = (RootConfig.get(GitFolderName + '.promotePathPattern') as string || '').trim();
+		const rootFolderName = getRootFolderName(path.join(this.currentFile.dir, this.currentFile.base));
+		const promoteFolderPattern = (RootConfig.get(rootFolderName + '.promoteFolderPattern') as string || '').trim();
+		const promotePathPattern = (RootConfig.get(rootFolderName + '.promotePathPattern') as string || '').trim();
 		this.promoteFolderRegex = createRegex(promoteFolderPattern, 'i');
 		this.promotePathRegex = createRegex(promotePathPattern, 'i');
-		this.promoteFolderScore = parseInt(getOverrideOrDefaultConfig(GitFolderName, 'promoteFolderScore') || '200');
-		this.promotePathScore = parseInt(getOverrideOrDefaultConfig(GitFolderName, 'promotePathScore') || '200');
+		this.promoteFolderScore = parseInt(getOverrideOrDefaultConfig(rootFolderName, 'promoteFolderScore') || '200');
+		this.promotePathScore = parseInt(getOverrideOrDefaultConfig(rootFolderName, 'promotePathScore') || '200');
 
-		const demoteFolderPattern = (RootConfig.get(GitFolderName + '.demoteFolderPattern') as string || '').trim();
-		const demotePathPattern = (RootConfig.get(GitFolderName + '.demotePathPattern') as string || '').trim();
+		const demoteFolderPattern = (RootConfig.get(rootFolderName + '.demoteFolderPattern') as string || '').trim();
+		const demotePathPattern = (RootConfig.get(rootFolderName + '.demotePathPattern') as string || '').trim();
 		this.demoteFolderRegex = createRegex(demoteFolderPattern, 'i');
 		this.demotePathRegex = createRegex(demotePathPattern, 'i');
-		this.demoteFolderScore = parseInt(getOverrideOrDefaultConfig(GitFolderName, 'demoteFolderScore') || '200');
-		this.demotePathScore = parseInt(getOverrideOrDefaultConfig(GitFolderName, 'demotePathScore') || '200');
+		this.demoteFolderScore = parseInt(getOverrideOrDefaultConfig(rootFolderName, 'demoteFolderScore') || '200');
+		this.demotePathScore = parseInt(getOverrideOrDefaultConfig(rootFolderName, 'demotePathScore') || '200');
 
 		const isUpperCaseWord = /^[A-Z]\w+$/.test(this.currentWord);
 		if (!this.isClass && !this.isMember && !this.isMethod && !this.isEnumValue) {

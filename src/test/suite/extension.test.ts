@@ -5,16 +5,8 @@ import { before } from 'mocha';
 // as well as import your extension to test it
 import * as vscode from 'vscode';
 import * as path from 'path';
-// import * as myExtension from '../extension';
-import os = require('os');
 import fs = require('fs');
-import http = require('https');
-import { execSync } from 'child_process';
-import { IsWindows } from '../../checkTool';
 import { getConfig } from '../../dynamicConfig';
-import { match } from 'minimatch';
-import { outputInfo } from '../../outputUtils';
-import { stringify } from 'querystring';
 
 suite('Extension Test Suite', () => {
     const GitRootPath = path.resolve(__dirname, '../../../');

@@ -1,9 +1,15 @@
-'use strict';
-
 import * as vscode from 'vscode';
 import { execSync } from 'child_process';
-import { outputError, outputMessage, MessageLevel } from './outputUtils';
-export const TrimSearchTextRegex = /^[^\w\.-]+|[^\w\.-]+$/g;
+import { outputMessage, MessageLevel } from './outputUtils';
+import { ShouldQuotePathRegex, TrimSearchTextRegex } from './constants';
+
+export function quotePaths(paths: string) {
+    if (ShouldQuotePathRegex.test(paths)) {
+        return '"' + paths + '"';
+    } else {
+        return paths;
+    }
+}
 
 export function getCurrentWordAndText(document: vscode.TextDocument, position: vscode.Position, textEditor: vscode.TextEditor | undefined = undefined)
     : [string, vscode.Range | undefined, string] {

@@ -1,10 +1,7 @@
-'use strict';
-
 import * as vscode from 'vscode';
 import { getConfig } from './dynamicConfig';
-import { IsWindows } from './checkTool';
 import { replaceTextByRegex } from './utils';
-import { Z_MEM_ERROR } from 'zlib';
+import { IsWindows } from './constants';
 
 export const RunCmdTerminalName = 'MSR-RUN-CMD';
 const OutputChannelName = 'MSR-Def-Ref';

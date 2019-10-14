@@ -1,5 +1,7 @@
 import * as vscode from 'vscode';
 import { execSync } from 'child_process';
+import path = require('path');
+import { ParsedPath } from 'path';
 import { outputMessage, MessageLevel } from './outputUtils';
 import { ShouldQuotePathRegex, TrimSearchTextRegex } from './constants';
 
@@ -9,6 +11,10 @@ export function quotePaths(paths: string) {
     } else {
         return paths;
     }
+}
+
+export function toPath(parsedPath: ParsedPath) {
+    return path.join(parsedPath.dir, parsedPath.base);
 }
 
 export function getCurrentWordAndText(document: vscode.TextDocument, position: vscode.Position, textEditor: vscode.TextEditor | undefined = undefined)

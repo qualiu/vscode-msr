@@ -4,6 +4,10 @@ All notable changes to the "vscode-msr" extension will be documented in this fil
 
 Detail see `vscode-msr` extension [commit history](https://github.com/qualiu/vscode-msr/commits/master).
 
+## [1.1.7]
+
+- Support no-project scenario like single files.
+
 ## [1.1.6]
 
 - Supported multiple workspaces (solve vscode deprecation warning).

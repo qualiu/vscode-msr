@@ -6,11 +6,11 @@ import { exec, ExecOptions, ExecException } from 'child_process';
 import ChildProcess = require('child_process');
 import path = require('path');
 
-import { getSearchPathOptions, getConfig, printConfigInfo, getOverrideConfigByPriority, cookShortcutCommandFile, getRootFolderName, getRootFolderExtraOptions } from './dynamicConfig';
+import { getSearchPathOptions, getConfig, printConfigInfo, getOverrideConfigByPriority, cookShortcutCommandFile, getRootFolderName, getRootFolderExtraOptions, getRootFolder } from './dynamicConfig';
 import { outputError, outputWarn, outputInfo, clearOutputChannel, runCommandInTerminal, outputDebug, RunCmdTerminalName, disposeTerminal, outputDebugOrInfo, outputResult } from './outputUtils';
 import { FindType, SearchProperty, FileExtensionToConfigExtMap } from './ranker';
 import { checkSearchToolExists, MsrExe, toRunnableToolPath } from './checkTool';
-import { getCurrentWordAndText, quotePaths } from './utils';
+import { getCurrentWordAndText, quotePaths, toPath } from './utils';
 import { FindCommandType, runFindingCommand, runFindingCommandByCurrentWord, getFindingCommandByCurrentWord } from './commands';
 import { escapeRegExp } from './regexUtils';
 import { SearchTextHolderReplaceRegex, IsWindows, SkipJumpOutForHeadResultsRegex } from './constants';
@@ -228,7 +228,7 @@ function getCurrentFileSearchInfo(findType: FindType, document: vscode.TextDocum
 		shouldSkip += 1;
 	}
 
-	const rootFolderName = getRootFolderName(document.uri.fsPath);
+	const rootFolderName = getRootFolderName(document.uri.fsPath) || '';
 	if (MyConfig.DisabledRootFolderNameRegex.test(rootFolderName)) {
 		outputDebug('Disabled for this git root folder in configuration: `msr.disable.projectRootFolderNamePattern` = ' + MyConfig.DisabledRootFolderNameRegex.source);
 		shouldSkip += 1;
@@ -252,7 +252,7 @@ function searchMatchedWords(findType: FindType, document: vscode.TextDocument, p
 
 		clearOutputChannel();
 
-		const rootFolderName = getRootFolderName(document.uri.fsPath);
+		const rootFolderName = getRootFolderName(document.uri.fsPath) || '';
 
 		const mappedExt = FileExtensionToConfigExtMap.get(extension) || extension;
 		if (MyConfig.IsDebug) {
@@ -345,7 +345,7 @@ function searchLocalVariableDefinitionInCurrentFile(document: vscode.TextDocumen
 
 function getMatchedLocationsAsync(findType: FindType, cmd: string, ranker: SearchProperty, token: vscode.CancellationToken): Thenable<vscode.Location[]> {
 	const options: ExecOptions = {
-		cwd: vscode.workspace.rootPath,
+		cwd: getRootFolder(toPath(ranker.currentFile)) || ranker.currentFile.dir,
 		timeout: 60 * 1000,
 		maxBuffer: 10240000,
 	};
@@ -484,7 +484,7 @@ function parseCommandOutput(stdout: string, findType: FindType, cmd: string, ran
 	}
 
 	const subName = FindType[findType].toLowerCase();
-	const rootFolderName = getRootFolderName(path.join(ranker.currentFile.dir, ranker.currentFile.base));
+	const rootFolderName = getRootFolderName(toPath(ranker.currentFile)) || '';
 	const priorityList = [rootFolderName + '.' + ranker.mappedExt + '.' + subName, rootFolderName + '.' + subName, rootFolderName, ranker.mappedExt, 'default'];
 	const removeLowScoreResultsFactor = Number(getOverrideConfigByPriority(priorityList, 'removeLowScoreResultsFactor') || 0.8);
 	const keepHighScoreResultCount = Number(getOverrideConfigByPriority(priorityList, 'keepHighScoreResultCount') || -1);

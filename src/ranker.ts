@@ -5,6 +5,7 @@ import { getAllSingleWords, EmptyRegex, createRegex } from './regexUtils';
 import { outputError, outputDebug } from './outputUtils';
 import { getConfig, getOverrideOrDefaultConfig, getRootFolderName } from './dynamicConfig';
 import { SearchTextHolderReplaceRegex, SearchTextHolder } from './constants';
+import { toPath } from './utils';
 
 export enum FindType {
 	Definition = 1,
@@ -134,7 +135,7 @@ export class SearchProperty {
 		this.currentWordSet = getAllSingleWords(this.currentWord);
 		this.currentFileNameWordSet = getAllSingleWords(this.currentFile.name);
 		this.scoreWordSet = getAllSingleWords(this.scoreWordsText);
-		this.currentFilePathWordSet = getAllSingleWords(path.join(this.currentFile.dir, this.currentFile.base));
+		this.currentFilePathWordSet = getAllSingleWords(toPath(this.currentFile));
 		const highScoreRegex = new RegExp('(\\w+)(?:\\.|::|->)' + this.currentWord + '\\b' + '|' + '\\b(' + this.currentWord + ')(?:\\.|::|->)\\w+');
 		const highScoreMatch = highScoreRegex.exec(this.currentText);
 		if (highScoreMatch) {
@@ -147,7 +148,7 @@ export class SearchProperty {
 			}
 		}
 
-		const rootFolderName = getRootFolderName(path.join(this.currentFile.dir, this.currentFile.base));
+		const rootFolderName = getRootFolderName(toPath(this.currentFile)) || '';
 		const promoteFolderPattern = (RootConfig.get(rootFolderName + '.promoteFolderPattern') as string || '').trim();
 		const promotePathPattern = (RootConfig.get(rootFolderName + '.promotePathPattern') as string || '').trim();
 		this.promoteFolderRegex = createRegex(promoteFolderPattern, 'i');

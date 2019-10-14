@@ -3,7 +3,7 @@ import path = require('path');
 
 import { getSearchPathOptions, removeSearchTextForCommandLine, getOverrideOrDefaultConfig, getOverrideConfigByPriority, getRootFolderName, getRootFolderExtraOptions } from './dynamicConfig';
 import { runCommandInTerminal, enableColorAndHideCommandline, outputDebug } from './outputUtils';
-import { getCurrentWordAndText, quotePaths } from './utils';
+import { getCurrentWordAndText, quotePaths, toPath } from './utils';
 import { FileExtensionToConfigExtMap, SearchProperty } from './ranker';
 import { escapeRegExp, NormalTextRegex } from './regexUtils';
 import { MsrExe } from './checkTool';
@@ -77,7 +77,7 @@ export function getFindingCommandByCurrentWord(findCmd: FindCommandType, searchT
             : getOverrideConfigByPriority([mappedExt, 'default'], 'extraOptions')
         );
 
-    const rootFolderName = getRootFolderName(path.join(parsedFile.dir, parsedFile.base));
+    const rootFolderName = getRootFolderName(toPath(parsedFile)) || '';
     extraOptions = getRootFolderExtraOptions(rootFolderName) + extraOptions;
 
     let searchPattern = isFindDefinition
@@ -192,12 +192,12 @@ export function getFindingCommandByCurrentWord(findCmd: FindCommandType, searchT
     }
 
     const useExtraPaths = !isSorting && 'true' === getOverrideConfigByPriority([rootFolderName + '.' + mappedExt, rootFolderName, ''], 'findingCommands.useExtraPaths');
-    const searchPathsOptions = getSearchPathOptions(path.join(parsedFile.dir, parsedFile.base), mappedExt, FindCommandType.RegexFindDefinitionInCodeFiles === findCmd, useExtraPaths, useExtraPaths);
+    const searchPathsOptions = getSearchPathOptions(toPath(parsedFile), mappedExt, FindCommandType.RegexFindDefinitionInCodeFiles === findCmd, useExtraPaths, useExtraPaths);
     if (filePattern.length > 0) {
         filePattern = ' -f "' + filePattern + '"';
     }
 
-    const filePath = quotePaths(path.join(parsedFile.dir, parsedFile.base));
+    const filePath = quotePaths(toPath(parsedFile));
 
     if (skipTextPattern && skipTextPattern.length > 1) {
         skipTextPattern = ' --nt "' + skipTextPattern + '"';

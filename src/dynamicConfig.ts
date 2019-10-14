@@ -20,7 +20,6 @@ export function removeSearchTextForCommandLine(cmd: string): string {
 
 export class DynamicConfig {
     public RootConfig: vscode.WorkspaceConfiguration = vscode.workspace.getConfiguration('msr');
-    public RootPath: string = '';
     public ShowInfo: boolean = false;
     public IsQuiet: boolean = false;
     public IsDebug: boolean = false;
@@ -54,7 +53,6 @@ export function getConfig(reload: boolean = false): DynamicConfig {
     MyConfig.RootConfig = vscode.workspace.getConfiguration('msr');
     const rootConfig = MyConfig.RootConfig;
 
-    MyConfig.RootPath = vscode.workspace.rootPath || '.';
     MyConfig.ShowInfo = rootConfig.get('showInfo') as boolean;
     MyConfig.IsQuiet = rootConfig.get('quiet') as boolean;
     MyConfig.IsDebug = IsDebugMode || rootConfig.get('debug') as boolean;
@@ -81,27 +79,23 @@ export function getConfig(reload: boolean = false): DynamicConfig {
     return MyConfig;
 }
 
-export function getRootFolder(filePath: string): string {
+export function getRootFolder(filePath: string): string | undefined {
     const folderUri = vscode.workspace.getWorkspaceFolder(vscode.Uri.file(filePath));
     if (!folderUri || !folderUri.uri || !folderUri.uri.fsPath) {
-        return '.';
+        return undefined;
     }
 
     return folderUri.uri.fsPath;
 }
 
-export function getRootFolderName(filePath: string): string {
-    const folderUri = vscode.workspace.getWorkspaceFolder(vscode.Uri.file(filePath));
-    if (!folderUri || !folderUri.uri || !folderUri.uri.fsPath) {
-        return '';
-    }
-
-    return path.parse(folderUri.uri.fsPath).base;
+export function getRootFolderName(filePath: string): string | undefined {
+    const folder = getRootFolder(filePath);
+    return isNullOrUndefined(folder) ? undefined : path.parse(folder).base;
 }
 
-export function getRootFolders(): string {
+export function getRootFolders(): string | undefined {
     if (!vscode.workspace.workspaceFolders || vscode.workspace.workspaceFolders.length < 1) {
-        return '.';
+        return undefined;
     }
 
     return vscode.workspace.workspaceFolders
@@ -148,8 +142,8 @@ export function getSearchPathOptions(
     useExtraSearchPathsForDefinition: boolean = true): string {
 
     const rootConfig = getConfig().RootConfig;
-    const rootFolderName = getRootFolderName(codeFilePath);
-    const rootPaths = (isFindingDefinition && !MyConfig.SearchDefinitionInAllWorkspaces || !isFindingDefinition && !MyConfig.SearchReferencesInAllWorkspaces)
+    const rootFolderName = getRootFolderName(codeFilePath) || '';
+    const rootPaths = !MyConfig.SearchReferencesInAllWorkspaces
         ? getRootFolder(codeFilePath)
         : getRootFolders();
 
@@ -157,7 +151,9 @@ export function getSearchPathOptions(
     const skipFoldersPattern = getOverrideConfigByPriority([rootFolderName + '.' + subName + '.' + mappedExt, rootFolderName + '.' + subName, rootFolderName, mappedExt, 'default'], 'skipFolders');
     const skipFolderOptions = skipFoldersPattern.length > 1 ? ' --nd "' + skipFoldersPattern + '"' : '';
     if ((isFindingDefinition && !useExtraSearchPathsForDefinition) || (!isFindingDefinition && !useExtraSearchPathsForReference)) {
-        return '-rp ' + quotePaths(rootPaths) + skipFolderOptions;
+        return isNullOrUndefined(rootPaths)
+            ? '-p ' + quotePaths(isFindingDefinition ? path.parse(codeFilePath).dir : codeFilePath)
+            : '-rp ' + quotePaths(rootPaths) + skipFolderOptions;
     }
 
     let extraSearchPathSet = getExtraSearchPathsOrFileLists('default.extraSearchPaths', rootFolderName);
@@ -172,7 +168,7 @@ export function getSearchPathOptions(
     const thisTypeExtraSearchPathListFiles = !isFindingDefinition ? new Set<string>() : getExtraSearchPathsOrFileLists(mappedExt + '.extraSearchPathListFiles', rootFolderName);
 
     let searchPathSet = new Set<string>();
-    rootPaths.split(',').forEach(a => searchPathSet.add(a));
+    (rootPaths || (isFindingDefinition ? path.parse(codeFilePath).dir : codeFilePath)).split(',').forEach(a => searchPathSet.add(a));
     thisTypeExtraSearchPaths.forEach(a => searchPathSet.add(a));
     extraSearchPathSet.forEach(a => searchPathSet.add(a));
     searchPathSet = getNoDuplicateStringSet(searchPathSet);
@@ -187,7 +183,9 @@ export function getSearchPathOptions(
     pathFilesText = quotePaths(pathFilesText);
 
     const readPathListOptions = pathListFileSet.size > 0 ? ' -w "' + pathFilesText + '"' : '';
-    return '-rp ' + pathsText + readPathListOptions + skipFolderOptions;
+    return isNullOrUndefined(rootPaths)
+        ? '-p ' + pathsText + readPathListOptions + skipFolderOptions
+        : '-rp ' + pathsText + readPathListOptions + skipFolderOptions;
 }
 
 export function getExtraSearchPathsOrFileLists(configKey: string, folderName: string): Set<string> {
@@ -265,7 +263,7 @@ export function cookShortcutCommandFile(currentFilePath: string, useProjectSpeci
     const fileName = (useProjectSpecific ? rootFolderName + '.' : '') + 'msr-cmd-alias' + (IsWindows ? '.doskeys' : '.bashrc');
     const cmdAliasFile = path.join(saveFolder, fileName);
 
-    const projectKey = useProjectSpecific ? rootFolderName : 'notUseProject';
+    const projectKey = useProjectSpecific ? (rootFolderName || '') : 'notUseProject';
     const configText = stringify(rootConfig);
     const configKeyHeads = new Set<string>(configText.split(/=(true|false)?(&|$)/));
     const skipFoldersPattern = getOverrideConfigByPriority([projectKey, 'default'], 'skipFolders') || '^([\\.\\$]|(Release|Debug|objd?|bin|node_modules|static|dist|target|(Js)?Packages|\\w+-packages?)$|__pycache__)';

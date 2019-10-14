@@ -81,8 +81,8 @@ Add **Process** type (name) + **File** type (path) exclusions for [msr.EXE](http
 You can generate the command shortcuts (alias/doskey) to directly use for searching or replacing in or out the IDE.
 
 - One single shortcuts file:
-  - Click the menu `"Cook general command alias/doskey"` (or choose command palette by pressing `F12`) to make general command shortcuts.
-  - Choose `"Cook command alias/doskey by project"` (press `F12`) based on a specific project.
+  - Click the right-pop menu `"Cook general command alias/doskey"` (or choose command palette by pressing `F1`) to make general command shortcuts.
+  - Choose `"Cook command alias/doskey by project"` (press `F1`) based on a specific project.
 - Multiple script files choose menus below: More freely to use (**in other script files** or **nested command lines** like pipe)
   - `"Cook general command alias/doskey script files"`
   - `"Cook command alias/doskey script files by project"`

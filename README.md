@@ -87,6 +87,8 @@ You can generate the command shortcuts (alias/doskey) to directly use for search
   - `"Cook general command alias/doskey script files"`
   - `"Cook command alias/doskey script files by project"`
 
+<img align='center' src=https://raw.githubusercontent.com/qualiu/vscode-msr/master/images/cook-command-menu.png width=596 height=129>
+
 Each time it will write 1 or multiple script files to the folder of `msr.cmdAlias.saveFolder`, if not set:
   
 - Single alias/doskey file: Save to `%USERPROFILE%\Desktop` on Windows or `~/` on Linux.
@@ -101,7 +103,7 @@ You can search **in vscode terminal** like: `find-def MyClass` or `find-ref "cla
 
 To show or hide more menus, [open user settings](https://code.visualstudio.com/docs/getstarted/settings#_creating-user-and-workspace-settings) check/un-check menus like [screenshot](https://raw.githubusercontent.com/qualiu/vscode-msr/master/images/editor-context-menu.png) below:
 
-<img align='center' src=https://raw.githubusercontent.com/qualiu/vscode-msr/master/images/editor-context-menu.png width=711 height=269>
+<img align='center' src=https://raw.githubusercontent.com/qualiu/vscode-msr/master/images/editor-context-menu.png width=785 height=313>
 
 Provided 20 `Plain-text find` + `Regex find` + `Sort` context menu items, but just show a few of them by default settings.
 

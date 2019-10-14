@@ -172,9 +172,11 @@ export class SearchProperty {
 			if (isUpperCaseWord && new RegExp('[^\.\w]' + this.currentWord + '(\\.|::|->)\\w+').test(this.currentText)) {
 				this.isClass = true;
 			}
-
-			outputDebug('Final-Check: isMember = ' + this.isMember + ', isClass = ' + this.isClass + ' , isMethod = ' + this.isMethod + ' , isEnumValue = ' + this.isEnumValue);
+		} else if (!this.isClass && isUpperCaseWord && /^(py|cpp)$/.test(mappedExt) && /^[A-Z]\w+/.test(this.currentWord) && this.methodQuoteRegex.test(currentText)) {
+			this.isClass = true;
 		}
+
+		outputDebug('Final-Check: isMember = ' + this.isMember + ', isClass = ' + this.isClass + ' , isMethod = ' + this.isMethod + ' , isEnumValue = ' + this.isEnumValue);
 
 		const classPattern = getOverrideOrDefaultConfig(mappedExt, 'class.definition', false).replace(SearchTextHolderReplaceRegex, currentWord);
 		this.classDefinitionRegex = classPattern.length < 1 ? EmptyRegex : new RegExp(classPattern);

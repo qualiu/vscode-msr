@@ -6,11 +6,7 @@ import { outputError, outputDebug } from './outputUtils';
 import { getConfig, getOverrideOrDefaultConfig, getRootFolderName } from './dynamicConfig';
 import { SearchTextHolderReplaceRegex, SearchTextHolder } from './constants';
 import { toPath } from './utils';
-
-export enum FindType {
-	Definition = 1,
-	Reference = 2,
-}
+import { FindType } from './enums';
 
 let RootConfig = getConfig().RootConfig || vscode.workspace.getConfiguration('msr');
 
@@ -94,6 +90,7 @@ export class SearchProperty {
 	private demoteFolderScore: number;
 	private demotePathRegex: RegExp;
 	private demotePathScore: number;
+	private promoteSelfFileMatchScore: number = 200;
 
 	constructor(findType: FindType, currentWord: string, currentWordRange: vscode.Range, currentText: string, currentFile: ParsedPath, mappedExt: string, isSearchOneFile: boolean = false) {
 		this.isSearchOneFile = isSearchOneFile;
@@ -190,6 +187,11 @@ export class SearchProperty {
 		const enumPattern = getOverrideOrDefaultConfig(mappedExt, 'enum.definition', false).replace(SearchTextHolderReplaceRegex, currentWord);
 		this.enumDefinitionRegex = enumPattern.length < 1 ? EmptyRegex : new RegExp(enumPattern);
 
+		outputDebug('promoteFolderScore = ' + this.promoteFolderScore + ' , promoteFolderPattern = "' + this.promoteFolderRegex.source + '"');
+		outputDebug('promotePathScore = ' + this.promotePathScore + ' , promotePathPattern = "' + this.promotePathRegex.source + '"');
+		outputDebug('demoteFolderScore = ' + this.demoteFolderScore + ' , demoteFolderPattern = "' + this.demoteFolderRegex.source + '"');
+		outputDebug('demotePathScore = ' + this.demotePathScore + ' , demotePathPattern = "' + this.demotePathRegex.source + '"');
+
 		outputDebug('isConstant = ' + this.isConstant + ' , isConstantPattern = "' + MyConfig.DefaultConstantsRegex.source + '" , nonConstRegex = "' + this.methodQuoteRegex.source + '"');
 		outputDebug('isClass = ' + this.isClass + ' , isClassPattern = "' + this.isClassPattern + '"');
 		outputDebug('isEnumValue = ' + this.isEnumValue + ' , isEnumPattern = "' + this.isEnumValuePattern + '"');
@@ -203,17 +205,32 @@ export class SearchProperty {
 		outputDebug('enumDefinitionRegex = "' + this.enumDefinitionRegex.source + '"');
 
 		outputDebug('scoreWordsText = ' + this.scoreWordsText);
+		outputDebug('promoteSelfFileMatchScore = ' + this.promoteSelfFileMatchScore);
 		outputDebug('scoreWordSet[' + this.scoreWordSet.size + '] = ' + Array.from(this.scoreWordSet).join(' '));
-		outputDebug('promoteFolderScore = ' + this.promoteFolderScore + ' , promoteFolderPattern = "' + this.promoteFolderRegex.source + '"');
-		outputDebug('promotePathScore = ' + this.promotePathScore + ' , promotePathPattern = "' + this.promotePathRegex.source + '"');
-		outputDebug('demoteFolderScore = ' + this.demoteFolderScore + ' , demoteFolderPattern = "' + this.demoteFolderRegex.source + '"');
-		outputDebug('demotePathScore = ' + this.demotePathScore + ' , demotePathPattern = "' + this.demotePathRegex.source + '"');
 	}
 
-	private getScoreText() {
+	private getScoreText(): string {
 		const leftPart = this.currentText.substring(0, this.currentWordRange.start.character);
 		const expandLeftRegex = this.isMethod ? /[=\s\w\.:<>-]+$/ : /[\w\.:<>-]+$/;
-		const leftMatch = expandLeftRegex.exec(leftPart);
+		const expandMethodLeftRegex = this.isMethod && this.findType === FindType.Definition
+			? new RegExp('[\\w\\.:<>-]*\\w+\\s*\\(.*?\\)\\s*(->|\\.)\\s*$')
+			: EmptyRegex;
+
+		const leftMethodMatch = expandMethodLeftRegex.exec(leftPart);
+		if (this.isMethod && this.findType === FindType.Definition) {
+			if (new RegExp("\\b(this|self)(->|\\.)$").test(leftPart)) {
+				this.promoteSelfFileMatchScore = 200;
+			} else if (new RegExp("\\s+$").test(leftPart)) {
+				this.promoteSelfFileMatchScore = 50;
+			} else {
+				this.promoteSelfFileMatchScore = 5;
+			}
+		}
+
+		const leftMatch = this.isMethod
+			? leftMethodMatch || expandLeftRegex.exec(leftPart)
+			: expandLeftRegex.exec(leftPart);
+
 		const leftMatchedText = leftMatch ? leftMatch[0] : '';
 
 		const rightPart = this.currentText.substring(this.currentWordRange.end.character);
@@ -500,7 +517,7 @@ export class SearchProperty {
 
 		this.currentFileNameWordSet.forEach(a => {
 			if (resultFileNameWordSet.has(a)) {
-				score += 20;
+				score += this.promoteSelfFileMatchScore / 10;
 			}
 		});
 
@@ -518,7 +535,7 @@ export class SearchProperty {
 
 		this.currentFilePathWordSet.forEach(a => {
 			if (resultFileNameWordSet.has(a)) {
-				score += 5;
+				score += this.promoteSelfFileMatchScore / 40;
 			}
 		});
 
@@ -527,12 +544,14 @@ export class SearchProperty {
 			score -= headSpaces[0].length * 3;
 		}
 
-		if (parsedResultPath.name === this.currentFile.name) {
-			score += 300;
+		if (parsedResultPath.dir === this.currentFile.dir) {
+			score += this.promoteSelfFileMatchScore / 5;
 		}
 
-		if (parsedResultPath.dir === this.currentFile.dir) {
-			score += 200;
+		if (parsedResultPath.base === this.currentFile.base) {
+			score += parsedResultPath.dir === this.currentFile.dir
+				? this.promoteSelfFileMatchScore
+				: this.promoteSelfFileMatchScore / 5;
 		}
 
 		if (this.promoteFolderRegex.source !== EmptyRegex.source || this.demoteFolderRegex.source !== EmptyRegex.source) {

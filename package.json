@@ -3,7 +3,7 @@
 	"displayName": "Search code + Replace files + Find definition and references for all types.",
 	"description": "Search code + Replace files + Find definition and references in multiple repository paths by msr for all coding languages + configuration + doc files.",
 	"author": "qualiu@microsoft.com",
-	"version": "1.1.8",
+	"version": "1.1.9",
 	"icon": "images/vscode-msr-icon.png",
 	"license": "completely free",
 	"publisher": "qualiu",
@@ -265,6 +265,15 @@
 					"dark": "images/vscode-msr-small.svg",
 					"light": "images/vscode-msr-small.svg"
 				}
+			},
+			{
+				"command": "msr.tmpToggleEnableForFindDefinitionAndReference",
+				"title": "Toggle enable finding definition + reference",
+				"category": "msr",
+				"icon": {
+					"dark": "images/vscode-msr-small.svg",
+					"light": "images/vscode-msr-small.svg"
+				}
 			}
 		],
 		"menus": {
@@ -388,6 +397,11 @@
 					"when": "config.msr.menu.visible && config.msr.cookCmdAliasFilesByProject.menu.visible",
 					"command": "msr.cookCmdAliasFilesByProject",
 					"group": "msr"
+				},
+				{
+					"when": "config.msr.menu.visible && config.msr.tmpToggleEnableForFindDefinitionAndReference.menu.visible",
+					"command": "msr.tmpToggleEnableForFindDefinitionAndReference",
+					"group": "msr"
 				}
 			],
 			"commandPalette": [
@@ -486,9 +500,19 @@
 				{
 					"command": "msr.cookCmdAliasFilesByProject",
 					"group": "msr"
+				},
+				{
+					"command": "msr.tmpToggleEnableForFindDefinitionAndReference",
+					"group": "msr"
 				}
 			]
 		},
+		"keybindings": [
+			{
+				"command": "msr.tmpToggleEnableForFindDefinitionAndReference",
+				"key": "F2"
+			}
+		],
 		"configuration": {
 			"type": "object",
 			"title": "File Peek extension configuration",
@@ -497,6 +521,11 @@
 					"type": "boolean",
 					"default": true,
 					"description": "If false, will hide all `msr` context menus (menu by right-click to prommpt) of `Regex find xxx` or `Find plain text`."
+				},
+				"msr.tmpToggleEnableForFindDefinitionAndReference.menu.visible": {
+					"type": "boolean",
+					"default": false,
+					"description": "Temporarily toggle enable/disable finding definition/reference for current live vscode."
 				},
 				"msr.cookCmdAlias.menu.visible": {
 					"type": "boolean",
@@ -696,12 +725,12 @@
 				"msr.definition.searchAllWorkspaces": {
 					"type": "boolean",
 					"default": true,
-					"description": "Search definition in all current workspaces."
+					"description": "Find definition in all workspaces of current vscode."
 				},
 				"msr.reference.searchAllWorkspaces": {
 					"type": "boolean",
 					"default": true,
-					"description": "Search references in all current workspaces."
+					"description": "Find references in all workspaces of current vscode."
 				},
 				"msr.descendingSortForVSCode": {
 					"type": "boolean",
@@ -820,7 +849,7 @@
 				},
 				"msr.allSmallFiles.extraOptions": {
 					"type": "string",
-					"default": "--s1 1B --s2 1.6MB -I -C -c",
+					"default": "-W --s1 1B --s2 1.6MB -I -C -c",
 					"description": "Default extra searching options for small files. Will merge `msr.{root-folder-name}.extraOptions` if you set in your personal settings file like `%APPDATA%\\Code\\User\\settings.json` on Windows (See doc: https://github.com/qualiu/vscode-msr/blob/master/README.md#specific-extra-search-paths-settings)."
 				},
 				"msr.default.scriptFiles": {
@@ -836,7 +865,7 @@
 				"msr.default.extraOptions": {
 					"type": "string",
 					"default": "--s1 1B --s2 3.6MB -I -C -c",
-					"description": "Default extra searching options. Like: --xd --xf --s1 1B --s2 3.6MB -I -C -c"
+					"description": "Default extra searching options. Like: -W --xd --xf --s1 1B --s2 3.6MB -I -C -c"
 				},
 				"msr.definition.extraOptions": {
 					"type": "string",

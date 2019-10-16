@@ -7,6 +7,7 @@ import { createRegex } from './regexUtils';
 import { isNullOrUndefined } from 'util';
 import { stringify } from 'querystring';
 import { IsDebugMode, HomeFolder, IsWindows, SearchTextHolderReplaceRegex } from './constants';
+import { FindType } from './enums';
 
 const SplitPathsRegex = /\s*[,;]\s*/;
 const SplitPathGroupsRegex = /\s*;\s*/;
@@ -20,6 +21,10 @@ export function removeSearchTextForCommandLine(cmd: string): string {
 
 export class DynamicConfig {
     public RootConfig: vscode.WorkspaceConfiguration = vscode.workspace.getConfiguration('msr');
+
+    // Temp toggle enable/disable finding definition and reference
+    public IsEnabledFindingDefinitionAndReference: boolean = true;
+
     public ShowInfo: boolean = false;
     public IsQuiet: boolean = false;
     public IsDebug: boolean = false;
@@ -42,6 +47,80 @@ export class DynamicConfig {
     public DisableFindDefinitionFileExtensionRegex: RegExp = new RegExp('to-load');
     public SearchDefinitionInAllWorkspaces: boolean = true;
     public SearchReferencesInAllWorkspaces: boolean = true;
+
+    public IsFindDefinitionEnabled: boolean = true;
+    public IsFindReferencesEnabled: boolean = true;
+
+    public toggleEnableFindingDefinitionAndReference() {
+        this.IsEnabledFindingDefinitionAndReference = !this.IsEnabledFindingDefinitionAndReference;
+        // let config = vscode.workspace.getConfiguration('msr');
+        // const isFindDefinitionEnabled = config.get('enable.definition') as boolean;
+        // config.update('enable.definition', !isFindDefinitionEnabled);
+        // config.update('enable.reference', !isFindDefinitionEnabled);
+        // MyConfig = getConfig();
+        this.update();
+
+        outputDebug('Toggled: msr.enable.definition = ' + this.IsFindDefinitionEnabled);
+        outputDebug('Toggled: msr.enable.reference = ' + this.IsFindReferencesEnabled);
+    }
+
+    public update() {
+        this.RootConfig = vscode.workspace.getConfiguration('msr');
+        this.IsFindDefinitionEnabled = this.RootConfig.get('enable.definition') as boolean && this.IsEnabledFindingDefinitionAndReference;
+        this.IsFindReferencesEnabled = this.RootConfig.get('enable.reference') as boolean && this.IsEnabledFindingDefinitionAndReference;
+
+        const rootConfig = this.RootConfig;
+
+        this.ShowInfo = rootConfig.get('showInfo') as boolean;
+        this.IsQuiet = rootConfig.get('quiet') as boolean;
+        this.IsDebug = IsDebugMode || rootConfig.get('debug') as boolean;
+        this.DescendingSortForConsoleOutput = rootConfig.get('descendingSortForConsoleOutput') as boolean;
+        this.DescendingSortForVSCode = rootConfig.get('descendingSortForVSCode') as boolean;
+        this.DefaultMaxSearchDepth = parseInt(rootConfig.get('default.maxSearchDepth') || '0');
+        this.NeedSortResults = rootConfig.get('default.sortResults') as boolean;
+        this.ReRunCmdInTerminalIfCostLessThan = rootConfig.get('reRunSearchInTerminalIfCostLessThan') as number || 3.3;
+        this.ConfigAndDocFilesRegex = new RegExp(rootConfig.get('default.configAndDocs') as string || '\\.(json|xml|ini|ya?ml|md)|readme', 'i');
+        this.CodeAndConfigAndDocFilesRegex = new RegExp(rootConfig.get('default.codeAndConfigDocs') as string || '\\.(cs\\w*|nuspec|config|c[px]*|h[px]*|java|scala|py|go|php|vue|tsx?|jsx?|json|ya?ml|xml|ini|md)$|readme', 'i');
+        this.DefaultConstantsRegex = new RegExp(rootConfig.get('default.isConstant') as string);
+        this.SearchAllFilesWhenFindingReferences = rootConfig.get('default.searchAllFilesForReferences') as boolean;
+        this.SearchAllFilesWhenFindingDefinitions = rootConfig.get('default.searchAllFilesForDefinitions') as boolean;
+        this.DisabledRootFolderNameRegex = createRegex(rootConfig.get('disable.projectRootFolderNamePattern') as string);
+
+        this.DisabledFileExtensionRegex = createRegex(rootConfig.get('disable.extensionPattern') as string, 'i', true);
+        this.DisableFindDefinitionFileExtensionRegex = createRegex(rootConfig.get('disable.findDef.extensionPattern') as string, 'i', true);
+
+        this.SearchDefinitionInAllWorkspaces = rootConfig.get('definition.searchAllWorkspaces') as boolean;
+        this.SearchReferencesInAllWorkspaces = rootConfig.get('reference.searchAllWorkspaces') as boolean;
+    }
+
+    public shouldSkipFinding(findType: FindType, currentFilePath: string): boolean {
+        if ((findType === FindType.Definition && !this.IsFindDefinitionEnabled) || (findType === FindType.Reference && !this.IsFindReferencesEnabled)) {
+            outputDebug('Disabled by `msr.enable.' + findType + '` or temporarily toggled enable/disable by `msr.tmpToggleEnableForFindDefinitionAndReference`');
+            return true;
+        }
+
+        const parsedFile = path.parse(currentFilePath);
+        const extension = parsedFile.ext.replace(/^\./, '').toLowerCase() || 'default';
+        let shouldSkip = 0;
+
+        if (MyConfig.DisabledFileExtensionRegex.test(extension)) {
+            outputDebug('Disabled for `*.' + extension + '` file in configuration: `msr.disable.extensionPattern`');
+            shouldSkip += 1;
+        }
+
+        if (FindType.Definition === findType && MyConfig.DisableFindDefinitionFileExtensionRegex.test(extension)) {
+            outputDebug('Disabled for `*.' + extension + '` file in configuration: `msr.disable.findDef.extensionPattern`');
+            shouldSkip += 1;
+        }
+
+        const rootFolderName = getRootFolderName(currentFilePath) || '';
+        if (MyConfig.DisabledRootFolderNameRegex.test(rootFolderName)) {
+            outputDebug('Disabled for this git root folder in configuration: `msr.disable.projectRootFolderNamePattern` = ' + MyConfig.DisabledRootFolderNameRegex.source);
+            shouldSkip += 1;
+        }
+
+        return shouldSkip > 0;
+    }
 }
 
 export function getConfig(reload: boolean = false): DynamicConfig {
@@ -49,37 +128,22 @@ export function getConfig(reload: boolean = false): DynamicConfig {
         return MyConfig;
     }
 
-    MyConfig = new DynamicConfig();
-    MyConfig.RootConfig = vscode.workspace.getConfiguration('msr');
-    const rootConfig = MyConfig.RootConfig;
+    if (!MyConfig) {
+        MyConfig = new DynamicConfig();
+    }
 
-    MyConfig.ShowInfo = rootConfig.get('showInfo') as boolean;
-    MyConfig.IsQuiet = rootConfig.get('quiet') as boolean;
-    MyConfig.IsDebug = IsDebugMode || rootConfig.get('debug') as boolean;
-    MyConfig.DescendingSortForConsoleOutput = rootConfig.get('descendingSortForConsoleOutput') as boolean;
-    MyConfig.DescendingSortForVSCode = rootConfig.get('descendingSortForVSCode') as boolean;
-    MyConfig.DefaultMaxSearchDepth = parseInt(rootConfig.get('default.maxSearchDepth') || '0');
-    MyConfig.NeedSortResults = rootConfig.get('default.sortResults') as boolean;
-    MyConfig.ReRunCmdInTerminalIfCostLessThan = rootConfig.get('reRunSearchInTerminalIfCostLessThan') as number || 3.3;
-    MyConfig.ConfigAndDocFilesRegex = new RegExp(rootConfig.get('default.configAndDocs') as string || '\\.(json|xml|ini|ya?ml|md)|readme', 'i');
-    MyConfig.CodeAndConfigAndDocFilesRegex = new RegExp(rootConfig.get('default.codeAndConfigDocs') as string || '\\.(cs\\w*|nuspec|config|c[px]*|h[px]*|java|scala|py|go|php|vue|tsx?|jsx?|json|ya?ml|xml|ini|md)$|readme', 'i');
-    MyConfig.DefaultConstantsRegex = new RegExp(rootConfig.get('default.isConstant') as string);
-    MyConfig.SearchAllFilesWhenFindingReferences = rootConfig.get('default.searchAllFilesForReferences') as boolean;
-    MyConfig.SearchAllFilesWhenFindingDefinitions = rootConfig.get('default.searchAllFilesForDefinitions') as boolean;
-    MyConfig.DisabledRootFolderNameRegex = createRegex(rootConfig.get('disable.projectRootFolderNamePattern') as string);
+    MyConfig.update();
 
-    MyConfig.DisabledFileExtensionRegex = createRegex(rootConfig.get('disable.extensionPattern') as string, 'i', true);
-    MyConfig.DisableFindDefinitionFileExtensionRegex = createRegex(rootConfig.get('disable.findDef.extensionPattern') as string, 'i', true);
-
-    MyConfig.SearchDefinitionInAllWorkspaces = rootConfig.get('definition.searchAllWorkspaces') as boolean;
-    MyConfig.SearchReferencesInAllWorkspaces = rootConfig.get('reference.searchAllWorkspaces') as boolean;
-
-    outputDebug('----- vscode-msr configuration loaded. -----');
-    printConfigInfo(rootConfig);
+    outputDebug('----- vscode-msr configuration loaded: ' + new Date().toLocaleString() + ' -----');
+    printConfigInfo(MyConfig.RootConfig);
     return MyConfig;
 }
 
 export function getRootFolder(filePath: string): string | undefined {
+    if (isNullOrUndefined(filePath)) {
+        return undefined;
+    }
+
     const folderUri = vscode.workspace.getWorkspaceFolder(vscode.Uri.file(filePath));
     if (!folderUri || !folderUri.uri || !folderUri.uri.fsPath) {
         return undefined;
@@ -93,14 +157,15 @@ export function getRootFolderName(filePath: string): string | undefined {
     return isNullOrUndefined(folder) ? undefined : path.parse(folder).base;
 }
 
-export function getRootFolders(): string | undefined {
+export function getRootFolders(currentFilePath: string): string | undefined {
     if (!vscode.workspace.workspaceFolders || vscode.workspace.workspaceFolders.length < 1) {
         return undefined;
     }
 
-    return vscode.workspace.workspaceFolders
-        .map(a => a.uri.fsPath)
-        .join(',');
+    let rootFolderSet = new Set<string>().add(getRootFolder(currentFilePath) || '');
+    vscode.workspace.workspaceFolders.forEach(a => rootFolderSet.add(a.uri.fsPath));
+    rootFolderSet.delete('');
+    return Array.from(rootFolderSet).join(',');
 }
 
 export function getRootFolderExtraOptions(rootFolderName: string): string {
@@ -145,7 +210,7 @@ export function getSearchPathOptions(
     const rootFolderName = getRootFolderName(codeFilePath) || '';
     const rootPaths = !MyConfig.SearchReferencesInAllWorkspaces
         ? getRootFolder(codeFilePath)
-        : getRootFolders();
+        : getRootFolders(codeFilePath);
 
     const subName = isFindingDefinition ? 'definition' : 'reference';
     const skipFoldersPattern = getOverrideConfigByPriority([rootFolderName + '.' + subName + '.' + mappedExt, rootFolderName + '.' + subName, rootFolderName, mappedExt, 'default'], 'skipFolders');

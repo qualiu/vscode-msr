@@ -8,29 +8,7 @@ import { FileExtensionToConfigExtMap, SearchProperty } from './ranker';
 import { escapeRegExp, NormalTextRegex } from './regexUtils';
 import { MsrExe } from './checkTool';
 import { SearchTextHolderReplaceRegex, SkipJumpOutForHeadResultsRegex } from './constants';
-
-export enum FindCommandType {
-    RegexFindDefinitionInCodeFiles,
-    RegexFindDefinitionInCurrentFile,
-    RegexFindReferencesInCurrentFile,
-    RegexFindReferencesInCodeFiles,
-    RegexFindPureReferencesInCodeFiles,
-    RegexFindReferencesInConfigFiles,
-    RegexFindReferencesInDocs,
-    RegexFindReferencesInAllProjectFiles,
-    RegexFindReferencesInAllSmallFiles,
-    RegexFindReferencesInCodeAndConfig,
-    FindPlainTextInCodeFiles,
-    FindPlainTextInConfigFiles,
-    FindPlainTextInDocFiles,
-    FindPlainTextInConfigAndConfigFiles,
-    FindPlainTextInAllProjectFiles,
-    FindPlainTextInAllSmallFiles,
-    SortProjectFilesBySize,
-    SortProjectFilesByTime,
-    SortAllFilesBySize,
-    SortAllFilesByTime,
-}
+import { FindCommandType } from './enums';
 
 export function runFindingCommand(findCmd: FindCommandType, textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit, ...args: any[]) {
     const RootConfig = vscode.workspace.getConfiguration('msr');

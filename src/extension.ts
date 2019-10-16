@@ -8,12 +8,13 @@ import path = require('path');
 
 import { getSearchPathOptions, getConfig, printConfigInfo, getOverrideConfigByPriority, cookShortcutCommandFile, getRootFolderName, getRootFolderExtraOptions, getRootFolder } from './dynamicConfig';
 import { outputError, outputWarn, outputInfo, clearOutputChannel, runCommandInTerminal, outputDebug, RunCmdTerminalName, disposeTerminal, outputDebugOrInfo, outputResult } from './outputUtils';
-import { FindType, SearchProperty, FileExtensionToConfigExtMap } from './ranker';
+import { SearchProperty, FileExtensionToConfigExtMap } from './ranker';
 import { checkSearchToolExists, MsrExe, toRunnableToolPath } from './checkTool';
 import { getCurrentWordAndText, quotePaths, toPath } from './utils';
-import { FindCommandType, runFindingCommand, runFindingCommandByCurrentWord, getFindingCommandByCurrentWord } from './commands';
+import { runFindingCommand, runFindingCommandByCurrentWord, getFindingCommandByCurrentWord } from './commands';
 import { escapeRegExp } from './regexUtils';
 import { SearchTextHolderReplaceRegex, IsWindows, SkipJumpOutForHeadResultsRegex } from './constants';
+import { FindType, FindCommandType } from './enums';
 
 const GetFileLineTextRegex = new RegExp('(.+?):(\\d+):(.*)');
 
@@ -166,40 +167,47 @@ export function registerExtension(context: vscode.ExtensionContext) {
 	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.cookCmdAliasFilesByProject',
 		(textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit, ...args: any[]) =>
 			cookShortcutCommandFile(textEditor.document.uri.fsPath, true, true)));
+
+	context.subscriptions.push(vscode.commands.registerCommand('msr.tmpToggleEnableForFindDefinitionAndReference',
+		(...args: any[]) => {
+			getConfig().toggleEnableFindingDefinitionAndReference();
+		}));
 }
 
 // this method is called when your extension is deactivated
 export function deactivate() { }
 
 export class DefinitionFinder implements vscode.DefinitionProvider {
-	public provideDefinition(document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken): Thenable<vscode.Location[] | null> {
-		if (RootConfig.get('enable.definition') as boolean) {
-			return searchMatchedWords(FindType.Definition, document, position, token, true).then(allResults => {
-				if (allResults && allResults.length > 0) {
-					return Promise.resolve(allResults);
-				} else {
-					return searchDefinitionInCurrentFile(document, position, token).then(currentFileResults => {
-						if (currentFileResults && currentFileResults.length > 0) {
-							return Promise.resolve(currentFileResults);
-						} else {
-							return Promise.resolve(searchLocalVariableDefinitionInCurrentFile(document, position, token));
-						}
-					});
+	public async provideDefinition(document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken): Promise<vscode.Location[] | null> {
+		if (MyConfig.IsFindDefinitionEnabled) {
+			const allResults = await searchMatchedWords(FindType.Definition, document, position, token, true);
+			if (allResults && allResults.length > 0) {
+				return Promise.resolve(allResults);
+			}
+
+			return searchDefinitionInCurrentFile(document, position, token).then(currentFileResults => {
+				if (currentFileResults && currentFileResults.length > 0) {
+					return Promise.resolve(currentFileResults);
+				}
+				else {
+					return Promise.resolve(searchLocalVariableDefinitionInCurrentFile(document, position, token));
 				}
 			});
 		} else {
-			outputDebug('Your extension "vscode-msr": find definition is disabled by setting of `msr.enable.definition`.');
+			outputDebug('Your extension "vscode-msr": Finding definition is disabled by setting of `msr.enable.definition`'
+				+ ' or temporarily toggled enable/disable by `msr.tmpToggleEnableForFindDefinitionAndReference`.');
 			return Promise.reject(null);
 		}
 	}
 }
 
 export class ReferenceFinder implements vscode.ReferenceProvider {
-	public provideReferences(document: vscode.TextDocument, position: vscode.Position, context: vscode.ReferenceContext, token: vscode.CancellationToken): Thenable<vscode.Location[] | null> {
-		if (RootConfig.get('enable.reference') as boolean) {
+	public async provideReferences(document: vscode.TextDocument, position: vscode.Position, context: vscode.ReferenceContext, token: vscode.CancellationToken): Promise<vscode.Location[] | null> {
+		if (MyConfig.IsFindReferencesEnabled) {
 			return searchMatchedWords(FindType.Reference, document, position, token, false);
 		} else {
-			outputDebug('Your extension "vscode-msr": find reference is disabled by setting of `msr.enable.reference`.');
+			outputDebug('Your extension "vscode-msr": Finding reference is disabled by setting of `msr.enable.reference`'
+				+ ' or temporarily toggled enable/disable by `msr.tmpToggleEnableForFindDefinitionAndReference`.');
 			return Promise.reject(null);
 		}
 	}
@@ -216,26 +224,8 @@ function isTooFrequentSearch() {
 function getCurrentFileSearchInfo(findType: FindType, document: vscode.TextDocument, position: vscode.Position, escapeTextForRegex: boolean = true): [path.ParsedPath, string, string, vscode.Range, string] {
 	const parsedFile = path.parse(document.fileName);
 	const extension = parsedFile.ext.replace(/^\./, '').toLowerCase() || 'default';
-	let shouldSkip = 0;
-
-	if (MyConfig.DisabledFileExtensionRegex.test(extension)) {
-		outputDebug('Disabled for `*.' + extension + '` file in configuration: `msr.disable.extensionPattern`');
-		shouldSkip += 1;
-	}
-
-	if (FindType.Definition === findType && MyConfig.DisableFindDefinitionFileExtensionRegex.test(extension)) {
-		outputDebug('Disabled for `*.' + extension + '` file in configuration: `msr.disable.findDef.extensionPattern`');
-		shouldSkip += 1;
-	}
-
-	const rootFolderName = getRootFolderName(document.uri.fsPath) || '';
-	if (MyConfig.DisabledRootFolderNameRegex.test(rootFolderName)) {
-		outputDebug('Disabled for this git root folder in configuration: `msr.disable.projectRootFolderNamePattern` = ' + MyConfig.DisabledRootFolderNameRegex.source);
-		shouldSkip += 1;
-	}
-
 	const [currentWord, currentWordRange, currentText] = getCurrentWordAndText(document, position);
-	if (shouldSkip > 0 || currentWord.length < 2 || !currentWordRange || !checkSearchToolExists()) {
+	if (currentWord.length < 2 || !currentWordRange || !checkSearchToolExists()) {
 		return [parsedFile, extension, '', new vscode.Range(new vscode.Position(0, 0), new vscode.Position(0, 0)), ''];
 	}
 
@@ -245,6 +235,10 @@ function getCurrentFileSearchInfo(findType: FindType, document: vscode.TextDocum
 
 function searchMatchedWords(findType: FindType, document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken, skipTestPathFiles: boolean): Thenable<vscode.Location[]> {
 	try {
+		if (MyConfig.shouldSkipFinding(findType, document.uri.fsPath)) {
+			return Promise.reject();
+		}
+
 		const [parsedFile, extension, currentWord, currentWordRange, currentText] = getCurrentFileSearchInfo(findType, document, position);
 		if (!checkSearchToolExists() || token.isCancellationRequested || currentWord.length < 2 || !currentWordRange) {
 			return Promise.reject();
@@ -300,6 +294,10 @@ function searchMatchedWords(findType: FindType, document: vscode.TextDocument, p
 }
 
 function searchDefinitionInCurrentFile(document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken): Thenable<vscode.Location[]> {
+	if (MyConfig.shouldSkipFinding(FindType.Definition, document.uri.fsPath)) {
+		return Promise.reject();
+	}
+
 	const [parsedFile, extension, currentWord, currentWordRange, currentText] = getCurrentFileSearchInfo(FindType.Definition, document, position);
 	if (!checkSearchToolExists() || token.isCancellationRequested || currentWord.length < 2 || !currentWordRange) {
 		return Promise.reject();
@@ -326,6 +324,10 @@ function searchDefinitionInCurrentFile(document: vscode.TextDocument, position: 
 }
 
 function searchLocalVariableDefinitionInCurrentFile(document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken): Thenable<vscode.Location[]> {
+	if (MyConfig.shouldSkipFinding(FindType.Reference, document.uri.fsPath)) {
+		return Promise.reject();
+	}
+
 	const [parsedFile, extension, currentWord, currentWordRange, currentText] = getCurrentFileSearchInfo(FindType.Definition, document, position);
 	if (!checkSearchToolExists() || token.isCancellationRequested || currentWord.length < 2 || !currentWordRange) {
 		return Promise.reject();

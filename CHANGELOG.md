@@ -4,6 +4,13 @@ All notable changes to the "vscode-msr" extension will be documented in this fil
 
 Detail see `vscode-msr` extension [commit history](https://github.com/qualiu/vscode-msr/commits/master).
 
+## [1.1.9]
+
+- Improved ranking for same name method's definition search results.
+- Adjust search order for multiple workspaces.
+- Updated config value of `msr.allSmallFiles.extraOptions` to display full paths (added `-W`).
+- Supported temporarily toggle enable/disable finding definition and references (Default shortcut key = `F2`).
+
 ## [1.1.8]
 
 - Improved finding definition of class constructor for `python` and `c++`.

@@ -22,11 +22,13 @@ Note: Support **64-bit** + **32-bit** : **Windows** + **Linux** (`Ubuntu` / `Cen
 
 - Simple + flexible configuration (`just general Regex` of `C++`,`Java`,`C#`,`Python`), overwrite default settings if need.
 
-- [Normal + Extensive Search](#normal-and-extensive-search) knows and serves your better.
+- [Normal + Extensive Search](#normal-and-extensive-search) knows and serves you better.
 
-- Easy + Fast to **reuse** the command line of [msr.EXE](https://github.com/qualiu/msr/blob/master/README.md) to [**Search Further** or **Replace Files**](#reuse-the-command-to-search-further-or-replace-files).
+- **Easy** + **Fast** to **reuse** the command line of [msr-EXE](https://github.com/qualiu/msr/blob/master/README.md) to [**Search Further** or **Replace Files**](#reuse-the-command-to-search-further-or-replace-files).
 
-- [Powerfull + covenient **command shortcuts**](#make-command-shortcuts-to-search-or-replace-in-or-out-of-vscode) (alias/doskey) to **search**/**replace** code/config/doc files **in**/**out** `Visual Studio Code`.
+- [Powerfull + covenient **command shortcuts**](#make-command-shortcuts-to-search-or-replace-in-or-out-of-vscode) (alias/doskey) to **search**/**replace** code/config/doc files **in**/**out** `vscode`.
+
+- **Easy** + **Fast** to [**Get the Best Combined Power**](#temporarily-toggle-enabledisable-finding-definition--references) of `vscode-msr` + your language plugins (like `vscode-python` / `vscode-java` etc.).
 
 - [Every function is **under your control**](#every-function-is-under-your-control-and-easy-to-change) and easy to enable or disable.
   
@@ -36,7 +38,7 @@ Note: Support **64-bit** + **32-bit** : **Windows** + **Linux** (`Ubuntu` / `Cen
 
 [Screenshot GIF](https://raw.githubusercontent.com/qualiu/vscode-msr/master/images/find-def-ref.gif): Search **Definitions** + **References** for **C++** / **Python** / **Java** in `Visual Studio Code`:
 
-<img src=https://raw.githubusercontent.com/qualiu/vscode-msr/master/images/find-def-ref.gif width=956 height=480>
+<img src='https://raw.githubusercontent.com/qualiu/vscode-msr/master/images/find-def-ref.gif' width=956 height=480>
 
 More powerfull usages + examples see [overview doc](https://github.com/qualiu/msr/blob/master/README.md) or just run [msr-EXE](https://qualiu.github.io/msr/usage-by-running/msr-Windows.html) you will see [colorful text doc of usage + examples](https://qualiu.github.io/msr/usage-by-running/msr-Windows.html) (on Windows, [Linux at here](https://qualiu.github.io/msr/usage-by-running/msr-CentOS-7.html)) or [doc without color](https://raw.githubusercontent.com/qualiu/msr/master/tools/readme.txt).
 
@@ -74,20 +76,20 @@ For example on **Windows** see official doc: [Add an exclusion to Windows Securi
 
 Add **Process** type (name) + **File** type (path) exclusions for [msr.EXE](https://github.com/qualiu/msr/tree/master/tools).
 
-<img align='center' src=https://raw.githubusercontent.com/qualiu/vscode-msr/master/images/add-exclusion-on-windows.png width=798 height=489>
+<img align='center' src='https://raw.githubusercontent.com/qualiu/vscode-msr/master/images/add-exclusion-on-windows.png' width=798 height=489>
 
 ## Make Command Shortcuts to Search or Replace In or Out of VSCODE
 
 You can generate the command shortcuts (alias/doskey) to directly use for searching or replacing in or out the IDE.
 
-- One single shortcuts file:
-  - Click the right-pop menu `"Cook general command alias/doskey"` (or choose command palette by pressing `F1`) to make general command shortcuts.
-  - Choose `"Cook command alias/doskey by project"` (press `F1`) based on a specific project.
+- One single shortcuts file: (Press `F1` if not shown in right-pop menu, then search `Cook xxx` as below)
+  - Click/Choose `"Cook general command alias/doskey"` to make general command shortcuts.
+  - Choose `"Cook command alias/doskey by project"` to make shortcuts based on current project setting.
 - Multiple script files choose menus below: More freely to use (**in other script files** or **nested command lines** like pipe)
   - `"Cook general command alias/doskey script files"`
   - `"Cook command alias/doskey script files by project"`
 
-<img align='center' src=https://raw.githubusercontent.com/qualiu/vscode-msr/master/images/cook-command-menu.png width=596 height=129>
+<img align='center' src='https://raw.githubusercontent.com/qualiu/vscode-msr/master/images/cook-command-menu.png' width=596 height=129>
 
 Each time it will write 1 or multiple script files to the folder of `msr.cmdAlias.saveFolder`, if not set:
   
@@ -101,13 +103,25 @@ You can search **in vscode terminal** like: `find-def MyClass` or `find-ref "cla
 
 ### Hide or Show More Context Menus
 
+Default setting just shows a few of 24 provided context menu items of `Plain-text find` + `Regex find` + `Sort`.
+
 To show or hide more menus, [open user settings](https://code.visualstudio.com/docs/getstarted/settings#_creating-user-and-workspace-settings) check/un-check menus like [screenshot](https://raw.githubusercontent.com/qualiu/vscode-msr/master/images/editor-context-menu.png) below:
 
-<img align='center' src=https://raw.githubusercontent.com/qualiu/vscode-msr/master/images/editor-context-menu.png width=785 height=313>
-
-Provided 20 `Plain-text find` + `Regex find` + `Sort` context menu items, but just show a few of them by default settings.
+<img align='center' src='https://raw.githubusercontent.com/qualiu/vscode-msr/master/images/editor-context-menu.png' width=785 height=313>
 
 Set `msr.menu.visible` = `false` to hide all context menus of `Regex find xxx` + `Find xxx` etc.
+
+### Temporarily Toggle Enable/Disable Finding Definition + References
+
+Help your work with **best combined power** of `vscode-msr` + other plugins (like `vscode-python`/`vscode-java` etc.):
+
+- Temporarily enable `vscode-msr` and use it, when the language plugin failed to find definition/references.
+- Temporarily disable `vscode-msr`, use the language plugin to find definition/references.
+
+Just press `F2` to switch ([change this default shortcut key](https://code.visualstudio.com/docs/getstarted/keybindings#_keyboard-shortcuts-editor) if got conflict). You can also use 2 other methods below:
+
+- Press `F1` to open command pallete, then type `msr temp` or `msr toggle` etc.
+- Make visible of the right-pop menu and use it: Press `F1` -> type `Open User Settings` -> type + change `msr.tmpToggleEnableForFindDefinitionAndReference.menu.visible`.
 
 ### Disable Finding Definition or References for Specific File Types
 
@@ -117,7 +131,7 @@ Set `msr.menu.visible` = `false` to hide all context menus of `Regex find xxx` +
   
   For example:
   - Set `tsx?|jsx?`  for `TypeScript` and `JavaScript` files.
-  - Set `cs|java|scala` for `C#` and `Java`/`Scala` files .
+  - Set `py|cs|java|scala` for `python`, `C#` and `Java`/`Scala` files .
 
 ### Disable Finding Definition for Specific File Types
 
@@ -251,18 +265,19 @@ You can also set extra search paths for each type of coding language.
 
 You can **reuse** [msr.EXE](https://github.com/qualiu/msr/tree/master/tools) `original search command line` in `Visual Studio Code` output channel `MSR-Def-Ref` or terminal `MSR-RUN-CMD` to **search** + **replace** files.
 
-- Filter results or further search on results based on `original search command line`:
+- **Search files**: Filter results or further search on results based on `original search command line`:
   
   Change the value of **-t** / **--np** / **--nd** if already used in command line.
   - Filter result text:
     - **-x** `"need plain text"` , **--nx** `"exclude plain-text"` , **--nt** `"exclude Regex"` , **-t** `"search/include Regex"`.
   - Filter result file name, folder, full-path:
-    - **-d** `"match folders Regex"`, **--nd** `"exclude folder Regex"` , **--pp** `"full path Regex"` , - **--np** `"exclude full path Regex"`.
+    - **-d** `"match folders Regex"`, **--nd** `"exclude folder Regex"`
+    - **--pp** `"full path Regex"` , **--np** `"exclude full path Regex"` , **--xp** `"sub-paths,sub-text"`
   - You can also add more `msr` commands to the command line like:
     - `msr original command` **|** `msr -i -t "^\s*public" -P -A -C`
   - Get matched file `list` (**-l**) -> Generate new command (**-o** `msr xxx`) -> Execute command (**-X**):
     - `msr original command` **-l** -PAC **|** `msr -t "(.+)" -o "msr -p \1 -t \"class To-Search\" --nx internal"` **-X**
-- Replace files: Reuse the `find-reference` command line or write a new one:
+- **Replace files**: Reuse the `find-reference` command line or write a new one:
   - See replaced text lines (add **-o** `replace-to-text`):
     - `msr original command ... -t "xxx" ...` **-o** `"replace-to"`
   - **Just** preview changed files (**-j**):
@@ -349,10 +364,23 @@ Please help to set the `Regex` patterns for them if you want. You can:
   
   For example, it may slower than usual if the disk (where code files stored) is busy, or slower than expected if the hardware is too old, or CPU is too busy.
 
+- Sometimes 2 duplicate results of finding definition.
+  
+  It's better to be solved by `vscode` itself to remove the final duplicate results, or privide an interface for extensions to do it.
+
+- One redundant finding defintion was triggered if used `Ctrl` + `Mouse left click`.
+  
+  Due to both "**Peek Definition**" and "**Go to Definition**" were triggered:
+  - **Peek Definition** was triggered by `Ctrl` + `Mouse hover`.
+  - **Go to Definition** was triggered by `Ctrl` + `Mouse left click`.
+  
+  You can use `Ctrl + Mouse hover` to `peek definition`, use `F12` to `go to definition` as a workaround.
+  
 - Current support of finding `definition` + `references`:
+
   - Near-precise support: Will show **multiple results** for **same name** `classes/methods/etc`, due to this is a light tool without syntax parsing and cache.
   - Near-precise support `class`, `methods`, `enum`, `field`, `property` for **C#**, **Python**, **Java**, **Scala**, **C++** / **C**.
-  - Roughly support `class` and `method` for all type of languages (you can copy/write configurations follow existing languages).
+  - Rough support `class` and `method` for all type of languages (you can copy/write configurations follow existing languages).
 
   Welcome + Please help to improve searching definitions and references for `classes` and `methods`, and add supports for `enum` , `property`, `field` etc.
 

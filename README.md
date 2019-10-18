@@ -285,7 +285,7 @@ You can **reuse** [msr.EXE](https://github.com/qualiu/msr/tree/master/tools) `or
   - Replace files (**-R**):
     - `msr original command ... -t "xxx" ...` **-o** `"replace-to"` **-R**
     - Add **-K** if you want to backup changed files.
-    - Add **--force** to replace files with `BOM` header except `UTF-8 0xEFBBBF`.
+    - Add **--force** to replace files with `BOM` header not `UTF-8 0xEFBBBF`.
 
 ## Brief Usage Summary for Search or Configuration
 

@@ -104,7 +104,6 @@ export function getFindingCommandByCurrentWord(findCmd: FindCommandType, searchT
             break;
 
         case FindCommandType.RegexFindReferencesInCurrentFile:
-            searchPattern = '\\b(' + searchText + ')\\b';
             skipTextPattern = '';
             break;
 

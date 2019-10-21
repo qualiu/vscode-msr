@@ -4,6 +4,10 @@ All notable changes to the "vscode-msr" extension will be documented in this fil
 
 Detail see `vscode-msr` extension [commit history](https://github.com/qualiu/vscode-msr/commits/master).
 
+## [1.1.11]
+
+- Changed shortcut key of `msr.tmpToggleEnableForFindDefinitionAndReference` from `F2` to `Alt+F2`.
+  
 ## [1.1.10]
 
 - Updated finding reference in current file for non-words selected text.

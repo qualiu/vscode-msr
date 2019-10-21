@@ -28,7 +28,7 @@ Note: Support **64-bit** + **32-bit** : **Windows** + **Linux** (`Ubuntu` / `Cen
 
 - [Powerfull + covenient **command shortcuts**](#make-command-shortcuts-to-search-or-replace-in-or-out-of-vscode) (alias/doskey) to **search**/**replace** code/config/doc files **in**/**out** `vscode`.
 
-- **Easy** + **Fast** to [**Get the Best Combined Power**](#temporarily-toggle-enabledisable-finding-definition--references) of `vscode-msr` + your language plugins (like `vscode-python` / `vscode-java` etc.).
+- **Easy** + **Fast** to [**Get the Best Combined Power**](#get-the-best-combined-power) of `vscode-msr` + your language plugins (like `vscode-python` / `vscode-java` etc.).
 
 - [Every function is **under your control**](#every-function-is-under-your-control-and-easy-to-change) and easy to enable or disable.
   
@@ -111,14 +111,16 @@ To show or hide more menus, [open user settings](https://code.visualstudio.com/d
 
 Set `msr.menu.visible` = `false` to hide all context menus of `Regex find xxx` + `Find xxx` etc.
 
-### Temporarily Toggle Enable/Disable Finding Definition + References
+### Get the Best Combined Power
 
-Help your work with **best combined power** of `vscode-msr` + other plugins (like `vscode-python`/`vscode-java` etc.):
+Just press `Alt+F2` to temporarily toggle `Enable`/`Disable` of `Finding Definition + References`.
+
+This helps your work with **best combined power** of `vscode-msr` + other plugins (like `vscode-python` / `vscode-java` etc.):
 
 - Temporarily enable `vscode-msr` and use it, when the language plugin failed to find definition/references.
 - Temporarily disable `vscode-msr`, use the language plugin to find definition/references.
 
-Just press `F2` to switch ([change this default shortcut key](https://code.visualstudio.com/docs/getstarted/keybindings#_keyboard-shortcuts-editor) if got conflict). You can also use 2 other methods below:
+You can [change the default shortcut key](https://code.visualstudio.com/docs/getstarted/keybindings#_keyboard-shortcuts-editor) if got conflict. You can also use 2 other methods below to toggle:
 
 - Press `F1` to open command pallete, then type `msr temp` or `msr toggle` etc.
 - Make visible of the right-pop menu and use it: Press `F1` -> type `Open User Settings` -> type + change `msr.tmpToggleEnableForFindDefinitionAndReference.menu.visible`.

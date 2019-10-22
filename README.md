@@ -26,7 +26,7 @@ Note: Support **64-bit** + **32-bit** : **Windows** + **Linux** (`Ubuntu` / `Cen
 
 - **Easy** + **Fast** to **reuse** the command line of [msr-EXE](https://github.com/qualiu/msr/blob/master/README.md) to [**Search Further** or **Replace Files**](#reuse-the-command-to-search-further-or-replace-files).
 
-- [Powerfull + covenient **command shortcuts**](#make-command-shortcuts-to-search-or-replace-in-or-out-of-vscode) (alias/doskey) to **search**/**replace** code/config/doc files **in**/**out** `vscode`.
+- [Powerful + convenient **command shortcuts**](#make-command-shortcuts-to-search-or-replace-in-or-out-of-vscode) (alias/doskey) to **search**/**replace** code/config/doc files **in**/**out** `vscode`.
 
 - **Easy** + **Fast** to [**Get the Best Combined Power**](#get-the-best-combined-power) of `vscode-msr` + your language plugins (like `vscode-python` / `vscode-java` etc.).
 
@@ -40,7 +40,7 @@ Note: Support **64-bit** + **32-bit** : **Windows** + **Linux** (`Ubuntu` / `Cen
 
 <img src='https://raw.githubusercontent.com/qualiu/vscode-msr/master/images/find-def-ref.gif' width=956 height=480>
 
-More powerfull usages + examples see [overview doc](https://github.com/qualiu/msr/blob/master/README.md) or just run [msr-EXE](https://qualiu.github.io/msr/usage-by-running/msr-Windows.html) you will see [colorful text doc of usage + examples](https://qualiu.github.io/msr/usage-by-running/msr-Windows.html) (on Windows, [Linux at here](https://qualiu.github.io/msr/usage-by-running/msr-CentOS-7.html)) or [doc without color](https://raw.githubusercontent.com/qualiu/msr/master/tools/readme.txt).
+More powerful usages + examples see [overview doc](https://github.com/qualiu/msr/blob/master/README.md) or just run [msr-EXE](https://qualiu.github.io/msr/usage-by-running/msr-Windows.html) you will see [colorful text doc of usage + examples](https://qualiu.github.io/msr/usage-by-running/msr-Windows.html) (on Windows, [Linux at here](https://qualiu.github.io/msr/usage-by-running/msr-CentOS-7.html)) or [doc without color](https://raw.githubusercontent.com/qualiu/msr/master/tools/readme.txt).
 
 ## More Freely to Use and Help You More
 
@@ -122,7 +122,7 @@ This helps your work with **best combined power** of `vscode-msr` + other plugin
 
 You can [change the default shortcut key](https://code.visualstudio.com/docs/getstarted/keybindings#_keyboard-shortcuts-editor) if got conflict. You can also use 2 other methods below to toggle:
 
-- Press `F1` to open command pallete, then type `msr temp` or `msr toggle` etc.
+- Press `F1` to open command pallette, then type `msr temp` or `msr toggle` etc.
 - Make visible of the right-pop menu and use it: Press `F1` -> type `Open User Settings` -> type + change `msr.tmpToggleEnableForFindDefinitionAndReference.menu.visible`.
 
 ### Disable Finding Definition or References for Specific File Types
@@ -182,7 +182,7 @@ Note: Check [**your personal settings**](https://code.visualstudio.com/docs/gets
   Like adding `msr.{root-folder-name}.skipFolders` + value in `%APPDATA%\Code\User\settings.json` on Windows:
 
   ```json
-  "msr.My-Project-Root-Folder-Name.skipFolders": "^(uint|tests)$|other-partial-folder-name"
+  "msr.My-Project-Root-Folder-Name.skipFolders": "^(unit|tests)$|other-partial-folder-name"
   ```
 
 - Promote Scores for Specific Project Folders or Paths
@@ -190,8 +190,8 @@ Note: Check [**your personal settings**](https://code.visualstudio.com/docs/gets
   Set below items if you need in [your personal settings file](https://code.visualstudio.com/docs/getstarted/settings#_settings-file-locations) like `%APPDATA%\Code\User\settings.json` on Windows.
 
   Regex pattern to promote scores for sorting definition (`Go To Definition`) or references (`Find All References`):
-  - `msr.{root-folder-name}.promoteFolderPattern`: Regex pattern to promte folder scores for result file folders.
-  - `msr.{root-folder-name}.promotePathPattern`: Regex pattern to promte path scores for result file paths.
+  - `msr.{root-folder-name}.promoteFolderPattern`: Regex pattern to promote folder scores for result file folders.
+  - `msr.{root-folder-name}.promotePathPattern`: Regex pattern to promote path scores for result file paths.
   - `msr.{root-folder-name}.promoteFolderScore`: Recommended value is 100 to 1000. Default = 200 if not set.
   - `msr.{root-folder-name}.promotePathScore`:  Recommended value is 100 to 1000. Default = 200 if not set.
 
@@ -254,7 +254,7 @@ You can also set extra search paths for each type of coding language.
 
 ## Normal and Extensive Search
 
- Normal Search (`default context menu`) + Extensive Search (`context meun` + `command palette`)
+ Normal Search (`default context menu`) + Extensive Search (`context menu` + `command palette`)
 
 - Normal search:
   - Find definition (`Go to Definition` menu): Precise search **project root** + **extra paths** if set.
@@ -370,7 +370,7 @@ Please help to set the `Regex` patterns for them if you want. You can:
   
   It's better to be solved by `vscode` itself to remove the final duplicate results, or privide an interface for extensions to do it.
 
-- One redundant finding defintion was triggered if used `Ctrl` + `Mouse left click`.
+- One redundant finding definition was triggered if used `Ctrl` + `Mouse left click`.
   
   Due to both "**Peek Definition**" and "**Go to Definition**" were triggered:
   - **Peek Definition** was triggered by `Ctrl` + `Mouse hover`.

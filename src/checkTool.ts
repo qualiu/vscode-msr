@@ -3,7 +3,7 @@ import fs = require('fs');
 import https = require('https');
 import crypto = require('crypto');
 import ChildProcess = require('child_process');
-import { outputError, clearOutputChannel, outputInfo, outputDebug } from './outputUtils';
+import { outputError, clearOutputChannel, outputInfo, outputDebug, outputKeyInfo } from './outputUtils';
 import { replaceText, quotePaths } from './utils';
 import { IsWindows, HomeFolder, IsSupportedSystem, IsDebugMode } from './constants';
 
@@ -105,7 +105,7 @@ function isToolExistsInPath(exeToolName: string): [boolean, string] {
 
 function autoDownloadTool(): boolean {
 	if (!fs.existsSync(TmpMsrExePath)) {
-		outputInfo('Will try to download the only one tiny tool by command:');
+		outputKeyInfo('Will try to download the only one tiny tool by command:');
 		outputInfo(DownloadCommand);
 		try {
 			let output = ChildProcess.execSync(DownloadCommand).toString();
@@ -172,9 +172,9 @@ function checkToolNewVersion() {
 				if (latestMd5Match) {
 					const md5 = latestMd5Match[1];
 					if (currentMd5.toLowerCase() !== md5.toLowerCase()) {
-						outputInfo('Found new version of `msr` which md5 = ' + md5 + ' , currentMd5 = ' + currentMd5 + ' , source-info = ' + SourceMd5FileUrl);
-						outputInfo('You can download + update the exe by 1 command below:');
-						outputInfo(replaceText(DownloadCommand, TmpMsrExePath, MsrExePath));
+						outputKeyInfo('Found new version of `msr` which md5 = ' + md5 + ' , currentMd5 = ' + currentMd5 + ' , source-info = ' + SourceMd5FileUrl);
+						outputKeyInfo('You can download + update the exe by 1 command below:');
+						outputKeyInfo(replaceText(DownloadCommand, TmpMsrExePath, MsrExePath));
 					} else {
 						outputDebug('Great! Your `msr` exe is latest! md5 = ' + md5 + ' , exe = ' + MsrExePath + ' , sourceMD5 = ' + SourceMd5FileUrl);
 					}

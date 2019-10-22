@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import path = require('path');
 import fs = require('fs');
-import { outputDebug, enableColorAndHideCommandline, outputError, runCommandInTerminal, MessageLevel, outputKeyInfo, clearOutputChannel } from './outputUtils';
+import { outputDebug, enableColorAndHideCommandLine, outputError, runCommandInTerminal, MessageLevel, outputKeyInfo, clearOutputChannel } from './outputUtils';
 import { getNoDuplicateStringSet, replaceTextByRegex, runCommandGetInfo, replaceText, quotePaths } from './utils';
 import { createRegex } from './regexUtils';
 import { isNullOrUndefined } from 'util';
@@ -399,8 +399,8 @@ export function cookShortcutCommandFile(currentFilePath: string, useProjectSpeci
     });
 
     // msr.cpp.member.definition msr.py.class.definition msr.default.class.definition msr.default.definition
-    const additionlFileTypes = ['allFiles', 'docFiles', 'configFiles', 'scriptFiles'];
-    additionlFileTypes.forEach(fp => {
+    const additionalFileTypes = ['allFiles', 'docFiles', 'configFiles', 'scriptFiles'];
+    additionalFileTypes.forEach(fp => {
         const filePattern = getOverrideConfigByPriority([projectKey, 'default'], fp);
 
         // find-all
@@ -432,18 +432,18 @@ export function cookShortcutCommandFile(currentFilePath: string, useProjectSpeci
     let allText = '';
     let failureCount = 0;
     const singleScriptFolder = path.join(saveFolder, 'cmdAlias');
-    let failedToCreateSinlgeScriptFolder = false;
+    let failedToCreateSingleScriptFolder = false;
     if (outputEveryScriptFile && !fs.existsSync(singleScriptFolder)) {
         try {
             fs.mkdirSync(singleScriptFolder);
         } catch (err) {
-            failedToCreateSinlgeScriptFolder = true;
+            failedToCreateSingleScriptFolder = true;
             outputError('\n' + 'Failed to make single script folder: ' + singleScriptFolder + ' Error: ' + err.toString());
         }
     }
 
     cmdAliasMap.forEach((value, key, m) => {
-        if (outputEveryScriptFile && !failedToCreateSinlgeScriptFolder && key.startsWith('find')) {
+        if (outputEveryScriptFile && !failedToCreateSingleScriptFolder && key.startsWith('find')) {
             const singleScriptPath = path.join(singleScriptFolder, IsWindows ? key + '.cmd' : key);
             try {
                 fs.writeFileSync(singleScriptPath, value.trimRight() + (IsWindows ? '\r\n' : '\n'));
@@ -457,7 +457,7 @@ export function cookShortcutCommandFile(currentFilePath: string, useProjectSpeci
     });
 
     if (outputEveryScriptFile) {
-        if (failureCount < cmdAliasMap.size && !failedToCreateSinlgeScriptFolder) {
+        if (failureCount < cmdAliasMap.size && !failedToCreateSingleScriptFolder) {
             outputCmdAliasGuide(saveFolder);
             let setPathCmd = 'msr -z "' + (IsWindows ? '%PATH%' : '$PATH') + '" -ix "' + singleScriptFolder + '" >' + (IsWindows ? 'nul' : '/dev/null') + ' && ';
             if (IsWindows) {
@@ -508,7 +508,7 @@ export function cookShortcutCommandFile(currentFilePath: string, useProjectSpeci
     }
 
     function getCommandAlias(cmdName: string, body: string, useFunction: boolean): string {
-        body = enableColorAndHideCommandline(body);
+        body = enableColorAndHideCommandLine(body);
         // body = replaceTextByRegex(body, /\s+%~?1(\s+|$)/g, '').trimRight();
 
         const hasSearchTextHolder = /%~?1/.test(body);

@@ -10,17 +10,30 @@
     "typescript.tsc.autoDetect": "off",
     "cSpell.words": [
         "USERPROFILE",
+        "APPDATA",
+        "autorun",
         "bmsr",
         "chmod",
+        "current",
         "cygwin",
+        "doskeys",
         "egrep",
+        "hkey",
         "icacls",
+        "ipynb",
+        "kzct",
+        "macrofile",
+        "objd",
+        "pacigmo",
+        "pacwgmo",
         "pycache",
         "qualiu",
         "readonly",
         "struct",
         "taskkill",
+        "user",
         "whereis",
-        "xargs"
+        "xargs",
+        "zc"
     ]
 }

@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import path = require('path');
 
 import { getSearchPathOptions, removeSearchTextForCommandLine, getOverrideOrDefaultConfig, getOverrideConfigByPriority, getRootFolderName, getRootFolderExtraOptions } from './dynamicConfig';
-import { runCommandInTerminal, enableColorAndHideCommandline, outputDebug } from './outputUtils';
+import { runCommandInTerminal, enableColorAndHideCommandLine, outputDebug } from './outputUtils';
 import { getCurrentWordAndText, quotePaths, toPath } from './utils';
 import { FileExtensionToConfigExtMap, SearchProperty } from './ranker';
 import { escapeRegExp, NormalTextRegex } from './regexUtils';
@@ -207,6 +207,6 @@ export function getFindingCommandByCurrentWord(findCmd: FindCommandType, searchT
         command = command.replace(SkipJumpOutForHeadResultsRegex, ' ').trim();
     }
 
-    command = enableColorAndHideCommandline(command);
+    command = enableColorAndHideCommandLine(command);
     return command;
 }

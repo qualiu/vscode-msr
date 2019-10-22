@@ -4,6 +4,10 @@ All notable changes to the "vscode-msr" extension will be documented in this fil
 
 Detail see `vscode-msr` extension [commit history](https://github.com/qualiu/vscode-msr/commits/master).
 
+## [1.1.12]
+
+- Output key info even set `msr.quiet` + trivial code update.
+
 ## [1.1.11]
 
 - Changed shortcut key of `msr.tmpToggleEnableForFindDefinitionAndReference` from `F2` to `Alt+F2`.
@@ -69,7 +73,7 @@ Detail see `vscode-msr` extension [commit history](https://github.com/qualiu/vsc
 
 ## [1.0.8]
 
-- Added `msr.disable.projectRootFolderNamePattern` to disable finding defintion/references functions for specific projects.
+- Added `msr.disable.projectRootFolderNamePattern` to disable finding definition/references functions for specific projects.
 - Renamed `msr.disable.extensionPatterns` to `msr.disable.extensionPattern`.
 - Updated doc.
 
@@ -84,7 +88,7 @@ Detail see `vscode-msr` extension [commit history](https://github.com/qualiu/vsc
 
 ## [1.0.6]
 
-- Updated default skip pattern for finding pure references in confgiuration file.
+- Updated default skip pattern for finding pure references in configuration file.
 - Added description doc for difference between **normal** `find definition/reference` to **extensive** `finding commands`.
 
 ## [1.0.5]

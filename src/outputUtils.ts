@@ -57,7 +57,7 @@ export function disposeTerminal() {
 }
 
 export function runCommandInTerminal(cmd: string, mustShowTerminal: boolean = false, clearTerminalAtFirst = true) {
-	cmd = enableColorAndHideCommandline(cmd);
+	cmd = enableColorAndHideCommandLine(cmd);
 	// cmd += ' -M '; // to hide summary.
 	showTerminal(mustShowTerminal);
 	if (clearTerminalAtFirst) {
@@ -117,7 +117,7 @@ export function clearOutputChannel() {
 	getOutputChannel().clear();
 }
 
-export function enableColorAndHideCommandline(cmd: string, removeSearchWordHint: boolean = true): string {
+export function enableColorAndHideCommandLine(cmd: string, removeSearchWordHint: boolean = true): string {
 	let text = replaceTextByRegex(cmd, ShowColorHideCmdRegex, '$1');
 	if (removeSearchWordHint) {
 		text = replaceTextByRegex(text, /\s+Search\s+%~?1[\s\w]*/, ' ');

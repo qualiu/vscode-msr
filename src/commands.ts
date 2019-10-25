@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import path = require('path');
 
-import { getSearchPathOptions, removeSearchTextForCommandLine, getOverrideOrDefaultConfig, getOverrideConfigByPriority, getRootFolderName, getRootFolderExtraOptions } from './dynamicConfig';
+import { getSearchPathOptions, removeSearchTextForCommandLine, getOverrideOrDefaultConfig, getOverrideConfigByPriority, getRootFolderName, getRootFolderExtraOptions, getConfig } from './dynamicConfig';
 import { runCommandInTerminal, enableColorAndHideCommandLine, outputDebug } from './outputUtils';
 import { getCurrentWordAndText, quotePaths, toPath } from './utils';
 import { FileExtensionToConfigExtMap, SearchProperty } from './ranker';
@@ -10,7 +10,7 @@ import { MsrExe } from './checkTool';
 import { SearchTextHolderReplaceRegex, SkipJumpOutForHeadResultsRegex } from './constants';
 import { FindCommandType } from './enums';
 
-export function runFindingCommand(findCmd: FindCommandType, textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit, ...args: any[]) {
+export function runFindingCommand(findCmd: FindCommandType, textEditor: vscode.TextEditor) {
     const RootConfig = vscode.workspace.getConfiguration('msr');
     if (RootConfig.get('enable.findingCommands') as boolean !== true) {
         outputDebug('Your extension "vscode-msr": finding-commands is disabled by setting of `msr.enable.findingCommands`.');
@@ -22,12 +22,13 @@ export function runFindingCommand(findCmd: FindCommandType, textEditor: vscode.T
     const searchText = findCmdText.match(/Regex/i) ? escapeRegExp(rawSearchText) : rawSearchText;
 
     const parsedFile = path.parse(textEditor.document.fileName);
-    runFindingCommandByCurrentWord(findCmd, searchText, parsedFile, rawSearchText);
+    const command = getFindingCommandByCurrentWord(findCmd, searchText, parsedFile, rawSearchText, undefined);
+    runCommandInTerminal(command, true);
 }
 
 export function runFindingCommandByCurrentWord(findCmd: FindCommandType, searchText: string, parsedFile: path.ParsedPath, rawSearchText: string = '') {
     const command = getFindingCommandByCurrentWord(findCmd, searchText, parsedFile, rawSearchText, undefined);
-    runCommandInTerminal(command, true);
+    runCommandInTerminal(command, !getConfig().IsQuiet);
 }
 
 export function getFindingCommandByCurrentWord(findCmd: FindCommandType, searchText: string, parsedFile: path.ParsedPath, rawSearchText: string = '', ranker: SearchProperty | undefined): string {

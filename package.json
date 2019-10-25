@@ -3,7 +3,7 @@
 	"displayName": "Search code + Replace files + Find definition and references for all types.",
 	"description": "Search code + Replace files + Find definition and references in multiple repository paths by msr for all coding languages + configuration + doc files.",
 	"author": "qualiu@microsoft.com",
-	"version": "1.1.12",
+	"version": "1.1.13",
 	"icon": "images/vscode-msr-icon.png",
 	"license": "completely free",
 	"publisher": "qualiu",
@@ -17,15 +17,20 @@
 	"keywords": [
 		"msr",
 		"find definition",
-		"find references",
+		"find reference",
+		"search code",
+		"search file",
+		"replace file",
+		"go to definition",
+		"jump to definition",
 		"find all",
 		"find",
 		"search",
-		"jump",
 		"all",
 		"definition",
-		"references",
+		"reference",
 		"C++",
+		"CPP",
 		"C",
 		"C#",
 		"CSharp",
@@ -34,10 +39,7 @@
 		"Python",
 		"TypScript",
 		"JavaScript",
-		"Vue",
-		"Search code",
-		"Search file",
-		"Replace file"
+		"Vue"
 	],
 	"activationEvents": [
 		"*"
@@ -516,7 +518,7 @@
 		],
 		"configuration": {
 			"type": "object",
-			"title": "File Peek extension configuration",
+			"title": "All msr settings",
 			"properties": {
 				"msr.menu.visible": {
 					"type": "boolean",
@@ -631,7 +633,7 @@
 				"msr.quiet": {
 					"type": "boolean",
 					"default": false,
-					"description": "Quiet mode: Don't show(activate) output channel each time (and also don't show re-running terminal if no results)"
+					"description": "Don't activate (show) channels: `MSR-Def-Ref` (in `OUTPUT` tab) + `MSR-RUN-CMD` (in `TERMINAL` tab)."
 				},
 				"msr.enable.findingCommands": {
 					"type": "boolean",
@@ -726,12 +728,12 @@
 				"msr.definition.searchAllWorkspaces": {
 					"type": "boolean",
 					"default": true,
-					"description": "Find definition in all workspaces of current vscode."
+					"description": "Find definition in all workspaces of current vscode (if have multiple root folders)."
 				},
 				"msr.reference.searchAllWorkspaces": {
 					"type": "boolean",
 					"default": true,
-					"description": "Find references in all workspaces of current vscode."
+					"description": "Find references in all workspaces of current vscode (if have multiple root folders)."
 				},
 				"msr.descendingSortForVSCode": {
 					"type": "boolean",
@@ -751,12 +753,12 @@
 				"msr.default.searchAllFilesForReferences": {
 					"type": "boolean",
 					"default": false,
-					"description": "When finding references, search code + configuration + document files."
+					"description": "When finding references, search all file types (code + configuration + document) other than current file type(extension)."
 				},
 				"msr.default.searchAllFilesForDefinitions": {
 					"type": "boolean",
 					"default": false,
-					"description": "When finding definitions, search code + configuration + document files."
+					"description": "When finding definition, search all file types (code + configuration + document) other than current file type(extension)."
 				},
 				"msr.default.extraSearchPaths": {
 					"type": "string",
@@ -781,12 +783,12 @@
 				"msr.default.listSortingFilesOptions": {
 					"type": "boolean",
 					"default": "-l -H 10 -T 10",
-					"description": "Default list file options."
+					"description": "Default list file options. Like listing top 10 and bottom 10 files: -l -H 10 -T 10"
 				},
 				"msr.debug": {
 					"type": "boolean",
 					"default": false,
-					"description": "Print debug info."
+					"description": "Print debug info of msr (for vscode-msr contributors)."
 				},
 				"msr.default.skipFolders": {
 					"type": "string",

@@ -92,7 +92,7 @@ export function outputKeyInfo(text: string) {
 }
 
 export function outputInfo(message: string, showWindow: boolean = true) {
-	if (getConfig().ShowInfo && !getConfig().IsQuiet) {
+	if (getConfig().ShowInfo) {
 		getOutputChannel().appendLine(message);
 		showOutputChannel(showWindow);
 	}

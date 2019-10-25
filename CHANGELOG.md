@@ -4,6 +4,10 @@ All notable changes to the "vscode-msr" extension will be documented in this fil
 
 Detail see `vscode-msr` extension [commit history](https://github.com/qualiu/vscode-msr/commits/master).
 
+## [1.1.13]
+
+- Added `msr.quiet` into doc README.md and easier search configurations of `msr enable` and `msr disable`.
+
 ## [1.1.12]
 
 - Output key info even set `msr.quiet` + trivial code update.
@@ -11,7 +15,7 @@ Detail see `vscode-msr` extension [commit history](https://github.com/qualiu/vsc
 ## [1.1.11]
 
 - Changed shortcut key of `msr.tmpToggleEnableForFindDefinitionAndReference` from `F2` to `Alt+F2`.
-  
+
 ## [1.1.10]
 
 - Updated finding reference in current file for non-words selected text.
@@ -65,7 +69,7 @@ Detail see `vscode-msr` extension [commit history](https://github.com/qualiu/vsc
 ## [1.1.0]
 
 - Improved checking tool in PATH on Linux and replace command line for re-running in terminal.
-  
+
 ## [1.0.9]
 
 - Changed `msr.{root-folder-name}.skipFolders` role from **additional** to **overwrite** to improve performance.

@@ -74,83 +74,83 @@ export function registerExtension(context: vscode.ExtensionContext) {
 
 	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.regexFindDefinitionInCodeFiles',
 		(textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit, ...args: any[]) =>
-			runFindingCommand(FindCommandType.RegexFindDefinitionInCodeFiles, textEditor, edit, args)));
+			runFindingCommand(FindCommandType.RegexFindDefinitionInCodeFiles, textEditor)));
 
 	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.regexFindDefinitionInCurrentFile',
 		(textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit, ...args: any[]) =>
-			runFindingCommand(FindCommandType.RegexFindDefinitionInCurrentFile, textEditor, edit, args)));
+			runFindingCommand(FindCommandType.RegexFindDefinitionInCurrentFile, textEditor)));
 
 	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.regexFindReferencesInCurrentFile',
 		(textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit, ...args: any[]) =>
-			runFindingCommand(FindCommandType.RegexFindReferencesInCurrentFile, textEditor, edit, args)));
+			runFindingCommand(FindCommandType.RegexFindReferencesInCurrentFile, textEditor)));
 
 	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.regexFindReferenceInCodeFiles',
 		(textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit, ...args: any[]) =>
-			runFindingCommand(FindCommandType.RegexFindReferencesInCodeFiles, textEditor, edit, args)));
+			runFindingCommand(FindCommandType.RegexFindReferencesInCodeFiles, textEditor)));
 
 	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.regexFindPureReferenceInCodeFiles',
 		(textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit, ...args: any[]) =>
-			runFindingCommand(FindCommandType.RegexFindPureReferencesInCodeFiles, textEditor, edit, args)));
+			runFindingCommand(FindCommandType.RegexFindPureReferencesInCodeFiles, textEditor)));
 
 	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.regexFindReferencesInDocs',
 		(textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit, ...args: any[]) =>
-			runFindingCommand(FindCommandType.RegexFindReferencesInDocs, textEditor, edit, args)));
+			runFindingCommand(FindCommandType.RegexFindReferencesInDocs, textEditor)));
 
 	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.regexFindReferencesInConfigFiles',
 		(textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit, ...args: any[]) =>
-			runFindingCommand(FindCommandType.RegexFindReferencesInConfigFiles, textEditor, edit, args)));
+			runFindingCommand(FindCommandType.RegexFindReferencesInConfigFiles, textEditor)));
 
 	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.regexFindInAllProjectFiles',
 		(textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit, ...args: any[]) =>
-			runFindingCommand(FindCommandType.RegexFindReferencesInAllProjectFiles, textEditor, edit, args)));
+			runFindingCommand(FindCommandType.RegexFindReferencesInAllProjectFiles, textEditor)));
 
 	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.regexFindReferencesInCodeAndConfig',
 		(textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit, ...args: any[]) =>
-			runFindingCommand(FindCommandType.RegexFindReferencesInCodeAndConfig, textEditor, edit, args)));
+			runFindingCommand(FindCommandType.RegexFindReferencesInCodeAndConfig, textEditor)));
 
 	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.regexFindInAllSmallFiles',
 		(textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit, ...args: any[]) =>
-			runFindingCommand(FindCommandType.RegexFindReferencesInAllSmallFiles, textEditor, edit, args)));
+			runFindingCommand(FindCommandType.RegexFindReferencesInAllSmallFiles, textEditor)));
 
 	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.findSelectedPlainTextInCodeFiles',
 		(textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit, ...args: any[]) =>
-			runFindingCommand(FindCommandType.FindPlainTextInCodeFiles, textEditor, edit, args)));
+			runFindingCommand(FindCommandType.FindPlainTextInCodeFiles, textEditor)));
 
 	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.findSelectedPlainTextInConfigFiles',
 		(textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit, ...args: any[]) =>
-			runFindingCommand(FindCommandType.FindPlainTextInConfigFiles, textEditor, edit, args)));
+			runFindingCommand(FindCommandType.FindPlainTextInConfigFiles, textEditor)));
 
 	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.findSelectedPlainTextInDocFiles',
 		(textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit, ...args: any[]) =>
-			runFindingCommand(FindCommandType.FindPlainTextInDocFiles, textEditor, edit, args)));
+			runFindingCommand(FindCommandType.FindPlainTextInDocFiles, textEditor)));
 
 	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.findSelectedPlainTextInCodeAndConfigFiles',
 		(textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit, ...args: any[]) =>
-			runFindingCommand(FindCommandType.FindPlainTextInConfigAndConfigFiles, textEditor, edit, args)));
+			runFindingCommand(FindCommandType.FindPlainTextInConfigAndConfigFiles, textEditor)));
 
 	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.findSelectedPlainTextInAllProjectFiles',
 		(textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit, ...args: any[]) =>
-			runFindingCommand(FindCommandType.FindPlainTextInAllProjectFiles, textEditor, edit, args)));
+			runFindingCommand(FindCommandType.FindPlainTextInAllProjectFiles, textEditor)));
 
 	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.findSelectedPlainTextInAllSmallFiles',
 		(textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit, ...args: any[]) =>
-			runFindingCommand(FindCommandType.FindPlainTextInAllSmallFiles, textEditor, edit, args)));
+			runFindingCommand(FindCommandType.FindPlainTextInAllSmallFiles, textEditor)));
 
 	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.sortProjectFilesBySize',
 		(textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit, ...args: any[]) =>
-			runFindingCommand(FindCommandType.SortProjectFilesBySize, textEditor, edit, args)));
+			runFindingCommand(FindCommandType.SortProjectFilesBySize, textEditor)));
 
 	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.sortProjectFilesByTime',
 		(textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit, ...args: any[]) =>
-			runFindingCommand(FindCommandType.SortProjectFilesByTime, textEditor, edit, args)));
+			runFindingCommand(FindCommandType.SortProjectFilesByTime, textEditor)));
 
 	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.sortAllFilesBySize',
 		(textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit, ...args: any[]) =>
-			runFindingCommand(FindCommandType.SortAllFilesBySize, textEditor, edit, args)));
+			runFindingCommand(FindCommandType.SortAllFilesBySize, textEditor)));
 
 	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.sortAllFilesByTime',
 		(textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit, ...args: any[]) =>
-			runFindingCommand(FindCommandType.SortAllFilesByTime, textEditor, edit, args)));
+			runFindingCommand(FindCommandType.SortAllFilesByTime, textEditor)));
 
 	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.cookCmdAlias',
 		(textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit, ...args: any[]) =>

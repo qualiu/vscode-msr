@@ -6,7 +6,7 @@ import { exec, ExecOptions, ExecException } from 'child_process';
 import ChildProcess = require('child_process');
 import path = require('path');
 
-import { getSearchPathOptions, getConfig, printConfigInfo, getOverrideConfigByPriority, cookShortcutCommandFile, getRootFolderName, getRootFolderExtraOptions, getRootFolder } from './dynamicConfig';
+import { getSearchPathOptions, getConfig, printConfigInfo, getOverrideConfigByPriority, cookCmdShortcutsOrFile, getRootFolderName, getRootFolderExtraOptions, getRootFolder } from './dynamicConfig';
 import { outputError, outputWarn, outputInfo, clearOutputChannel, runCommandInTerminal, outputDebug, RunCmdTerminalName, disposeTerminal, outputDebugOrInfo, outputResult } from './outputUtils';
 import { SearchProperty, FileExtensionToConfigExtMap } from './ranker';
 import { checkSearchToolExists, MsrExe, toRunnableToolPath } from './checkTool';
@@ -65,6 +65,15 @@ export function registerExtension(context: vscode.ExtensionContext) {
 
 	context.subscriptions.push(vscode.languages.registerDefinitionProvider(selector, new DefinitionFinder));
 	context.subscriptions.push(vscode.languages.registerReferenceProvider(selector, new ReferenceFinder));
+
+	context.subscriptions.push(vscode.window.onDidOpenTerminal(terminal => {
+		const matchNameRegex = /^(Powershell|CMD|Command(\s+Prompt)?|PowerShell Integrated Console|bash)$/i;
+		if (MyConfig.InitProjectCmdAliasForNewTerminals && (!IsWindows || matchNameRegex.test(terminal.name))) {
+			const folders = vscode.workspace.workspaceFolders;
+			const currentPath = folders && folders.length > 0 ? folders[0].uri.fsPath : '.';
+			cookCmdShortcutsOrFile(currentPath, true, false, terminal);
+		}
+	}));
 
 	context.subscriptions.push(vscode.window.onDidCloseTerminal(terminal => {
 		if (terminal.name === RunCmdTerminalName) {
@@ -154,19 +163,19 @@ export function registerExtension(context: vscode.ExtensionContext) {
 
 	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.cookCmdAlias',
 		(textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit, ...args: any[]) =>
-			cookShortcutCommandFile(textEditor.document.uri.fsPath, false, false)));
+			cookCmdShortcutsOrFile(textEditor.document.uri.fsPath, false, false)));
 
 	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.cookCmdAliasByProject',
 		(textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit, ...args: any[]) =>
-			cookShortcutCommandFile(textEditor.document.uri.fsPath, true, false)));
+			cookCmdShortcutsOrFile(textEditor.document.uri.fsPath, true, false)));
 
 	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.cookCmdAliasFiles',
 		(textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit, ...args: any[]) =>
-			cookShortcutCommandFile(textEditor.document.uri.fsPath, false, true)));
+			cookCmdShortcutsOrFile(textEditor.document.uri.fsPath, false, true)));
 
 	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.cookCmdAliasFilesByProject',
 		(textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit, ...args: any[]) =>
-			cookShortcutCommandFile(textEditor.document.uri.fsPath, true, true)));
+			cookCmdShortcutsOrFile(textEditor.document.uri.fsPath, true, true)));
 
 	context.subscriptions.push(vscode.commands.registerCommand('msr.tmpToggleEnableForFindDefinitionAndReference',
 		(...args: any[]) => {
@@ -418,13 +427,13 @@ function findAndProcessSummary(skipIfNotMatch: boolean, summaryText: string, fin
 			const findCmd = findType === FindType.Definition ? FindCommandType.RegexFindDefinitionInCodeFiles : FindCommandType.RegexFindDefinitionInCodeFiles;
 			if (!ranker.isSearchOneFile) {
 				runFindingCommandByCurrentWord(findCmd, ranker.currentWord, ranker.currentFile);
-				outputInfo('Will run general search, please check results of `MSR-RUN-CMD` channel in `TERMINAL` tab. Disable `msr.enable.useGeneralFindingWhenNoResults` if you do not want.');
+				outputInfo('Will run general search, please check results in `MSR-RUN-CMD` in `TERMINAL` tab. Set `msr.quiet` to avoid switching tabs; Disable `msr.enable.useGeneralFindingWhenNoResults` to disable re-running.');
 				outputInfo('Try extensive search if still no results. Use context menu or: Click a word or select a text  --> Press `F12` --> Type `msr` + `find` and choose to search.');
 			}
 		}
 		else if (matchCount > 1 && costSeconds <= MyConfig.ReRunCmdInTerminalIfCostLessThan) {
 			if (!ranker.isSearchOneFile) {
-				outputInfo('Will re-run and show clickable + colorful results in `MSR-RUN-CMD` channel in `TERMINAL` tab. Decrease `msr.reRunSearchInTerminalIfCostLessThan` value if you do not want.');
+				outputInfo('Will re-run and show clickable + colorful results in `MSR-RUN-CMD` in `TERMINAL` tab. Set `msr.quiet` to avoid switching tabs; Decrease `msr.reRunSearchInTerminalIfCostLessThan` value for re-running.');
 				runCommandInTerminal(toRunnableToolPath(cmd).replace(SkipJumpOutForHeadResultsRegex, ' ').trim());
 			}
 		}

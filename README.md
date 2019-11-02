@@ -91,6 +91,29 @@ You can generate the command shortcuts (alias/doskey) to directly use for search
 
 <img align='center' src='https://raw.githubusercontent.com/qualiu/vscode-msr/master/images/cook-command-menu.png'>
 
+After you cooked command alias/doskeys, it'll show usage examples like below:
+
+```bash
+You can now directly use the command aliases(shortcuts) in/out vscode to search/replace like:
+find-ndp dir1,dir2,file1,fileN -t MySearchRegex -x AndPlainText
+find-nd -t MySearchRegex -x AndPlainText
+find-doc -it MySearchRegex -x AndPlainText -l : Show path list
+find-code -t MySearchRegex -x AndPlainText
+find-py-def MySearchRegex -x AndPlainText : Search definition in python files
+find-py-ref MySearchRegex -x AndPlainText : Search references in python files
+find-ref "class\s+MyClass" -x AndPlainText --np "unit|test" --xp src\ext,src\common -c show command line
+find-def MyClass -x AndPlainText --np "unit|test" --xp src\ext,src\common -c show command line
+find-ref MyClass --pp "test|unit" -U 3 -D 3 -H 20 -T 10 :  Preview Up/Down lines + Set Head/Tail lines in test
+find-ref MyOldClassMethodName -o NewName -j : Preview changes
+find-ref MyOldClassMethodName -o NewName -R : Replace files, add -K to backup
+alias find -x all -H 9
+alias "find[\w-]*ref"
+alias "^(find\S+)=(.*)" -o "\2"
+Use -W to output full path; Use -I to suppress warnings; Use -o to replace text, -j to preview changes, -R to replace files.
+See + Use command alias(shortcut) in `MSR-RUN-CMD` on `TERMINAL` tab, or start using in a new command window outside.
+(In vscode terminals, you can `click` to open search results)
+```
+
 Each time it will write 1 or multiple script files to the folder of `msr.cmdAlias.saveFolder`, if not set:
 
 - Single alias/doskey file: Save to `%USERPROFILE%\Desktop` on Windows or `~/` on Linux.
@@ -188,6 +211,23 @@ Note: Check [**your personal settings**](https://code.visualstudio.com/docs/gets
 - `msr.default.skipFolders`: Set `default`/`common` skip folders Regex pattern.
 - `msr.default.removeLowScoreResultsFactor`: Default threshold = `0.8` (of max score) to remove low score results.
 - `msr.default.keepHighScoreResultCount`: Default count = -1 (keep all) to keep top high score results.
+
+### Auto Set Command Shortcuts for New Terminals
+
+`msr.initProjectCmdAliasForNewTerminals` (default = `true`) to auto set/initialize command alias/doskeys for newly created terminals:
+
+- To merge project specific `excluded folders` from `.vscode/settings.json` in each project root folder.
+  - Extract folders from `files.exclude` and `search.exclude` by Regex: `^[\w-]+$` after trimming `*` at head and tail.
+  - You can disable `msr.autoMergeSkipFolders` to not auto merge excluded folders.
+- To auto switch to `CMD` console other than `Powershell` on Windows to use command shortcuts.
+  - Due to Powershell cannot use `doskey` command shortcuts.
+- Supported terminals:
+  - [Official integrated terminals](https://code.visualstudio.com/docs/editor/integrated-terminal#_configuration).
+  - `Cygwin` integration (on Windows), you can set in [your personal settings file](https://code.visualstudio.com/docs/getstarted/settings#_settings-file-locations) like:
+  
+  ```json
+  "terminal.integrated.shell.windows": "D:\\cygwin64\\bin\\bash.exe"
+  ```
 
 ### Additional Settings in [Your Personal Settings file](https://code.visualstudio.com/docs/getstarted/settings#_settings-file-locations)
 

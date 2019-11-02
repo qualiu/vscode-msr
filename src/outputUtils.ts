@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { getConfig } from './dynamicConfig';
+import { getConfig, cookCmdShortcutsOrFile } from './dynamicConfig';
 import { replaceTextByRegex } from './utils';
 import { IsWindows } from './constants';
 
@@ -9,7 +9,7 @@ const OutputChannelName = 'MSR-Def-Ref';
 // When searching plain text, powershell requires extra escaping (like '$').
 const UsePowershell = false;
 const WindowsShell = UsePowershell ? 'powershell' : 'cmd.exe';
-const ShellPath = IsWindows ? WindowsShell : 'bash';
+export const ShellPath = IsWindows ? WindowsShell : 'bash';
 const ClearCmd = IsWindows && !UsePowershell ? 'cls' : "clear";
 
 const ShowColorHideCmdRegex = /\s+-[Cc](\s+|$)/g;
@@ -47,6 +47,11 @@ let _terminal: vscode.Terminal | undefined;
 export function getTerminal(): vscode.Terminal {
 	if (!_terminal) {
 		_terminal = vscode.window.createTerminal(RunCmdTerminalName, ShellPath);
+		if (vscode.workspace.getConfiguration('msr').get('initProjectCmdAliasForNewTerminals') as boolean) {
+			const folders = vscode.workspace.workspaceFolders;
+			const currentPath = folders && folders.length > 0 ? folders[0].uri.fsPath : '.';
+			cookCmdShortcutsOrFile(currentPath, true, false, _terminal, ShellPath);
+		}
 	}
 
 	return _terminal;
@@ -56,29 +61,36 @@ export function disposeTerminal() {
 	_terminal = undefined;
 }
 
-export function runCommandInTerminal(cmd: string, mustShowTerminal: boolean = false, clearTerminalAtFirst = true) {
+export function runCommandInTerminal(cmd: string, showTerminal = false, clearAtFirst = true, isLinuxOnWindows = false) {
 	cmd = enableColorAndHideCommandLine(cmd);
 	// cmd += ' -M '; // to hide summary.
-	showTerminal(mustShowTerminal);
-	if (clearTerminalAtFirst) {
-		// vscode.commands.executeCommand('workbench.action.terminal.clear');
-		getTerminal().sendText(ClearCmd);
-	} else {
-		getTerminal().sendText('\n');
+
+	sendCmdToTerminal(cmd, getTerminal(), showTerminal, clearAtFirst, isLinuxOnWindows);
+}
+
+export function sendCmdToTerminal(cmd: string, terminal: vscode.Terminal, showTerminal = false, clearAtFirst = true, isLinuxOnWindows = false) {
+	if (showTerminal) {
+		terminal.show();
 	}
 
-	getTerminal().sendText(cmd);
-	showTerminal(mustShowTerminal);
+	if (clearAtFirst) {
+		// vscode.commands.executeCommand('workbench.action.terminal.clear');
+		terminal.sendText(isLinuxOnWindows ? 'clear' : ClearCmd);
+	} else {
+		terminal.sendText('\n');
+	}
+
+	terminal.sendText(cmd);
 }
 
 export function outputWarn(message: string, showWindow: boolean = true) {
-	getOutputChannel().appendLine(message);
 	showOutputChannel(showWindow);
+	getOutputChannel().appendLine(message);
 }
 
 export function outputError(message: string, showWindow: boolean = true) {
-	getOutputChannel().appendLine(message);
 	showOutputChannel(showWindow);
+	getOutputChannel().appendLine(message);
 }
 
 export function outputResult(text: string, showWindow: boolean = true) {
@@ -87,8 +99,8 @@ export function outputResult(text: string, showWindow: boolean = true) {
 }
 
 export function outputKeyInfo(text: string) {
-	getOutputChannel().appendLine(text);
 	showOutputChannel(true, true);
+	getOutputChannel().appendLine(text);
 }
 
 export function outputInfo(message: string, showWindow: boolean = true) {
@@ -126,8 +138,8 @@ export function enableColorAndHideCommandLine(cmd: string, removeSearchWordHint:
 	return text.replace(/\s+Search\s*$/, '');
 }
 
-function showTerminal(mustShowTerminal: boolean = false) {
-	if (mustShowTerminal || !getConfig().IsQuiet) {
+function showTerminal(showTerminal: boolean = false) {
+	if (showTerminal || !getConfig().IsQuiet) {
 		getTerminal().show(true);
 	}
 }

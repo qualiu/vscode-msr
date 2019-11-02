@@ -266,7 +266,7 @@ export class SearchProperty {
 		}
 
 		const RootConfig = vscode.workspace.getConfiguration('msr');
-
+		const codeFilesKey = this.mappedExt === 'ui' ? 'default.codeFilesPlusUI' : 'default.codeFiles';
 		let filePattern = MappedExtToCodeFileNamePatternMap.get(this.mappedExt) || '\\.' + extension + '$';
 		if (MyConfig.SearchAllFilesWhenFindingReferences && configKeyName === 'reference') {
 			filePattern = RootConfig.get('default.allFiles') as string;
@@ -283,7 +283,6 @@ export class SearchProperty {
 				searchPattern = searchPattern.substring(0, searchPattern.length - 2);
 			}
 		} else if (MyConfig.SearchAllFilesWhenFindingDefinitions && configKeyName === 'definition') {
-			const codeFilesKey = this.mappedExt === 'ui' ? 'default.codeFilesPlusUI' : 'default.codeFiles';
 			filePattern = RootConfig.get(codeFilesKey) as string;
 			const defaultFindDef = RootConfig.get('default.definition') as string;
 			if (defaultFindDef.length > 1) {
@@ -293,7 +292,7 @@ export class SearchProperty {
 		if (!MyConfig.SearchAllFilesWhenFindingDefinitions && !MyConfig.SearchAllFilesWhenFindingReferences) {
 			if (MyConfig.ConfigAndDocFilesRegex.test(parsedFile.base)) {
 				filePattern = configKeyName === 'definition'
-					? RootConfig.get('default.codeFiles') as string
+					? RootConfig.get(codeFilesKey) as string
 					: MyConfig.CodeAndConfigAndDocFilesRegex.source;
 			}
 

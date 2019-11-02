@@ -1,21 +1,21 @@
 {
-"compilerOptions":{
-"module":"commonjs",
-"target":"es6",
-"outDir":"out",
-"lib":[
-"es6"
-],
-"sourceMap":true,
-"rootDir":"src",
-"strict":true/*enableallstricttype-checkingoptions*/
-/*AdditionalChecks*/
-//"noImplicitReturns":true,/*Reporterrorwhennotallcodepathsinfunctionreturnavalue.*/
-//"noFallthroughCasesInSwitch":true,/*Reporterrorsforfallthroughcasesinswitchstatement.*/
-//"noUnusedParameters":true,/*Reporterrorsonunusedparameters.*/
-},
-"exclude":[
-"node_modules",
-".vscode-test"
-]
+  "compilerOptions": {
+    "module": "commonjs",
+    "target": "es6",
+    "outDir": "out",
+    "lib": [
+      "es6"
+    ],
+    "sourceMap": true,
+    "rootDir": "src",
+    "strict": true
+    /*AdditionalChecks*/
+    //"noImplicitReturns":true,
+    //"noFallthroughCasesInSwitch":true,/*Reporterrorsforfallthroughcasesinswitchstatement.*/
+    //"noUnusedParameters":true,
+  },
+  "exclude": [
+    "node_modules",
+    ".vscode-test"
+  ]
 }

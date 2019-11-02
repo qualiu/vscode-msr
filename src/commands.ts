@@ -187,10 +187,14 @@ export function getFindingCommandByCurrentWord(findCmd: FindCommandType, searchT
 
     let command = '';
     if (findCmd === FindCommandType.RegexFindDefinitionInCurrentFile) {
+        if (mappedExt === 'ui' && searchPattern.indexOf('|let|') < 0) {
+            searchPattern = searchPattern.replace('const|', 'const|let|');
+        }
+
         command = MsrExe + ' -p ' + filePath + skipTextPattern + extraOptions + ' ' + searchPattern;
     }
     else if (findCmd === FindCommandType.RegexFindReferencesInCurrentFile) {
-        command = MsrExe + ' -p ' + filePath + ' -e "\\b((public)|protected|private|internal|(static)|(readonly|const))\\b"' + skipTextPattern + extraOptions + ' ' + searchPattern;
+        command = MsrExe + ' -p ' + filePath + ' -e "\\b((public)|protected|private|internal|(static)|(readonly|const|let))\\b"' + skipTextPattern + extraOptions + ' ' + searchPattern;
     } else {
         command = MsrExe + ' ' + searchPathsOptions + filePattern + skipTextPattern + extraOptions + ' ' + searchPattern;
     }

@@ -3,7 +3,7 @@
 	"displayName": "Search code + Replace files + Find definition and references for all types.",
 	"description": "Search code + Replace files + Find definition and references in multiple repository paths by msr for all coding languages + configuration + doc files.",
 	"author": "qualiu@microsoft.com",
-	"version": "1.1.13",
+	"version": "1.2.0",
 	"icon": "images/vscode-msr-icon.png",
 	"license": "completely free",
 	"publisher": "qualiu",
@@ -525,6 +525,16 @@
 					"default": true,
 					"description": "If false, will hide all `msr` context menus (menu by right-click to prompt) of `Regex find xxx` or `Find plain text`."
 				},
+				"msr.autoMergeSkipFolders": {
+					"type": "boolean",
+					"default": true,
+					"description": "Auto merge excluded folders from each project's root folder `.vscode/settings.json` file's `search.exclude` + `files.exclude`."
+				},
+				"msr.initProjectCmdAliasForNewTerminals": {
+					"type": "boolean",
+					"default": true,
+					"description": "Initialize cmd shortcuts (alias/doskeys) for newly created/opened terminals with a temp file cooked by project settings. (You can run `powershell` to change back from `cmd` console on Windows)"
+				},
 				"msr.tmpToggleEnableForFindDefinitionAndReference.menu.visible": {
 					"type": "boolean",
 					"default": false,
@@ -797,17 +807,17 @@
 				},
 				"msr.default.allFiles": {
 					"type": "string",
-					"default": "\\.(cs\\w*|cpp|cxx|h|hpp|cc?|c\\+{2}|vcx?proj|sln|nuspec|config|props|java|scala|py|go|php|vue|tsx?|jsx?|json|ya?ml|xml|ini|md|ipynb)$|^readme|^make\\w+$",
+					"default": "\\.(cs(html)?|cpp|cxx|h|hpp|cc?|c\\+{2}|\\w+proj|sln|nuspec|config|props|java|scala|py|go|php|vue|tsx?|jsx?|json|ya?ml|xml|ini|md|ipynb)$|^readme|^make\\w+$",
 					"description": "Default Regex pattern for files to search."
 				},
 				"msr.default.codeFiles": {
 					"type": "string",
-					"default": "\\.(cs(html)?|cpp|cxx|h|hpp|cc?|c\\+{2}|java|scala|py|go|php)$|^make\\w+$",
+					"default": "\\.(cs(html)?|cpp|cxx|h|hpp|cc?|c\\+{2}|java|scala|py|go|php)$",
 					"description": "Default Regex pattern for all code files."
 				},
 				"msr.default.codeFilesPlusUI": {
 					"type": "string",
-					"default": "\\.(cs(html)?|cpp|cxx|h|hpp|cc?|c\\+{2}|vcx?proj|sln|nuspec|config|props|java|scala|py|go|php|vue|tsx?|jsx?)$|^make\\w+$",
+					"default": "\\.(cs(html)?|cpp|cxx|h|hpp|cc?|c\\+{2}|java|scala|py|go|php|vue|tsx?|jsx?)$",
 					"description": "Default Regex pattern for all UI (front-end) code files."
 				},
 				"msr.default.configFiles": {
@@ -822,12 +832,12 @@
 				},
 				"msr.default.codeAndConfig": {
 					"type": "string",
-					"default": "\\.(cs\\w*|cpp|cxx|h|hpp|cc?|c\\+{2}|vcx?proj|sln|nuspec|config|props|java|scala|py|go|php|vue|tsx?|jsx?|json|ya?ml|xml|ini)$|^make\\w+$",
+					"default": "\\.(cs(html)?|cpp|cxx|h|hpp|cc?|c\\+{2}|vcx?proj|sln|nuspec|config|props|java|scala|py|go|php|vue|tsx?|jsx?|json|ya?ml|xml|ini)$|^make\\w+$",
 					"description": "Default Regex pattern for code + configuration files."
 				},
 				"msr.default.codeAndConfigDocs": {
 					"type": "string",
-					"default": "\\.(cs\\w*|cpp|cxx|h|hpp|cc?|c\\+{2}|vcx?proj|sln|nuspec|config|props|java|scala|py|go|php|vue|tsx?|jsx?|json|ya?ml|xml|ini|md|ipynb)$|^readme|^make\\w+$",
+					"default": "\\.(cs(html)?|cpp|cxx|h|hpp|cc?|c\\+{2}|vcx?proj|sln|nuspec|config|props|java|scala|py|go|php|vue|tsx?|jsx?|json|ya?ml|xml|ini|md|ipynb)$|^readme|^make\\w+$",
 					"description": "Default Regex pattern for code + configuration + document files."
 				},
 				"msr.default.configAndDocs": {
@@ -937,7 +947,7 @@
 				},
 				"msr.cs.codeAndConfigDocs": {
 					"type": "string",
-					"default": "\\.(cs\\w*|sln|nuspec|config|props|json|ya?ml|xml|ini|md|ipynb)$",
+					"default": "\\.(cs(html)?|csproj|sln|nuspec|config|props|json|ya?ml|xml|ini|md|ipynb)$",
 					"description": "Regex pattern for C# code + configuration + document files."
 				},
 				"msr.cs.isClass": {
@@ -1079,6 +1089,16 @@
 					"type": "string",
 					"default": "\\.(vue|tsx?|jsx?|json|ya?ml|xml|ini|md|ipynb)$",
 					"description": "Regex pattern for Front-end code + configuration + document files."
+				},
+				"msr.ui.definition": {
+					"type": "string",
+					"default": "^\\s*((p\\w+|internal|readonly|const|static|function)\\s+[\\w\\s]*?)\\b(%1)\\b|^\\s*\\w+[^=\\(\\./#;:]+\\s+(%1)\\s*(?:[\\(\\{:<]|extends|implements|$)",
+					"description": "Default Regex pattern to find UI definitions of a word (class, method, etc.). Must use `%1` to be replaced by word to search."
+				},
+				"msr.ui.skip.definition": {
+					"type": "string",
+					"default": "^\\s*(return|await|throw|except|raise|new|(el)?if|for|from|val)\\s+",
+					"description": "Default Regex pattern to filter non-definitions."
 				},
 				"msr.ui.class.definition": {
 					"type": "string",

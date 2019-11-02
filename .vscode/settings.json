@@ -1,40 +1,70 @@
 // Place your settings in this file to overwrite default and user settings.
 {
-    "files.exclude": {
-        "out": false // set this to true to hide the "out" folder with the compiled JS files
-    },
-    "search.exclude": {
-        "out": true // set this to false to include "out" folder in search results
-    },
-    // Turn off tsc task auto detection since we have the necessary tasks as npm scripts
-    "typescript.tsc.autoDetect": "off",
-    "cSpell.words": [
-        "APPDATA",
-        "USERPROFILE",
-        "autorun",
-        "bmsr",
-        "chmod",
-        "current",
-        "cygwin",
-        "doskey",
-        "doskeys",
-        "egrep",
-        "hkey",
-        "icacls",
-        "ipynb",
-        "kzct",
-        "macrofile",
-        "objd",
-        "pacigmo",
-        "pacwgmo",
-        "pycache",
-        "qualiu",
-        "readonly",
-        "struct",
-        "taskkill",
-        "user",
-        "whereis",
-        "xargs",
-        "zc"
-    ]
+  "editor.tabSize": 2,
+  "editor.formatOnSave": true,
+  "editor.formatOnType": true,
+  "editor.codeActionsOnSave": {
+    "source.fixAll.tslint": true
+  },
+  // xxx-language-features: https://github.com/microsoft/vscode/tree/master/extensions
+  "[json]": {
+    "editor.defaultFormatter": "vscode.json-language-features"
+  },
+  "[javascript]": {
+    "editor.defaultFormatter": "vscode.typescript-language-features"
+  },
+  "[javascriptreact]": {
+    "editor.defaultFormatter": "vscode.typescript-language-features"
+  },
+  "[typescript]": {
+    "editor.defaultFormatter": "vscode.typescript-language-features"
+  },
+  "[typescriptreact]": {
+    "editor.defaultFormatter": "vscode.typescript-language-features"
+  },
+  "typescript.tsdk": "node_modules\\typescript\\lib",
+  "tslint.jsEnable": true,
+  "stylelint.enable": true,
+  "files.associations": {
+    "*.js.mustache": "javascript",
+    "*.json.mustache": "json"
+  },
+  "files.exclude": {
+    "out": false // set this to true to hide the "out" folder with the compiled JS files
+  },
+  "search.exclude": {
+    "out": true // set this to false to include "out" folder in search results
+  },
+  // Turn off tsc task auto detection since we have the necessary tasks as npm scripts
+  "typescript.tsc.autoDetect": "off",
+  "cSpell.words": [
+    "APPDATA",
+    "USERPROFILE",
+    "autorun",
+    "bmsr",
+    "chmod",
+    "current",
+    "cygdrive",
+    "cygwin",
+    "doskey",
+    "doskeys",
+    "egrep",
+    "hkey",
+    "icacls",
+    "ipynb",
+    "kzct",
+    "macrofile",
+    "objd",
+    "pacigmo",
+    "pacwgmo",
+    "pycache",
+    "qualiu",
+    "readonly",
+    "struct",
+    "taskkill",
+    "user",
+    "whereis",
+    "xargs",
+    "zc"
+  ]
 }

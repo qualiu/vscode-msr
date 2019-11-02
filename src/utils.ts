@@ -4,6 +4,7 @@ import path = require('path');
 import { ParsedPath } from 'path';
 import { outputMessage, MessageLevel } from './outputUtils';
 import { ShouldQuotePathRegex, TrimSearchTextRegex } from './constants';
+import { isNullOrUndefined } from 'util';
 
 export function quotePaths(paths: string) {
     if (ShouldQuotePathRegex.test(paths)) {
@@ -15,6 +16,10 @@ export function quotePaths(paths: string) {
 
 export function toPath(parsedPath: ParsedPath) {
     return path.join(parsedPath.dir, parsedPath.base);
+}
+
+export function isNullOrEmpty(obj: string | undefined): boolean {
+    return isNullOrUndefined(obj) || obj.length === 0;
 }
 
 export function getCurrentWordAndText(document: vscode.TextDocument, position: vscode.Position, textEditor: vscode.TextEditor | undefined = undefined)

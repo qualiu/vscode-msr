@@ -4,6 +4,19 @@ All notable changes to the "vscode-msr" extension will be documented in this fil
 
 Detail see `vscode-msr` extension [commit history](https://github.com/qualiu/vscode-msr/commits/master).
 
+## [1.2.0]
+
+- Added `msr.autoMergeSkipFolders` to auto merge excluded folders from each project's root folder `.vscode/settings.json` file.
+- Added `msr.initProjectCmdAliasForNewTerminals` and set default to `true` to auto set command shortcuts for each project.
+- Updated `find-def` and `find-ref` to search files including UI files (`*.vue, *.ts, *.js`, etc.)
+- Improved `find-ui-def` to find UI method/function definition.
+- Added `find-all-def` command shortcuts to support finding both backend + UI code definitions.
+- Merged skip folders in `.vscode/settings.json` in each project's root folder:
+  - Cook command shortcuts (alias/doskeys).
+  - Search code.
+- Integrated with official terminals, including `MSR-RUN-CMD` channel if set `msr.initProjectCmdAliasForNewTerminals`.
+- Supported `bash` terminal integration of `Cygwin` + `MinGW` on Windows.
+
 ## [1.1.13]
 
 - Added `msr.quiet` into doc README.md and easier search configurations of `msr enable` and `msr disable`.

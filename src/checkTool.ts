@@ -10,7 +10,7 @@ import { IsWindows, HomeFolder, IsSupportedSystem, IsDebugMode } from './constan
 let isToolExists = false;
 
 export let MsrExe = 'msr';
-let MsrExePath: string = '';
+export let MsrExePath: string = '';
 
 const SourceMd5FileUrl = 'https://raw.githubusercontent.com/qualiu/msr/master/tools/md5.txt';
 
@@ -69,7 +69,7 @@ export function checkSearchToolExists(forceCheck: boolean = false, clearOutputBe
 		}
 
 		outputError('Not found `msr` in ' + PathEnvName + ' by checking command: ' + WhereCmd + ' msr');
-		outputError('Please take less than 1 minute (you can just copy + paste the command line to download it) follow: https://github.com/qualiu/vscode-msr/blob/master/README.md#more-freely-to-use-and-help-you-more');
+		outputError('Please download it (just copy + paste the command line) follow: https://github.com/qualiu/vscode-msr/blob/master/README.md#more-freely-to-use-and-help-you-more');
 
 		isToolExists = autoDownloadTool();
 	}
@@ -105,11 +105,11 @@ function isToolExistsInPath(exeToolName: string): [boolean, string] {
 
 function autoDownloadTool(): boolean {
 	if (!fs.existsSync(TmpMsrExePath)) {
-		outputKeyInfo('Will try to download the only one tiny tool by command:');
-		outputInfo(DownloadCommand);
+		outputKeyInfo('\n' + 'Will try to download the only one tiny tool by command:');
+		outputKeyInfo(DownloadCommand);
 		try {
 			let output = ChildProcess.execSync(DownloadCommand).toString();
-			outputInfo(output);
+			outputKeyInfo(output);
 		} catch (err) {
 			outputError('\n' + 'Failed to download tool: ' + err);
 			outputError('\n' + 'Please manually download the tool and add its folder to ' + PathEnvName + ': ' + SourceExeUrl);
@@ -120,7 +120,7 @@ function autoDownloadTool(): boolean {
 			outputError('Downloading completed but not found tmp tool: ' + TmpMsrExePath);
 			return false;
 		} else {
-			outputInfo('Successfully downloaded tmp tool: ' + TmpMsrExePath);
+			outputKeyInfo('Successfully downloaded tmp tool: ' + TmpMsrExePath);
 		}
 	} else {
 		outputInfo('Found existing tmp tool: ' + TmpMsrExePath + ' , skip downloading.');
@@ -144,8 +144,8 @@ function addTmpExeToPath() {
 
 	if (foundFolders.length < 1) {
 		process.env['PATH'] = oldPathValue + (IsWindows ? ';' : ':') + exeFolder;
-		outputInfo('Temporarily added tool ' + MsrSaveName + ' folder: ' + exeFolder + ' to ' + PathEnvName);
-		outputInfo('Suggest permanently add exe folder to ' + PathEnvName + ' to freely use it by name `msr` everywhere.');
+		outputKeyInfo('Temporarily added ' + MsrSaveName + ' folder: ' + exeFolder + ' to ' + PathEnvName);
+		outputKeyInfo('Suggest that add the folder to ' + PathEnvName + ' to freely use/call `msr` everywhere (you can also copy/move "' + MsrExePath + '" to a folder already in ' + PathEnvName + ').');
 	}
 }
 
@@ -173,7 +173,7 @@ function checkToolNewVersion() {
 					const md5 = latestMd5Match[1];
 					if (currentMd5.toLowerCase() !== md5.toLowerCase()) {
 						outputKeyInfo('Found new version of `msr` which md5 = ' + md5 + ' , currentMd5 = ' + currentMd5 + ' , source-info = ' + SourceMd5FileUrl);
-						outputKeyInfo('You can download + update the exe by 1 command below:');
+						outputKeyInfo('\n' + 'You can download + update the exe by 1 command below:');
 						outputKeyInfo(replaceText(DownloadCommand, TmpMsrExePath, MsrExePath));
 					} else {
 						outputDebug('Great! Your `msr` exe is latest! md5 = ' + md5 + ' , exe = ' + MsrExePath + ' , sourceMD5 = ' + SourceMd5FileUrl);

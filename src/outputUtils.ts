@@ -138,13 +138,7 @@ export function enableColorAndHideCommandLine(cmd: string, removeSearchWordHint:
 	return text.replace(/\s+Search\s*$/, '');
 }
 
-function showTerminal(showTerminal: boolean = false) {
-	if (showTerminal || !getConfig().IsQuiet) {
-		getTerminal().show(true);
-	}
-}
-
-function showOutputChannel(showWindow: boolean = true, ignoreQuiet: boolean = false) {
+export function showOutputChannel(showWindow: boolean = true, ignoreQuiet: boolean = false) {
 	if (showWindow && (ignoreQuiet || !getConfig().IsQuiet)) {
 		getOutputChannel().show(true);
 	}

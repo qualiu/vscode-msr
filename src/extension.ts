@@ -67,7 +67,7 @@ export function registerExtension(context: vscode.ExtensionContext) {
 	context.subscriptions.push(vscode.languages.registerReferenceProvider(selector, new ReferenceFinder));
 
 	context.subscriptions.push(vscode.window.onDidOpenTerminal(terminal => {
-		const matchNameRegex = /^(Powershell|CMD|Command(\s+Prompt)?|PowerShell Integrated Console|bash)$/i;
+		const matchNameRegex = /^(Powershell|CMD|Command(\s+Prompt)?|PowerShell Integrated Console)$|bash/i;
 		if (MyConfig.InitProjectCmdAliasForNewTerminals && (!IsWindows || matchNameRegex.test(terminal.name))) {
 			const folders = vscode.workspace.workspaceFolders;
 			const currentPath = folders && folders.length > 0 ? folders[0].uri.fsPath : '.';

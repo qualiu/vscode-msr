@@ -85,20 +85,23 @@ You can generate the command shortcuts (alias/doskey) to directly use for search
 - One single shortcuts file: (Press `F1` if not shown in right-pop menu, then search `Cook xxx` as below)
   - Click/Choose `"Cook general command alias/doskey"` to make general command shortcuts.
   - Choose `"Cook command alias/doskey by project"` to make shortcuts based on current project setting.
-- Multiple script files choose menus below: More freely to use (**in other script files** or **nested command lines** like pipe)
+- Multiple **script files** choose menus below: More freely to use (**in other script files** or **nested command lines** like pipe)
   - `"Cook general command alias/doskey script files"`
   - `"Cook command alias/doskey script files by project"`
 
 <img align='center' src='https://raw.githubusercontent.com/qualiu/vscode-msr/master/images/cook-command-menu.png'>
 
-After you cooked command alias/doskeys, it'll show usage examples like below:
+### Command Shortcuts
+
+After you cooked command alias/doskeys, you'll see usage and examples like below:
 
 ```bash
-You can now directly use the command aliases(shortcuts) in/out vscode to search/replace like:
+Now you can directly use the command shortcuts in/out-of vscode to search + replace like:
 find-ndp dir1,dir2,file1,fileN -t MySearchRegex -x AndPlainText
 find-nd -t MySearchRegex -x AndPlainText
-find-doc -it MySearchRegex -x AndPlainText -l : Show path list
-find-code -t MySearchRegex -x AndPlainText
+find-code -it MySearchRegex -x AndPlainText
+find-small -it MySearchRegex -U 5 -D 5 : Show up/down lines
+find-doc -it MySearchRegex -x AndPlainText -l -PAC : Show pure path list
 find-py-def MySearchRegex -x AndPlainText : Search definition in python files
 find-py-ref MySearchRegex -x AndPlainText : Search references in python files
 find-ref "class\s+MyClass" -x AndPlainText --np "unit|test" --xp src\ext,src\common -c show command line
@@ -107,12 +110,14 @@ find-ref MyClass --pp "test|unit" -U 3 -D 3 -H 20 -T 10 :  Preview Up/Down lines
 find-ref MyOldClassMethodName -o NewName -j : Preview changes
 find-ref MyOldClassMethodName -o NewName -R : Replace files, add -K to backup
 alias find -x all -H 9
+alias "^(find\S+)=(.*)" -o "\2"  :  To see all find-xxx names
 alias "find[\w-]*ref"
-alias "^(find\S+)=(.*)" -o "\2"
 Use -W to output full path; Use -I to suppress warnings; Use -o to replace text, -j to preview changes, -R to replace files.
 See + Use command alias(shortcut) in `MSR-RUN-CMD` on `TERMINAL` tab, or start using in a new command window outside.
 (In vscode terminals, you can `click` to open search results)
 ```
+
+You can search **in vscode terminal** like: `find-def MyClass` or `find-ref "class\s+MyClass"` then **click** the results to **open and locate** them.
 
 Each time it will write 1 or multiple script files to the folder of `msr.cmdAlias.saveFolder`, if not set:
 
@@ -120,7 +125,7 @@ Each time it will write 1 or multiple script files to the folder of `msr.cmdAlia
 
 - Multiple script files: Save to `%USERPROFILE%\Desktop\cmdAlias` on Windows or `~/cmdAlias/` on Linux.
 
-You can search **in vscode terminal** like: `find-def MyClass` or `find-ref "class\s+MyClass"` then **click** the results to **open and locate** them.
+When you open a new terminal, will [**auto set project specific command shortcuts**](#auto-set-command-shortcuts-for-new-terminals) which most helpful to get a temporary command shortcuts of each project's specific settings plus `.vscode/settings.json` in it's root folder.
 
 ## Every Function is Under Your Control and Easy to Change
 
@@ -220,12 +225,22 @@ Note: Check [**your personal settings**](https://code.visualstudio.com/docs/gets
   - Extract folders from `files.exclude` and `search.exclude` by Regex: `^[\w-]+$` after trimming `*` at head and tail.
   - You can disable `msr.autoMergeSkipFolders` to not auto merge excluded folders.
 - To auto switch to `CMD` console other than `Powershell` on Windows to use command shortcuts.
-  - Due to Powershell cannot use `doskey` command shortcuts.
+  - Due to `Powershell` cannot use `doskey` command shortcuts. (You can [cook command **script files**](#make-command-shortcuts-to-search-or-replace-in-or-out-of-vscode) then add the scrip folder to `%PATH%` or `$PATH`)
 - Supported terminals:
-  - [Official integrated terminals](https://code.visualstudio.com/docs/editor/integrated-terminal#_configuration).
+  - [Official integrated terminals](https://code.visualstudio.com/docs/editor/integrated-terminal#_configuration) like:
+  
+  ```cpp
+  // Command Prompt
+  "terminal.integrated.shell.windows": "C:\\Windows\\System32\\cmd.exe"
+  
+  // Git Bash (MinGW)
+  "terminal.integrated.shell.windows": "C:\\Program Files\\Git\\bin\\bash.exe"
+  ```
+
   - `Cygwin` integration (on Windows), you can set in [your personal settings file](https://code.visualstudio.com/docs/getstarted/settings#_settings-file-locations) like:
   
-  ```json
+  ```cpp
+  // Cygwin Bash. One command to install Cygwin (into a folder no pollution): https://github.com/qualiu/msrTools/blob/master/system/install-cygwin.bat
   "terminal.integrated.shell.windows": "D:\\cygwin64\\bin\\bash.exe"
   ```
 
@@ -372,9 +387,15 @@ Besides the [overview doc](https://github.com/qualiu/msr/blob/master/README.md) 
     - Plain text:
       - **-x** `should-contain-plain-text`
       - **--nx** `should-not-contain-plain-text`
+  - Set searching paths: (Can use both)
+    - Recursively(`-r`) search one or more files or directories, like: **-r** **-p** `file1,folder2,file2,folder3,folderN`
+    - Read paths (path list) from files, like: **-w** `path-list-1.txt,path-list-2.txt`
+  - Set max search depth (begin from input folder), like: **-k** `16` (default max search depth = `33`).
   - Filter `file name`: **-f** `should-match-Regex` , **--nf** `should-not-match`
   - Filter `directory name`: **-d** `at-least-one-match` , **--nd** `none-should-match`
   - Filter `full path pattern`: **--pp** `should-match` , **--np** `should-not-match`
+  - Skip/Exclude link files: **--xf**
+  - Skip/Exclude link folders: **--xd**
   - Skip full or sub paths: **--xp** d:\win\dir,my\sub
   - Try to read once for link files: **-G** (link files' folders must be or under input root paths of `-p` or/and `-w`)
   - Filter `file size`: **--s1** <= size <= **s2** , like set one or two: **--s1** `1B` **--s2** `1.5MB`
@@ -383,12 +404,6 @@ Besides the [overview doc](https://github.com/qualiu/msr/blob/master/README.md) 
   - Filter rows by begin + end Regex: like **-b** `"^\s*public.*?class"` **-q** `"^\s*\}\s*$"`
   - Filter rows by 1 or more blocks: **-b** `"^\s*public.*?class"` **-Q** `"^\s*\}\s*$"`
   - Filter rows by 1 or more blocks + **stop** like: **-b** `"^\s*public.*?class"` **-Q** `"^\s*\}\s*$"` **-q** `"stop-matching-regex"`
-  - Set max search depth (begin from input folder), like: **-k** `16` (default max search depth = `33`).
-  - Set searching paths: (Can use both)
-    - Recursively(`-r`) search one or more files or directories, like: **-r** **-p** `file1,folder2,file2,folder3,folderN`
-    - Read paths (path list) from files, like: **-w** `path-list-1.txt,path-list-2.txt`
-  - Skip/Exclude link files: **--xf**
-  - Skip/Exclude link folders: **--xd**
   - **Quickly** pick up `head{N}` results + **Jump out**(`-J`), like: **-H** `30` **-J** or **-J** **-H** `300` or **-JH** `300` etc.
   - Don't color matched text: **-C** (`Faster` to output, and **must be set** for `Linux/Cygwin` to further process).
   - Output summary `info` to **stderr** + **hide** `warnings in stderr` (like BOM encoding): **-I** : You can see **-I -C** or **-IC** or **-J -I -C** or **-JIC** etc. in [package.json](https://github.com/qualiu/vscode-msr/blob/master/package.json)

@@ -4,6 +4,12 @@ All notable changes to the "vscode-msr" extension will be documented in this fil
 
 Detail see `vscode-msr` extension [commit history](https://github.com/qualiu/vscode-msr/commits/master).
 
+## [1.2.1]
+
+- Renamed config/setting name `msr.default.pureReferenceSkip` to `msr.default.skip.pureReference`.
+- Added `find-pure-ref` command shortcuts.
+- Added env path for temporary command shortcuts when using `Cygwin` bash.
+
 ## [1.2.0]
 
 - Added `msr.autoMergeSkipFolders` to auto merge excluded folders from each project's root folder `.vscode/settings.json` file.

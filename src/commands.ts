@@ -163,7 +163,7 @@ export function getFindingCommandByCurrentWord(findCmd: FindCommandType, searchT
     }
 
     if (findCmd === FindCommandType.RegexFindPureReferencesInCodeFiles) {
-        const skipPattern = getOverrideOrDefaultConfig(mappedExt, 'pureReferenceSkip', true).trim();
+        const skipPattern = getOverrideOrDefaultConfig(mappedExt, 'skip.pureReference', true).trim();
         if (skipPattern.length > 0 && /\s+--nt\s+/.test(searchPattern) !== true) {
             skipTextPattern = skipPattern;
         }

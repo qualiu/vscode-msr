@@ -3,7 +3,7 @@
 	"displayName": "Search code + Replace files + Find definition and references for all types.",
 	"description": "Search code + Replace files + Find definition and references in multiple repository paths by msr for all coding languages + configuration + doc files.",
 	"author": "qualiu@microsoft.com",
-	"version": "1.2.1",
+	"version": "1.2.2",
 	"icon": "images/vscode-msr-icon.png",
 	"license": "completely free",
 	"publisher": "qualiu",
@@ -234,7 +234,7 @@
 			},
 			{
 				"command": "msr.cookCmdAlias",
-				"title": "Cook general command alias/doskey.",
+				"title": "Cook alias/doskey: Only general finding commands to 1 file.",
 				"category": "msr",
 				"icon": {
 					"dark": "images/vscode-msr-small.svg",
@@ -243,7 +243,7 @@
 			},
 			{
 				"command": "msr.cookCmdAliasByProject",
-				"title": "Cook command alias/doskey by project.",
+				"title": "Cook alias/doskey by project: Only finding commands to 1 file.",
 				"category": "msr",
 				"icon": {
 					"dark": "images/vscode-msr-small.svg",
@@ -252,7 +252,7 @@
 			},
 			{
 				"command": "msr.cookCmdAliasFiles",
-				"title": "Cook general command alias/doskey script files.",
+				"title": "Cook script files: Only general finding command alias/doskey.",
 				"category": "msr",
 				"icon": {
 					"dark": "images/vscode-msr-small.svg",
@@ -261,7 +261,25 @@
 			},
 			{
 				"command": "msr.cookCmdAliasFilesByProject",
-				"title": "Cook command alias/doskey script files by project.",
+				"title": "Cook script files by project: Only finding command alias/doskey.",
+				"category": "msr",
+				"icon": {
+					"dark": "images/vscode-msr-small.svg",
+					"light": "images/vscode-msr-small.svg"
+				}
+			},
+			{
+				"command": "msr.cookCmdAliasDumpWithOthersToFiles",
+				"title": "Cook general finding + Dump with other command alias/doskey to script files.",
+				"category": "msr",
+				"icon": {
+					"dark": "images/vscode-msr-small.svg",
+					"light": "images/vscode-msr-small.svg"
+				}
+			},
+			{
+				"command": "msr.cookCmdAliasDumpWithOthersToFilesByProject",
+				"title": "Cook finding by project + Dump with other command alias/doskey to script files.",
 				"category": "msr",
 				"icon": {
 					"dark": "images/vscode-msr-small.svg",
@@ -401,6 +419,16 @@
 					"group": "msr"
 				},
 				{
+					"when": "config.msr.menu.visible && config.msr.cookCmdAliasDumpWithOthersToFiles.menu.visible",
+					"command": "msr.cookCmdAliasDumpWithOthersToFiles",
+					"group": "msr"
+				},
+				{
+					"when": "config.msr.menu.visible && config.msr.cookCmdAliasDumpWithOthersToFilesByProject.menu.visible",
+					"command": "msr.cookCmdAliasDumpWithOthersToFilesByProject",
+					"group": "msr"
+				},
+				{
 					"when": "config.msr.menu.visible && config.msr.tmpToggleEnableForFindDefinitionAndReference.menu.visible",
 					"command": "msr.tmpToggleEnableForFindDefinitionAndReference",
 					"group": "msr"
@@ -504,6 +532,14 @@
 					"group": "msr"
 				},
 				{
+					"command": "msr.cookCmdAliasDumpWithOthersToFiles",
+					"group": "msr"
+				},
+				{
+					"command": "msr.cookCmdAliasDumpWithOthersToFilesByProject",
+					"group": "msr"
+				},
+				{
 					"command": "msr.tmpToggleEnableForFindDefinitionAndReference",
 					"group": "msr"
 				}
@@ -525,6 +561,11 @@
 					"default": true,
 					"description": "If false, will hide all `msr` context menus (menu by right-click to prompt) of `Regex find xxx` or `Find plain text`."
 				},
+				"msr.clearTerminalBeforeExecutingCommands": {
+					"type": "boolean",
+					"default": false,
+					"description": "Clear terminal/console before executing new commands."
+				},
 				"msr.autoMergeSkipFolders": {
 					"type": "boolean",
 					"default": true,
@@ -533,7 +574,12 @@
 				"msr.initProjectCmdAliasForNewTerminals": {
 					"type": "boolean",
 					"default": true,
-					"description": "Initialize cmd shortcuts (alias/doskeys) for newly created/opened terminals with a temp file cooked by project settings. (You can run `powershell` to change back from `cmd` console on Windows)"
+					"description": "Initialize command shortcuts (alias/doskeys) for newly created/opened terminals with a temp file cooked by project settings. (You can run `powershell` to change back from `cmd` console on Windows)"
+				},
+				"msr.overwriteProjectCmdAliasForNewTerminals": {
+					"type": "boolean",
+					"default": true,
+					"description": "Overwrite the default initialized command shortcuts (alias/doskeys) of a project when open a new terminal."
 				},
 				"msr.tmpToggleEnableForFindDefinitionAndReference.menu.visible": {
 					"type": "boolean",
@@ -559,6 +605,16 @@
 					"type": "boolean",
 					"default": false,
 					"description": "Cook script files of command alias/doskey by settings of default + overwritten-by-project to help fast search in/out vscode."
+				},
+				"msr.cookCmdAliasDumpWithOthersToFiles.menu.visible": {
+					"type": "boolean",
+					"default": false,
+					"description": "Cook general shortcuts + Dump with other command alias/doskeys to script files to be used in other scripts or commands."
+				},
+				"msr.cookCmdAliasDumpWithOthersToFilesByProject.menu.visible": {
+					"type": "boolean",
+					"default": false,
+					"description": "Cook shortcuts by project settings + Dump with other command alias/doskeys to script files to be used in other scripts or commands."
 				},
 				"msr.regexFindDefinitionInCurrentFile.menu.visible": {
 					"type": "boolean",
@@ -735,15 +791,15 @@
 					"default": 200,
 					"description": "Default demotion score for matched paths."
 				},
-				"msr.definition.searchAllWorkspaces": {
+				"msr.definition.searchAllRootFolders": {
 					"type": "boolean",
 					"default": true,
-					"description": "Find definition in all workspaces of current vscode (if have multiple root folders)."
+					"description": "Find definition in all root folders of current vscode workspace (if have multiple root folders)."
 				},
-				"msr.reference.searchAllWorkspaces": {
+				"msr.reference.searchAllRootFolders": {
 					"type": "boolean",
 					"default": true,
-					"description": "Find references in all workspaces of current vscode (if have multiple root folders)."
+					"description": "Find references in all root folders of current vscode workspace (if have multiple root folders)."
 				},
 				"msr.descendingSortForVSCode": {
 					"type": "boolean",

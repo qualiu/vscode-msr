@@ -4,6 +4,19 @@ All notable changes to the "vscode-msr" extension will be documented in this fil
 
 Detail see `vscode-msr` extension [commit history](https://github.com/qualiu/vscode-msr/commits/master).
 
+## [1.2.2]
+
+- Updated `update-doskeys` on Windows.
+- Added `malias` (mainly for Linux) to support same experience like `malias find-def`.
+- Added `msr.cookCmdAliasDumpWithOthersToFiles` + `cookCmdAliasDumpWithOthersToFilesByProject`.
+- Added `msr.overwriteProjectCmdAliasForNewTerminals` and default = `true` when initialize a new terminal.
+- Don't clear terminal: Added `msr.clearTerminalBeforeExecutingCommands` and set default value = `false`.
+- Added 4 command alias:
+  - `use-wp` : Use workspace paths: `msr -rp path1,path2`
+  - `use-rp` : Use relative path: `msr -rp .`
+  - `out-rp` : Output relative path (remove `-W` if has in command line/alias)
+  - `out-fp` : Output full path (add `-W` if not in command line/alias)
+
 ## [1.2.1]
 
 - Renamed config/setting name `msr.default.pureReferenceSkip` to `msr.default.skip.pureReference`.
@@ -42,7 +55,7 @@ Detail see `vscode-msr` extension [commit history](https://github.com/qualiu/vsc
 ## [1.1.9]
 
 - Improved ranking for same name method's definition search results.
-- Adjust search order for multiple workspaces.
+- Adjust search order for multiple root folders of current workspace.
 - Updated config value of `msr.allSmallFiles.extraOptions` to display full paths (added `-W`).
 - Supported temporarily toggle enable/disable finding definition and references (Default shortcut key = `F2`).
 
@@ -56,7 +69,7 @@ Detail see `vscode-msr` extension [commit history](https://github.com/qualiu/vsc
 
 ## [1.1.6]
 
-- Supported multiple workspaces (solve vscode deprecation warning).
+- Supported multiple root folders of one workspace (solve vscode deprecation warning).
 
 ## [1.1.5]
 

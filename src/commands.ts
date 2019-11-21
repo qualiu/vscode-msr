@@ -23,12 +23,12 @@ export function runFindingCommand(findCmd: FindCommandType, textEditor: vscode.T
 
     const parsedFile = path.parse(textEditor.document.fileName);
     const command = getFindingCommandByCurrentWord(findCmd, searchText, parsedFile, rawSearchText, undefined);
-    runCommandInTerminal(command, true);
+    runCommandInTerminal(command, true, getConfig().ClearTerminalBeforeExecutingCommands);
 }
 
 export function runFindingCommandByCurrentWord(findCmd: FindCommandType, searchText: string, parsedFile: path.ParsedPath, rawSearchText: string = '') {
     const command = getFindingCommandByCurrentWord(findCmd, searchText, parsedFile, rawSearchText, undefined);
-    runCommandInTerminal(command, !getConfig().IsQuiet);
+    runCommandInTerminal(command, !getConfig().IsQuiet, getConfig().ClearTerminalBeforeExecutingCommands);
 }
 
 export function getFindingCommandByCurrentWord(findCmd: FindCommandType, searchText: string, parsedFile: path.ParsedPath, rawSearchText: string = '', ranker: SearchProperty | undefined): string {

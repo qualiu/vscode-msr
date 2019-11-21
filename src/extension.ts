@@ -177,6 +177,14 @@ export function registerExtension(context: vscode.ExtensionContext) {
 		(textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit, ...args: any[]) =>
 			cookCmdShortcutsOrFile(textEditor.document.uri.fsPath, true, true)));
 
+	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.cookCmdAliasDumpWithOthersToFiles',
+		(textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit, ...args: any[]) =>
+			cookCmdShortcutsOrFile(textEditor.document.uri.fsPath, false, true, undefined, '', true)));
+
+	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.cookCmdAliasDumpWithOthersToFilesByProject',
+		(textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit, ...args: any[]) =>
+			cookCmdShortcutsOrFile(textEditor.document.uri.fsPath, true, true, undefined, '', true)));
+
 	context.subscriptions.push(vscode.commands.registerCommand('msr.tmpToggleEnableForFindDefinitionAndReference',
 		(...args: any[]) => {
 			getConfig().toggleEnableFindingDefinitionAndReference();
@@ -434,7 +442,7 @@ function findAndProcessSummary(skipIfNotMatch: boolean, summaryText: string, fin
 		else if (matchCount > 1 && costSeconds <= MyConfig.ReRunCmdInTerminalIfCostLessThan) {
 			if (!ranker.isSearchOneFile) {
 				outputInfo('Will re-run and show clickable + colorful results in `MSR-RUN-CMD` in `TERMINAL` tab. Set `msr.quiet` to avoid switching tabs; Decrease `msr.reRunSearchInTerminalIfCostLessThan` value for re-running.');
-				runCommandInTerminal(toRunnableToolPath(cmd).replace(SkipJumpOutForHeadResultsRegex, ' ').trim());
+				runCommandInTerminal(toRunnableToolPath(cmd).replace(SkipJumpOutForHeadResultsRegex, ' ').trim(), false, getConfig().ClearTerminalBeforeExecutingCommands);
 			}
 		}
 	} else if (!ranker.isSearchOneFile) {

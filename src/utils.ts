@@ -14,6 +14,29 @@ export function quotePaths(paths: string) {
     }
 }
 
+export function toMinGWPath(winPath: string) {
+    return replaceText(winPath.replace(/^[A-Z]:/i, '/c'), '\\', '/');
+}
+
+export function toCygwinPath(winPath: string) {
+    return replaceText(winPath.replace(/^([A-Z]):/i, '/cygdrive/$1'), '\\', '/');
+}
+
+export function toLinuxPathOnWindows(windowsPath: string, isCygwin: boolean, isMinGW: boolean): string {
+    if (isCygwin) {
+        return toCygwinPath(windowsPath);
+    } else if (isMinGW) {
+        return toMinGWPath(windowsPath);
+    } else {
+        return windowsPath;
+    }
+}
+
+export function toLinuxPathsOnWindows(windowsPaths: string, isCygwin: boolean, isMinGW: boolean): string {
+    const paths = windowsPaths.split(/\s*[,;]/).map((p, _index, _a) => toLinuxPathOnWindows(p, isCygwin, isMinGW));
+    return paths.join(",");
+}
+
 export function toPath(parsedPath: ParsedPath) {
     return path.join(parsedPath.dir, parsedPath.base);
 }

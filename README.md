@@ -1,12 +1,30 @@
 # vscode-msr
 
-Have you suffered issues of finding `definitions` and `references`:
+Have your suffered issues below in your daily work?
 
-- **Unable to `jump-to-definition` or `find-references`** if `IDE has problems` or `build failed` or `lack of packages` ?
-- **Unable to coding in IDE for one entire repository** due to `multiple languages` (`C#` , `C++` , `Java`/`Scala`, `Python`, `Vue`, etc.) ?
-- **Unable to coding in IDE for multiple related repositories** in multiple root folders ?
-- **Missed updates to some types of files** when performed changes like `rename`, `refactor`, `update-versions`, etc.
-- **Quite slow to take a full search** but have to do it and wait ?
+- **Unable to `jump-to-definition` or `find-references`** due to below issues:
+  - Basic Issues
+    - Lack of dependency packages.
+    - Lack of build or build failed.
+    - IDE caught some problems.
+  - Other issues
+    - `Multiple languages` in **one entire repository**: `C#` , `C++` , `Java`/`Scala`, `Python`, `Vue`, etc.
+    - `Multiple root folders` of **multiple related repositories**.
+- **Search code**: **Clumsy and slow** ?
+  - Too **narrow** `vscode` panel to preview?
+  - Wasting time to click and expand **each** item ?
+  - `What if` a **colorful** + **fast** glance for **all search results** + **rich and powerful filters**?
+- **Replace files**: **Lack of a fast + easy + safe + powerful** tool to replace files?
+  - Missed to update multiple coding language files when `rename` or `refactor` ?
+  - Missed to update `doc` + `config` files?
+  - Your replacing tool **added** or **removed** the `tail empty line` ? And cause wrong `git diff` ?
+  - Your replacing tool changed your file time even nothing changed?
+  - `What if` a fast way to replace? Just leverage the powerful search used above?
+- Just want to read/review code on laptop **but failed because you haven't done things below** ?
+  - **Install X GB** `language plugins` which have a lot of dependencies.
+  - **Download Y GB packages** to the disk.
+  - **Build Z GB outputs** to the disk.
+  - (Of-course: **Offer N GB running memory** to the `language plugins` or `IDE`. ~~)
 
 Then it's the [**light** and **right** tool](https://github.com/qualiu/vscode-msr) for you (Take **less than 1 minute** for [better experience](#more-freely-to-use-and-help-you-more) and [**help you more**](#make-command-shortcuts-to-search-or-replace-in-or-out-of-vscode)).
 
@@ -22,17 +40,17 @@ Note: Support **64-bit** + **32-bit** : **Windows** + **Linux** (`Ubuntu` / `Cen
 
 - Simple + flexible configuration (`just general Regex` of `C++`,`Java`,`C#`,`Python`), overwrite default settings if need.
 
-- [Normal + Extensive Search](#normal-and-extensive-search) knows and serves you better.
+- [**Normal** + **Extensive Search**](#normal-and-extensive-search) knows and serves you better.
 
-- **Easy** + **Fast** to **reuse** the command line of [msr-EXE](https://github.com/qualiu/msr/blob/master/README.md) to [**Search Further** or **Replace Files**](#reuse-the-command-to-search-further-or-replace-files).
+- **Easy** + **Fast** to [**Search Further** or **Replace Files**](#reuse-the-command-to-search-further-or-replace-files): Just **reuse** the search command line by an upper arrow.
 
-- [Powerful + convenient **command shortcuts**](#make-command-shortcuts-to-search-or-replace-in-or-out-of-vscode) (alias/doskey) to **search**/**replace** code/config/doc files **in**/**out** `vscode`.
+- [**Powerful** + **Convenient** **command shortcuts**](#make-command-shortcuts-to-search-or-replace-in-or-out-of-vscode) (alias/doskey) to **search**/**replace** code/config/doc files **in**/**out** `vscode`.
 
 - **Easy** + **Fast** to [**Get the Best Combined Power**](#get-the-best-combined-power) of `vscode-msr` + your language plugins (like `vscode-python` / `vscode-java` etc.).
 
 - [Every function is **under your control**](#every-function-is-under-your-control-and-easy-to-change) and easy to enable or disable.
 
-- Just leverage [one tiny exe: msr-EXE](https://github.com/qualiu/msr/blob/master/README.md) **without** `storage`/`cache`, `server`/`service`, `network`, etc.
+- All just leverage one [tiny exe: msr-EXE](https://github.com/qualiu/msr/blob/master/README.md) **without** `storage`/`cache`, `server`/`service`, `network`, etc.
   - This extension costs **2~3 MB** download/storage + **3~10 MB** running memory.
   - Others may cost **X GB** storage for dependencies/packages + **Y GB** running memory + even **requires building**.
 
@@ -100,21 +118,27 @@ Now you can directly use the command shortcuts in/out-of vscode to search + repl
 find-ndp dir1,dir2,file1,fileN -t MySearchRegex -x AndPlainText
 find-nd -t MySearchRegex -x AndPlainText
 find-code -it MySearchRegex -x AndPlainText
-find-small -it MySearchRegex -U 5 -D 5 : Show up/down lines
-find-doc -it MySearchRegex -x AndPlainText -l -PAC : Show pure path list
-find-py-def MySearchRegex -x AndPlainText : Search definition in python files
-find-py-ref MySearchRegex -x AndPlainText : Search references in python files
-find-ref "class\s+MyClass" -x AndPlainText --np "unit|test" --xp src\ext,src\common -c show command line
-find-def MyClass -x AndPlainText --np "unit|test" --xp src\ext,src\common -c show command line
-find-ref MyClass --pp "test|unit" -U 3 -D 3 -H 20 -T 10 :  Preview Up/Down lines + Set Head/Tail lines in test
-find-ref MyOldClassMethodName -o NewName -j : Preview changes
-find-ref MyOldClassMethodName -o NewName -R : Replace files, add -K to backup
-alias find -x all -H 9
-alias "^(find\S+)=(.*)" -o "\2"  :  To see all find-xxx names
-alias "find[\w-]*ref"
-Use -W to output full path; Use -I to suppress warnings; Use -o to replace text, -j to preview changes, -R to replace files.
+find-small -it MySearchRegex -U 5 -D 5 : Show up/down lines.
+find-doc -it MySearchRegex -x AndPlainText -l -PAC : Show pure path list.
+find-py-def MySearchRegex -x AndPlainText : Search definition in python files.
+find-py-ref MySearchRegex -x AndPlainText : Search references in python files.
+find-ref "class\s+MyClass" -x AndPlainText --np "unit|test" --xp src\ext,src\common -c show command line.
+find-def MyClass -x AndPlainText --np "unit|test" --xp src\ext,src\common -c show command line.
+find-ref MyClass --pp "test|unit" -U 3 -D 3 -H 20 -T 10 :  Preview Up/Down lines + Set Head/Tail lines in test.
+find-ref MyOldClassMethodName -o NewName -j : Just preview changes only.
+find-ref MyOldClassMethodName -o NewName -R : Replace files, add -K to backup.
+alias find-pure-ref
+malias find -x all -H 9
+malias "find[\w-]*ref"
+malias ".*?(find-\S+)=.*" -o "\2"  :  To see all find-xxx alias/doskeys.
+malias "use-wp|use-rp|out-rp|out-fp" :  To see matched alias/doskeys.
+use-wp  - Use workspace root paths as input: Root folders of current workspace and extra paths you added.
+use-rp  - Use relative path as input: The dynamic current folder.
+out-rp  - Output relative path. This will not effect if use-wp which input full paths of current workspace.
+out-fp  - Output full path.
+Add -W to output full path; -I to suppress warnings; -o to replace text, -j to preview changes, -R to replace files.
 See + Use command alias(shortcut) in `MSR-RUN-CMD` on `TERMINAL` tab, or start using in a new command window outside.
-(In vscode terminals, you can `click` to open search results)
+(if running `find-xxx` in vscode terminals, you can `click` the search results to open in vscode.)
 ```
 
 You can search **in vscode terminal** like: `find-def MyClass` or `find-ref "class\s+MyClass"` then **click** the results to **open and locate** them.
@@ -196,8 +220,9 @@ You can [change the default shortcut key](https://code.visualstudio.com/docs/get
 This doc listed a few configuration names. Finding more by pressing `F1` to [Open User settings](https://code.visualstudio.com/docs/getstarted/settings#_creating-user-and-workspace-settings) to change.
 
 - `msr.quiet`
-  
+
   Don't activate (show) channels: `MSR-Def-Ref` (in `OUTPUT` tab) + `MSR-RUN-CMD` (in `TERMINAL` tab).
+
   - `MSR-Def-Ref` shows sorted results after ranking, and specific search commands with time costs.
   - `MSR-RUN-CMD` shows `re-running search when got multiple results` or `finding commands from menu`.
 
@@ -223,22 +248,27 @@ Note: Check [**your personal settings**](https://code.visualstudio.com/docs/gets
 
 - To merge project specific `excluded folders` from `.vscode/settings.json` in each project root folder.
   - Extract folders from `files.exclude` and `search.exclude` by Regex: `^[\w-]+$` after trimming `*` at head and tail.
-  - You can disable `msr.autoMergeSkipFolders` to not auto merge excluded folders.
+  - You can **disable** `msr.autoMergeSkipFolders` to not auto merge excluded folders.
+  - You can **disable** `msr.overwriteProjectCmdAliasForNewTerminals` to use the existing temp command shortcuts of each project.
 - To auto switch to `CMD` console other than `Powershell` on Windows to use command shortcuts.
-  - Due to `Powershell` cannot use `doskey` command shortcuts. (You can [cook command **script files**](#make-command-shortcuts-to-search-or-replace-in-or-out-of-vscode) then add the scrip folder to `%PATH%` or `$PATH`)
+  - Due to `Powershell` cannot use `doskey` command shortcuts. (You can [cook command **script files**](#make-command-shortcuts-to-search-or-replace-in-or-out-of-vscode) then add the script folder to `%PATH%` or `$PATH`)
 - Supported terminals:
+
   - [Official integrated terminals](https://code.visualstudio.com/docs/editor/integrated-terminal#_configuration) like:
-  
+
   ```cpp
   // Command Prompt
   "terminal.integrated.shell.windows": "C:\\Windows\\System32\\cmd.exe"
-  
+
   // Git Bash (MinGW)
   "terminal.integrated.shell.windows": "C:\\Program Files\\Git\\bin\\bash.exe"
+
+  // Ubuntu Bash on Windows: No tested. Please use msr.gcc48 + copy alias from a Linux VSCODE or by Cygwin below.
+  "terminal.integrated.shell.windows": "C:\\Windows\\System32\\bash.exe"
   ```
 
   - `Cygwin` integration (on Windows), you can set in [your personal settings file](https://code.visualstudio.com/docs/getstarted/settings#_settings-file-locations) like:
-  
+
   ```cpp
   // Cygwin Bash. One command to install Cygwin (into a folder no pollution): https://github.com/qualiu/msrTools/blob/master/system/install-cygwin.bat
   "terminal.integrated.shell.windows": "D:\\cygwin64\\bin\\bash.exe"

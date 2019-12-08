@@ -1,6 +1,6 @@
 # vscode-msr
 
-Have your suffered issues below in your daily work?
+Have you suffered issues below in your daily work?
 
 - **Unable to `jump-to-definition` or `find-references`** due to below issues:
   - Basic Issues
@@ -263,7 +263,7 @@ Note: Check [**your personal settings**](https://code.visualstudio.com/docs/gets
   // Git Bash (MinGW)
   "terminal.integrated.shell.windows": "C:\\Program Files\\Git\\bin\\bash.exe"
 
-  // Ubuntu Bash on Windows: No tested. Please use msr.gcc48 + copy alias from a Linux VSCODE or by Cygwin below.
+  // Ubuntu Bash on Windows: Not tested. Please use msr.gcc48 + copy alias from a Linux VSCODE or by Cygwin below.
   "terminal.integrated.shell.windows": "C:\\Windows\\System32\\bash.exe"
   ```
 

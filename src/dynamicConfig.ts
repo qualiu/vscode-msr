@@ -641,7 +641,7 @@ export function cookCmdShortcutsOrFile(
                     + andText + replaceHead + ` -t "find-" --nt "use-[wr]p|out-[fr]p|find-ndp|find-\\S*def" `
                     + ` -x "msr -rp . "`
                     + ` -o "msr -rp ${pathsForOthers} "`
-                    + ` -R -c Use workspace paths others like find-ref or find-doc etc.`
+                    + ` -R -c Use workspace paths for others like find-ref or find-doc etc.`
                     + tailLoadCmd;
             } else {
                 // Skip case of workspace root path contains whitespace
@@ -687,7 +687,7 @@ export function cookCmdShortcutsOrFile(
                         + andText + replaceHead + functionCondition + ` --nt "use-[wr]p|out-[fr]p|find-ndp|find-\\S*def"`
                         + ` -t "msr -rp . "`
                         + ` -o "msr -rp ${pathsForOthers} "`
-                        + ` -R -c Use workspace paths other functions like find-ref or find-doc etc.`
+                        + ` -R -c Use workspace paths for other functions like find-ref or find-doc etc.`
                         + tailLoadCmd;
                 }
                 else {
@@ -699,7 +699,7 @@ export function cookCmdShortcutsOrFile(
                         + andText + replaceHead + ` --nt "use-[wr]p|out-[fr]p|find-ndp|find-\\S*def"`
                         + ` -t "(alias find.*?=.*?)msr -rp . " `
                         + ` -o "\\1msr -rp ${pathsForOthers} "`
-                        + ` -R -c Use workspace paths others like find-ref or find-doc etc.`
+                        + ` -R -c Use workspace paths for others like find-ref or find-doc etc.`
                         + tailLoadCmd;
                 }
             } else {

@@ -15,8 +15,8 @@ Have you suffered issues below in your daily work?
   - Wasting time to click and expand **each** item ?
   - `What if` a **colorful** + **fast** glance for **all search results** + **rich and powerful filters**?
 - **Replace files**: **Lack of a fast + easy + safe + powerful** tool to replace files?
-  - Missed to update multiple coding language files when `rename` or `refactor` ?
-  - Missed to update `doc` + `config` files?
+  - Missed updates to multiple coding language files when `rename` or `refactor` ?
+  - Missed updates to `doc` + `config` files?
   - Your replacing tool **added** or **removed** the `tail empty line` ? And cause wrong `git diff` ?
   - Your replacing tool changed your file time even nothing changed?
   - `What if` a fast way to replace? Just leverage the powerful search used above?
@@ -131,7 +131,7 @@ alias find-pure-ref
 malias find -x all -H 9
 malias "find[\w-]*ref"
 malias ".*?(find-\S+)=.*" -o "\2"  :  To see all find-xxx alias/doskeys.
-malias "use-wp|use-rp|out-rp|out-fp" :  To see matched alias/doskeys.
+malias use-rp :  To see matched alias/doskeys like 'use-rp', 'out-rp', 'use-wp' and 'out-fp' etc.
 use-wp  - Use workspace root paths as input: Root folders of current workspace and extra paths you added.
 use-rp  - Use relative path as input: The dynamic current folder.
 out-rp  - Output relative path. This will not effect if use-wp which input full paths of current workspace.

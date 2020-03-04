@@ -10,7 +10,7 @@ import { getSearchPathOptions, getConfig, printConfigInfo, getOverrideConfigByPr
 import { outputError, outputWarn, outputInfo, clearOutputChannel, runCommandInTerminal, outputDebug, RunCmdTerminalName, disposeTerminal, outputDebugOrInfo, outputResult } from './outputUtils';
 import { SearchProperty, FileExtensionToConfigExtMap } from './ranker';
 import { checkSearchToolExists, MsrExe, toRunnableToolPath } from './checkTool';
-import { getCurrentWordAndText, quotePaths, toPath } from './utils';
+import { getCurrentWordAndText, quotePaths, toPath, isNullOrEmpty } from './utils';
 import { runFindingCommand, runFindingCommandByCurrentWord, getFindingCommandByCurrentWord } from './commands';
 import { escapeRegExp } from './regexUtils';
 import { SearchTextHolderReplaceRegex, IsWindows, SkipJumpOutForHeadResultsRegex } from './constants';
@@ -241,9 +241,14 @@ function isTooFrequentSearch() {
 function getCurrentFileSearchInfo(findType: FindType, document: vscode.TextDocument, position: vscode.Position, escapeTextForRegex: boolean = true): [path.ParsedPath, string, string, vscode.Range, string] {
 	const parsedFile = path.parse(document.fileName);
 	const extension = parsedFile.ext.replace(/^\./, '').toLowerCase() || 'default';
-	const [currentWord, currentWordRange, currentText] = getCurrentWordAndText(document, position);
+	let [currentWord, currentWordRange, currentText] = getCurrentWordAndText(document, position);
 	if (currentWord.length < 2 || !currentWordRange || !checkSearchToolExists()) {
 		return [parsedFile, extension, '', new vscode.Range(new vscode.Position(0, 0), new vscode.Position(0, 0)), ''];
+	}
+
+	const isPowershell = /psm?1$/.exec(extension);
+	if (isPowershell && currentText.indexOf('$' + currentWord) >= 0) {
+		currentWord = '$' + currentWord;
 	}
 
 	const searchText = escapeTextForRegex ? escapeRegExp(currentWord) : currentWord;
@@ -384,7 +389,8 @@ function getMatchedLocationsAsync(findType: FindType, cmd: string, ranker: Searc
 				}
 			}
 
-			let allResults: vscode.Location[] = parseCommandOutput(stdout, findType, cmd, ranker);
+			// if (!isNullOrEmpty(stdout)) { return Promise.reject(); }
+			const allResults: vscode.Location[] = isNullOrEmpty(stdout) ? [] : parseCommandOutput(stdout, findType, cmd, ranker);
 
 			if (stderr) {
 				if (!findAndProcessSummary(false, stderr, findType, cmd, ranker)) {
@@ -611,8 +617,11 @@ function parseMatchedText(text: string, ranker: SearchProperty): [Number, vscode
 			return [score, new vscode.Location(uri, pos)];
 		}
 		else {
-			outputError('Failed to match words by Regex = "' + GetFileLineTextRegex.source + '" from matched result: ' + text);
+			outputError('Failed to match words by Regex = "' + ranker.currentWordRegex + '" from matched result: ' + m[3]);
 		}
+	}
+	else {
+		outputError('Failed to match GetFileLineTextRegex = "' + GetFileLineTextRegex.source + '" from matched result: ' + text);
 	}
 
 	return [0, null];

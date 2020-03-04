@@ -246,7 +246,8 @@ export function getOverrideConfigByPriority(priorityPrefixList: string[], config
 }
 
 export function getOverrideOrDefaultConfig(mappedExtOrFolderName: string, suffix: string, allowEmpty: boolean = true): string {
-    return getOverrideConfigByPriority([mappedExtOrFolderName, 'default'], suffix, allowEmpty);
+    const prefixes = mappedExtOrFolderName === 'ps' ? [mappedExtOrFolderName] : [mappedExtOrFolderName, 'default'];
+    return getOverrideConfigByPriority(prefixes, suffix, allowEmpty);
 }
 
 export function getSearchPathOptions(
@@ -533,7 +534,7 @@ export function cookCmdShortcutsOrFile(
                     const quotedFileForPS = quotedFile === cmdAliasFile ? cmdAliasFile : '`"' + cmdAliasFile + '`"';
                     const setEnvCmd = MsrExe === 'msr' ? '' : "$env:Path = $env:Path + ';" + path.dirname(MsrExe) + "'; ";
                     cmd = setEnvCmd + 'cmd /k ' + '"doskey /MACROFILE=' + quotedFileForPS + ' && doskey /macros | msr -t find-def -x msr --nx use- --nt out- -e \\s+-+\\w+\\S* -PM'
-                        + ' & echo. & echo Type exit or powershell if you want to back to Powershell without ' + commands.length + shortcutsExample
+                        + ' & echo. & echo Type exit if you want to back to Powershell without ' + commands.length + shortcutsExample
                         + disableDocText
                         + ' | msr -aPA -e .+ -ix powershell -t m*alias^|find\\S+^|out-\\S+^|use-\\S+^|msr.init\\S+'
                         + '"';
@@ -967,7 +968,7 @@ function outputCmdAliasGuide(singleScriptFolder: string = '') {
     outputKeyInfo('malias find -x all -H 9');
     outputKeyInfo('malias "find[\\w-]*ref"');
     outputKeyInfo('malias ".*?(find-\\S+)=.*" -o "\\2"  :  To see all find-xxx alias/doskeys.');
-    outputKeyInfo('malias "use-wp|use-rp|out-rp|out-fp" :  To see matched alias/doskeys.');
+    outputKeyInfo("malias use-rp :  To see matched alias/doskeys like 'use-rp', 'out-rp', 'use-wp' and 'out-fp' etc.");
     outputKeyInfo('use-wp  - Use workspace root paths as input: Root folders of current workspace and extra paths you added.');
     outputKeyInfo('use-rp  - Use relative path as input: The dynamic current folder.');
     outputKeyInfo('out-rp  - Output relative path. This will not effect if use-wp which input full paths of current workspace.');

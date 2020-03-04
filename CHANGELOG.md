@@ -4,6 +4,10 @@ All notable changes to the "vscode-msr" extension will be documented in this fil
 
 Detail see `vscode-msr` extension [commit history](https://github.com/qualiu/vscode-msr/commits/master).
 
+## [1.2.4]
+
+- Add finding definition support for Powershell script files.
+
 ## [1.2.3]
 
 - Update comments and typos.

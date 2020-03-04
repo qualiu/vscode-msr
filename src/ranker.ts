@@ -23,6 +23,8 @@ export const FileExtensionToConfigExtMap = new Map<string, string>()
 	.set('ts', 'ui')
 	.set('jsx', 'ui')
 	.set('tsx', 'ui')
+	.set('ps1', 'ps')
+	.set('psm1', 'ps')
 	;
 
 const MappedExtToCodeFileNamePatternMap = new Map<string, string>()
@@ -30,6 +32,7 @@ const MappedExtToCodeFileNamePatternMap = new Map<string, string>()
 	.set('ui', RootConfig.get('ui.codeFiles') as string)
 	.set('cpp', RootConfig.get('cpp.codeFiles') as string)
 	.set('default', '')
+	.set('ps', RootConfig.get('ps.codeFiles') as string)
 	;
 
 export class SearchProperty {
@@ -124,7 +127,8 @@ export class SearchProperty {
 		this.isEnumValue = this.isEnumValueRegex.test(this.currentText);
 		this.isClassOrEnum = this.isClassOrEnumRegex.test(this.currentText);
 
-		this.currentWordRegex = new RegExp('\\b' + currentWord + '\\b');
+		this.currentWordRegex = new RegExp((/^\W/.exec(this.currentWord) ? '' : '\\b') + currentWord + '\\b');
+
 		this.enumOrConstantValueRegex = new RegExp('^\\s*' + this.currentWord + '\\s*=');
 
 		this.scoreWordsText = this.getScoreText();
@@ -268,7 +272,7 @@ export class SearchProperty {
 		const RootConfig = vscode.workspace.getConfiguration('msr');
 		const codeFilesKey = this.mappedExt === 'ui' ? 'default.codeFilesPlusUI' : 'default.codeFiles';
 		let filePattern = MappedExtToCodeFileNamePatternMap.get(this.mappedExt) || '\\.' + extension + '$';
-		if (MyConfig.SearchAllFilesWhenFindingReferences && configKeyName === 'reference') {
+		if (MyConfig.SearchAllFilesWhenFindingReferences && configKeyName === 'reference' && this.mappedExt !== 'ps') {
 			filePattern = RootConfig.get('default.allFiles') as string;
 			const defaultFindRef = RootConfig.get('default.reference') as string;
 			if (defaultFindRef.length > 1) {
@@ -325,6 +329,11 @@ export class SearchProperty {
 
 				if (this.isMethod) {
 					specificPatterns.add(getOverrideOrDefaultConfig(this.mappedExt, 'method.definition'));
+				}
+
+				if (specificPatterns.size < 1 && this.mappedExt === 'ps') {
+					specificPatterns.add(RootConfig.get(this.mappedExt + '.definition') as string);
+					specificPatterns.delete('');
 				}
 
 				// Default: Will be slower if more items.

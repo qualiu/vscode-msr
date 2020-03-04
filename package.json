@@ -3,7 +3,7 @@
 	"displayName": "Search code + Replace files + Find definition and references for all types.",
 	"description": "Search code + Replace files + Find definition and references in multiple repository paths by msr for all coding languages + configuration + doc files.",
 	"author": "qualiu@microsoft.com",
-	"version": "1.2.3",
+	"version": "1.2.4",
 	"icon": "images/vscode-msr-icon.png",
 	"license": "completely free",
 	"publisher": "qualiu",
@@ -39,7 +39,8 @@
 		"Python",
 		"TypScript",
 		"JavaScript",
-		"Vue"
+		"Vue",
+		"Powershell"
 	],
 	"activationEvents": [
 		"*"
@@ -1175,6 +1176,16 @@
 					"type": "string",
 					"default": "^\\s*(return|await|throw|except|raise|new|(el)?if|for|from|val)\\s+",
 					"description": "Regex pattern to filter non-definitions of UI code."
+				},
+				"msr.ps.codeFiles": {
+					"type": "string",
+					"default": "\\.psm?1$",
+					"description": "Powershell files."
+				},
+				"msr.ps.definition": {
+					"type": "string",
+					"default": "(^\\s*function|\\[\\w+\\]\\s*)\\s*%1\\b|\\s*%1\\s*=",
+					"description": "Regex pattern to search powershell definitions of a function or parameter."
 				}
 			}
 		}

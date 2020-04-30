@@ -3,7 +3,7 @@
 	"displayName": "Search code + Replace files + Find definition and references for all types.",
 	"description": "Search code + Replace files + Find definition and references in multiple repository paths by msr for all coding languages + configuration + doc files.",
 	"author": "qualiu@microsoft.com",
-	"version": "1.2.4",
+	"version": "1.2.5",
 	"icon": "images/vscode-msr-icon.png",
 	"license": "completely free",
 	"publisher": "qualiu",
@@ -1184,7 +1184,7 @@
 				},
 				"msr.ps.definition": {
 					"type": "string",
-					"default": "(^\\s*function|\\[\\w+\\]\\s*)\\s*%1\\b|\\s*%1\\s*=",
+					"default": "(^\\s*(function|class)|\\[\\w+\\]\\s*)\\s*(%1)\\b|\\s*(%1)\\s*=",
 					"description": "Regex pattern to search powershell definitions of a function or parameter."
 				}
 			}
@@ -1203,9 +1203,9 @@
 		"@types/node": "^10.12.21",
 		"@types/vscode": "^1.36.0",
 		"glob": "^7.1.4",
-		"mocha": "^6.1.4",
-		"typescript": "^3.3.1",
+		"mocha": "^7.1.2",
 		"tslint": "^5.12.1",
+		"typescript": "^3.3.1",
 		"vscode-test": "^1.0.0-next.0"
 	}
 }

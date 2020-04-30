@@ -150,6 +150,10 @@ export function getFindingCommandByCurrentWord(findCmd: FindCommandType, searchT
             break;
     }
 
+    if (('.' + extension).match(new RegExp(RootConfig.get('default.scriptFiles') as string))) {
+        filePattern = (RootConfig.get(mappedExt + '.codeFiles') || RootConfig.get('default.scriptFiles')) as string;
+    }
+
     if (isSorting) {
         searchPattern = '';
         skipTextPattern = '';

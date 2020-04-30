@@ -174,7 +174,7 @@ This helps your work with **best combined power** of `vscode-msr` + other plugin
 
 You can [change the default shortcut key](https://code.visualstudio.com/docs/getstarted/keybindings#_keyboard-shortcuts-editor) if got conflict. You can also use 2 other methods below to toggle:
 
-- Press `F1` to open command pallette, then type `msr temp` or `msr toggle` etc.
+- Press `F1` to open command palette, then type `msr temp` or `msr toggle` etc.
 - Make visible of the right-pop menu and use it: Press `F1` -> type `Open User Settings` -> type + change `msr.tmpToggleEnableForFindDefinitionAndReference.menu.visible`.
 
 [Set **quiet mode**](#more-settings-like-quiet-mode) if you don't want to activate vscode tabs like `OUTPUT` and `TERMINAL`.

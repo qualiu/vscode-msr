@@ -62,13 +62,16 @@ export function disposeTerminal() {
 }
 
 export function runCommandInTerminal(cmd: string, showTerminal = false, clearAtFirst = true, isLinuxOnWindows = false) {
-	cmd = enableColorAndHideCommandLine(cmd);
-	// cmd += ' -M '; // to hide summary.
-
+	cmd = enableColorAndHideCommandLine(cmd); // cmd += ' -M '; // to hide summary.
 	sendCmdToTerminal(cmd, getTerminal(), showTerminal, clearAtFirst, isLinuxOnWindows);
 }
 
 export function sendCmdToTerminal(cmd: string, terminal: vscode.Terminal, showTerminal = false, clearAtFirst = true, isLinuxOnWindows = false) {
+	if (cmd.startsWith("msr") && !cmd.match(/\s+-i?[tx]\s+/)) {
+		outputDebug("Skip running command due to not found none of matching names of -x or -t, command = " + cmd);
+		return;
+	}
+
 	if (showTerminal) {
 		terminal.show();
 	}

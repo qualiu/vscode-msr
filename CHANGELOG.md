@@ -4,9 +4,15 @@ All notable changes to the "vscode-msr" extension will be documented in this fil
 
 Detail see `vscode-msr` extension [commit history](https://github.com/qualiu/vscode-msr/commits/master).
 
+## [1.2.5]
+
+- Skip running commands that no -x nor -t when searching files.
+- Support `Regex find as 'class' or 'method' roughly` menu for a PowerShell function or class.
+- Executed `npm audit fix` command.
+
 ## [1.2.4]
 
-- Add finding definition support for Powershell script files.
+- Add finding definition support for PowerShell script files.
 
 ## [1.2.3]
 

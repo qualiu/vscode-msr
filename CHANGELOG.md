@@ -4,6 +4,18 @@ All notable changes to the "vscode-msr" extension will be documented in this fil
 
 Detail see `vscode-msr` extension [commit history](https://github.com/qualiu/vscode-msr/commits/master).
 
+## [2.0.0]
+
+- Supported adding new languages with it's mapped-extension + extension list.
+- Search current file at first to fast get results of definition.
+- Added highest score for current file to keep 1 result when finding definition.
+- Added skip pattern for PowerShell when use `Regex find definition in current file`.
+- Added `open-doskeys` command shortcut on Windows.
+- Supported finding definition in `batch` files (`*.bat` + `*.cmd`).
+- Increased max line character count from 260 to 360 when call `Regex finding pure reference`.
+- Enabled `Sorting by time/size` command palette for `project files: code + config + doc` or `all files`.
+- Added long existing [VsCode Bug](https://github.com/microsoft/vscode/issues/96754): Unable to jump to definitions sometimes + Duplicate definition + reference results.
+
 ## [1.2.5]
 
 - Skip running commands that no -x nor -t when searching files.

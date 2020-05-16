@@ -13,7 +13,7 @@ suite('Extension Test Suite', () => {
     const ConfigFilePath = path.join(GitRootPath, 'package.json');
     const DocFilePath = path.join(GitRootPath, 'README.md');
     const KeyRegex = /["`](msr\.\w+[\.\w]*)/g;
-    const SkipKeysRegex = /^(msr.xxx)|\.project\d+|default.extra\w*Groups|\.My|^msr.py.extra\w*/i;
+    const SkipKeysRegex = /^(msr.xxx)|\.project\d+|default.extra\w*Groups|\.My|^msr.py.extra\w*|^msr.\w+(\.\w+)?.definition|msr.\w+.codeFiles/i;
     const ExemptDuplicateKeyRegex = /^(msr\.)?\w*(find|sort|make)\w+$|^msr.cookCmdAlias\w*/i;
     const ExemptNoValueKeyRegex = /extra|skip.definition|extensionPattern|projectRootFolderNamePattern|cmdAlias\w*|^\w*(find|sort)\w+$/i;
     const NonStringValueRegex = /^(\d+|bool\w*$)/;
@@ -31,6 +31,7 @@ suite('Extension Test Suite', () => {
 
         assert.ok(fs.existsSync(DocFilePath), 'Should exist doc file: ' + DocFilePath);
         const lines = fs.readFileSync(DocFilePath).toString();
+        let errorMessages = [];
 
         let keyCount = 0;
         let m;
@@ -40,12 +41,15 @@ suite('Extension Test Suite', () => {
                 keyCount++;
                 const fullKey = m[1];
                 console.log('Found doc key = ' + fullKey + ' in ' + DocFilePath);
-                assert.ok(allKeys.has(fullKey) || SkipKeysRegex.test(fullKey), 'Not found in configuration file: Key = ' + fullKey + ' in ' + DocFilePath);
+                if (!allKeys.has(fullKey) && !SkipKeysRegex.test(fullKey)) {
+                    errorMessages.push('Not found in configuration file: Key = ' + fullKey + ' in ' + DocFilePath);
+                }
             }
         } while (m);
 
         console.log('Found ' + keyCount + ' in ' + DocFilePath);
         assert.ok(keyCount > 0, 'Just found ' + keyCount + ' keys in ' + DocFilePath);
+        assert.ok(errorMessages.length < 1, 'Caught ' + errorMessages.length + ' errors as below:\n' + errorMessages.join('\n'));
     });
 
     function readAllKeys(printInfo: boolean = false): Set<string> {

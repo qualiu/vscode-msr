@@ -15,7 +15,7 @@ export function quotePaths(paths: string) {
 }
 
 export function toMinGWPath(winPath: string) {
-    return replaceText(winPath.replace(/^[A-Z]:/i, '/c'), '\\', '/');
+    return replaceText(winPath.replace(/^([A-Z]):/i, '/$1'), '\\', '/');
 }
 
 export function toCygwinPath(winPath: string) {

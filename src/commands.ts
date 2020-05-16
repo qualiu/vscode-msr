@@ -1,14 +1,14 @@
 import * as vscode from 'vscode';
-import path = require('path');
-
-import { getSearchPathOptions, removeSearchTextForCommandLine, getOverrideOrDefaultConfig, getOverrideConfigByPriority, getRootFolderName, getRootFolderExtraOptions, getConfig } from './dynamicConfig';
-import { runCommandInTerminal, enableColorAndHideCommandLine, outputDebug } from './outputUtils';
-import { getCurrentWordAndText, quotePaths, toPath } from './utils';
-import { FileExtensionToConfigExtMap, SearchProperty } from './ranker';
-import { escapeRegExp, NormalTextRegex } from './regexUtils';
 import { MsrExe } from './checkTool';
 import { SearchTextHolderReplaceRegex, SkipJumpOutForHeadResultsRegex } from './constants';
+import { FileExtensionToMappedExtensionMap, getConfig, getOverrideConfigByPriority, getRootFolderExtraOptions, getRootFolderName, getSearchPathOptions, MappedExtToCodeFilePatternMap, removeSearchTextForCommandLine } from './dynamicConfig';
 import { FindCommandType } from './enums';
+import { enableColorAndHideCommandLine, outputDebug, runCommandInTerminal } from './outputUtils';
+import { SearchProperty } from './ranker';
+import { escapeRegExp, NormalTextRegex } from './regexUtils';
+import { getCurrentWordAndText, quotePaths, toPath } from './utils';
+import path = require('path');
+
 
 export function runFindingCommand(findCmd: FindCommandType, textEditor: vscode.TextEditor) {
     const RootConfig = vscode.workspace.getConfiguration('msr');
@@ -32,11 +32,11 @@ export function runFindingCommandByCurrentWord(findCmd: FindCommandType, searchT
 }
 
 export function getFindingCommandByCurrentWord(findCmd: FindCommandType, searchText: string, parsedFile: path.ParsedPath, rawSearchText: string = '', ranker: SearchProperty | undefined): string {
-    const extension = parsedFile.ext.substring(1).toLowerCase() || 'default';
-    const mappedExt = FileExtensionToConfigExtMap.get(extension) || extension;
+    const extension = parsedFile.ext.replace(/^\./, '').toLowerCase() || 'default';
+    const mappedExt = FileExtensionToMappedExtensionMap.get(extension) || extension;
 
     const findCmdText = FindCommandType[findCmd];
-    const isSorting = findCmdText.match(/Sort/i);
+    const isSorting = findCmdText.match(/Sort/i) !== null;
 
     if (!isSorting && searchText.length < 2) {
         return '';
@@ -49,20 +49,21 @@ export function getFindingCommandByCurrentWord(findCmd: FindCommandType, searchT
     const isFindReference = findCmdText.indexOf('Reference') >= 0;
     const isFindPlainText = findCmdText.indexOf('FindPlainText') >= 0;
 
+    const rootFolderName = getRootFolderName(toPath(parsedFile)) || '';
+
     let extraOptions = isFindDefinition
-        ? getOverrideConfigByPriority([mappedExt + '.definition', 'definition', 'default'], 'extraOptions')
+        ? getOverrideConfigByPriority([extension + '.reference', mappedExt + '.definition', 'definition', 'default'], 'extraOptions')
         : (isFindReference
-            ? getOverrideConfigByPriority([mappedExt + '.reference', 'reference', 'default'], 'extraOptions')
-            : getOverrideConfigByPriority([mappedExt, 'default'], 'extraOptions')
+            ? getOverrideConfigByPriority([extension + '.reference', mappedExt + '.reference', 'reference', 'default'], 'extraOptions')
+            : getOverrideConfigByPriority([rootFolderName + '.' + mappedExt, extension, mappedExt, 'default'], 'extraOptions')
         );
 
-    const rootFolderName = getRootFolderName(toPath(parsedFile)) || '';
     extraOptions = getRootFolderExtraOptions(rootFolderName) + extraOptions;
 
     let searchPattern = isFindDefinition
-        ? getOverrideConfigByPriority([mappedExt, 'default'], 'definition')
+        ? getOverrideConfigByPriority([rootFolderName + '.' + mappedExt, extension, mappedExt, 'default'], 'definition')
         : (isFindReference
-            ? getOverrideConfigByPriority([mappedExt, 'default'], 'reference')
+            ? getOverrideConfigByPriority([rootFolderName + '.' + mappedExt, extension, mappedExt, 'default'], 'reference')
             : ''
         );
 
@@ -77,9 +78,9 @@ export function getFindingCommandByCurrentWord(findCmd: FindCommandType, searchT
     }
 
     let skipTextPattern = isFindDefinition
-        ? getOverrideConfigByPriority([mappedExt, 'default'], 'skip.definition')
+        ? getOverrideConfigByPriority([rootFolderName + '.' + mappedExt, extension, mappedExt, 'default'], 'skip.definition')
         : (isFindReference
-            ? getOverrideConfigByPriority([mappedExt, 'default'], 'skip.reference')
+            ? getOverrideConfigByPriority([rootFolderName + '.' + mappedExt, extension, mappedExt, 'default'], 'skip.reference')
             : ''
         );
 
@@ -88,20 +89,20 @@ export function getFindingCommandByCurrentWord(findCmd: FindCommandType, searchT
     switch (findCmd) {
         case FindCommandType.RegexFindDefinitionInCurrentFile:
             let definitionPatterns = new Set<string>()
-                .add(getOverrideOrDefaultConfig(mappedExt, 'class.definition'))
-                .add(getOverrideOrDefaultConfig(mappedExt, 'member.definition'))
-                .add(getOverrideOrDefaultConfig(mappedExt, 'constant.definition'))
-                .add(getOverrideOrDefaultConfig(mappedExt, 'enum.definition'))
-                .add(getOverrideOrDefaultConfig(mappedExt, 'method.definition'));
+                .add(getOverrideConfigByPriority([extension, mappedExt, 'default', ''], 'class.definition'))
+                .add(getOverrideConfigByPriority([extension, mappedExt, 'default', ''], 'member.definition'))
+                .add(getOverrideConfigByPriority([extension, mappedExt, 'default', ''], 'constant.definition'))
+                .add(getOverrideConfigByPriority([extension, mappedExt, 'default', ''], 'enum.definition'))
+                .add(getOverrideConfigByPriority([extension, mappedExt, 'default', ''], 'method.definition'));
 
             definitionPatterns.delete('');
 
             if (definitionPatterns.size < 1) {
-                definitionPatterns.add((RootConfig.get('default.definition') as string || '').trim());
+                definitionPatterns.add((getOverrideConfigByPriority([rootFolderName, 'default'], 'definition') as string || '').trim());
             }
 
             searchPattern = Array.from(definitionPatterns).join('|');
-            skipTextPattern = ranker ? ranker.getSkipPatternForDefinition() : getOverrideOrDefaultConfig(mappedExt, 'skip.definition');
+            skipTextPattern = ranker ? ranker.getSkipPatternForDefinition() : getOverrideConfigByPriority([extension, mappedExt, 'default', ''], 'skip.definition');
             break;
 
         case FindCommandType.RegexFindReferencesInCurrentFile:
@@ -112,22 +113,22 @@ export function getFindingCommandByCurrentWord(findCmd: FindCommandType, searchT
         case FindCommandType.RegexFindReferencesInCodeFiles:
         case FindCommandType.FindPlainTextInCodeFiles:
         case FindCommandType.RegexFindPureReferencesInCodeFiles:
-            filePattern = RootConfig.get('default.codeFilesPlusUI') as string;
+            filePattern = getOverrideConfigByPriority([rootFolderName, 'default'], 'codeFilesPlusUI') as string;
             break;
 
         case FindCommandType.RegexFindReferencesInDocs:
         case FindCommandType.FindPlainTextInDocFiles:
-            filePattern = RootConfig.get('default.docFiles') as string;
+            filePattern = getOverrideConfigByPriority([rootFolderName, 'default'], 'docFiles') as string;
             break;
 
         case FindCommandType.RegexFindReferencesInConfigFiles:
         case FindCommandType.FindPlainTextInConfigFiles:
-            filePattern = RootConfig.get('default.configFiles') as string;
+            filePattern = getOverrideConfigByPriority([rootFolderName, 'default'], 'configFiles') as string;
             break;
 
         case FindCommandType.RegexFindReferencesInCodeAndConfig:
         case FindCommandType.FindPlainTextInConfigAndConfigFiles:
-            filePattern = RootConfig.get('default.codeAndConfig') as string;
+            filePattern = getOverrideConfigByPriority([rootFolderName, 'default'], 'codeAndConfig') as string;
             break;
 
         case FindCommandType.SortAllFilesBySize:
@@ -139,7 +140,7 @@ export function getFindingCommandByCurrentWord(findCmd: FindCommandType, searchT
         case FindCommandType.FindPlainTextInAllProjectFiles:
         case FindCommandType.SortProjectFilesBySize:
         case FindCommandType.SortProjectFilesByTime:
-            filePattern = RootConfig.get('default.allFiles') as string;
+            filePattern = getOverrideConfigByPriority([rootFolderName, 'default'], 'allFiles') as string;
             break;
 
         case FindCommandType.RegexFindReferencesInAllSmallFiles:
@@ -150,15 +151,17 @@ export function getFindingCommandByCurrentWord(findCmd: FindCommandType, searchT
             break;
     }
 
-    if (('.' + extension).match(new RegExp(RootConfig.get('default.scriptFiles') as string))) {
-        filePattern = (RootConfig.get(mappedExt + '.codeFiles') || RootConfig.get('default.scriptFiles')) as string;
+    if (!isSorting && ('.' + extension).match(new RegExp(getOverrideConfigByPriority([rootFolderName, 'default'], 'scriptFiles') as string))) {
+        filePattern = (MappedExtToCodeFilePatternMap.get(mappedExt) || getOverrideConfigByPriority([rootFolderName, 'default'], 'scriptFiles')) as string;
     }
 
     if (isSorting) {
         searchPattern = '';
         skipTextPattern = '';
-        extraOptions = getRootFolderExtraOptions(rootFolderName) + RootConfig.get('default.listSortingFilesOptions') as string || '-l -H 10 -T 10';
-        extraOptions = ' ' + (extraOptions as string).trim() + ' ' + (findCmdText.match(/BySize/i) ? '--sz --wt' : '--wt --sz');
+        extraOptions = getRootFolderExtraOptions(rootFolderName);
+        extraOptions += ' ' + (findCmdText.match(/BySize/i) ? '--sz --wt' : '--wt --sz');
+        extraOptions += ' ' + getOverrideConfigByPriority([rootFolderName, 'default'], 'listSortingFilesOptions') as string || '-l -H 10 -T 10';
+        extraOptions = extraOptions.trim();
     } else if (isFindPlainText) {
         searchPattern = ' -x "' + rawSearchText.replace(/"/g, '\\"') + '"';
         skipTextPattern = '';
@@ -167,7 +170,7 @@ export function getFindingCommandByCurrentWord(findCmd: FindCommandType, searchT
     }
 
     if (findCmd === FindCommandType.RegexFindPureReferencesInCodeFiles) {
-        const skipPattern = getOverrideOrDefaultConfig(mappedExt, 'skip.pureReference', true).trim();
+        const skipPattern = getOverrideConfigByPriority([extension, mappedExt], 'skip.pureReference', true).trim();
         if (skipPattern.length > 0 && /\s+--nt\s+/.test(searchPattern) !== true) {
             skipTextPattern = skipPattern;
         }

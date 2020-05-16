@@ -67,7 +67,8 @@ export function runCommandInTerminal(cmd: string, showTerminal = false, clearAtF
 }
 
 export function sendCmdToTerminal(cmd: string, terminal: vscode.Terminal, showTerminal = false, clearAtFirst = true, isLinuxOnWindows = false) {
-	if (cmd.startsWith("msr") && !cmd.match(/\s+-i?[tx]\s+/)) {
+	const searchAndListPattern = /\s+(-i?[tx]|-l)\s+/;
+	if (cmd.startsWith("msr") && !cmd.match(searchAndListPattern)) {
 		outputDebug("Skip running command due to not found none of matching names of -x or -t, command = " + cmd);
 		return;
 	}

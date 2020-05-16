@@ -50,6 +50,8 @@ Note: Support **64-bit** + **32-bit** : **Windows** + **Linux** (`Ubuntu` / `Cen
 
 - [Every function is **under your control**](#every-function-is-under-your-control-and-easy-to-change) and easy to enable or disable.
 
+- [**Easy to Support New Languages**](#easy-to-support-new-languages) with an example of support `batch` scripts (`*.bat` + `*.cmd` files).
+
 - All just leverage one [tiny exe: msr-EXE](https://github.com/qualiu/msr/blob/master/README.md) **without** `storage`/`cache`, `server`/`service`, `network`, etc.
   - This extension costs **2~3 MB** download/storage + **3~10 MB** running memory.
   - Others may cost **X GB** storage for dependencies/packages + **Y GB** running memory + even **requires building**.
@@ -90,28 +92,26 @@ If you cannot get search results **in 1~2 seconds** for just **10000 code files*
 
 Add an exclusion to avoid performance impact from the system security software, just like the impacts to `node.exe` , `pip.exe` and `python.exe` etc.
 
-For example on **Windows** see official doc: [Add an exclusion to Windows Security](https://support.microsoft.com/en-us/help/4028485/windows-10-add-an-exclusion-to-windows-security).
-
-Add **Process** type (name) + **File** type (path) exclusions for [msr.EXE](https://github.com/qualiu/msr/tree/master/tools).
-
-<img align='center' src='https://raw.githubusercontent.com/qualiu/vscode-msr/master/images/add-exclusion-on-windows.png' width=798 height=489>
+Add **Process** type (name) + **File** type (path) exclusions for [msr.EXE](https://github.com/qualiu/msr/tree/master/tools) follow [official Windows doc](https://support.microsoft.com/en-us/help/4028485/windows-10-add-an-exclusion-to-windows-security).
 
 ## Make Command Shortcuts to Search or Replace In or Out of VSCODE
 
 You can generate the command shortcuts (alias/doskey) to directly use for searching or replacing in or out of IDE.
 
 - One single shortcuts file: (Press `F1` if not shown in right-pop menu, then search `Cook xxx` as below)
-  - Click/Choose `"Cook general command alias/doskey"` to make general command shortcuts.
-  - Choose `"Cook command alias/doskey by project"` to make shortcuts based on current project setting.
+  - Click/Choose `"Cook alias/doskey: Only general finding commands to 1 file"` to make general command shortcuts.
+  - Choose `"Cook alias/doskey by project: Only finding commands to 1 file"` to make shortcuts based on current project setting.
 - Multiple **script files** choose menus below: More freely to use (**in other script files** or **nested command lines** like pipe)
-  - `"Cook general command alias/doskey script files"`
-  - `"Cook command alias/doskey script files by project"`
+  - `"Cook script files: Only general finding command alias/doskey."`
+  - `"Cook script files by project: Only finding command alias/doskey."`
+  - `"Cook general finding + Dump with other command alias/doskey to script files."`
+  - `"Cook finding by project + Dump with other command alias/doskey to script files."`
 
 <img align='center' src='https://raw.githubusercontent.com/qualiu/vscode-msr/master/images/cook-command-menu.png'>
 
 ### Command Shortcuts
 
-After you cooked command alias/doskeys, you'll see usage and examples like below:
+After you cooked command alias/doskeys, you'll see messages below: (You can **write**/**update** doskeys in file)
 
 ```bash
 Now you can directly use the command shortcuts in/out-of vscode to search + replace like:
@@ -137,6 +137,8 @@ use-rp  - Use relative path as input: The dynamic current folder.
 out-rp  - Output relative path. This will not effect if use-wp which input full paths of current workspace.
 out-fp  - Output full path.
 Add -W to output full path; -I to suppress warnings; -o to replace text, -j to preview changes, -R to replace files.
+You can also create your own command shortcuts in the file: {msr.cmdAlias.saveFolder}\msr-cmd-alias.doskeys
+Every time after changes, auto effect for new console/terminal. For current, run `update-doskeys` on Windows.
 See + Use command alias(shortcut) in `MSR-RUN-CMD` on `TERMINAL` tab, or start using in a new command window outside.
 (if running `find-xxx` in vscode terminals, you can `click` the search results to open in vscode.)
 ```
@@ -150,6 +152,63 @@ Each time it will write 1 or multiple script files to the folder of `msr.cmdAlia
 - Multiple script files: Save to `%USERPROFILE%\Desktop\cmdAlias` on Windows or `~/cmdAlias/` on Linux.
 
 When you open a new terminal, will [**auto set project specific command shortcuts**](#auto-set-command-shortcuts-for-new-terminals) which most helpful to get a temporary command shortcuts of each project's specific settings plus `.vscode/settings.json` in it's root folder.
+
+## Easy to Support New Languages
+
+**Two methods** to support a new language. (If you're a **developer**/**contributor** see: [here](https://github.com/qualiu/vscode-msr/blob/master/Add-New-Language-Support-For-Developers.md), welcome!)
+
+### File to Add New Language Settings
+
+- Open your [personal settings file](https://code.visualstudio.com/docs/getstarted/settings#_settings-file-locations) like:
+  - Windows: `%APPDATA%\Code\User\settings.json`
+  - Linux: `$HOME/.config/Code/User/settings.json`
+
+For **normal users**: Take **finding definition** for **batch** files (`*.bat` and `*.cmd`) as an example.
+
+### Method-1: Only Add One Extension of the New Language You Want to Support
+
+If you only want to support finding definition for `*.bat` files other than all `batch` script (`*.bat` + `*.cmd`):
+
+Add **lower case** `extension name`: "**msr.{extension}.definition**" (here `{extension}` = **bat** ) into the [file](#file-to-add-new-language-settings):
+
+```json
+  "msr.bat.definition": "^\\s*:\\s*(%1)\\b|(^|\\s)set\\s+(/a\\s+)?\\\"?(%1)="
+```
+
+If you're interested about the explanation of the `definition` Regex above and below, see [here](https://github.com/qualiu/vscode-msr/blob/master/Add-New-Language-Support-For-Developers.md#additional-explanation-for-the-regex-pattern-used-above-when-support-batch-scripts).
+
+### Method-2: Support All Extensions of the New Language by Adding 2 Mandatory Settings
+
+- Add **lower case** `language name` (as you want): "**msr.fileExtensionMap**.`{Name}`" (here `{Name}` = **batch** ) into the [file](#file-to-add-new-language-settings):
+
+```json
+  "msr.fileExtensionMap.batch": "bat cmd"
+```
+
+- Add Regex match pattern to find definition (lower case name `msr.batch.definition`):
+
+```json
+  "msr.batch.definition": "^\\s*:\\s*(%1)\\b|(^|\\s)set\\s+(/a\\s+)?\\\"?(%1)="
+```
+
+### Optional: Add Other Settings if Necessary
+
+For example, if you want to overwrite `default.skip.definition` for **batch** files, add "**msr.{name}.skip.definition**" in [file](#file-to-add-new-language-settings):
+
+```json
+  "msr.batch.skip.definition": ""
+```
+
+Other settings if you want to override, add or update: see [here](https://github.com/qualiu/vscode-msr/blob/master/Add-New-Language-Support-For-Developers.md#many-other-settings-if-you-want-to-override-or-add-or-update).
+
+### Note: Override Rule for the Language Settings in the File
+
+Explicit/Specific settings will overwrite general settings in the [file](#file-to-add-new-language-settings).
+
+For example as above: `bat` = `*.bat file`, `batch` = `*.bat + *.cmd files`, so the override results as following:
+
+- `msr.bat.definition` overrides `msr.batch.definition` overrides `msr.default.definition`
+- `msr.bat.skip.definition` overrides `msr.batch.skip.definition` overrides `msr.default.skip.definition`
 
 ## Every Function is Under Your Control and Easy to Change
 
@@ -304,48 +363,7 @@ Note: Check [**your personal settings**](https://code.visualstudio.com/docs/gets
 
 These global **extra search paths** settings enable searching related files **without loading** them into `Visual Studio Code`.
 
-### Specific Extra Search Paths Settings
-
-If you want to set extra search paths for **a specific project**, use below format to set extra `paths` or `path-list-files`:
-
-- Value format: `[Global-Paths]`; `[Project1-Folder-Name = Path1, Path2, Path3]`; `[Project2-Folder-Name=Path5,Path6]`;
-- Use **semicolon** '**;**' to separate `groups`. A `[group]` is either `global-paths` or a `name=paths` pair.
-- Use **comma** '**,**' to separate paths in a `[group]`.
-- You can omit `global-paths` or `name=paths` pairs. Just set what you want, like one or more paths (global).
-
-**For example**, if you have 2 projects: `d:\git\`**project1** + `d:\git\`**project2** + a common/global path = `D:\myLibs\boost`
-
-You can set values for the projects like below, and their `extra search paths` will be below:
-
-- `msr.default.extraSearchPaths`
-  - Set value like: `D:\myLibs\boost; project1 = D:\git\baseLib,D:\git\teamLib; project2=d:\git\project1;`
-  - Then paths will be:
-    - **project1** extra search paths = `D:\myLibs\boost,D:\git\baseLib,D:\git\teamLib`
-    - **project2** extra search paths = `D:\myLibs\boost,d:\git\project1`
-- `msr.default.extraSearchPathListFiles`
-  - Set value like: `project1=d:\paths1.txt,D:\paths2.txt; project2 = d:\paths3.txt`
-  - Then paths will be:
-    - **project1** extra search path list files = `d:\paths1.txt,D:\paths2.txt`
-    - **project2** extra search path list files = `d:\paths3.txt`
-
-**Since 1.0.7** : Much easier to set in [your personal settings file](https://code.visualstudio.com/docs/getstarted/settings#_settings-file-locations) like `%APPDATA%\Code\User\settings.json` on Windows:
-
-- `msr.project1.extraSearchPaths` : `"D:\myLibs\boost,D:\git\baseLib,D:\git\teamLib"`
-- `msr.project2.extraSearchPaths` : `"D:\myLibs\boost,d:\git\project1"`
-
-- Same to `msr.xxx.extraSearchPathListFiles` settings.
-
-- You can also use `msr.default.extraSearchPathGroups` + `msr.default.extraSearchPathListFileGroups` which should use **array** values like:
-
-```json
-"msr.default.extraSearchPathGroups": [
-    "D:\\myLibs\\boost, d:\\myLibs\\common",
-    "Project1 = D:\\git\\baseLib, D:\\git\\teamLib",
-    "Project2 = D:\\git\\Project1 , D:\\git\\baseLib , D:\\git\\teamLib"
-]
-```
-
-You can also set extra search paths for each type of coding language.
+More details see [Extra Path Settings](https://github.com/qualiu/vscode-msr/blob/master/Extra-Path-Settings.md).
 
 ### Specific Coding Language Settings Examples
 
@@ -470,7 +488,7 @@ Easy to check consistency of [configurations](https://github.com/qualiu/vscode-m
 
   For example, it may slower than usual if the disk (where code files stored) is busy, or slower than expected if the hardware is too old, or CPU is too busy.
 
-- Sometimes 2 duplicate results of finding definition.
+- Long existing [VsCode Bug](https://github.com/microsoft/vscode/issues/96754): Unable to jump to definitions sometimes + Duplicate definition + reference results.
 
   It's better to be solved by `vscode` itself to remove final duplicate results, or provide an interface for extensions to do it.
 

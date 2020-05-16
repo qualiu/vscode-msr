@@ -1,20 +1,20 @@
 // The module 'vscode' contains the VS Code extensibility API
 // Import the module and reference it with the alias vscode in your code below
+import { exec, ExecException, ExecOptions } from 'child_process';
 import * as vscode from 'vscode';
+import { checkSearchToolExists, MsrExe, toRunnableToolPath } from './checkTool';
+import { getFindingCommandByCurrentWord, runFindingCommand, runFindingCommandByCurrentWord } from './commands';
+import { IsWindows, SearchTextHolderReplaceRegex, SkipJumpOutForHeadResultsRegex } from './constants';
+import { cookCmdShortcutsOrFile, FileExtensionToMappedExtensionMap, getConfig, getOverrideConfigByPriority, getRootFolder, getRootFolderExtraOptions, getRootFolderName, getSearchPathOptions, printConfigInfo } from './dynamicConfig';
+import { FindCommandType, FindType } from './enums';
+import { clearOutputChannel, disposeTerminal, outputDebug, outputDebugOrInfo, outputError, outputInfo, outputResult, outputWarn, RunCmdTerminalName, runCommandInTerminal } from './outputUtils';
+import { SearchProperty } from './ranker';
+import { escapeRegExp } from './regexUtils';
+import { getCurrentWordAndText, isNullOrEmpty, quotePaths, toPath } from './utils';
 
-import { exec, ExecOptions, ExecException } from 'child_process';
 import ChildProcess = require('child_process');
 import path = require('path');
 
-import { getSearchPathOptions, getConfig, printConfigInfo, getOverrideConfigByPriority, cookCmdShortcutsOrFile, getRootFolderName, getRootFolderExtraOptions, getRootFolder } from './dynamicConfig';
-import { outputError, outputWarn, outputInfo, clearOutputChannel, runCommandInTerminal, outputDebug, RunCmdTerminalName, disposeTerminal, outputDebugOrInfo, outputResult } from './outputUtils';
-import { SearchProperty, FileExtensionToConfigExtMap } from './ranker';
-import { checkSearchToolExists, MsrExe, toRunnableToolPath } from './checkTool';
-import { getCurrentWordAndText, quotePaths, toPath, isNullOrEmpty } from './utils';
-import { runFindingCommand, runFindingCommandByCurrentWord, getFindingCommandByCurrentWord } from './commands';
-import { escapeRegExp } from './regexUtils';
-import { SearchTextHolderReplaceRegex, IsWindows, SkipJumpOutForHeadResultsRegex } from './constants';
-import { FindType, FindCommandType } from './enums';
 
 const GetFileLineTextRegex = new RegExp('(.+?):(\\d+):(.*)');
 
@@ -197,9 +197,12 @@ export function deactivate() { }
 export class DefinitionFinder implements vscode.DefinitionProvider {
 	public async provideDefinition(document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken): Promise<vscode.Location[] | null> {
 		if (MyConfig.IsFindDefinitionEnabled) {
-			const allResults = await searchMatchedWords(FindType.Definition, document, position, token, true);
-			if (allResults && allResults.length > 0) {
-				return Promise.resolve(allResults);
+			const onlySearchCurrentFileValues = [true, false];
+			for (let k = 0; k < onlySearchCurrentFileValues.length; k++) {
+				const allResults = await searchMatchedWords(FindType.Definition, document, position, token, true, onlySearchCurrentFileValues[k]);
+				if (allResults && allResults.length > 0) {
+					return Promise.resolve(allResults);
+				}
 			}
 
 			return searchDefinitionInCurrentFile(document, position, token).then(currentFileResults => {
@@ -255,7 +258,7 @@ function getCurrentFileSearchInfo(findType: FindType, document: vscode.TextDocum
 	return [parsedFile, extension, searchText, currentWordRange, currentText];
 }
 
-function searchMatchedWords(findType: FindType, document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken, skipTestPathFiles: boolean): Thenable<vscode.Location[]> {
+function searchMatchedWords(findType: FindType, document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken, skipTestPathFiles: boolean, onlyCurrentFile = false): Thenable<vscode.Location[]> {
 	try {
 		if (MyConfig.shouldSkipFinding(findType, document.uri.fsPath)) {
 			return Promise.reject();
@@ -263,38 +266,47 @@ function searchMatchedWords(findType: FindType, document: vscode.TextDocument, p
 
 		const [parsedFile, extension, currentWord, currentWordRange, currentText] = getCurrentFileSearchInfo(findType, document, position);
 		if (!checkSearchToolExists() || token.isCancellationRequested || currentWord.length < 2 || !currentWordRange) {
-			return Promise.reject();
+			return Promise.reject('Please check search word length: ' + currentWord);
 		}
 
 		clearOutputChannel();
 
 		const rootFolderName = getRootFolderName(document.uri.fsPath) || '';
 
-		const mappedExt = FileExtensionToConfigExtMap.get(extension) || extension;
+		const mappedExt = FileExtensionToMappedExtensionMap.get(extension) || extension;
 		if (MyConfig.IsDebug) {
 			outputDebug('mappedExt = ' + mappedExt + ' , languageId = ' + document.languageId + ' , file = ' + document.fileName);
 		}
 
-		let ranker = new SearchProperty(findType, currentWord, currentWordRange, currentText, parsedFile, mappedExt);
+		let ranker = new SearchProperty(findType, currentWord, currentWordRange, currentText, parsedFile, mappedExt, onlyCurrentFile);
 
 		const configKeyName = FindType.Definition === findType ? 'definition' : 'reference';
 		const [filePattern, searchOptions] = ranker.getFileNamePatternAndSearchOption(extension, configKeyName, parsedFile);
 		if (filePattern.length < 1 || searchOptions.length < 1) {
-			return Promise.reject('Failed to get filePattern or searchOptions.');
+			return Promise.reject('Failed to get filePattern or searchOptions when search: ' + currentWord);
 		}
 
-		let extraOptions = getRootFolderExtraOptions(rootFolderName) + getOverrideConfigByPriority([rootFolderName + '.' + configKeyName, configKeyName, mappedExt, 'default'], 'extraOptions');
-		if (skipTestPathFiles && /test/i.test(document.fileName) === false && /\s+--np\s+/.test(extraOptions) === false) {
-			extraOptions = '--np test ' + extraOptions;
+		let extraOptions = '';
+		if (onlyCurrentFile) {
+			extraOptions = "-I -C";
+		} else {
+			extraOptions = getRootFolderExtraOptions(rootFolderName) + getOverrideConfigByPriority([rootFolderName + '.' + configKeyName, configKeyName, mappedExt, 'default'], 'extraOptions');
+			if (skipTestPathFiles && /test/i.test(document.fileName) === false && /\s+--np\s+/.test(extraOptions) === false) {
+				extraOptions = '--np test ' + extraOptions;
+			}
 		}
 
 		const isFindDefinition = FindType.Definition === findType;
 		const useExtraSearchPathsForReference = 'true' === getOverrideConfigByPriority([rootFolderName + '.' + mappedExt, rootFolderName, ''], 'findReference.useExtraPaths');
 		const useExtraSearchPathsForDefinition = 'true' === getOverrideConfigByPriority([rootFolderName + '.' + mappedExt, rootFolderName, ''], 'findDefinition.useExtraPaths');
 
-		const searchPathOptions = getSearchPathOptions(document.uri.fsPath, mappedExt, isFindDefinition, useExtraSearchPathsForReference, useExtraSearchPathsForDefinition);
-		let commandLine = 'msr ' + searchPathOptions + ' -f ' + filePattern;
-		if (MyConfig.DefaultMaxSearchDepth > 0 && !CheckMaxSearchDepthRegex.test(commandLine)) {
+		const searchPathOptions = onlyCurrentFile ? '-p ' + quotePaths(document.uri.fsPath) : getSearchPathOptions(document.uri.fsPath, mappedExt, isFindDefinition, useExtraSearchPathsForReference, useExtraSearchPathsForDefinition);
+		let commandLine = 'msr ' + searchPathOptions;
+		if (!onlyCurrentFile) {
+			commandLine += ' -f ' + filePattern;
+		}
+
+		if (!onlyCurrentFile && MyConfig.DefaultMaxSearchDepth > 0 && !CheckMaxSearchDepthRegex.test(commandLine)) {
 			extraOptions = extraOptions.trimRight() + ' -k ' + MyConfig.DefaultMaxSearchDepth.toString();
 		}
 
@@ -325,7 +337,7 @@ function searchDefinitionInCurrentFile(document: vscode.TextDocument, position: 
 		return Promise.reject();
 	}
 
-	const mappedExt = FileExtensionToConfigExtMap.get(extension) || extension;
+	const mappedExt = FileExtensionToMappedExtensionMap.get(extension) || extension;
 	let ranker = new SearchProperty(FindType.Definition, currentWord, currentWordRange, currentText, parsedFile, mappedExt, true);
 
 	let command = getFindingCommandByCurrentWord(FindCommandType.RegexFindDefinitionInCurrentFile, currentWord, parsedFile, '', ranker);
@@ -355,7 +367,7 @@ function searchLocalVariableDefinitionInCurrentFile(document: vscode.TextDocumen
 		return Promise.reject();
 	}
 
-	const mappedExt = FileExtensionToConfigExtMap.get(extension) || extension;
+	const mappedExt = FileExtensionToMappedExtensionMap.get(extension) || extension;
 	let ranker = new SearchProperty(FindType.Definition, currentWord, currentWordRange, currentText, parsedFile, mappedExt, true);
 
 	const pattern = '\\w+\\s+(' + currentWord + ')\\s*=' + '|'
@@ -380,7 +392,8 @@ function getMatchedLocationsAsync(findType: FindType, cmd: string, ranker: Searc
 				const hasSummary = GetSummaryRegex.test(error.message);
 				if (error.message.startsWith('Command fail')) {
 					if (!error.message.trimRight().endsWith(cmd)) {
-						console.error('Previous searching probably not completed. Try again or wait previous `msr` searching process completed: ' + error.message);
+						// Check if previous searching not completed. Try again or wait.
+						console.warn('Got error message (probably due to return code which is result count not 0): ' + error.message);
 					}
 				} else if (!hasSummary || NotIgnoreErrorRegex.test(error.message)) {
 					outputError(error.message);
@@ -510,7 +523,7 @@ function parseCommandOutput(stdout: string, findType: FindType, cmd: string, ran
 
 	const subName = FindType[findType].toLowerCase();
 	const rootFolderName = getRootFolderName(toPath(ranker.currentFile)) || '';
-	const priorityList = [rootFolderName + '.' + ranker.mappedExt + '.' + subName, rootFolderName + '.' + subName, rootFolderName, ranker.mappedExt, 'default'];
+	const priorityList = [rootFolderName + '.' + ranker.mappedExt + '.' + subName, rootFolderName + '.' + subName, rootFolderName, ranker.extension, ranker.mappedExt, 'default'];
 	const removeLowScoreResultsFactor = Number(getOverrideConfigByPriority(priorityList, 'removeLowScoreResultsFactor') || 0.8);
 	const keepHighScoreResultCount = Number(getOverrideConfigByPriority(priorityList, 'keepHighScoreResultCount') || -1);
 

@@ -3,7 +3,7 @@
 	"displayName": "Search code + Replace files + Find definition and references for all types.",
 	"description": "Search code + Replace files + Find definition and references in multiple repository paths by msr for all coding languages + configuration + doc files.",
 	"author": "qualiu@microsoft.com",
-	"version": "1.2.5",
+	"version": "2.0.0",
 	"icon": "images/vscode-msr-icon.png",
 	"license": "completely free",
 	"publisher": "qualiu",
@@ -40,7 +40,7 @@
 		"TypScript",
 		"JavaScript",
 		"Vue",
-		"Powershell"
+		"PowerShell"
 	],
 	"activationEvents": [
 		"*"
@@ -575,7 +575,7 @@
 				"msr.initProjectCmdAliasForNewTerminals": {
 					"type": "boolean",
 					"default": true,
-					"description": "Initialize command shortcuts (alias/doskeys) for newly created/opened terminals with a temp file cooked by project settings. (You can run `powershell` to change back from `cmd` console on Windows)"
+					"description": "Initialize command shortcuts (alias/doskeys) for newly created/opened terminals with a temp file cooked by project settings. (You can run `PowerShell` to change back from `cmd` console on Windows)"
 				},
 				"msr.overwriteProjectCmdAliasForNewTerminals": {
 					"type": "boolean",
@@ -839,7 +839,7 @@
 				},
 				"msr.default.skip.pureReference": {
 					"type": "string",
-					"default": "^\\s*(#|/|:|\\*|(or|from|import)\\s+)|^.{260,}",
+					"default": "^\\s*(#|/|:|\\*|(or|from|import)\\s+)|^.{360,}",
 					"description": "Regex pattern to skip junk results like comments when finding references in code files."
 				},
 				"msr.showInfo": {
@@ -959,7 +959,7 @@
 				},
 				"msr.default.isMethod": {
 					"type": "string",
-					"default": "(\\.|->|::|\\s+)\\b%1\\s*\\(|\\b%1\\s*[<>]",
+					"default": "(\\.|->|::|\\s+)\\b%1\\s*\\(|\\b%1\\s*<\\s*\\w+",
 					"description": "Default Regex pattern to check if what-to-find is a `method`."
 				},
 				"msr.default.isMember": {
@@ -997,11 +997,6 @@
 					"default": "^\\s*(\\[.*?\\]\\s*)?(%1)\\b(\\s*=\\s*\\w+)?\\s*,?",
 					"description": "Default Regex pattern to search `enum` definition."
 				},
-				"msr.cs.codeFiles": {
-					"type": "string",
-					"default": "\\.(cs(html)?)$",
-					"description": "Regex pattern for C# code files."
-				},
 				"msr.cs.codeAndConfigDocs": {
 					"type": "string",
 					"default": "\\.(cs(html)?|csproj|sln|nuspec|config|props|json|ya?ml|xml|ini|md|ipynb)$",
@@ -1031,11 +1026,6 @@
 					"type": "string",
 					"default": "^\\s*(p\\w+|internal|static)\\s+[\\w\\.<,>\\s]*?\\b(%1)\\b",
 					"description": "Regex pattern to search C# field or property definitions."
-				},
-				"msr.cpp.codeFiles": {
-					"type": "string",
-					"default": "\\.(cpp|cxx|h|hpp|cc?|c\\+{2})$",
-					"description": "Regex pattern for C++ or C code files."
 				},
 				"msr.cpp.codeAndConfigDocs": {
 					"type": "string",
@@ -1087,11 +1077,6 @@
 					"default": "^\\s*(return|throw|new|case)\\s+",
 					"description": "Regex pattern to filter C++ or C non-definitions."
 				},
-				"msr.py.codeFiles": {
-					"type": "string",
-					"default": "\\.(py)$",
-					"description": "Regex pattern for Python code files."
-				},
 				"msr.py.codeAndConfigDocs": {
 					"type": "string",
 					"default": "\\.(py|json|ya?ml|xml|ini|md|ipynb)$",
@@ -1127,20 +1112,10 @@
 					"default": "^\\s*self\\.(%1)\\s*=|^\\s*def\\s+(%1)\\s*\\(\\s*self\\s*\\)",
 					"description": "Regex pattern to search Python `member` definition."
 				},
-				"msr.java.codeFiles": {
-					"type": "string",
-					"default": "\\.(java|scala)$",
-					"description": "Regex pattern for Java code files."
-				},
 				"msr.java.codeAndConfigDocs": {
 					"type": "string",
 					"default": "\\.(java|scala|json|ya?ml|xml|ini|md|ipynb)$",
 					"description": "Regex pattern for Java code + configuration + document files."
-				},
-				"msr.ui.codeFiles": {
-					"type": "string",
-					"default": "\\.(vue|tsx?|jsx?)$",
-					"description": "Regex pattern for Front-end code files."
 				},
 				"msr.ui.codeAndConfigDocs": {
 					"type": "string",
@@ -1177,15 +1152,63 @@
 					"default": "^\\s*(return|await|throw|except|raise|new|(el)?if|for|from|val)\\s+",
 					"description": "Regex pattern to filter non-definitions of UI code."
 				},
-				"msr.ps.codeFiles": {
-					"type": "string",
-					"default": "\\.psm?1$",
-					"description": "Powershell files."
-				},
 				"msr.ps.definition": {
 					"type": "string",
 					"default": "(^\\s*(function|class)|\\[\\w+\\]\\s*)\\s*(%1)\\b|\\s*(%1)\\s*=",
-					"description": "Regex pattern to search powershell definitions of a function or parameter."
+					"description": "Regex pattern to search PowerShell definitions of a function or parameter."
+				},
+				"msr.ps.skip.definition": {
+					"type": "string",
+					"default": "Export-ModuleMember\\s+-\\w+"
+				},
+				"msr.sh.definition": {
+					"type": "string",
+					"default": "(^\\s*function|\\[\\w+\\]\\s*)\\s*(%1)\\b|\\s*(%1)\\s*=",
+					"description": "Regex pattern to search bash/sh file definitions of a function or parameter."
+				},
+				"msr.fileExtensionMap.batch": {
+					"description": "Batch file extensions.",
+					"type": "string",
+					"default": "bat cmd"
+				},
+				"msr.batch.definition": {
+					"description": "Regex pattern to search batch file definitions of a function or variable.",
+					"type": "string",
+					"default": "^\\s*:\\s*(%1)\\b|(^|\\s)[Ss][Ee][Tt]\\s+(/[aApP]\\s+)?\\\"?(%1)="
+				},
+				"msr.batch.skip.definition": {
+					"type": "string",
+					"default": ""
+				},
+				"msr.fileExtensionMap.cpp": {
+					"description": "C++/C file extensions.",
+					"type": "string",
+					"default": "c++ cpp cxx cc c hpp h"
+				},
+				"msr.fileExtensionMap.java": {
+					"description": "Java/Scala file extensions.",
+					"type": "string",
+					"default": "java scala"
+				},
+				"msr.fileExtensionMap.cs": {
+					"description": "C# file extensions.",
+					"type": "string",
+					"default": "cs cshtml"
+				},
+				"msr.fileExtensionMap.ui": {
+					"description": "UI file extensions.",
+					"type": "string",
+					"default": "js ts jsx tsx vue"
+				},
+				"msr.fileExtensionMap.ps": {
+					"description": "PowerShell file extensions.",
+					"type": "string",
+					"default": "ps1 psm1"
+				},
+				"msr.fileExtensionMap.sh": {
+					"description": "Bash/sh file extensions.",
+					"type": "string",
+					"default": "sh bash ksh zsh csh tsh"
 				}
 			}
 		}

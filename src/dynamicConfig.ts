@@ -37,6 +37,45 @@ export function removeSearchTextForCommandLine(cmd: string): string {
     return cmd.replace(/(\s+-c)\s+Search\s+%~?1/, '$1');
 }
 
+export function getSubConfigValue(rootFolderName: string, extension: string, mappedExt: string, midKeyName: string, configTailKey: string, allowEmpty = false): string {
+    const prefixSet = new Set<string>([
+        rootFolderName + '.' + extension + '.' + midKeyName,
+        rootFolderName + '.' + mappedExt + '.' + midKeyName,
+        extension + '.' + midKeyName,
+        mappedExt + midKeyName,
+        midKeyName,
+        'default',
+        ''
+    ]);
+    const prefixList = Array.from(prefixSet);
+    return getOverrideConfigByPriority(prefixList, configTailKey, allowEmpty);
+}
+
+export function GetConfigPriorityPrefixes(rootFolderName: string, extension: string, mappedExt: string, addDefault: boolean = true): string[] {
+    let prefixSet = new Set<string>([
+        rootFolderName + '.' + extension,
+        rootFolderName + '.' + mappedExt,
+        extension,
+        mappedExt,
+        'default',
+        ''
+    ]);
+    prefixSet.delete('.' + extension);
+    prefixSet.delete('.' + mappedExt);
+
+    if (!addDefault) {
+        prefixSet.delete('default');
+        prefixSet.delete('');
+    }
+
+    return Array.from(prefixSet);
+}
+
+export function getConfigValue(rootFolderName: string, extension: string, mappedExt: string, configTailKey: string, allowEmpty = false): string {
+    const prefixSet = GetConfigPriorityPrefixes(rootFolderName, extension, mappedExt);
+    return getOverrideConfigByPriority(prefixSet, configTailKey, allowEmpty);
+}
+
 export class DynamicConfig {
     public RootConfig: vscode.WorkspaceConfiguration = vscode.workspace.getConfiguration('msr');
     public RootFolder: string = ".";
@@ -55,6 +94,7 @@ export class DynamicConfig {
     public NeedSortResults: boolean = false;
 
     public ReRunCmdInTerminalIfCostLessThan: number = 3.3;
+    public ReRunSearchInTerminalIfResultsMoreThan: number = 1;
 
     public ConfigAndDocFilesRegex: RegExp = new RegExp('to-load');
     public CodeAndConfigAndDocFilesRegex: RegExp = new RegExp('to-load');
@@ -65,6 +105,7 @@ export class DynamicConfig {
     public DisabledFileExtensionRegex: RegExp = new RegExp('to-load');
     public DisabledRootFolderNameRegex: RegExp = new RegExp('to-load');
     public DisableFindDefinitionFileExtensionRegex: RegExp = new RegExp('to-load');
+    public DisableFindReferenceFileExtensionRegex: RegExp = new RegExp('to-load');
     public FindDefinitionInAllFolders: boolean = true;
     public FindReferencesInAllRootFolders: boolean = true;
 
@@ -74,6 +115,7 @@ export class DynamicConfig {
     public ExcludeFoldersFromSettings: Set<string> = new Set<string>();
 
     public InitProjectCmdAliasForNewTerminals: boolean = true;
+    public SkipInitCmdAliasForNewTerminalTitleRegex: RegExp = new RegExp('to-load');
     public OverwriteProjectCmdAliasForNewTerminals: boolean = true;
     public AutoMergeSkipFolders: boolean = true;
 
@@ -88,53 +130,61 @@ export class DynamicConfig {
         outputDebug('Toggled: msr.enable.reference = ' + this.IsFindReferencesEnabled);
     }
 
+    private getConfigValue(configTailKey: string): string {
+        return getOverrideConfigByPriority([this.RootFolder, 'default', ''], configTailKey);
+    }
+
     public update() {
         this.RootConfig = vscode.workspace.getConfiguration('msr');
 
         const fileExtensionMapInConfig = this.RootConfig.get('fileExtensionMap') as {};
         if (fileExtensionMapInConfig) {
-            Object.keys(fileExtensionMapInConfig).forEach((mapExt, index) => {
+            Object.keys(fileExtensionMapInConfig).forEach((mapExt) => {
                 const extensions = (this.RootConfig.get('fileExtensionMap.' + mapExt) as string).split(/\s+/);
                 const regexExtensions = extensions.map(ext => escapeRegExp(ext));
                 MappedExtToCodeFilePatternMap.set(mapExt, '\\.(' + regexExtensions.join('|') + ')$');
-                extensions.forEach((ext, idx) => {
+                extensions.forEach((ext) => {
                     FileExtensionToMappedExtensionMap.set(ext, mapExt);
                 });
             });
         }
-        this.IsFindDefinitionEnabled = getOverrideConfigByPriority([this.RootFolder, 'default', ''], 'enable.definition') === 'true' && this.IsEnabledFindingDefinitionAndReference;
-        this.IsFindReferencesEnabled = getOverrideConfigByPriority([this.RootFolder, 'default', ''], 'enable.reference') === 'true' && this.IsEnabledFindingDefinitionAndReference;
+
+        this.IsFindDefinitionEnabled = this.getConfigValue('enable.definition') === 'true' && this.IsEnabledFindingDefinitionAndReference;
+        this.IsFindReferencesEnabled = this.getConfigValue('enable.reference') === 'true' && this.IsEnabledFindingDefinitionAndReference;
 
         if (vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders.length > 0) {
             this.RootFolder = vscode.workspace.workspaceFolders[0].uri.fsPath;
         }
 
-        this.UseExtraPathsToFindDefinition = getOverrideConfigByPriority([this.RootFolder, 'default', ''], 'findDefinition.useExtraPaths') === "true";
-        this.UseExtraPathsToFindReferences = getOverrideConfigByPriority([this.RootFolder, 'default', ''], 'findReference.useExtraPaths') === "true";
-        this.FindDefinitionInAllFolders = getOverrideConfigByPriority([this.RootFolder, 'default', ''], 'definition.searchAllRootFolders') === "true";
-        this.FindReferencesInAllRootFolders = getOverrideConfigByPriority([this.RootFolder, 'default', ''], 'reference.searchAllRootFolders') === "true";
+        this.UseExtraPathsToFindDefinition = this.getConfigValue('findDefinition.useExtraPaths') === "true";
+        this.UseExtraPathsToFindReferences = this.getConfigValue('findReference.useExtraPaths') === "true";
+        this.FindDefinitionInAllFolders = this.getConfigValue('definition.searchAllRootFolders') === "true";
+        this.FindReferencesInAllRootFolders = this.getConfigValue('reference.searchAllRootFolders') === "true";
 
-        this.ClearTerminalBeforeExecutingCommands = getOverrideConfigByPriority([this.RootFolder, 'default', ''], 'clearTerminalBeforeExecutingCommands') === 'true';
-        this.InitProjectCmdAliasForNewTerminals = getOverrideConfigByPriority([this.RootFolder, 'default', ''], 'initProjectCmdAliasForNewTerminals') === 'true';
-        this.OverwriteProjectCmdAliasForNewTerminals = getOverrideConfigByPriority([this.RootFolder, 'default', ''], 'overwriteProjectCmdAliasForNewTerminals') === 'true';
-        this.AutoMergeSkipFolders = getOverrideConfigByPriority([this.RootFolder, 'default', ''], 'autoMergeSkipFolders') === 'true';
-        this.ShowInfo = getOverrideConfigByPriority([this.RootFolder, 'default', ''], 'showInfo') === 'true';
-        this.IsQuiet = getOverrideConfigByPriority([this.RootFolder, 'default', ''], 'quiet') === 'true';
-        this.IsDebug = IsDebugMode || getOverrideConfigByPriority([this.RootFolder, 'default', ''], 'debug') === 'true';
-        this.DescendingSortForConsoleOutput = getOverrideConfigByPriority([this.RootFolder, 'default', ''], 'descendingSortForConsoleOutput') === 'true';
-        this.DescendingSortForVSCode = getOverrideConfigByPriority([this.RootFolder, 'default', ''], 'descendingSortForVSCode') === 'true';
-        this.DefaultMaxSearchDepth = parseInt(getOverrideConfigByPriority([this.RootFolder, 'default', ''], 'default.maxSearchDepth') || '0');
-        this.NeedSortResults = getOverrideConfigByPriority([this.RootFolder, 'default', ''], 'default.sortResults') === 'true';
-        this.ReRunCmdInTerminalIfCostLessThan = Number(getOverrideConfigByPriority([this.RootFolder, 'default', ''], 'reRunSearchInTerminalIfCostLessThan') || '3.3');
-        this.ConfigAndDocFilesRegex = new RegExp(getOverrideConfigByPriority([this.RootFolder, 'default', ''], 'default.configAndDocs') as string || '\\.(json|xml|ini|ya?ml|md)|readme', 'i');
-        this.CodeAndConfigAndDocFilesRegex = new RegExp(getOverrideConfigByPriority([this.RootFolder, 'default', ''], 'default.codeAndConfigDocs') as string || '\\.(cs\\w*|nuspec|config|c[px]*|h[px]*|java|scala|py|go|php|vue|tsx?|jsx?|json|ya?ml|xml|ini|md)$|readme', 'i');
-        this.DefaultConstantsRegex = new RegExp(getOverrideConfigByPriority([this.RootFolder, 'default', ''], 'default.isConstant') as string);
-        this.SearchAllFilesWhenFindingReferences = getOverrideConfigByPriority([this.RootFolder, 'default', ''], 'default.searchAllFilesForReferences') === 'true';
-        this.SearchAllFilesWhenFindingDefinitions = getOverrideConfigByPriority([this.RootFolder, 'default', ''], 'default.searchAllFilesForDefinitions') === 'true';
-        this.DisabledRootFolderNameRegex = createRegex(getOverrideConfigByPriority([this.RootFolder, 'default', ''], 'disable.projectRootFolderNamePattern') as string);
+        this.ClearTerminalBeforeExecutingCommands = this.getConfigValue('clearTerminalBeforeExecutingCommands') === 'true';
+        this.InitProjectCmdAliasForNewTerminals = this.getConfigValue('initProjectCmdAliasForNewTerminals') === 'true';
+        this.SkipInitCmdAliasForNewTerminalTitleRegex = createRegex(this.getConfigValue('skipInitCmdAliasForNewTerminalTitleRegex'), 'i');
+        this.OverwriteProjectCmdAliasForNewTerminals = this.getConfigValue('overwriteProjectCmdAliasForNewTerminals') === 'true';
+        this.AutoMergeSkipFolders = this.getConfigValue('autoMergeSkipFolders') === 'true';
+        this.ShowInfo = this.getConfigValue('showInfo') === 'true';
+        this.IsQuiet = this.getConfigValue('quiet') === 'true';
+        this.IsDebug = IsDebugMode || this.getConfigValue('debug') === 'true';
+        this.DescendingSortForConsoleOutput = this.getConfigValue('descendingSortForConsoleOutput') === 'true';
+        this.DescendingSortForVSCode = this.getConfigValue('descendingSortForVSCode') === 'true';
+        this.DefaultMaxSearchDepth = parseInt(this.getConfigValue('maxSearchDepth') || '0');
+        this.NeedSortResults = this.getConfigValue('sortResults') === 'true';
+        this.ReRunCmdInTerminalIfCostLessThan = Number(this.getConfigValue('reRunSearchInTerminalIfCostLessThan') || '3.3');
+        this.ReRunSearchInTerminalIfResultsMoreThan = Number(this.getConfigValue('reRunSearchInTerminalIfResultsMoreThan') || '1');
+        this.ConfigAndDocFilesRegex = new RegExp(this.getConfigValue('configAndDocs') || '\\.(json|xml|ini|ya?ml|md)|readme', 'i');
+        this.CodeAndConfigAndDocFilesRegex = new RegExp(this.getConfigValue('codeAndConfigDocs') || '\\.(cs\\w*|nuspec|config|c[px]*|h[px]*|java|scala|py|go|php|vue|tsx?|jsx?|json|ya?ml|xml|ini|md)$|readme', 'i');
+        this.DefaultConstantsRegex = new RegExp(this.getConfigValue('isFindConstant'));
+        this.SearchAllFilesWhenFindingReferences = this.getConfigValue('searchAllFilesForReferences') === 'true';
+        this.SearchAllFilesWhenFindingDefinitions = this.getConfigValue('searchAllFilesForDefinitions') === 'true';
+        this.DisabledRootFolderNameRegex = createRegex(this.getConfigValue('disable.projectRootFolderNamePattern'));
 
-        this.DisabledFileExtensionRegex = createRegex(getOverrideConfigByPriority([this.RootFolder, 'default', ''], 'disable.extensionPattern') as string, 'i', true);
-        this.DisableFindDefinitionFileExtensionRegex = createRegex(getOverrideConfigByPriority([this.RootFolder, 'default', ''], 'disable.findDef.extensionPattern') as string, 'i', true);
+        this.DisabledFileExtensionRegex = createRegex(this.getConfigValue('disable.extensionPattern'), 'i', true);
+        this.DisableFindDefinitionFileExtensionRegex = createRegex(this.getConfigValue('disable.findDef.extensionPattern'), 'i', true);
+        this.DisableFindReferenceFileExtensionRegex = createRegex(this.getConfigValue('disable.findRef.extensionPattern'), 'i', true);
 
         this.ExcludeFoldersFromSettings.clear();
         if (this.AutoMergeSkipFolders) {
@@ -160,6 +210,11 @@ export class DynamicConfig {
 
         if (FindType.Definition === findType && MyConfig.DisableFindDefinitionFileExtensionRegex.test(extension)) {
             outputDebug('Disabled for `*.' + extension + '` file in configuration: `msr.disable.findDef.extensionPattern`');
+            shouldSkip += 1;
+        }
+
+        if (FindType.Reference === findType && MyConfig.DisableFindReferenceFileExtensionRegex.test(extension)) {
+            outputDebug('Disabled for `*.' + extension + '` file in configuration: `msr.disable.findRef.extensionPattern`');
             shouldSkip += 1;
         }
 
@@ -293,7 +348,7 @@ export function getSearchPathOptions(
 
     const extension = path.parse(codeFilePath).ext.replace(/^\./, '').toLowerCase();
     const subName = isFindingDefinition ? 'definition' : 'reference';
-    let skipFoldersPattern = getOverrideConfigByPriority([rootFolderName + '.' + subName + '.' + mappedExt, rootFolderName + '.' + subName, rootFolderName, extension, mappedExt, 'default'], 'skipFolders');
+    let skipFoldersPattern = getConfigValue(rootFolderName, extension, mappedExt, 'skipFolders');
     skipFoldersPattern = mergeSkipFolderPattern(skipFoldersPattern);
 
     const skipFolderOptions = useSkipFolders && skipFoldersPattern.length > 1 ? ' --nd "' + skipFoldersPattern + '"' : '';
@@ -846,20 +901,21 @@ function getCommandAliasMap(
         }
 
         // msr.definition.extraOptions msr.default.extraOptions
-        const extraOption = addFullPathHideWarningOption(getOverrideConfigByPriority([projectKey + '.' + ext, ext, projectKey, 'default'], 'extraOptions'));
+        const extraOption = addFullPathHideWarningOption(getConfigValue(projectKey, ext, ext, 'extraOptions'));
 
         let body = 'msr -rp . --nd "' + skipFoldersPattern + '" -f "' + filePattern + '" ' + extraOption;
         commands.push(getCommandAlias(cmdName, body, false));
 
         findTypes.forEach(fd => {
             // msr.cpp.member.definition msr.py.class.definition msr.default.class.definition msr.default.definition
-            let searchPattern = getOverrideConfigByPriority([projectKey + '.' + ext, ext, projectKey, 'default'], fd);
+            let searchPattern = getConfigValue(projectKey, ext, ext, fd);
+
             if (searchPattern.length > 0) {
                 searchPattern = ' -t "' + searchPattern + '"';
             }
 
             // msr.cpp.member.skip.definition  msr.cpp.skip.definition msr.default.skip.definition 
-            let skipPattern = getOverrideConfigByPriority([projectKey + '.' + ext, ext, projectKey, 'default'], 'skip.' + fd);
+            let skipPattern = getConfigValue(projectKey, ext, ext, 'skip.' + fd);
             if (skipPattern.length > 0) {
                 skipPattern = ' --nt "' + skipPattern + '"';
             }

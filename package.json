@@ -3,7 +3,7 @@
 	"displayName": "Search code + Replace files + Find definition and references for all types.",
 	"description": "Search code + Replace files + Find definition and references in multiple repository paths by msr for all coding languages + configuration + doc files.",
 	"author": "qualiu@microsoft.com",
-	"version": "2.0.0",
+	"version": "2.0.1",
 	"icon": "images/vscode-msr-icon.png",
 	"license": "completely free",
 	"publisher": "qualiu",
@@ -577,6 +577,11 @@
 					"default": true,
 					"description": "Initialize command shortcuts (alias/doskeys) for newly created/opened terminals with a temp file cooked by project settings. (You can run `PowerShell` to change back from `cmd` console on Windows)"
 				},
+				"msr.skipInitCmdAliasForNewTerminalTitleRegex": {
+					"type": "string",
+					"default": "PowerShell\\s*Integrated\\s*Console",
+					"description": "Regex pattern of terminal title to skip initializing command shorts for newly opened terminals."
+				},
 				"msr.overwriteProjectCmdAliasForNewTerminals": {
 					"type": "boolean",
 					"default": true,
@@ -734,8 +739,13 @@
 				},
 				"msr.disable.findDef.extensionPattern": {
 					"type": "string",
-					"default": "",
+					"default": "tsx?|jsx?",
 					"description": "Regex pattern of file extensions to disable finding definition. Example: tsx?|jsx?|py|java|cpp"
+				},
+				"msr.disable.findRef.extensionPattern": {
+					"type": "string",
+					"default": "tsx?|jsx?",
+					"description": "Regex pattern of file extensions to disable finding reference. Example: tsx?|jsx?|py|java|cpp"
 				},
 				"msr.findingCommands.useExtraPaths": {
 					"type": "boolean",
@@ -811,6 +821,11 @@
 					"type": "boolean",
 					"default": false,
 					"description": "Descending sort result for console output channel at bottom of `Visual Studio Code`."
+				},
+				"msr.reRunSearchInTerminalIfResultsMoreThan": {
+					"type": "number",
+					"default": 1,
+					"description": "Re-run search in a terminal if got results count more than that. Helpful if a known vscode bug is still not fixed: vscode cannot go to definition when already got results."
 				},
 				"msr.reRunSearchInTerminalIfCostLessThan": {
 					"type": "number",
@@ -947,32 +962,52 @@
 					"default": "--s1 1B --s2 3.6MB -H 360 -J -I -C -c",
 					"description": "Default extra searching options for finding references: Get top {N} results and jump out. Will merge `msr.{root-folder-name}.extraOptions` if you set in your personal settings file like `%APPDATA%\\Code\\User\\settings.json` on Windows (See doc: https://github.com/qualiu/vscode-msr/blob/master/README.md#specific-extra-search-paths-settings)."
 				},
-				"msr.default.isClass": {
+				"msr.default.isClassResult": {
+					"description": "Regex pattern to check if result is a class.",
+					"type": "string",
+					"default": "^\\s*[\\w\\s]{0,30}\\b[Cc]lass\\s+(%1)\\b"
+				},
+				"msr.default.isEnumResult": {
+					"description": "Regex pattern to check if result is an enum.",
+					"type": "string",
+					"default": "^\\s*[\\w\\s]{0,30}\\b[Ee]num\\s+(%1)\\b"
+				},
+				"msr.default.isInterfaceResult": {
+					"description": "Regex pattern to check if result is an interface.",
+					"type": "string",
+					"default": "^\\s*[\\w\\s]{0,30}\\b(interface|Interface)\\s+(%1)\\b"
+				},
+				"msr.default.isMethodResult": {
+					"description": "Regex pattern to check if result is an method/function.",
+					"type": "string",
+					"default": "^\\s*[\\w\\s]{0,30}\\b(function|def)\\s+(%1)\\b|\\s(%1)\\s*(?:[\\[<].*?[\\]>]\\s*)?\\("
+				},
+				"msr.default.isFindClass": {
 					"type": "string",
 					"default": "\\b(class|struct|object)\\s+\\w+|\\b(new|is|as)\\s+%1\\b|=\\s*%1\\s*\\(|\\s+%1\\.\\w+\\s*\\(|\\b%1\\s*[<>]|[<\\[]\\s*%1\\b|\\b%1\\s*[\\[>]",
 					"description": "Default Regex pattern to check if what-to-find is a `class`."
 				},
-				"msr.default.isClassOrEnum": {
+				"msr.default.isFindClassOrEnum": {
 					"type": "string",
 					"default": "[^\\.\\w]([A-Z]\\w+(\\.|::))+\\b%1[^\\.\\w]",
 					"description": "Default Regex pattern to check if what-to-find is a `class` or `enum`."
 				},
-				"msr.default.isMethod": {
+				"msr.default.isFindMethod": {
 					"type": "string",
 					"default": "(\\.|->|::|\\s+)\\b%1\\s*\\(|\\b%1\\s*<\\s*\\w+",
 					"description": "Default Regex pattern to check if what-to-find is a `method`."
 				},
-				"msr.default.isMember": {
+				"msr.default.isFindMember": {
 					"type": "string",
 					"default": "\\b[a-z]\\w+\\.%1\\b|\\b[a-z]\\w+(\\.|->|::)\\S*?%1|(\\.|->|::)%1\\b",
 					"description": "Default Regex to check if what-to-find is a class `member`."
 				},
-				"msr.default.isEnumValue": {
+				"msr.default.isFindEnum": {
 					"type": "string",
 					"default": "[^\\.\\w][A-Z]\\w+(\\.|->|::)%1\\b(?!\\s*[\\.\\(])",
 					"description": "Default Regex to check if what-to-find is an `enum`."
 				},
-				"msr.default.isConstant": {
+				"msr.default.isFindConstant": {
 					"type": "string",
 					"default": "^[A-Z_0-9]+$",
 					"description": "Default Regex pattern to check if `current word` is a constant."
@@ -1002,7 +1037,7 @@
 					"default": "\\.(cs(html)?|csproj|sln|nuspec|config|props|json|ya?ml|xml|ini|md|ipynb)$",
 					"description": "Regex pattern for C# code + configuration + document files."
 				},
-				"msr.cs.isClass": {
+				"msr.cs.isFindClass": {
 					"type": "string",
 					"default": "\\b(class|struct)\\s+\\w+|\\b(new|is|as)\\s+%1\\b|\\s+%1\\.\\w+\\s*\\(|%1\\s*>|\\[\\s*%1\\s*\\(|\\b%1\\s*[\\?\\*]?\\s+\\w+\\S*\\s*[^:]+(,|;|$)",
 					"description": "Regex pattern to check if what-to-find is a C# `class`."
@@ -1032,7 +1067,7 @@
 					"default": "\\.(cpp|cxx|h|hpp|cc?|c\\+{2}|vcx?proj|sln|nuspec|config|props|json|ya?ml|xml|ini|md|ipynb)$|^make\\w+$",
 					"description": "Regex pattern for C++ or C code + configuration + document files."
 				},
-				"msr.cpp.isClass": {
+				"msr.cpp.isFindClass": {
 					"type": "string",
 					"default": "\\b(class|struct)\\s+\\w+|\\b(new|is|as)\\s+%1\\b|=\\s*%1\\s*\\(|\\s+%1\\.\\w+\\s*\\(|\\b%1\\s*[<>]|\\[\\s*%1\\s*\\(|\\b%1\\s*[\\*\\&]?\\s+\\w+",
 					"description": "Regex pattern to check if what-to-find is a C++ `class`."
@@ -1042,7 +1077,7 @@
 					"default": "^\\s*(%1)\\s*(=|,|$)|^\\s*#define\\s+(%1)\\b",
 					"description": "Regex pattern to search C++/C constants definition."
 				},
-				"msr.cpp.isEnumValue": {
+				"msr.cpp.isFindEnum": {
 					"type": "string",
 					"default": "\\w+::%1\\b(?!\\s*[\\.\\(])",
 					"description": "Default Regex to check if what-to-find is a C++ `enum`."
@@ -1054,8 +1089,8 @@
 				},
 				"msr.cpp.method.definition": {
 					"type": "string",
-					"default": "^\\s*\\w+[\\w<>,\\s:]*?\\b(%1)\\s*\\([^;]*$|^\\s*#\\s*define\\s+(%1)\\b",
-					"description": "Regex pattern to search C++ or C `method` definition. Skip head-name case: ^\\s*%1\\(\\s*\\w+[^,]*?\\w+"
+					"default": "^\\s*(?:\\w+(::\\w+)?\\s*[&\\*]?\\s+){0,3}\\b(%1)\\s*\\(|^\\s*#\\s*define\\s+(%1)\\b",
+					"description": "Regex pattern to search C++ or C `method` definition."
 				},
 				"msr.cpp.enum.definition": {
 					"type": "string",
@@ -1082,12 +1117,12 @@
 					"default": "\\.(py|json|ya?ml|xml|ini|md|ipynb)$",
 					"description": "Regex pattern for Python code + configuration + document files."
 				},
-				"msr.py.isMember": {
+				"msr.py.isFindMember": {
 					"type": "string",
 					"default": "\\bself\\.%1\\s*(?!\\()|\\b[a-z]\\w+(\\.|->|::)\\S*?%1|(\\.|->|::)%1\\b",
 					"description": "Regex pattern for Python to check if what-to-find is a `member`."
 				},
-				"msr.py.isClass": {
+				"msr.py.isFindClass": {
 					"type": "string",
 					"default": "\\b(new|is|as)\\s+%1\\b|=\\s*%1\\s*\\(|class\\s+%1\\b|\\b(except|raise)\\s+%1|%1\\.\\w+|^\\s*from\\s+\\S+\\s+import\\s+%1|\\[[\\w,\\s]*?%1|%1[\\w,\\s*]*?\\]",
 					"description": "Regex pattern for Python to check if what-to-find is a `class`."

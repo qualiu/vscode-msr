@@ -25,12 +25,12 @@ const SingleWordMatchingPattern =
 
 const SingleWordMatchingRegex = new RegExp(SingleWordMatchingPattern, 'g');
 
-export function getAllSingleWords(text: string, ignoreCase: boolean = true): Set<string> {
+export function getAllSingleWords(text: string, ignoreCase: boolean = true, minLength = 2): Set<string> {
 	let s = new Set<string>();
 	let m;
 	do {
 		m = SingleWordMatchingRegex.exec(text);
-		if (m) {
+		if (m && m[0].length >= minLength) {
 			s.add(ignoreCase ? m[0].toLowerCase() : m[0]);
 		}
 	} while (m);

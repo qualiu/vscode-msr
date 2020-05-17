@@ -69,8 +69,8 @@ For example, if you want to overwrite `default.skip.definition` for **batch** fi
   - C#: `msr.cs.skip.definition` for `C#` (`*.cs` + `*.cshtml`) (see `msr.fileExtensionMap.cs`)
   - UI: `msr.ui.skip.definition` for `JavaScript` (`*.js`, `*.jsx`) + `TypeScript`(`*.ts` + `*.tsx`) + `Vue` (`*.vue`)
 - Specific type checking before search (like determine how many Regex pattern to use: `class`, `method` and `enum` etc.):
-  - Python class check: `msr.py.isClass`
-  - Python member check: `ms.py.isMember` (for a class `members`, like `property`/`field` in C#)
+  - Python class check: `msr.py.isFindClass`
+  - Python member check: `ms.py.isFindMember` (for a class `members`, like `property`/`field` in C#)
 
 ## Note: Override Rule for the Language Settings in the File
 

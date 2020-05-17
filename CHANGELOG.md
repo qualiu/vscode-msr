@@ -4,6 +4,15 @@ All notable changes to the "vscode-msr" extension will be documented in this fil
 
 Detail see `vscode-msr` extension [commit history](https://github.com/qualiu/vscode-msr/commits/master).
 
+## [2.0.1]
+
+- Improved ranking of removing low relevance results.
+- Skipped initializing command shortcuts for `PowerShell Integrated Console` terminal.
+- Added a config value `msr.SkipInitCmdAliasForNewTerminalTitleRegex`.
+- Added a config value `msr.disable.findRef.extensionPattern`.
+- Simplified config values and unified loading and overwriting.
+- Added a guide and an example to adjust terminal color for output result file paths.
+
 ## [2.0.0]
 
 - Supported adding new languages with it's mapped-extension + extension list.

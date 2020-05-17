@@ -39,6 +39,7 @@
   "typescript.tsc.autoDetect": "off",
   "cSpell.words": [
     "APPDATA",
+    "DTEST",
     "USERPROFILE",
     "autorun",
     "bmsr",

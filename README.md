@@ -30,6 +30,8 @@ Then it's the [**light** and **right** tool](https://github.com/qualiu/vscode-ms
 
 Note: Support **64-bit** + **32-bit** : **Windows** + **Linux** (`Ubuntu` / `CentOS` / `Fedora` which `gcc`/`g++` version >= `4.8`).
 
+(If the output result file `paths color` is not clear, see [**here**](#adjust-your-color-theme-for-vscode-terminals-if-output-result-color-is-not-clear) to add/change the color theme.)
+
 ## Features
 
 - Got search results in **1~3 seconds** for 20000+ code files (on hard-drives, **SSD** maybe faster) after first time (cost 10~30+ seconds).
@@ -85,6 +87,25 @@ Suggest you use/create a tool folder like `~/tools` or `D:\tools` instead of `sy
   **wget** <https://github.com/qualiu/msr/raw/master/tools/msr.gcc48> && `chmod +x msr.gcc48` && `cp msr.gcc48 /usr/bin/msr`
 
 After done, you can directly run **msr --help** (or **msr -h** or just **msr**) should display [colorful usages and examples on Windows](https://qualiu.github.io/msr/usage-by-running/msr-Windows.html) or Linux like: [Fedora](https://qualiu.github.io/msr/usage-by-running/msr-Fedora-25.html) and [CentOS](https://qualiu.github.io/msr/usage-by-running/msr-CentOS-7.html).
+
+## Adjust Your Color Theme for VSCode Terminals if Output Result Color is Not Clear
+
+You might found the output result file paths color is not clear to read (at default dark-blue color theme).
+
+To adjust the colors, for example, if it's default dark-blue color theme:
+
+- Open your [personal settings file](https://code.visualstudio.com/docs/getstarted/settings#_settings-file-locations):
+  - Windows `%APPDATA%\Code\User\settings.json`
+  - Linux `$HOME/.config/Code/User/settings`
+- Add or change **terminal.ansiBrightBlue** like below:
+
+```json
+"workbench.colorCustomizations": {
+  "terminal.ansiBrightBlue": "#5833ff"
+}
+```
+
+More details follow [official vscode doc](https://code.visualstudio.com/docs/getstarted/themes#_customizing-a-color-theme).
 
 ## Avoid Security Software Downgrade Search Performance
 

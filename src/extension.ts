@@ -5,16 +5,16 @@ import * as vscode from 'vscode';
 import { checkSearchToolExists, MsrExe, toRunnableToolPath } from './checkTool';
 import { getFindingCommandByCurrentWord, runFindingCommand, runFindingCommandByCurrentWord } from './commands';
 import { IsWindows, SearchTextHolderReplaceRegex, SkipJumpOutForHeadResultsRegex } from './constants';
-import { cookCmdShortcutsOrFile, FileExtensionToMappedExtensionMap, getConfig, getOverrideConfigByPriority, getRootFolder, getRootFolderExtraOptions, getRootFolderName, getSearchPathOptions, printConfigInfo, getConfigValue } from './dynamicConfig';
+import { cookCmdShortcutsOrFile, FileExtensionToMappedExtensionMap, getConfig, getConfigValue, getRootFolder, getRootFolderExtraOptions, getRootFolderName, getSearchPathOptions, getSubConfigValue, printConfigInfo } from './dynamicConfig';
 import { FindCommandType, FindType } from './enums';
 import { clearOutputChannel, disposeTerminal, outputDebug, outputDebugOrInfo, outputError, outputInfo, outputResult, outputWarn, RunCmdTerminalName, runCommandInTerminal } from './outputUtils';
 import { SearchProperty } from './ranker';
 import { escapeRegExp } from './regexUtils';
+import { ResultType, ScoreTypeResult } from './ScoreTypeResult';
 import { getCurrentWordAndText, isNullOrEmpty, quotePaths, toPath } from './utils';
 
 import ChildProcess = require('child_process');
 import path = require('path');
-import { ResultType, ScoreTypeResult } from './ScoreTypeResult';
 
 
 const GetFileLineTextRegex = new RegExp('(.+?):(\\d+):(.*)');
@@ -295,17 +295,18 @@ function searchMatchedWords(findType: FindType, document: vscode.TextDocument, p
 			return Promise.reject();
 		}
 
+		const isFindDefinition = FindType.Definition === findType;
+
 		let extraOptions = '';
 		if (isSearchOneFile) {
-			extraOptions = "-I -C";
+			extraOptions = "-I -C " + (isFindDefinition ? '-J -H 60' : '-J -H 360');
 		} else {
-			extraOptions = getRootFolderExtraOptions(rootFolderName) + getConfigValue(rootFolderName, extension, mappedExt, 'extraOptions');
+			extraOptions = getRootFolderExtraOptions(rootFolderName) + getSubConfigValue(rootFolderName, extension, mappedExt, configKeyName, 'extraOptions');
 			// if (skipTestPathFiles && /test/i.test(document.fileName) === false && /\s+--np\s+/.test(extraOptions) === false) {
 			// 	extraOptions = '--np test ' + extraOptions;
 			// }
 		}
 
-		const isFindDefinition = FindType.Definition === findType;
 		const useExtraSearchPathsForReference = 'true' === getConfigValue(rootFolderName, extension, mappedExt, 'findReference.useExtraPaths');
 		const useExtraSearchPathsForDefinition = 'true' === getConfigValue(rootFolderName, extension, mappedExt, 'findDefinition.useExtraPaths');
 

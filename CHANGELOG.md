@@ -4,6 +4,13 @@ All notable changes to the "vscode-msr" extension will be documented in this fil
 
 Detail see `vscode-msr` extension [commit history](https://github.com/qualiu/vscode-msr/commits/master).
 
+## [2.0.2]
+
+- Solved initial command alias path style on `WSL` (Windows Subsystem for Linux), which read from Windows settings.
+- No longer narrow search scope of script files when click menus like `Regex find references in small files`.
+- Verified `WSL` terminal on Windows. (Just use `msr.gcc48` and link/copy to an existing path like `/usr/bin/msr`)
+- Lowered case of disk letter for `Git Bash(MinGW)` + `Cygwin Bash` on Windows.
+
 ## [2.0.1]
 
 - Improved ranking of removing low relevance results.

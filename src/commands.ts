@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { MsrExe } from './checkTool';
 import { SearchTextHolderReplaceRegex, SkipJumpOutForHeadResultsRegex } from './constants';
-import { FileExtensionToMappedExtensionMap, getConfig, getOverrideConfigByPriority, getRootFolderExtraOptions, getRootFolderName, getSearchPathOptions, MappedExtToCodeFilePatternMap, removeSearchTextForCommandLine, getSubConfigValue, getConfigValue } from './dynamicConfig';
+import { FileExtensionToMappedExtensionMap, getConfig, getConfigValue, getOverrideConfigByPriority, getRootFolderExtraOptions, getRootFolderName, getSearchPathOptions, getSubConfigValue, removeSearchTextForCommandLine } from './dynamicConfig';
 import { FindCommandType } from './enums';
 import { enableColorAndHideCommandLine, outputDebug, runCommandInTerminal } from './outputUtils';
 import { SearchProperty } from './ranker';
@@ -88,17 +88,24 @@ export function getFindingCommandByCurrentWord(findCmd: FindCommandType, searchT
 
     switch (findCmd) {
         case FindCommandType.RegexFindDefinitionInCurrentFile:
-            let definitionPatterns = new Set<string>()
-                .add(getConfigValue(rootFolderName, extension, mappedExt, 'class.definition'))
-                .add(getConfigValue(rootFolderName, extension, mappedExt, 'member.definition'))
-                .add(getConfigValue(rootFolderName, extension, mappedExt, 'constant.definition'))
-                .add(getConfigValue(rootFolderName, extension, mappedExt, 'enum.definition'))
-                .add(getConfigValue(rootFolderName, extension, mappedExt, 'method.definition'));
+            let definitionPatterns = new Set<string>();
+            const useDefaultValues = [false, true];
+            for (let k = 0; k < useDefaultValues.length; k++) {
+                const allowEmpty = k === 0;
+                definitionPatterns.add(getConfigValue(rootFolderName, extension, mappedExt, 'class.definition', allowEmpty, useDefaultValues[k]))
+                    .add(getConfigValue(rootFolderName, extension, mappedExt, 'member.definition', allowEmpty, useDefaultValues[k]))
+                    .add(getConfigValue(rootFolderName, extension, mappedExt, 'constant.definition', allowEmpty, useDefaultValues[k]))
+                    .add(getConfigValue(rootFolderName, extension, mappedExt, 'enum.definition', allowEmpty, useDefaultValues[k]))
+                    .add(getConfigValue(rootFolderName, extension, mappedExt, 'method.definition', allowEmpty, useDefaultValues[k]));
 
-            definitionPatterns.delete('');
-
-            if (definitionPatterns.size < 1) {
-                definitionPatterns.add((getConfigValue(rootFolderName, extension, mappedExt, 'definition') as string || '').trim());
+                definitionPatterns.delete('');
+                if (definitionPatterns.size < 1) {
+                    definitionPatterns.add((getConfigValue(rootFolderName, extension, mappedExt, 'definition', allowEmpty, useDefaultValues[k])));
+                    definitionPatterns.delete('');
+                }
+                if (definitionPatterns.size > 0) {
+                    break;
+                }
             }
 
             searchPattern = Array.from(definitionPatterns).join('|');
@@ -151,9 +158,9 @@ export function getFindingCommandByCurrentWord(findCmd: FindCommandType, searchT
             break;
     }
 
-    if (!isSorting && ('.' + extension).match(new RegExp(getOverrideConfigByPriority([rootFolderName, 'default'], 'scriptFiles') as string))) {
-        filePattern = (MappedExtToCodeFilePatternMap.get(mappedExt) || getOverrideConfigByPriority([rootFolderName, 'default'], 'scriptFiles')) as string;
-    }
+    // if (!isSorting && ('.' + extension).match(new RegExp(getOverrideConfigByPriority([rootFolderName, 'default'], 'scriptFiles') as string))) {
+    //     filePattern = (MappedExtToCodeFilePatternMap.get(mappedExt) || getOverrideConfigByPriority([rootFolderName, 'default'], 'scriptFiles')) as string;
+    // }
 
     if (isSorting) {
         searchPattern = '';

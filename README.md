@@ -13,13 +13,13 @@ Have you suffered issues below in your daily work?
 - **Search code**: **Clumsy and slow** ?
   - Too **narrow** `vscode` panel to preview?
   - Wasting time to click and expand **each** item ?
-  - `What if` a **colorful** + **fast** glance for **all search results** + **rich and powerful filters**?
+  - `What if` a **colorful** + **fast** glance for **all search results** + [**rich and powerful filters**](#search-files-with-rich-filters)?
 - **Replace files**: **Lack of a fast + easy + safe + powerful** tool to replace files?
   - Missed updates to multiple coding language files when `rename` or `refactor` ?
   - Missed updates to `doc` + `config` files?
   - Your replacing tool **added** or **removed** the `tail empty line` ? And cause wrong `git diff` ?
   - Your replacing tool changed your file time even nothing changed?
-  - `What if` a fast way to replace? Just leverage the powerful search used above?
+  - `What if` a fast way to replace? [**Just reuse**](#reuse-the-command-to-search-further-or-replace-files) the **`powerful search used above`**?
 - Just want to read/review code on laptop **but failed because you haven't done things below** ?
   - **Install X GB** `language plugins` which have a lot of dependencies.
   - **Download Y GB packages** to the disk.
@@ -28,9 +28,11 @@ Have you suffered issues below in your daily work?
 
 Then it's the [**light** and **right** tool](https://github.com/qualiu/vscode-msr) for you (Take **less than 1 minute** for [better experience](#more-freely-to-use-and-help-you-more) and [**help you more**](#make-command-shortcuts-to-search-or-replace-in-or-out-of-vscode)).
 
-Note: Support **64-bit** + **32-bit** : **Windows** + **Linux** (`Ubuntu` / `CentOS` / `Fedora` which `gcc`/`g++` version >= `4.8`).
+Note:
 
-(If the output result file `paths color` is not clear, see [**here**](#adjust-your-color-theme-for-vscode-terminals-if-output-result-color-is-not-clear) to add/change the color theme.)
+- Currently support: **64-bit** + **32-bit** : **Windows** + **WSL** + **Linux** (`Ubuntu` + `CentOS` + `Fedora`:  `gcc/g++` >= `4.8`).
+- [**Workaround**](#workaround-to-long-existing-vscode-bug-impact-to-finding-definition-and-reference) to [long existing VsCode bug](https://github.com/microsoft/vscode/issues/96754) impact to `Go To Definition` and `Find All Reference`.
+- If `folder color` of output result file paths is not clear, see [**here**](#adjust-your-color-theme-if-result-file-path-folder-color-is-not-clear) to add/change one color theme.
 
 ## Features
 
@@ -66,37 +68,41 @@ More powerful usages + examples see [overview doc](https://github.com/qualiu/msr
 
 ## More Freely to Use and Help You More
 
-Add [msr.EXE](https://github.com/qualiu/msr/tree/master/tools) folder to `%PATH%` (Windows) or `$PATH`(Linux) to more freely to help your [daily file processing + data mining](https://github.com/qualiu/msr/blob/master/README.md).
+Strongly recommend: Add [msr.EXE](https://github.com/qualiu/msr#liberate--digitize-daily-works-by-2-exe-file-processing-data-mining-map-reduce) folder to `%PATH%` (Windows) or `$PATH`(Linux) to more freely to help your [daily file processing + data mining](https://github.com/qualiu/msr/blob/master/README.md#scenario-glance).
 
-As default, if not found [msr.EXE](https://github.com/qualiu/msr/blob/master/README.md) in `%PATH%`/`$PATH`, it'll auto download to `~/msr` (on **Linux**) or `%USERPROFILE%\Desktop\msr.exe` (on **Windows**).
+- As default, if not found [msr.EXE](https://github.com/qualiu/msr#liberate--digitize-daily-works-by-2-exe-file-processing-data-mining-map-reduce) in `%PATH%` or `$PATH`:
+  - **Windows**: If not found in `%PATH%` by command `where msr.exe`
+    - Auto check and download to `%USERPROFILE%\Desktop\msr.exe` when launching vscode.
+    - Add `%USERPROFILE%\Desktop` to `%PATH%` **temporarily** each time in each [newly opened vscode terminal](#auto-set-command-shortcuts-for-new-terminals).
+  - **Linux**: If not found in `$PATH` by command `whereis msr`
+    - Auto check and download to `~/msr` when launching vscode.
+    - Add `~/` to `%PATH%` **temporarily** each time in each [newly opened vscode terminal](#auto-set-command-shortcuts-for-new-terminals).
+  - You cannot copy and use `msr` [command lines](#reuse-the-command-to-search-further-or-replace-files) or `find-xxx` [doskeys/alias](#command-shortcuts) **outside** `vscode` terminals since `msr` not exist in `%PATH%` or `$PATH`.
 
-You can also manually **download** the tiny [msr.EXE](https://github.com/qualiu/msr/tree/master/tools) (of your system type) , then **add** the folder to `%PATH%` or `$PATH`.
+- You can also manually **download** the tiny [msr.EXE](https://github.com/qualiu/msr#liberate--digitize-daily-works-by-2-exe-file-processing-data-mining-map-reduce) (of your system type) , then **add** the folder to `%PATH%` or `$PATH`.
 
-Suggest you use/create a tool folder like `~/tools` or `D:\tools` instead of `system folder` for 1 command line below:
+  - **Use** an existing folder or **create** a tool folder like `~/tools` or `D:\tools` instead of **`system folder`**, and then add to `$PATH` or `%PATH%`.
 
-- **Windows**：Download + copy to a folder like `%SystemRoot%` (Use **[msr-Win32.exe](https://github.com/qualiu/msr/raw/master/tools/msr-Win32.exe)** for 32-bit system)
+  - Or else, simply **copy 1 command** like below to download + copy to **`system folder`** which already existed in `$PATH`/`%PATH%`:
+    - **Windows**：(If it's a 32-bit system, use **[msr-Win32.exe](https://github.com/qualiu/msr/raw/master/tools/msr-Win32.exe)**)
 
-  **Powershell** `-Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri 'https://github.com/qualiu/msr/blob/master/tools/msr.exe?raw=true' -OutFile msr.exe"` && **copy** [msr.exe](https://github.com/qualiu/msr/raw/master/tools/msr.exe) `%SystemRoot%\`
+      **PowerShell** `-Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri 'https://github.com/qualiu/msr/blob/master/tools/msr.exe?raw=true' -OutFile msr.exe"` && **copy** [msr.exe](https://github.com/qualiu/msr/raw/master/tools/msr.exe) `%SystemRoot%\`
 
-- **Cygwin**: copy or make a link (`ln -s msr.cygwin /usr/bin/msr`)
+    - **Linux**: `Ubuntu`/`CentOS`/`Fedora`: (If it's a 32-bit system, use **[msr-i386.gcc48](https://github.com/qualiu/msr/raw/master/tools/msr-i386.gcc48)**. `gcc`/`g++` >= 4.8)
 
-  **wget** <https://github.com/qualiu/msr/raw/master/tools/msr.cygwin> && `chmod +x msr.cygwin` && `cp msr.cygwin /usr/bin/msr`
+      **wget** <https://github.com/qualiu/msr/raw/master/tools/msr.gcc48> && `chmod +x msr.gcc48` && `cp msr.gcc48 /usr/bin/msr`
+  
+- After done, you can directly run **msr --help** (or **msr -h** or just **msr**) should display [colorful usages and examples on Windows](https://qualiu.github.io/msr/usage-by-running/msr-Windows.html) or Linux like: [Fedora](https://qualiu.github.io/msr/usage-by-running/msr-Fedora-25.html) and [CentOS](https://qualiu.github.io/msr/usage-by-running/msr-CentOS-7.html).
 
-- **Linux**: `Ubuntu`,`CentOS`,`Fedora`: (gcc/g++ >= 4.8; Use **[msr-i386.gcc48](https://github.com/qualiu/msr/raw/master/tools/msr-i386.gcc48)** for 32-bit system)
+## Adjust Your Color Theme if Result File Path Folder Color is Not Clear
 
-  **wget** <https://github.com/qualiu/msr/raw/master/tools/msr.gcc48> && `chmod +x msr.gcc48` && `cp msr.gcc48 /usr/bin/msr`
+You might found the `folder color` of output result file paths is not clear to read when using default `dark-blue` color theme.
 
-After done, you can directly run **msr --help** (or **msr -h** or just **msr**) should display [colorful usages and examples on Windows](https://qualiu.github.io/msr/usage-by-running/msr-Windows.html) or Linux like: [Fedora](https://qualiu.github.io/msr/usage-by-running/msr-Fedora-25.html) and [CentOS](https://qualiu.github.io/msr/usage-by-running/msr-CentOS-7.html).
+To adjust the colors, for example, if it's default `dark-blue` color theme:
 
-## Adjust Your Color Theme for VSCode Terminals if Output Result Color is Not Clear
-
-You might found the output result file paths color is not clear to read (at default dark-blue color theme).
-
-To adjust the colors, for example, if it's default dark-blue color theme:
-
-- Open your [personal settings file](https://code.visualstudio.com/docs/getstarted/settings#_settings-file-locations):
-  - Windows `%APPDATA%\Code\User\settings.json`
-  - Linux `$HOME/.config/Code/User/settings`
+- Open your [personal settings file](https://code.visualstudio.com/docs/getstarted/settings#_settings-file-locations) with `code` or other tools like:
+  - Windows: code `%APPDATA%\Code\User\settings.json`
+  - Linux: code `$HOME/.config/Code/User/settings`
 - Add or change **terminal.ansiBrightBlue** like below:
 
 ```json
@@ -113,7 +119,7 @@ If you cannot get search results **in 1~2 seconds** for just **10000 code files*
 
 Add an exclusion to avoid performance impact from the system security software, just like the impacts to `node.exe` , `pip.exe` and `python.exe` etc.
 
-Add **Process** type (name) + **File** type (path) exclusions for [msr.EXE](https://github.com/qualiu/msr/tree/master/tools) follow [official Windows doc](https://support.microsoft.com/en-us/help/4028485/windows-10-add-an-exclusion-to-windows-security).
+Add **Process** type (name) + **File** type (path) exclusions for [msr.EXE](https://github.com/qualiu/msr#liberate--digitize-daily-works-by-2-exe-file-processing-data-mining-map-reduce) follow [official Windows doc](https://support.microsoft.com/en-us/help/4028485/windows-10-add-an-exclusion-to-windows-security).
 
 ## Make Command Shortcuts to Search or Replace In or Out of VSCODE
 
@@ -176,31 +182,35 @@ When you open a new terminal, will [**auto set project specific command shortcut
 
 ## Easy to Support New Languages
 
-**Two methods** to support a new language. (If you're a **developer**/**contributor** see: [here](https://github.com/qualiu/vscode-msr/blob/master/Add-New-Language-Support-For-Developers.md), welcome!)
+[Currently support well](#current-support-to-finding-definition-and-references) for: `C#`, `C++/C`, `Python`, `PowerShell`, `Batch/Bash`, `Java`, etc.
+
+Other languages use a rough support: When click `Go To Definition` just like click the **right-pop-menu**: `Regex find as 'class' or 'method' definition roughly.`
+
+**Two methods** to support a new language. (If you're a **developer**/**contributor** see: [**here**](https://github.com/qualiu/vscode-msr/blob/master/Add-New-Language-Support-For-Developers.md), welcome!)
 
 ### File to Add New Language Settings
 
-- Open your [personal settings file](https://code.visualstudio.com/docs/getstarted/settings#_settings-file-locations) like:
-  - Windows: `%APPDATA%\Code\User\settings.json`
-  - Linux: `$HOME/.config/Code/User/settings.json`
+- Open your [personal settings file](https://code.visualstudio.com/docs/getstarted/settings#_settings-file-locations) with `code` or other tools like:
+  - Windows: code `%APPDATA%\Code\User\settings.json`
+  - Linux: code `$HOME/.config/Code/User/settings.json`
 
-For **normal users**: Take **finding definition** for **batch** files (`*.bat` and `*.cmd`) as an example.
+Take **finding definition** for **batch** files (`*.bat` and `*.cmd`) as an example (for **normal users**):
 
 ### Method-1: Only Add One Extension of the New Language You Want to Support
 
 If you only want to support finding definition for `*.bat` files other than all `batch` script (`*.bat` + `*.cmd`):
 
-Add **lower case** `extension name`: "**msr.{extension}.definition**" (here `{extension}` = **bat** ) into the [file](#file-to-add-new-language-settings):
+Add **lower case** `extension name`: "**msr.{extension}.definition**" (here `{extension}` = **bat** ) into the file:
 
 ```json
   "msr.bat.definition": "^\\s*:\\s*(%1)\\b|(^|\\s)set\\s+(/a\\s+)?\\\"?(%1)="
 ```
 
-If you're interested about the explanation of the `definition` Regex above and below, see [here](https://github.com/qualiu/vscode-msr/blob/master/Add-New-Language-Support-For-Developers.md#additional-explanation-for-the-regex-pattern-used-above-when-support-batch-scripts).
+If you're interested about the explanation of the `definition` Regex above and below, see [**here**](https://github.com/qualiu/vscode-msr/blob/master/Add-New-Language-Support-For-Developers.md#additional-explanation-for-the-regex-pattern-used-above-when-support-batch-scripts).
 
 ### Method-2: Support All Extensions of the New Language by Adding 2 Mandatory Settings
 
-- Add **lower case** `language name` (as you want): "**msr.fileExtensionMap**.`{Name}`" (here `{Name}` = **batch** ) into the [file](#file-to-add-new-language-settings):
+- Add **lower case** `language name` (as you want): "**msr.fileExtensionMap**.`{Name}`" (here `{Name}` = **batch** ) into the file:
 
 ```json
   "msr.fileExtensionMap.batch": "bat cmd"
@@ -214,7 +224,7 @@ If you're interested about the explanation of the `definition` Regex above and b
 
 ### Optional: Add Other Settings if Necessary
 
-For example, if you want to overwrite `default.skip.definition` for **batch** files, add "**msr.{name}.skip.definition**" in [file](#file-to-add-new-language-settings):
+For example, if you want to overwrite `default.skip.definition` for **batch** files, add "**msr.{name}.skip.definition**" in the file:
 
 ```json
   "msr.batch.skip.definition": ""
@@ -224,7 +234,7 @@ Other settings if you want to override, add or update: see [here](https://github
 
 ### Note: Override Rule for the Language Settings in the File
 
-Explicit/Specific settings will overwrite general settings in the [file](#file-to-add-new-language-settings).
+Explicit/Specific settings will overwrite general settings in the file.
 
 For example as above: `bat` = `*.bat file`, `batch` = `*.bat + *.cmd files`, so the override results as following:
 
@@ -324,7 +334,11 @@ Note: Check [**your personal settings**](https://code.visualstudio.com/docs/gets
 
 ### Auto Set Command Shortcuts for New Terminals
 
-`msr.initProjectCmdAliasForNewTerminals` (default = `true`) to auto set/initialize command alias/doskeys for newly created terminals:
+- Default behavior:
+  - `msr.initProjectCmdAliasForNewTerminals` = `true`
+    - Auto set/initialize command alias/doskeys for newly created terminals:
+  - `msr.skipInitCmdAliasForNewTerminalTitleRegex` = `PowerShell\\s*Integrated\\s*Console`
+    - Skip set/initialize command alias/doskeys for the terminal of `PowerShell Integrated Console`.
 
 - To merge project specific `excluded folders` from `.vscode/settings.json` in each project root folder.
   - Extract folders from `files.exclude` and `search.exclude` by Regex: `^[\w-]+$` after trimming `*` at head and tail.
@@ -343,7 +357,7 @@ Note: Check [**your personal settings**](https://code.visualstudio.com/docs/gets
   // Git Bash (MinGW)
   "terminal.integrated.shell.windows": "C:\\Program Files\\Git\\bin\\bash.exe"
 
-  // Ubuntu Bash on Windows: Not tested. Please use msr.gcc48 + copy alias from a Linux VSCODE or by Cygwin below.
+  // Ubuntu Bash on Windows (WSL): Please use msr.gcc48 (copy/link to an existing path like /usr/bin/msr ) + copy alias from a Linux VSCODE or by Cygwin below.
   "terminal.integrated.shell.windows": "C:\\Windows\\System32\\bash.exe"
   ```
 
@@ -406,31 +420,36 @@ Normal Search (`default context menu`) + Extensive Search (`context menu` + `com
 
 ## Reuse the Command to Search Further or Replace Files
 
-You can **reuse** [msr.EXE](https://github.com/qualiu/msr/tree/master/tools) `original search command line` in `Visual Studio Code` output channel `MSR-Def-Ref` or terminal `MSR-RUN-CMD` to **search** + **replace** files.
+You can **reuse** [msr](https://github.com/qualiu/msr#brief-summary-of-msr-exe) `original search command line` in `Visual Studio Code` output channel `MSR-Def-Ref` or terminal `MSR-RUN-CMD` to **search** + **replace** files. More details see: [**Scenario Glance**](https://github.com/qualiu/msr#scenario-glance).
 
-- **Search files**: Filter results or further search on results based on `original search command line`:
+### Search Files with Rich Filters
 
-  Change the value of **-t** / **--np** / **--nd** if already used in command line.
+Filter results or further search on results based on `original search command line`.
 
-  - Filter result text:
-    - **-x** `"need plain text"` , **--nx** `"exclude plain-text"` , **--nt** `"exclude Regex"` , **-t** `"search/include Regex"`.
-  - Filter result file name, folder, full-path:
-    - **-d** `"match folders Regex"`, **--nd** `"exclude folder Regex"`
-    - **--pp** `"full path Regex"` , **--np** `"exclude full path Regex"` , **--xp** `"sub-paths,sub-text"`
-  - You can also add more `msr` commands to the command line like:
-    - `msr original command` **|** `msr -i -t "^\s*public" -P -A -C`
-  - Get matched file `list` (**-l**) -> Generate new command (**-o** `msr xxx`) -> Execute command (**-X**):
-    - `msr original command` **-l** -PAC **|** `msr -t "(.+)" -o "msr -p \1 -t \"class To-Search\" --nx internal"` **-X**
+Change the value of **-t** / **--np** / **--nd** if already used in command line.
 
-- **Replace files**: Reuse the `find-reference` command line or write a new one:
-  - See replaced text lines (add **-o** `replace-to-text`):
-    - `msr original command ... -t "xxx" ...` **-o** `"replace-to"`
-  - **Just** preview changed files (**-j**):
-    - `msr original command ... -t "xxx" ...` **-o** `"replace-to"` **-j**
-  - Replace files (**-R**):
-    - `msr original command ... -t "xxx" ...` **-o** `"replace-to"` **-R**
-    - Add **-K** if you want to backup changed files.
-    - Add **--force** to replace files with `BOM` header not `UTF-8 0xEFBBBF`.
+- Filter result text:
+  - **-x** `"need plain text"` , **--nx** `"exclude plain-text"` , **--nt** `"exclude Regex"` , **-t** `"search/include Regex"`.
+- Filter result file name, folder, full-path:
+  - **-d** `"match folders Regex"`, **--nd** `"exclude folder Regex"`
+  - **--pp** `"full path Regex"` , **--np** `"exclude full path Regex"` , **--xp** `"sub-paths,sub-text"`
+- You can also add more `msr` commands to the command line like:
+  - `msr original command` **|** `msr -i -t "^\s*public" -P -A -C`
+- Get matched file `list` (**-l**) -> Generate new command (**-o** `msr xxx`) -> Execute command (**-X**):
+  - `msr original command` **-l** -PAC **|** `msr -t "(.+)" -o "msr -p \1 -t \"class To-Search\" --nx internal"` **-X**
+
+### Replace files with Preview and Backup
+
+Reuse the search command above (or `find-reference` command line in `vscode`), you can also write a new comman.
+
+- See replaced text lines (add **-o** `replace-to-text`):
+  - `msr original command ... -t "xxx" ...` **-o** `"replace-to"`
+- **Just** preview changed files (**-j**):
+  - `msr original command ... -t "xxx" ...` **-o** `"replace-to"` **-j**
+- Replace files (**-R**):
+  - `msr original command ... -t "xxx" ...` **-o** `"replace-to"` **-R**
+  - Add **-K** if you want to backup changed files.
+  - Add **--force** to replace files with `BOM` header not `UTF-8 0xEFBBBF`.
 
 ## Brief Usage Summary for Search or Configuration
 
@@ -438,7 +457,7 @@ Besides the [overview doc](https://github.com/qualiu/msr/blob/master/README.md) 
 
 - Easy to add, update or tune `Regex` patterns to improve existing or support new coding languages:
   - Use above debugging method with the output info.
-  - Directly use the tiny and colorful [msr.EXE](https://github.com/qualiu/msr/tree/master/tools) of your [system type](#more-freely-to-use-and-help-you-more) to test or tune your `Regex` patterns:
+  - Directly use the tiny and colorful [msr.EXE](https://github.com/qualiu/msr#liberate--digitize-daily-works-by-2-exe-file-processing-data-mining-map-reduce) of your [system type](#more-freely-to-use-and-help-you-more) to test or tune your `Regex` patterns:
     - Input a string from input-arg (`-z`) or pipe (like `echo`):
       - msr **-z** `"class CPP_EXPORT MatchThisCppClass"` -t `"^\s*class (\w+\s+)?\bMatchThisCppClass"`
       - **echo** `class CPP_EXPORT MatchThisCppClass` `|` msr -t `"^\s*class (\w+\s+)?\bMatchThisCppClass"`
@@ -497,40 +516,55 @@ Please help to set the `Regex` patterns for them if you want. You can:
 
 Easy to check consistency of [configurations](https://github.com/qualiu/vscode-msr/blob/master/package.json) with `this document` by command lines below (you can also run command `npm run test` if you're a developer):
 
-**[nin](https://github.com/qualiu/msr/tree/master/tools)** `README.md` [package.json](https://github.com/qualiu/vscode-msr/blob/master/package.json) **"(msr\\.[\w\\.]+)"** --nt `"msr\.(exe|gcc\w+|cygwin)|project\d+|\.(My|xxx|extra\w+Group)"` --nx msr.py.extra -i -c Should no result
+**[nin](https://github.com/qualiu/msr#liberate--digitize-daily-works-by-2-exe-file-processing-data-mining-map-reduce)** `README.md` [package.json](https://github.com/qualiu/vscode-msr/blob/master/package.json) **"(msr\\.[\w\\.]+)"** --nt `"msr\.(exe|gcc\w+|cygwin)|project\d+|\.(My|xxx|extra\w+Group)"` --nx msr.py.extra -i -c Should no result
 
-**[nin](https://github.com/qualiu/msr/tree/master/tools)** `README.md` [package.json](https://github.com/qualiu/vscode-msr/blob/master/package.json) **"(msr\\.[\w\\.]+)"** --nt `"msr\.(exe|gcc\w+|cygwin)|project\d+|\.(My|xxx|extra\w+Group)"` --nx msr.py.extra -i **-m** -c Should have results
+**[nin](https://github.com/qualiu/msr#liberate--digitize-daily-works-by-2-exe-file-processing-data-mining-map-reduce)** `README.md` [package.json](https://github.com/qualiu/vscode-msr/blob/master/package.json) **"(msr\\.[\w\\.]+)"** --nt `"msr\.(exe|gcc\w+|cygwin)|project\d+|\.(My|xxx|extra\w+Group)"` --nx msr.py.extra -i **-m** -c Should have results
 
-**[nin](https://github.com/qualiu/msr/tree/master/tools)** [package.json](https://github.com/qualiu/vscode-msr/blob/master/package.json) nul -p -d -k 2 -x description -c Should no unreasonable duplicate descriptions.
+**[nin](https://github.com/qualiu/msr#liberate--digitize-daily-works-by-2-exe-file-processing-data-mining-map-reduce)** [package.json](https://github.com/qualiu/vscode-msr/blob/master/package.json) nul -p -d -k 2 -x description -c Should no unreasonable duplicate descriptions.
 
 ## Known Issues
 
-- Performance depends on system hardware conditions.
+### Performance Depends on System Hardware Conditions
 
   For example, it may slower than usual if the disk (where code files stored) is busy, or slower than expected if the hardware is too old, or CPU is too busy.
 
-- Long existing [VsCode Bug](https://github.com/microsoft/vscode/issues/96754): Unable to jump to definitions sometimes + Duplicate definition + reference results.
+### Workaround to Long Existing VsCode Bug Impact to Finding Definition and Reference
 
-  It's better to be solved by `vscode` itself to remove final duplicate results, or provide an interface for extensions to do it.
+Long existing [VsCode Bug](https://github.com/microsoft/vscode/issues/96754): `Unable to jump to definitions sometimes` + `Duplicate definition + reference results`.
 
-- One redundant finding definition was triggered if used `Ctrl` + `Mouse left click`.
+It's better to be solved by `vscode` itself to remove final duplicate results, or provide an interface for extensions to do it.
 
-  Due to both "**Peek Definition**" and "**Go to Definition**" were triggered:
+#### However, there're 2 workarounds
 
-  - **Peek Definition** was triggered by `Ctrl` + `Mouse hover`.
-  - **Go to Definition** was triggered by `Ctrl` + `Mouse left click`.
+- Set **msr.quiet** = **false**: Un-check it from user settings, which is opposite to [Set Quiet Mode](#more-settings-like-quiet-mode).
+  - This will let you see the matched results and able to **click and go to the locations**.
+  - But this may **annoy you** to activate and show 2 channels:
+    - It'll show search command + results in the `MSR-Def-Ref` channel in `OUTPUT` tab each time.
+    - And re-run search in `MSR-RUN-CMD` in `TERMINAL` tab if `got multiple results` or `no results found`.
+- Set **msr.reRunSearchInTerminalIfResultsMoreThan** = **0** (default =1).
+  - This is more **quiet**: It won't activate the channels and tabs above.
+  - This just re-run the search command in `MSR-RUN-CMD` channel in `TERMINAL` tab to let you **click and go**.
+  - You can also re-use the commands, add [**some options**](#brief-usage-summary-for-search-or-configuration) to **filter your search** or **replace files**.
+  - But, you can **only see them when** you selected them and no other channels or tabs hide them.
 
-  You can use `Ctrl + Mouse hover` to `peek definition`, use `F12` to `go to definition` as a workaround.
+### One Redundant Finding Definition was Triggered if Used `Ctrl` + `Mouse left click`
 
-- Current support of finding `definition` + `references`:
+Due to both "**Peek Definition**" and "**Go to Definition**" were triggered:
 
-  - Near-precise support: Will show **multiple results** for **same name** `classes/methods/etc`, due to this is a light tool without syntax parsing and cache.
-  - Near-precise support `class`, `methods`, `enum`, `field`, `property` for **C#**, **Python**, **Java**, **Scala**, **C++** / **C**.
-  - Rough support `class` and `method` for all type of languages (you can copy/write configurations follow existing languages).
+- **Peek Definition** was triggered by `Ctrl` + `Mouse hover`.
+- **Go to Definition** was triggered by `Ctrl` + `Mouse left click`.
+
+You can use `Ctrl + Mouse hover` to `peek definition`, use `F12` to `go to definition` as a workaround.
+
+### Current Support to Finding Definition and References
+
+- Near-precise support: Will show **multiple results** for **same name** `classes/methods/etc`, due to this is a light tool without syntax parsing and cache.
+- Near-precise support `class`, `methods`, `enum`, `field`, `property` for **C#**, **Python**, **Java**, **Scala**, **C++** / **C**.
+- Rough support `class` and `method` for all type of languages (you can copy/write configurations follow existing languages).
 
   Welcome + Please help to improve searching definitions and references for `classes` and `methods`, and add supports for `enum` , `property`, `field` etc.
 
-  See [Add New Support or Improve](#Add-New-Support-or-Improve).
+  See [easy to support new languages](#easy-to-support-new-languages) + [add new support or improve](#add-new-support-or-improve).
 
 ## Release Notes
 

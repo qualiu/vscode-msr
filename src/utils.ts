@@ -1,10 +1,11 @@
-import * as vscode from 'vscode';
-import { execSync } from 'child_process';
-import path = require('path');
 import { ParsedPath } from 'path';
-import { outputMessage, MessageLevel } from './outputUtils';
-import { ShouldQuotePathRegex, TrimSearchTextRegex } from './constants';
 import { isNullOrUndefined } from 'util';
+import * as vscode from 'vscode';
+import { IsWSL, ShouldQuotePathRegex, TrimSearchTextRegex } from './constants';
+import path = require('path');
+import fs = require('fs');
+
+export const MatchWindowsDiskRegex = /^([A-Z]):/i;
 
 export function quotePaths(paths: string) {
     if (ShouldQuotePathRegex.test(paths)) {
@@ -15,11 +16,19 @@ export function quotePaths(paths: string) {
 }
 
 export function toMinGWPath(winPath: string) {
-    return replaceText(winPath.replace(/^([A-Z]):/i, '/$1'), '\\', '/');
+    const match = MatchWindowsDiskRegex.exec(winPath);
+    if (!match) {
+        return replaceText(winPath, '\\', '/');
+    }
+    return '/' + match[1].toLowerCase() + replaceText(winPath.substring(match.length), '\\', '/');
 }
 
 export function toCygwinPath(winPath: string) {
-    return replaceText(winPath.replace(/^([A-Z]):/i, '/cygdrive/$1'), '\\', '/');
+    const match = MatchWindowsDiskRegex.exec(winPath);
+    if (!match) {
+        return replaceText(winPath, '\\', '/');
+    }
+    return '/cygdrive/' + match[1].toLowerCase() + replaceText(winPath.substring(match.length), '\\', '/');
 }
 
 export function toLinuxPathOnWindows(windowsPath: string, isCygwin: boolean, isMinGW: boolean): string {
@@ -39,6 +48,34 @@ export function toLinuxPathsOnWindows(windowsPaths: string, isCygwin: boolean, i
 
 export function toPath(parsedPath: ParsedPath) {
     return path.join(parsedPath.dir, parsedPath.base);
+}
+
+export function toWSLPath(winPath: string) {
+    const match = MatchWindowsDiskRegex.exec(winPath);
+    if (!match) {
+        return winPath;
+    }
+
+    const disk = match[1].toLowerCase();
+    const tail = replaceText(winPath.substring(match.length), '\\', '/');
+    const shortPath = '/' + disk + tail;
+    if (fs.existsSync(shortPath)) {
+        return shortPath;
+    }
+
+    return '/mnt/' + disk + tail;
+}
+
+export function toWSLPaths(winPaths: Set<string>): Set<string> {
+    if (!IsWSL) {
+        return winPaths;
+    }
+
+    let pathSet = new Set<string>();
+    winPaths.forEach(p => {
+        pathSet.add(toWSLPath(p));
+    });
+    return pathSet;
 }
 
 export function isNullOrEmpty(obj: string | undefined): boolean {
@@ -111,18 +148,4 @@ export function replaceTextByRegex(sourceText: string, toFindRegex: RegExp, repl
     }
 
     return newText;
-}
-
-export function runCommandGetInfo(command: string, showCmdLevel: MessageLevel = MessageLevel.INFO, errorOutputLevel: MessageLevel = MessageLevel.ERROR, outputLevel: MessageLevel = MessageLevel.INFO): [string, any] {
-    try {
-        outputMessage(showCmdLevel, command);
-        const output = execSync(command).toString();
-        if (output.length > 0) {
-            outputMessage(outputLevel, output);
-        }
-        return [output, null];
-    } catch (err) {
-        outputMessage(errorOutputLevel, '\n' + err.toString());
-        return ['', err];
-    }
 }

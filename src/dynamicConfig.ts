@@ -5,11 +5,11 @@ import { stringify } from 'querystring';
 import { isNullOrUndefined } from 'util';
 import * as vscode from 'vscode';
 import { MsrExe, MsrExePath } from './checkTool';
-import { HomeFolder, IsDebugMode, IsWindows, SearchTextHolderReplaceRegex } from './constants';
+import { HomeFolder, IsDebugMode, IsWindows, IsWSL, SearchTextHolderReplaceRegex } from './constants';
 import { FindType } from './enums';
-import { clearOutputChannel, enableColorAndHideCommandLine, MessageLevel, outputDebug, outputError, outputKeyInfo, RunCmdTerminalName, runCommandInTerminal, sendCmdToTerminal, showOutputChannel } from './outputUtils';
+import { clearOutputChannel, enableColorAndHideCommandLine, MessageLevel, outputDebug, outputError, outputKeyInfo, RunCmdTerminalName, runCommandGetInfo, runCommandInTerminal, sendCmdToTerminal, showOutputChannel } from './outputUtils';
 import { createRegex, escapeRegExp } from './regexUtils';
-import { getNoDuplicateStringSet, isNullOrEmpty, quotePaths, replaceText, replaceTextByRegex, runCommandGetInfo, toCygwinPath, toLinuxPathOnWindows, toLinuxPathsOnWindows, toMinGWPath } from './utils';
+import { getNoDuplicateStringSet, isNullOrEmpty, quotePaths, replaceText, replaceTextByRegex, toCygwinPath, toLinuxPathOnWindows, toLinuxPathsOnWindows, toMinGWPath, toWSLPaths } from './utils';
 
 
 const SplitPathsRegex = /\s*[,;]\s*/;
@@ -71,8 +71,8 @@ export function GetConfigPriorityPrefixes(rootFolderName: string, extension: str
     return Array.from(prefixSet);
 }
 
-export function getConfigValue(rootFolderName: string, extension: string, mappedExt: string, configTailKey: string, allowEmpty = false): string {
-    const prefixSet = GetConfigPriorityPrefixes(rootFolderName, extension, mappedExt);
+export function getConfigValue(rootFolderName: string, extension: string, mappedExt: string, configTailKey: string, allowEmpty = false, addDefault: boolean = true): string {
+    const prefixSet = GetConfigPriorityPrefixes(rootFolderName, extension, mappedExt, addDefault);
     return getOverrideConfigByPriority(prefixSet, configTailKey, allowEmpty);
 }
 
@@ -348,7 +348,7 @@ export function getSearchPathOptions(
 
     const extension = path.parse(codeFilePath).ext.replace(/^\./, '').toLowerCase();
     const subName = isFindingDefinition ? 'definition' : 'reference';
-    let skipFoldersPattern = getConfigValue(rootFolderName, extension, mappedExt, 'skipFolders');
+    let skipFoldersPattern = getSubConfigValue(rootFolderName, extension, mappedExt, subName, 'skipFolders');
     skipFoldersPattern = mergeSkipFolderPattern(skipFoldersPattern);
 
     const skipFolderOptions = useSkipFolders && skipFoldersPattern.length > 1 ? ' --nd "' + skipFoldersPattern + '"' : '';
@@ -373,14 +373,14 @@ export function getSearchPathOptions(
     (rootPaths || (isFindingDefinition ? path.parse(codeFilePath).dir : codeFilePath)).split(',').forEach(a => searchPathSet.add(a));
     thisTypeExtraSearchPaths.forEach(a => searchPathSet.add(a));
     extraSearchPathSet.forEach(a => searchPathSet.add(a));
-    searchPathSet = getNoDuplicateStringSet(searchPathSet);
+    searchPathSet = toWSLPaths(getNoDuplicateStringSet(searchPathSet));
 
     let pathsText = Array.from(searchPathSet).join(',').replace(/"/g, '');
     pathsText = quotePaths(pathsText);
 
     let pathListFileSet = new Set<string>(thisTypeExtraSearchPathListFiles);
     extraSearchPathFileListSet.forEach(a => pathListFileSet.add(a));
-    pathListFileSet = getNoDuplicateStringSet(extraSearchPathFileListSet);
+    pathListFileSet = toWSLPaths(getNoDuplicateStringSet(extraSearchPathFileListSet));
     let pathFilesText = Array.from(pathListFileSet).join(',').replace(/"/g, '');
     pathFilesText = quotePaths(pathFilesText);
 
@@ -425,7 +425,7 @@ export function getExtraSearchPathsOrFileLists(configKey: string, folderName: st
 
     const specificPaths = folderNameToPathMap.get(folderName) || '';
     splitPathList(specificPaths).forEach(a => extraSearchPaths.add(a));
-    return getNoDuplicateStringSet(extraSearchPaths);
+    return toWSLPaths(getNoDuplicateStringSet(extraSearchPaths));
 }
 
 function splitPathList(pathListText: string) {
@@ -438,7 +438,7 @@ function splitPathList(pathListText: string) {
         extraSearchPaths.add(a.trim());
     });
 
-    extraSearchPaths = getNoDuplicateStringSet(extraSearchPaths);
+    extraSearchPaths = toWSLPaths(getNoDuplicateStringSet(extraSearchPaths));
     return extraSearchPaths;
 }
 
@@ -459,6 +459,12 @@ function getDefaultCommandAliasFilePath(isWindowsTerminal: boolean, isCygwin = f
     const rootConfig = getConfig().RootConfig;
     const saveFolder = rootConfig.get('cmdAlias.saveFolder') as string || HomeFolder;
     const fileName = 'msr-cmd-alias' + (isWindowsTerminal || isCygwin || isMinGW ? '.doskeys' : '.bashrc');
+
+    // if is WSL and first time, which read Windows settings.
+    if (IsWSL && saveFolder.match(/^[A-Z]:/i)) {
+        return path.join(HomeFolder, fileName);
+    }
+
     return path.join(saveFolder, fileName);
 }
 
@@ -484,7 +490,11 @@ export function cookCmdShortcutsOrFile(
     const isCygwin = IsWindows && !isWindowsTerminal && /cygwin/i.test(shellExe);
 
     const rootConfig = getConfig().RootConfig;
-    const saveFolder = newTerminal ? os.tmpdir() : rootConfig.get('cmdAlias.saveFolder') as string || HomeFolder;
+    let saveFolder = newTerminal ? os.tmpdir() : rootConfig.get('cmdAlias.saveFolder') as string || HomeFolder;
+    if (IsWSL && saveFolder.match(/^[A-Z]:/i)) {
+        saveFolder = HomeFolder;
+    }
+
     const rootFolderName = getRootFolderName(currentFilePath) || '';
     if (isNullOrEmpty(rootFolderName) && !newTerminal) {
         useProjectSpecific = false;
@@ -617,6 +627,10 @@ export function cookCmdShortcutsOrFile(
         const slashQuotedFile = quotedFile === cmdAliasFile ? cmdAliasFile : '\\"' + cmdAliasFile + '\\"';
         const shortcutsExample = ' shortcuts like find-all-def find-pure-ref find-doc find-small , use-rp use-wp out-fp out-rp etc. See detail like: alias find-def or malias use-wp .';
         const defaultCmdAliasFile = getDefaultCommandAliasFilePath(isWindowsTerminal, isCygwin, isMinGW);
+        if (defaultCmdAliasFile !== cmdAliasFile && !fs.existsSync(defaultCmdAliasFile)) {
+            fs.copyFileSync(cmdAliasFile, defaultCmdAliasFile);
+        }
+
         const createCmdAliasTip = ' You can also create shortcuts in ';
         let finalGuide = ' You can disable msr.initProjectCmdAliasForNewTerminals in user settings. More detail: ' + CookCmdDocUrl;
         let canRunShowDef = true;
@@ -914,7 +928,7 @@ function getCommandAliasMap(
                 searchPattern = ' -t "' + searchPattern + '"';
             }
 
-            // msr.cpp.member.skip.definition  msr.cpp.skip.definition msr.default.skip.definition 
+            // msr.cpp.member.skip.definition  msr.cpp.skip.definition msr.default.skip.definition
             let skipPattern = getConfigValue(projectKey, ext, ext, 'skip.' + fd);
             if (skipPattern.length > 0) {
                 skipPattern = ' --nt "' + skipPattern + '"';
@@ -949,7 +963,7 @@ function getCommandAliasMap(
             searchPattern = ' -t "' + searchPattern + '"';
         }
 
-        // msr.cpp.member.skip.definition  msr.cpp.skip.definition msr.default.skip.definition 
+        // msr.cpp.member.skip.definition  msr.cpp.skip.definition msr.default.skip.definition
         const configNamesForSkip = fd === 'all-def' ? ['ui', 'default'] : [projectKey, 'default'];
         let skipPattern = getOverrideConfigByPriority(configNamesForSkip, 'skip.' + configKeyForSkip);
         if (skipPattern.length > 0) {

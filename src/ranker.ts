@@ -1,13 +1,13 @@
 import { ParsedPath } from 'path';
 import * as vscode from 'vscode';
 import { SearchTextHolder, SearchTextHolderReplaceRegex } from './constants';
-import { getConfig, getOverrideConfigByPriority, getOverrideOrDefaultConfig, getRootFolderName, MappedExtToCodeFilePatternMap, getConfigValue, GetConfigPriorityPrefixes } from './dynamicConfig';
-import { FindType, FindCommandType } from './enums';
+import { getConfig, GetConfigPriorityPrefixes, getConfigValue, getOverrideConfigByPriority, getOverrideOrDefaultConfig, getRootFolderName, MappedExtToCodeFilePatternMap } from './dynamicConfig';
+import { FindType } from './enums';
 import { outputDebug, outputError } from './outputUtils';
 import { createRegex, EmptyRegex, getAllSingleWords } from './regexUtils';
-import { toPath, isNullOrEmpty } from './utils';
+import { ResultType } from './ScoreTypeResult';
+import { isNullOrEmpty, toPath } from './utils';
 import path = require('path');
-import { ScoreTypeResult, ResultType } from './ScoreTypeResult';
 
 let RootConfig = getConfig().RootConfig || vscode.workspace.getConfiguration('msr');
 
@@ -410,6 +410,10 @@ export class SearchProperty {
 	}
 
 	public getTypeAndScore(resultFilePath: string, resultRow: Number, resultText: string): [ResultType, Number] {
+		if (this.findType !== FindType.Definition) {
+			return [ResultType.Other, 1];
+		}
+
 		let score = 1;
 		const isSameFile = resultFilePath === this.currentFilePath;
 		const isInSameFolder = path.parse(resultFilePath).dir === this.currentFile.dir;

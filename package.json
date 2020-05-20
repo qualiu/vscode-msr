@@ -3,7 +3,7 @@
 	"displayName": "Search code + Replace files + Find definition and references for all types.",
 	"description": "Search code + Replace files + Find definition and references in multiple repository paths by msr for all coding languages + configuration + doc files.",
 	"author": "qualiu@microsoft.com",
-	"version": "2.0.1",
+	"version": "2.0.2",
 	"icon": "images/vscode-msr-icon.png",
 	"license": "completely free",
 	"publisher": "qualiu",
@@ -40,7 +40,9 @@
 		"TypScript",
 		"JavaScript",
 		"Vue",
-		"PowerShell"
+		"PowerShell",
+		"Batch",
+		"Bash"
 	],
 	"activationEvents": [
 		"*"
@@ -1194,7 +1196,7 @@
 				},
 				"msr.ps.skip.definition": {
 					"type": "string",
-					"default": "Export-ModuleMember\\s+-\\w+"
+					"default": "^\\s*Export-ModuleMember\\s+-\\w+"
 				},
 				"msr.sh.definition": {
 					"type": "string",

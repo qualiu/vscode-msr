@@ -14,7 +14,7 @@ Take **finding definition** for **batch** files (`*.bat` and `*.cmd`) as an exam
 
 If you only want to support finding definition for `*.bat` files other than all `batch` script (`*.bat` + `*.cmd`):
 
-Add **lower case** `extension name`: "**msr.{extension}.definition**" (here `{extension}` = **bat** ) into the [file](#file-to-add-new-language-settings):
+Add **lower case** `extension name`: "**msr.{extension}.definition**" (here `{extension}` = **bat** ) into the file.
 
 ```json
   "msr.bat.definition": {
@@ -26,7 +26,7 @@ Add **lower case** `extension name`: "**msr.{extension}.definition**" (here `{ex
 
 ## Method-2: Support All Extensions of the New Language by Adding 2 Mandatory Settings
 
-- Add **lower case** `language name` (as you want): "**msr.fileExtensionMap**.`{Name}`" (here `{Name}` = **batch** ) into the [file](#file-to-add-new-language-settings):
+- Add **lower case** `language name` (as you want): "**msr.fileExtensionMap**.`{Name}`" (here `{Name}` = **batch** ) into the file:
 
 ```json
   "msr.fileExtensionMap.batch": {
@@ -48,7 +48,7 @@ Add **lower case** `extension name`: "**msr.{extension}.definition**" (here `{ex
 
 ## Optional: Add Other Settings if Necessary
 
-For example, if you want to overwrite `default.skip.definition` for **batch** files, add "**msr.{name}.skip.definition**" in [file](#file-to-add-new-language-settings):
+For example, if you want to overwrite `default.skip.definition` for **batch** files, add "**msr.{name}.skip.definition**" into the file:
 
 ```json
   "msr.batch.skip.definition": {
@@ -59,22 +59,22 @@ For example, if you want to overwrite `default.skip.definition` for **batch** fi
 
 ### Many Other Settings if You Want to Override or Add or Update
 
-- Specific type of definition Regex like:
+- Specific type of definition searching Regex like:
   - C# class: `msr.cs.class.definition`
   - C# method: `msr.cs.method.definition`
   - C# enumerate: `msr.cs.enum.definition`
   - Python class: `msr.py.class.definition`
-- Skip definition (exclude some search results from search patterns like `msr.py.class.definition`):
-  - Java `msr.java.skip.definition` for `Java` + `Scala` (see `msr.fileExtensionMap.java`)
-  - C#: `msr.cs.skip.definition` for `C#` (`*.cs` + `*.cshtml`) (see `msr.fileExtensionMap.cs`)
-  - UI: `msr.ui.skip.definition` for `JavaScript` (`*.js`, `*.jsx`) + `TypeScript`(`*.ts` + `*.tsx`) + `Vue` (`*.vue`)
-- Specific type checking before search (like determine how many Regex pattern to use: `class`, `method` and `enum` etc.):
+- Skip definition Regex (exclude some search results from search patterns like `msr.py.class.definition`):
+  - Java: `msr.java.skip.definition` for `Java`+`Scala` (see `msr.fileExtensionMap.java`)
+  - C#: `msr.cs.skip.definition` for `C#` (`*.cs`+`*.cshtml`) (see `msr.fileExtensionMap.cs`)
+  - UI: `msr.ui.skip.definition` for `JavaScript`+`TypeScript`+`Vue` (see `msr.fileExtensionMap.ui`)
+- Specific type of checking Regex before searching (to determine which Regex patterns to use: `class`, `method` and `enum` etc.):
   - Python class check: `msr.py.isFindClass`
   - Python member check: `ms.py.isFindMember` (for a class `members`, like `property`/`field` in C#)
 
 ## Note: Override Rule for the Language Settings in the File
 
-The explicit settings are over general settings in the [file](#file-to-add-new-language-settings).
+The explicit settings override general settings in the [file](#file-to-add-new-language-settings).
 
 For example as above: `bat` = `*.bat file`, `batch` = `*.bat + *.cmd files`, so the override results as following:
 

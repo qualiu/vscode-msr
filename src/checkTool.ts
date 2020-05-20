@@ -3,9 +3,9 @@ import fs = require('fs');
 import https = require('https');
 import crypto = require('crypto');
 import ChildProcess = require('child_process');
-import { outputError, clearOutputChannel, outputInfo, outputDebug, outputKeyInfo } from './outputUtils';
-import { replaceText, quotePaths } from './utils';
-import { IsWindows, HomeFolder, IsSupportedSystem, IsDebugMode } from './constants';
+import { HomeFolder, IsDebugMode, IsSupportedSystem, IsWindows } from './constants';
+import { clearOutputChannel, outputDebug, outputError, outputInfo, outputKeyInfo } from './outputUtils';
+import { quotePaths, replaceText } from './utils';
 
 let isToolExists = false;
 

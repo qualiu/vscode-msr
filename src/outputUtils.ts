@@ -1,7 +1,8 @@
+import { execSync } from 'child_process';
 import * as vscode from 'vscode';
-import { getConfig, cookCmdShortcutsOrFile } from './dynamicConfig';
-import { replaceTextByRegex } from './utils';
 import { IsWindows } from './constants';
+import { cookCmdShortcutsOrFile, getConfig } from './dynamicConfig';
+import { replaceTextByRegex } from './utils';
 
 export const RunCmdTerminalName = 'MSR-RUN-CMD';
 const OutputChannelName = 'MSR-Def-Ref';
@@ -21,6 +22,21 @@ export enum MessageLevel {
 	ERROR = 3,
 	FATAL = 4
 }
+
+export function runCommandGetInfo(command: string, showCmdLevel: MessageLevel = MessageLevel.INFO, errorOutputLevel: MessageLevel = MessageLevel.ERROR, outputLevel: MessageLevel = MessageLevel.INFO): [string, any] {
+	try {
+		outputMessage(showCmdLevel, command);
+		const output = execSync(command).toString();
+		if (output.length > 0) {
+			outputMessage(outputLevel, output);
+		}
+		return [output, null];
+	} catch (err) {
+		outputMessage(errorOutputLevel, '\n' + err.toString());
+		return ['', err];
+	}
+}
+
 
 export function outputMessage(level: MessageLevel, message: string, showWindow: boolean = true) {
 	switch (level) {

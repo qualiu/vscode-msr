@@ -13,7 +13,7 @@ suite('Extension Test Suite', () => {
     const ConfigFilePath = path.join(GitRootPath, 'package.json');
     const DocFilePath = path.join(GitRootPath, 'README.md');
     const KeyRegex = /["`](msr\.\w+[\.\w]*)/g;
-    const SkipKeysRegex = /^(msr.xxx)|\.project\d+|default.extra\w*Groups|\.My|^msr.py.extra\w*|^msr.\w+(\.\w+)?.definition|msr.\w+.codeFiles/i;
+    const SkipKeysRegex = /^(msr.xxx)|\.project\d+|default.extra\w*Groups|\.My|^msr.py.extra\w*|^msr.\w+(\.\w+)?.definition|msr.\w+.codeFiles|fileExtensionMap|\.default\.$|bat\w*\.skipFolders/i;
     const ExemptDuplicateKeyRegex = /^(msr\.)?\w*(find|sort|make)\w+$|^msr.cookCmdAlias\w*/i;
     const ExemptNoValueKeyRegex = /extra|skip.definition|extensionPattern|projectRootFolderNamePattern|cmdAlias\w*|^\w*(find|sort)\w+$/i;
     const NonStringValueRegex = /^(\d+|bool\w*$)/;
@@ -32,6 +32,7 @@ suite('Extension Test Suite', () => {
         assert.ok(fs.existsSync(DocFilePath), 'Should exist doc file: ' + DocFilePath);
         const lines = fs.readFileSync(DocFilePath).toString();
         let errorMessages = [];
+        const rootConfig = getConfig().RootConfig;
 
         let keyCount = 0;
         let m;
@@ -42,7 +43,11 @@ suite('Extension Test Suite', () => {
                 const fullKey = m[1];
                 console.log('Found doc key = ' + fullKey + ' in ' + DocFilePath);
                 if (!allKeys.has(fullKey) && !SkipKeysRegex.test(fullKey)) {
-                    errorMessages.push('Not found in configuration file: Key = ' + fullKey + ' in ' + DocFilePath);
+                    const shortKey = fullKey.replace(/^msr\./, '');
+                    const configValue = rootConfig.get(shortKey);
+                    if (configValue === undefined) {
+                        errorMessages.push('Not found in configuration file: Key = ' + fullKey + ' in ' + DocFilePath);
+                    }
                 }
             }
         } while (m);
@@ -55,6 +60,7 @@ suite('Extension Test Suite', () => {
     function readAllKeys(printInfo: boolean = false): Set<string> {
         assert.ok(fs.existsSync(ConfigFilePath), 'Should exist config file: ' + ConfigFilePath);
         const lines = fs.readFileSync(ConfigFilePath).toString();
+        const rootConfig = getConfig().RootConfig;
 
         let allKeys: string[] = [];
         let m;
@@ -64,13 +70,13 @@ suite('Extension Test Suite', () => {
                 const fullKey = m[1];
                 allKeys.push(fullKey);
                 const key = fullKey.replace(/^msr\./, '');
-                const value = getConfig().RootConfig.get(key);
+                const value = rootConfig.get(key);
                 const valueText = !value || NonStringValueRegex.test(value as string || '') ? value : '"' + value + '"';
                 if (printInfo) {
-                    console.info('Key = ' + fullKey + ' , value = ' + valueText);
+                    console.info('Found config key = ' + fullKey + ' , value = ' + valueText);
                 }
 
-                if (ExemptDuplicateKeyRegex.test(key) === false) {
+                if (ExemptDuplicateKeyRegex.test(key) === false && !key.endsWith('.')) {
                     assert.notEqual(value, undefined, 'Value should not be undefined for key = ' + fullKey);
                 }
 

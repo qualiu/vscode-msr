@@ -32,7 +32,7 @@ Note:
 
 - Currently support: **64-bit** + **32-bit** : **Windows** + **WSL** + **Linux** (`Ubuntu` + `CentOS` + `Fedora`:  `gcc/g++` >= `4.8`).
 - [**Workaround**](#workaround-to-long-existing-vscode-bug-impact-to-finding-definition-and-reference) to [long existing VsCode bug](https://github.com/microsoft/vscode/issues/96754) impact to `Go To Definition` and `Find All Reference`.
-- If `folder color` of output result file paths is not clear, see [**here**](#adjust-your-color-theme-if-result-file-path-folder-color-is-not-clear) to add/change one color theme.
+- See [**here**](#adjust-your-color-theme-if-result-file-path-folder-color-is-not-clear) if `folder color` of output result file paths is not clear: add/change one color theme.
 
 ## Features
 
@@ -81,9 +81,9 @@ Strongly recommend: Add [msr.EXE](https://github.com/qualiu/msr#liberate--digiti
 
 - You can also manually **download** the tiny [msr.EXE](https://github.com/qualiu/msr#liberate--digitize-daily-works-by-2-exe-file-processing-data-mining-map-reduce) (of your system type) , then **add** the folder to `%PATH%` or `$PATH`.
 
-  - **Use** an existing folder or **create** a tool folder like `~/tools` or `D:\tools` instead of **`system folder`**, and then add to `$PATH` or `%PATH%`.
+  - **Use** an existing folder or **create** a new folder like `~/tools` or `D:\tools` instead of **`system folder`**, then add it to `$PATH` or `%PATH%`.
 
-  - Or else, simply **copy 1 command** like below to download + copy to **`system folder`** which already existed in `$PATH`/`%PATH%`:
+  - Or simply **copy 1 command** below to download + copy to **`system folder`** which already in `$PATH` or `%PATH%`:
     - **Windows**：(If it's a 32-bit system, use **[msr-Win32.exe](https://github.com/qualiu/msr/raw/master/tools/msr-Win32.exe)**)
 
       **PowerShell** `-Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri 'https://github.com/qualiu/msr/blob/master/tools/msr.exe?raw=true' -OutFile msr.exe"` && **copy** [msr.exe](https://github.com/qualiu/msr/raw/master/tools/msr.exe) `%SystemRoot%\`
@@ -180,11 +180,27 @@ Each time it will write 1 or multiple script files to the folder of `msr.cmdAlia
 
 When you open a new terminal, will [**auto set project specific command shortcuts**](#auto-set-command-shortcuts-for-new-terminals) which most helpful to get a temporary command shortcuts of each project's specific settings plus `.vscode/settings.json` in it's root folder.
 
+## Enable Finding Definition and References for Unknown Languages
+
+Since `2.0.3`, no longer support `"Go To Definition"` or `"Find All Reference"` for **unknown languages**.
+
+But you can still use the `command platte` or `right-pop-menu` (like `Regex find references in small files`).
+
+If you want to support unknown languages, do **anyone** of below:
+
+- Set `msr.enable.onlyFindDefinitionAndReferenceForKnownLanguages` = **false** in [personal settings file](https://code.visualstudio.com/docs/getstarted/settings#_settings-file-locations) or un-check it in [user settings](https://code.visualstudio.com/docs/getstarted/settings#_creating-user-and-workspace-settings).
+- See [Easy to Support New Languages](#easy-to-support-new-languages) to add one or two config values.
+
 ## Easy to Support New Languages
 
 [Currently support well](#current-support-to-finding-definition-and-references) for: `C#`, `C++/C`, `Python`, `PowerShell`, `Batch/Bash`, `Java`, etc.
 
-Other languages use a rough support: When click `Go To Definition` just like click the **right-pop-menu**: `Regex find as 'class' or 'method' definition roughly.`
+This extension is **disabled** for some languages which has good official/professional extension support, to enable finding `definition` + `reference`:
+
+- Temporarily enable: See [temporarily toggle](#get-the-best-combined-power)(just press `Alt+F2` or menu or command palette).
+- Permanently enable: Change **msr.disable.extensionPattern** (current default value = `"tsx?|jsx?|go"`)
+
+Other languages use a rough support: When click `"Go To Definition"` just like click the **right-pop-menu**: `"Regex find as 'class' or 'method' definition roughly"`.
 
 **Two methods** to support a new language. (If you're a **developer**/**contributor** see: [**here**](https://github.com/qualiu/vscode-msr/blob/master/Add-New-Language-Support-For-Developers.md), welcome!)
 
@@ -206,7 +222,7 @@ Add **lower case** `extension name`: "**msr.{extension}.definition**" (here `{ex
   "msr.bat.definition": "^\\s*:\\s*(%1)\\b|(^|\\s)set\\s+(/a\\s+)?\\\"?(%1)="
 ```
 
-If you're interested about the explanation of the `definition` Regex above and below, see [**here**](https://github.com/qualiu/vscode-msr/blob/master/Add-New-Language-Support-For-Developers.md#additional-explanation-for-the-regex-pattern-used-above-when-support-batch-scripts).
+See [**here**](https://github.com/qualiu/vscode-msr/blob/master/Add-New-Language-Support-For-Developers.md#additional-explanation-for-the-regex-pattern-used-above-when-support-batch-scripts) if you're interested about the explanation of the `definition` Regex used above and below.
 
 ### Method-2: Support All Extensions of the New Language by Adding 2 Mandatory Settings
 
@@ -222,24 +238,11 @@ If you're interested about the explanation of the `definition` Regex above and b
   "msr.batch.definition": "^\\s*:\\s*(%1)\\b|(^|\\s)set\\s+(/a\\s+)?\\\"?(%1)="
 ```
 
-### Optional: Add Other Settings if Necessary
+Set `msr.quiet` = `false`, `msr.debug` = `true` will help you tune and debug the config values (Regex patterns).
 
-For example, if you want to overwrite `default.skip.definition` for **batch** files, add "**msr.{name}.skip.definition**" in the file:
+### Other Optional Settings and Full Priority Order of Config Override Rule
 
-```json
-  "msr.batch.skip.definition": ""
-```
-
-Other settings if you want to override, add or update: see [here](https://github.com/qualiu/vscode-msr/blob/master/Add-New-Language-Support-For-Developers.md#many-other-settings-if-you-want-to-override-or-add-or-update).
-
-### Note: Override Rule for the Language Settings in the File
-
-Explicit/Specific settings will overwrite general settings in the file.
-
-For example as above: `bat` = `*.bat file`, `batch` = `*.bat + *.cmd files`, so the override results as following:
-
-- `msr.bat.definition` overrides `msr.batch.definition` overrides `msr.default.definition`
-- `msr.bat.skip.definition` overrides `msr.batch.skip.definition` overrides `msr.default.skip.definition`
+See [optional settings](https://github.com/qualiu/vscode-msr/blob/master/Add-New-Language-Support-For-Developers.md#many-other-settings-if-you-want-to-override-or-add-or-update) and [override rule](https://github.com/qualiu/vscode-msr/blob/master/Add-New-Language-Support-For-Developers.md#full-priority-order-of-config-override-rule).
 
 ## Every Function is Under Your Control and Easy to Change
 
@@ -255,23 +258,37 @@ Set `msr.menu.visible` = `false` to hide all context menus of `Regex find xxx` +
 
 ### Get the Best Combined Power
 
-Just press `Alt+F2` to temporarily toggle `Enable`/`Disable` of `Finding Definition + References`.
+Just press `Alt+F2` to **temporarily toggle** `Enable`/`Disable` of **`Finding Definition + References`**. [Change `Alt+F2`](https://code.visualstudio.com/docs/getstarted/keybindings#_keyboard-shortcuts-editor) if hot-keys conflict.
 
-This helps your work with **best combined power** of `vscode-msr` + other plugins (like `vscode-python` / `vscode-java` etc.):
+It's useful when the official/professional plugins got problems:
 
-- Temporarily enable `vscode-msr` and use it, when the language plugin failed to find definition/references.
-- Temporarily disable `vscode-msr`, use the language plugin to find definition/references.
+- Temporarily enable `vscode-msr` when the official language plugins fail.
+- Temporarily disable `vscode-msr` when the official language plugins work well.
 
-You can [change the default shortcut key](https://code.visualstudio.com/docs/getstarted/keybindings#_keyboard-shortcuts-editor) if got conflict. You can also use 2 other methods below to toggle:
+Note for the `toggle`:
 
-- Press `F1` to open command palette, then type `msr temp` or `msr toggle` etc.
-- Make visible of the right-pop menu and use it: Press `F1` -> type `Open User Settings` -> type + change `msr.tmpToggleEnableForFindDefinitionAndReference.menu.visible`.
+- See [workaround](#workaround-to-long-existing-vscode-bug-impact-to-finding-definition-and-reference) if you encounter cases like [error impact of `vscode-python` + `vscode-powershell` to vscode](https://github.com/microsoft/vscode/issues/96754).
+- Only impact `"find definition"` + `"find references"`, you can still **search** or **replace** by menus or [command shortcuts](#command-shortcuts).
+- This is effective until you reload or restart current vscode window. (Permanent changes see settings below.)
+
+This **temporarily ignores all other settings** like below to enable/disable finding for a language:
+
+- `msr.enable.onlyFindDefinitionAndReferenceForKnownLanguages`
+  - Known language **type** means exist "msr.fileExtensionMap.**{name}**" like "msr.fileExtensionMap.**python**".
+- `msr.disable.extensionPattern`
+- `msr.disable.findDef.extensionPattern`
+- `msr.disable.projectRootFolderNamePattern`
+
+There're another 2 ways to toggle besides the hot key (`Alt+F2`):
+
+- **Command Palette**: Press `F1` to open command palette, then type `msr temp` or `msr toggle` etc.
+- **Right-Pop-Menu**: Change `msr.tmpToggleEnableForFindDefinitionAndReference.menu.visible` then use it.
 
 [Set **quiet mode**](#more-settings-like-quiet-mode) if you don't want to activate vscode tabs like `OUTPUT` and `TERMINAL`.
 
 ### Disable Finding Definition or References for Specific File Types
 
-- `msr.disable.extensionPattern`
+- `msr.disable.extensionPattern` (current default value = `"tsx?|jsx?|go"`)
 
   Regex pattern of **file name extensions** to **disable** `find definition and references`.
 

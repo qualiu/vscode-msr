@@ -149,3 +149,11 @@ export function replaceTextByRegex(sourceText: string, toFindRegex: RegExp, repl
 
     return newText;
 }
+
+export function getExtensionNoHeadDot(extension: string | undefined, defaultValue: string = 'default'): string {
+    if (isNullOrUndefined(extension) || isNullOrEmpty(extension)) {
+        return defaultValue;
+    }
+
+    return extension.replace(/^\./, '').toLowerCase();
+}

@@ -6,7 +6,7 @@ import { FindType } from './enums';
 import { outputDebug, outputError } from './outputUtils';
 import { createRegex, EmptyRegex, getAllSingleWords } from './regexUtils';
 import { ResultType } from './ScoreTypeResult';
-import { isNullOrEmpty, toPath } from './utils';
+import { getExtensionNoHeadDot, isNullOrEmpty, toPath } from './utils';
 import path = require('path');
 
 let RootConfig = getConfig().RootConfig || vscode.workspace.getConfiguration('msr');
@@ -34,17 +34,19 @@ export class SearchProperty {
 	private isEnumResultRegex: RegExp;
 	private isMethodResultRegex: RegExp;
 	private isInterfaceResultRegex: RegExp;
+	private isConstantResultRegex: RegExp;
 
 	private isFindClassRegex: RegExp;
 	private isFindMethodRegex: RegExp;
 	private isFindMemberRegex: RegExp;
+	private isFindConstantRegex: RegExp;
 	private isFindEnumRegex: RegExp;
 	private isFindClassOrEnumRegex: RegExp;
 
 	private isFindClass: boolean;
 	private isFindMethod: boolean;
 	private isFindMember: boolean;
-	private isFindConstant: boolean;
+	private isFindConstant: boolean = false;
 	private isFindEnum: boolean;
 	private isFindClassOrEnum: boolean;
 
@@ -82,8 +84,8 @@ export class SearchProperty {
 		this.currentFile = currentFile;
 		this.currentFilePath = toPath(currentFile);
 		this.mappedExt = mappedExt;
-		this.extension = currentFile.ext.replace(/^\./, '').toLowerCase();
-		this.rootFolderName = getRootFolderName(this.currentFilePath) || '';
+		this.extension = getExtensionNoHeadDot(currentFile.ext, '');
+		this.rootFolderName = getRootFolderName(this.currentFilePath);
 
 		this.isClassResultRegex = this.getCheckingRegex('isClassResult', true);
 		this.isEnumResultRegex = this.getCheckingRegex('isEnumResult', true);
@@ -95,15 +97,25 @@ export class SearchProperty {
 		this.isFindMemberRegex = this.getCheckingRegex('isFindMember', false);
 		this.isFindEnumRegex = this.getCheckingRegex('isFindEnum', false);
 		this.isFindClassOrEnumRegex = this.getCheckingRegex('isFindClassOrEnum', false);
-
 		this.methodQuoteRegex = new RegExp('\\b' + currentWord + '\\b\\s*\\(');
 
 		this.isFindClass = this.isFindClassRegex.test(currentText);
 		this.isFindMethod = this.isFindMethodRegex.test(currentText);
 		this.isFindMember = this.isFindMemberRegex.test(currentText) && !this.methodQuoteRegex.test(currentText);
-		this.isFindConstant = this.isFindConstantDefinition(currentWord, currentText);
 		this.isFindEnum = this.isFindEnumRegex.test(this.currentText);
 		this.isFindClassOrEnum = this.isFindClassOrEnumRegex.test(this.currentText);
+		this.isFindConstantRegex = this.getCheckingRegex('isFindConstant', false);
+		if (/^[A-Z]/.test(this.currentWord)) {
+			this.isFindConstant = (this.isFindConstantRegex.source === EmptyRegex.source
+				? MyConfig.DefaultConstantsRegex.test(this.currentWord)
+				: this.isFindConstantRegex.test(this.currentText)
+			) && !this.methodQuoteRegex.test(this.currentText);
+		}
+
+		this.isConstantResultRegex = this.getCheckingRegex('isConstantResult', true);
+		if (this.isConstantResultRegex.source === EmptyRegex.source) {
+			this.isConstantResultRegex = new RegExp('\\b' + this.currentWord + '\\s*=');
+		}
 
 		this.currentWordRegex = new RegExp((/^\W/.exec(this.currentWord) ? '' : '\\b') + currentWord + '\\b');
 
@@ -128,7 +140,7 @@ export class SearchProperty {
 			}
 		}
 
-		const rootFolderName = getRootFolderName(this.currentFilePath) || '';
+		const rootFolderName = getRootFolderName(this.currentFilePath);
 		const promoteFolderPattern = (RootConfig.get(rootFolderName + '.promoteFolderPattern') as string || '').trim();
 		const promotePathPattern = (RootConfig.get(rootFolderName + '.promotePathPattern') as string || '').trim();
 		this.promoteFolderRegex = createRegex(promoteFolderPattern, 'i');
@@ -239,11 +251,6 @@ export class SearchProperty {
 		}
 
 		return scoreText.trim();
-	}
-
-	private isFindConstantDefinition(word: string, lineText: string): boolean {
-		const MyConfig = getConfig();
-		return MyConfig.DefaultConstantsRegex.test(word) && !this.methodQuoteRegex.test(lineText);
 	}
 
 	private getSpecificConfigValue(configKeyTail: string, addDefault: boolean = true, allowEmpty: boolean = true): string {
@@ -419,8 +426,8 @@ export class SearchProperty {
 		const isInSameFolder = path.parse(resultFilePath).dir === this.currentFile.dir;
 		const boostFactor = isSameFile ? 2 : (isInSameFolder ? 1.5 : 1);
 
-		if (this.isFindConstantDefinition(this.currentWord, resultText)) {
-			if (resultText.indexOf('=') > 0) {
+		if (this.isFindConstant) {
+			if (this.isConstantResultRegex.test(resultText)) {
 				score += 100 * boostFactor;
 			}
 		}

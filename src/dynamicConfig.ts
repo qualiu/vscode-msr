@@ -1,15 +1,15 @@
 import fs = require('fs');
 import os = require('os');
 import path = require('path');
-import { stringify } from 'querystring';
 import { isNullOrUndefined } from 'util';
 import * as vscode from 'vscode';
 import { MsrExe, MsrExePath } from './checkTool';
+import { getFindTopDistributionCommand, getSortCommandText } from './commands';
 import { HomeFolder, IsDebugMode, IsWindows, IsWSL, SearchTextHolderReplaceRegex } from './constants';
-import { FindType } from './enums';
-import { clearOutputChannel, enableColorAndHideCommandLine, MessageLevel, outputDebug, outputError, outputKeyInfo, RunCmdTerminalName, runCommandGetInfo, runCommandInTerminal, sendCmdToTerminal, showOutputChannel } from './outputUtils';
+import { FindCommandType, FindType } from './enums';
+import { clearOutputChannel, enableColorAndHideCommandLine, MessageLevel, outputDebug, outputError, outputKeyInfo, RunCmdTerminalName, runCommandGetInfo, runCommandInTerminal, sendCmdToTerminal, showOutputChannel, outputInfo } from './outputUtils';
 import { createRegex, escapeRegExp } from './regexUtils';
-import { getNoDuplicateStringSet, isNullOrEmpty, quotePaths, replaceText, replaceTextByRegex, toCygwinPath, toLinuxPathOnWindows, toLinuxPathsOnWindows, toMinGWPath, toWSLPaths } from './utils';
+import { getExtensionNoHeadDot, getNoDuplicateStringSet, isNullOrEmpty, quotePaths, replaceText, replaceTextByRegex, toCygwinPath, toLinuxPathOnWindows, toLinuxPathsOnWindows, toMinGWPath, toWSLPaths } from './utils';
 
 
 const SplitPathsRegex = /\s*[,;]\s*/;
@@ -37,17 +37,27 @@ export function removeSearchTextForCommandLine(cmd: string): string {
     return cmd.replace(/(\s+-c)\s+Search\s+%~?1/, '$1');
 }
 
-export function getSubConfigValue(rootFolderName: string, extension: string, mappedExt: string, midKeyName: string, configTailKey: string, allowEmpty = false): string {
-    const prefixSet = new Set<string>([
-        rootFolderName + '.' + extension + '.' + midKeyName,
-        rootFolderName + '.' + mappedExt + '.' + midKeyName,
-        extension + '.' + midKeyName,
-        mappedExt + midKeyName,
-        midKeyName,
+export function getSubConfigValue(rootFolderName: string, extension: string, mappedExt: string, subKeyName: string, configTailKey: string, allowEmpty = false): string {
+    let prefixSet = new Set<string>([
+        rootFolderName + '.' + extension + '.' + subKeyName,
+        rootFolderName + '.' + mappedExt + '.' + subKeyName,
+        rootFolderName + '.' + extension,
+        rootFolderName + '.' + mappedExt,
+        rootFolderName + '.' + subKeyName,
+        rootFolderName,
+        extension + '.' + subKeyName,
+        mappedExt + '.' + subKeyName,
+        extension,
+        mappedExt,
+        subKeyName,
         'default',
         ''
     ]);
-    const prefixList = Array.from(prefixSet);
+
+    if (isNullOrEmpty(rootFolderName)) {
+        prefixSet.delete('');
+    }
+    const prefixList = Array.from(prefixSet).filter(a => !a.startsWith('.'));
     return getOverrideConfigByPriority(prefixList, configTailKey, allowEmpty);
 }
 
@@ -55,20 +65,23 @@ export function GetConfigPriorityPrefixes(rootFolderName: string, extension: str
     let prefixSet = new Set<string>([
         rootFolderName + '.' + extension,
         rootFolderName + '.' + mappedExt,
+        rootFolderName,
         extension,
         mappedExt,
         'default',
         ''
     ]);
-    prefixSet.delete('.' + extension);
-    prefixSet.delete('.' + mappedExt);
+
+    if (isNullOrEmpty(rootFolderName)) {
+        prefixSet.delete('');
+    }
 
     if (!addDefault) {
         prefixSet.delete('default');
         prefixSet.delete('');
     }
 
-    return Array.from(prefixSet);
+    return Array.from(prefixSet).filter(a => !a.startsWith('.'));
 }
 
 export function getConfigValue(rootFolderName: string, extension: string, mappedExt: string, configTailKey: string, allowEmpty = false, addDefault: boolean = true): string {
@@ -95,6 +108,7 @@ export class DynamicConfig {
 
     public ReRunCmdInTerminalIfCostLessThan: number = 3.3;
     public ReRunSearchInTerminalIfResultsMoreThan: number = 1;
+    public OnlyFindDefinitionAndReferenceForKnownLanguages: boolean = true;
 
     public ConfigAndDocFilesRegex: RegExp = new RegExp('to-load');
     public CodeAndConfigAndDocFilesRegex: RegExp = new RegExp('to-load');
@@ -109,9 +123,6 @@ export class DynamicConfig {
     public FindDefinitionInAllFolders: boolean = true;
     public FindReferencesInAllRootFolders: boolean = true;
 
-    public IsFindDefinitionEnabled: boolean = true;
-    public IsFindReferencesEnabled: boolean = true;
-
     public ExcludeFoldersFromSettings: Set<string> = new Set<string>();
 
     public InitProjectCmdAliasForNewTerminals: boolean = true;
@@ -122,12 +133,28 @@ export class DynamicConfig {
     public UseExtraPathsToFindReferences: boolean = false;
     public UseExtraPathsToFindDefinition: boolean = true;
 
-    public toggleEnableFindingDefinitionAndReference() {
-        this.IsEnabledFindingDefinitionAndReference = !this.IsEnabledFindingDefinitionAndReference;
-        this.update();
+    private TmpToggleEnabledExtensionToValueMap = new Map<string, boolean>();
 
-        outputDebug('Toggled: msr.enable.definition = ' + this.IsFindDefinitionEnabled);
-        outputDebug('Toggled: msr.enable.reference = ' + this.IsFindReferencesEnabled);
+    public isKnownLanguage(extension: string): boolean {
+        return FileExtensionToMappedExtensionMap.has(extension) || this.RootConfig.get(extension) !== undefined;
+    }
+
+    public toggleEnableFindingDefinitionAndReference(extension: string) {
+        const isKnownType = this.isKnownLanguage(extension);
+        const mappedExt = FileExtensionToMappedExtensionMap.get(extension) || extension;
+        const currentStatus = this.TmpToggleEnabledExtensionToValueMap.get(mappedExt);
+
+        let isEnabled = currentStatus === true;
+        if (undefined === currentStatus) {
+            if (isKnownType) {
+                isEnabled = !this.DisabledFileExtensionRegex.test(extension) && !this.DisableFindDefinitionFileExtensionRegex.test(extension);
+            } else {
+                isEnabled = !MyConfig.OnlyFindDefinitionAndReferenceForKnownLanguages;
+            }
+        }
+
+        this.TmpToggleEnabledExtensionToValueMap.set(mappedExt, !isEnabled);
+        outputInfo('Toggle to `' + (isEnabled ? 'disabled' : 'enabled') + '` for `' + mappedExt + '` files to find definition/references.');
     }
 
     private getConfigValue(configTailKey: string): string {
@@ -149,9 +176,7 @@ export class DynamicConfig {
             });
         }
 
-        this.IsFindDefinitionEnabled = this.getConfigValue('enable.definition') === 'true' && this.IsEnabledFindingDefinitionAndReference;
-        this.IsFindReferencesEnabled = this.getConfigValue('enable.reference') === 'true' && this.IsEnabledFindingDefinitionAndReference;
-
+        this.OnlyFindDefinitionAndReferenceForKnownLanguages = this.getConfigValue('enable.onlyFindDefinitionAndReferenceForKnownLanguages') === 'true';
         if (vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders.length > 0) {
             this.RootFolder = vscode.workspace.workspaceFolders[0].uri.fsPath;
         }
@@ -168,7 +193,7 @@ export class DynamicConfig {
         this.AutoMergeSkipFolders = this.getConfigValue('autoMergeSkipFolders') === 'true';
         this.ShowInfo = this.getConfigValue('showInfo') === 'true';
         this.IsQuiet = this.getConfigValue('quiet') === 'true';
-        this.IsDebug = IsDebugMode || this.getConfigValue('debug') === 'true';
+        this.IsDebug = this.getConfigValue('debug') === 'true';
         this.DescendingSortForConsoleOutput = this.getConfigValue('descendingSortForConsoleOutput') === 'true';
         this.DescendingSortForVSCode = this.getConfigValue('descendingSortForVSCode') === 'true';
         this.DefaultMaxSearchDepth = parseInt(this.getConfigValue('maxSearchDepth') || '0');
@@ -194,37 +219,49 @@ export class DynamicConfig {
     }
 
     public shouldSkipFinding(findType: FindType, currentFilePath: string): boolean {
-        if ((findType === FindType.Definition && !this.IsFindDefinitionEnabled) || (findType === FindType.Reference && !this.IsFindReferencesEnabled)) {
-            outputDebug('Disabled by `msr.enable.' + findType + '` or temporarily toggled enable/disable by `msr.tmpToggleEnableForFindDefinitionAndReference`');
+        const parsedFile = path.parse(currentFilePath);
+        const extension = getExtensionNoHeadDot(parsedFile.ext);
+        const mappedExt = FileExtensionToMappedExtensionMap.get(extension) || extension;
+
+        const findTypeText = 'finding `' + FindType[findType] + '` in `' + mappedExt + '` files';
+        const toggleTip = 'Change it or temporarily toggle `enable/disable`.';
+        const toggleStatus = this.TmpToggleEnabledExtensionToValueMap.get(mappedExt);
+        if (toggleStatus !== undefined) {
+            const status = true === toggleStatus ? '`enabled`' : '`disabled`';
+            outputInfo('Toggle status = ' + status + ' for ' + findTypeText + ' because menu or hot key of `msr.tmpToggleEnableForFindDefinitionAndReference` had been triggered.');
+            return false === toggleStatus;
+        }
+
+        if (this.OnlyFindDefinitionAndReferenceForKnownLanguages) {
+            if (isNullOrEmpty(mappedExt) || !this.isKnownLanguage(extension)) {
+                outputInfo('Disabled ' + findTypeText + '` files due to `msr.enable.onlyFindDefinitionAndReferenceForKnownLanguages` = true'
+                    + ' + Not exist `msr.fileExtensionMap.' + extension + '` nor `msr.' + extension + '.xxx`. ' + toggleTip);
+                return true;
+            }
+        }
+
+        const checkRegex = FindType.Definition === findType
+            ? this.DisableFindDefinitionFileExtensionRegex
+            : this.DisableFindReferenceFileExtensionRegex;
+
+        if (MyConfig.DisabledFileExtensionRegex.test(extension)) {
+            outputInfo('Disabled ' + findTypeText + ' by `msr.disable.extensionPattern` = "' + this.DisabledFileExtensionRegex.source + '". ' + toggleTip);
             return true;
         }
 
-        const parsedFile = path.parse(currentFilePath);
-        const extension = parsedFile.ext.replace(/^\./, '').toLowerCase() || 'default';
-        let shouldSkip = 0;
-
-        if (MyConfig.DisabledFileExtensionRegex.test(extension)) {
-            outputDebug('Disabled for `*.' + extension + '` file in configuration: `msr.disable.extensionPattern`');
-            shouldSkip += 1;
+        if (checkRegex.test(extension)) {
+            const configName = FindType.Definition === findType ? 'msr.disable.findDef.extensionPattern' : 'msr.disable.findRef.extensionPattern';
+            outputInfo('Disabled ' + findTypeText + '` by `' + configName + '` = "' + this.RootConfig.get(configName) + '". ' + toggleTip);
+            return true;
         }
 
-        if (FindType.Definition === findType && MyConfig.DisableFindDefinitionFileExtensionRegex.test(extension)) {
-            outputDebug('Disabled for `*.' + extension + '` file in configuration: `msr.disable.findDef.extensionPattern`');
-            shouldSkip += 1;
-        }
-
-        if (FindType.Reference === findType && MyConfig.DisableFindReferenceFileExtensionRegex.test(extension)) {
-            outputDebug('Disabled for `*.' + extension + '` file in configuration: `msr.disable.findRef.extensionPattern`');
-            shouldSkip += 1;
-        }
-
-        const rootFolderName = getRootFolderName(currentFilePath) || '';
+        const rootFolderName = getRootFolderName(currentFilePath, true);
         if (MyConfig.DisabledRootFolderNameRegex.test(rootFolderName)) {
-            outputDebug('Disabled for this git root folder in configuration: `msr.disable.projectRootFolderNamePattern` = ' + MyConfig.DisabledRootFolderNameRegex.source);
-            shouldSkip += 1;
+            outputInfo('Disabled ' + findTypeText + ' by `msr.disable.projectRootFolderNamePattern` = "' + MyConfig.DisabledRootFolderNameRegex.source + '". ' + toggleTip);
+            return true;
         }
 
-        return shouldSkip > 0;
+        return false;
     }
 
     private getExcludeFolders(keyName: string): Set<string> {
@@ -270,30 +307,29 @@ export function getConfig(reload: boolean = false): DynamicConfig {
     return MyConfig;
 }
 
-export function getRootFolder(filePath: string): string | undefined {
-    if (isNullOrEmpty(filePath)) {
-        return undefined;
-    }
-
+export function getRootFolder(filePath: string, useFirstFolderIfNotFound = false): string {
     const folderUri = vscode.workspace.getWorkspaceFolder(vscode.Uri.file(filePath));
     if (!folderUri || !folderUri.uri || !folderUri.uri.fsPath) {
-        return undefined;
+        if (useFirstFolderIfNotFound && vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders.length > 0) {
+            return vscode.workspace.workspaceFolders[0].uri.fsPath;
+        }
+        return '';
     }
 
     return folderUri.uri.fsPath;
 }
 
-export function getRootFolderName(filePath: string): string | undefined {
-    const folder = getRootFolder(filePath);
-    return isNullOrUndefined(folder) ? undefined : path.parse(folder).base;
+export function getRootFolderName(filePath: string, useFirstFolderIfNotFound = false): string {
+    const folder = getRootFolder(filePath, useFirstFolderIfNotFound);
+    return isNullOrUndefined(folder) ? '' : path.parse(folder).base;
 }
 
-export function getRootFolders(currentFilePath: string): string | undefined {
+export function getRootFolders(currentFilePath: string): string {
     if (!vscode.workspace.workspaceFolders || vscode.workspace.workspaceFolders.length < 1) {
-        return undefined;
+        return '';
     }
 
-    let rootFolderSet = new Set<string>().add(getRootFolder(currentFilePath) || '');
+    let rootFolderSet = new Set<string>().add(getRootFolder(currentFilePath));
     vscode.workspace.workspaceFolders.forEach(a => rootFolderSet.add(a.uri.fsPath));
     rootFolderSet.delete('');
     return Array.from(rootFolderSet).join(',');
@@ -332,6 +368,7 @@ export function getOverrideOrDefaultConfig(mappedExtOrFolderName: string, suffix
 }
 
 export function getSearchPathOptions(
+    useProjectSpecific: boolean,
     codeFilePath: string,
     mappedExt: string,
     isFindingDefinition: boolean,
@@ -340,15 +377,16 @@ export function getSearchPathOptions(
     useSkipFolders: boolean = true,
     usePathListFiles: boolean = true): string {
 
-    const rootConfig = getConfig().RootConfig;
-    const rootFolderName = getRootFolderName(codeFilePath) || '';
-    const rootPaths = !MyConfig.FindReferencesInAllRootFolders
-        ? getRootFolder(codeFilePath)
-        : getRootFolders(codeFilePath);
+    const rootFolderName = getRootFolderName(codeFilePath, true);
+    const rootPaths = MyConfig.FindReferencesInAllRootFolders
+        ? getRootFolders(codeFilePath)
+        : getRootFolder(codeFilePath);
 
-    const extension = path.parse(codeFilePath).ext.replace(/^\./, '').toLowerCase();
+    const folderKey = useProjectSpecific ? rootFolderName : '';
+    const folderKeyDefault = isNullOrEmpty(folderKey) ? 'default' : folderKey;
+    const extension = getExtensionNoHeadDot(path.parse(codeFilePath).ext, '');
     const subName = isFindingDefinition ? 'definition' : 'reference';
-    let skipFoldersPattern = getSubConfigValue(rootFolderName, extension, mappedExt, subName, 'skipFolders');
+    let skipFoldersPattern = getSubConfigValue(folderKey, extension, mappedExt, subName, 'skipFolders');
     skipFoldersPattern = mergeSkipFolderPattern(skipFoldersPattern);
 
     const skipFolderOptions = useSkipFolders && skipFoldersPattern.length > 1 ? ' --nd "' + skipFoldersPattern + '"' : '';
@@ -358,13 +396,13 @@ export function getSearchPathOptions(
             : '-rp ' + quotePaths(rootPaths) + skipFolderOptions;
     }
 
-    let extraSearchPathSet = getExtraSearchPathsOrFileLists('default.extraSearchPaths', rootFolderName);
-    getExtraSearchPathsOrFileLists('default.extraSearchPathGroups', rootFolderName).forEach(a => extraSearchPathSet.add(a));
-    splitPathList(rootConfig.get(rootFolderName + '.extraSearchPaths') as string).forEach((a => extraSearchPathSet.add(a)));
+    let extraSearchPathSet = getExtraSearchPathsOrFileLists('default.extraSearchPaths', folderKeyDefault);
+    getExtraSearchPathsOrFileLists('default.extraSearchPathGroups', folderKey).forEach(a => extraSearchPathSet.add(a));
+    getExtraSearchPathsOrFileLists(folderKeyDefault + '.extraSearchPaths', '').forEach(a => extraSearchPathSet.add(a));
 
-    let extraSearchPathFileListSet = getExtraSearchPathsOrFileLists('default.extraSearchPathListFiles', rootFolderName);
-    getExtraSearchPathsOrFileLists('default.extraSearchPathListFileGroups', rootFolderName).forEach(a => extraSearchPathFileListSet.add(a));
-    splitPathList(rootConfig.get(rootFolderName + '.extraSearchPathListFiles') as string).forEach((a => extraSearchPathFileListSet.add(a)));
+    let extraSearchPathFileListSet = getExtraSearchPathsOrFileLists('default.extraSearchPathListFiles', folderKeyDefault);
+    getExtraSearchPathsOrFileLists('default.extraSearchPathListFileGroups', folderKeyDefault).forEach(a => extraSearchPathFileListSet.add(a));
+    getExtraSearchPathsOrFileLists(folderKeyDefault + '.extraSearchPathListFiles', '').forEach(a => extraSearchPathFileListSet.add(a));
 
     const thisTypeExtraSearchPaths = !isFindingDefinition ? new Set<string>() : getExtraSearchPathsOrFileLists(mappedExt + '.extraSearchPaths', rootFolderName);
     const thisTypeExtraSearchPathListFiles = !isFindingDefinition ? new Set<string>() : getExtraSearchPathsOrFileLists(mappedExt + '.extraSearchPathListFiles', rootFolderName);
@@ -377,6 +415,9 @@ export function getSearchPathOptions(
 
     let pathsText = Array.from(searchPathSet).join(',').replace(/"/g, '');
     pathsText = quotePaths(pathsText);
+    if (isNullOrEmpty(pathsText)) {
+        pathsText = '.';
+    }
 
     let pathListFileSet = new Set<string>(thisTypeExtraSearchPathListFiles);
     extraSearchPathFileListSet.forEach(a => pathListFileSet.add(a));
@@ -406,7 +447,9 @@ export function getExtraSearchPathsOrFileLists(configKey: string, folderName: st
         const pathArray = extraPathObject as string[];
         if (pathArray) {
             pathArray.forEach(a => {
-                a.trim().split(SplitPathGroupsRegex).filter(a => a.length > 0).forEach(g => extraSearchPathGroups.push(a));
+                a.trim().split(SplitPathGroupsRegex)
+                    .filter(a => a.length > 0)
+                    .forEach(g => extraSearchPathGroups.push(g));
             });
         }
     }
@@ -495,7 +538,8 @@ export function cookCmdShortcutsOrFile(
         saveFolder = HomeFolder;
     }
 
-    const rootFolderName = getRootFolderName(currentFilePath) || '';
+    const rootFolder = getRootFolder(currentFilePath, useProjectSpecific);
+    const rootFolderName = getRootFolderName(rootFolder);
     if (isNullOrEmpty(rootFolderName) && !newTerminal) {
         useProjectSpecific = false;
     }
@@ -520,6 +564,20 @@ export function cookCmdShortcutsOrFile(
     } else if (!isWindowsTerminal) {
         cmdAliasMap.set('malias', getCommandAliasText('malias', 'alias | msr -PI -t "^\\s*alias\\s+($1)"', true, false, writeToEachFile));
     }
+
+    [FindCommandType.FindTopFolder, FindCommandType.FindTopType, FindCommandType.FindTopSourceFolder, FindCommandType.FindTopSourceType, FindCommandType.FindTopCodeFolder, FindCommandType.FindTopCodeType].forEach(findTopCmd => {
+        const findTopBody = getFindTopDistributionCommand(useProjectSpecific, true, findTopCmd, rootFolder);
+        let aliasName = replaceTextByRegex(FindCommandType[findTopCmd], /([a-z])([A-Z])/, '$1-$2');
+        aliasName = replaceTextByRegex(aliasName, /^-|-$/, '').toLowerCase();
+        cmdAliasMap.set(aliasName, getCommandAliasText(aliasName, findTopBody, false, isWindowsTerminal, writeToEachFile, false, false));
+    });
+
+    [FindCommandType.SortBySize, FindCommandType.SortByTime, FindCommandType.SortSourceBySize, FindCommandType.SortSourceByTime, FindCommandType.SortCodeBySize, FindCommandType.SortCodeByTime].forEach(sortCmd => {
+        const sortBody = getSortCommandText(useProjectSpecific, true, sortCmd, rootFolder, true);
+        let aliasName = replaceTextByRegex(FindCommandType[sortCmd], /([a-z])([A-Z])/, '$1-$2');
+        aliasName = replaceTextByRegex(aliasName, /^-|-$/, '').toLowerCase();
+        cmdAliasMap.set(aliasName, getCommandAliasText(aliasName, sortBody, false, isWindowsTerminal, writeToEachFile, false, false));
+    });
 
     const useFullPathsBody = getPathCmdAliasBody(true, cmdAliasFile, false);
     cmdAliasMap.set('use-wp', getCommandAliasText('use-wp', useFullPathsBody, false, isWindowsTerminal, writeToEachFile, false, false));
@@ -606,7 +664,7 @@ export function cookCmdShortcutsOrFile(
         const hasChanged = allText !== existedText;
         if (hasChanged) {
             if (!isNullOrEmpty(existedText) && newTerminal && !MyConfig.OverwriteProjectCmdAliasForNewTerminals) {
-                outputDebug(`Found msr.OverwriteProjectCmdAliasForNewTerminals = false, Skip writing temp command shortcuts file: ${cmdAliasFile}`);
+                outputDebug(`Found msr.overwriteProjectCmdAliasForNewTerminals = false, Skip writing temp command shortcuts file: ${cmdAliasFile}`);
             } else {
                 try {
                     fs.writeFileSync(cmdAliasFile, allText);
@@ -625,7 +683,7 @@ export function cookCmdShortcutsOrFile(
         }
 
         const slashQuotedFile = quotedFile === cmdAliasFile ? cmdAliasFile : '\\"' + cmdAliasFile + '\\"';
-        const shortcutsExample = ' shortcuts like find-all-def find-pure-ref find-doc find-small , use-rp use-wp out-fp out-rp etc. See detail like: alias find-def or malias use-wp .';
+        const shortcutsExample = ' shortcuts like find-all-def find-pure-ref find-doc find-small , use-rp use-wp out-fp out-rp , find-top-folder find-top-type sort-code-by-time etc. See detail like: alias find-def or malias use-wp .';
         const defaultCmdAliasFile = getDefaultCommandAliasFilePath(isWindowsTerminal, isCygwin, isMinGW);
         if (defaultCmdAliasFile !== cmdAliasFile && !fs.existsSync(defaultCmdAliasFile)) {
             fs.copyFileSync(cmdAliasFile, defaultCmdAliasFile);
@@ -646,7 +704,7 @@ export function cookCmdShortcutsOrFile(
                     cmd = setEnvCmd + 'cmd /k ' + '"doskey /MACROFILE=' + quotedFileForPS + ' && doskey /macros | msr -t find-def -x msr --nx use- --nt out- -e \\s+-+\\w+\\S* -PM'
                         + ' & echo. & echo Type exit if you want to back to Powershell without ' + commands.length + shortcutsExample
                         + finalGuide
-                        + ' | msr -aPA -e .+ -ix powershell -t m*alias^|find\\S+^|out-\\S+^|use-\\S+^|msr.init\\S+^|\\S*msr-cmd-alias\\S*'
+                        + ' | msr -aPA -e .+ -ix powershell -t m*alias^|find-\\S+^|sort-\\S+^|out-\\S+^|use-\\S+^|msr.init\\S+^|\\S*msr-cmd-alias\\S*'
                         + '"';
                     runCmdInTerminal(cmd, true); //, MsrExe === 'msr');
                 } else if (/cmd/i.test(newTerminal.name + newTerminalShellPath)) {
@@ -677,6 +735,7 @@ export function cookCmdShortcutsOrFile(
                 }
             }
             else {
+                finalGuide = createCmdAliasTip + defaultCmdAliasFile + ' .' + finalGuide;
                 checkSetPathBeforeRunDoskeyAlias('doskey /MACROFILE="' + cmdAliasFile + '"', false);
                 const regCmd = 'REG ADD "HKEY_CURRENT_USER\\Software\\Microsoft\\Command Processor" /v Autorun /d "DOSKEY /MACROFILE=' + slashQuotedFile + '" /f';
                 runCmdInTerminal(regCmd, true);
@@ -692,7 +751,7 @@ export function cookCmdShortcutsOrFile(
 
         if (canRunShowDef || !newTerminal) {
             runCmdInTerminal('echo Now you can use ' + commands.length + shortcutsExample
-                + finalGuide + ' | msr -aPA -e .+ -x ' + commands.length + ' -it "find-\\S+|out-\\S+|use-\\S+|msr.init\\S+|\\S*msr-cmd-alias\\S*|(m*alias [\\w-]+)"', true);
+                + finalGuide + ' | msr -aPA -e .+ -x ' + commands.length + ' -it "find-\\S+|sort-\\S+|out-\\S+|use-\\S+|msr.init\\S+|\\S*msr-cmd-alias\\S*|(m*alias [\\w-]+)"', true);
         }
 
         if (!newTerminal) {
@@ -709,8 +768,8 @@ export function cookCmdShortcutsOrFile(
         const loadCmdAliasCmd = (isWindowsTerminal ? "doskey /MACROFILE=" : "source ") + tmpSaveFile;
 
         const rootFolder = MyConfig.RootFolder;
-        const findDefinitionPathOptions = getSearchPathOptions(rootFolder, "all", true, MyConfig.UseExtraPathsToFindReferences, MyConfig.UseExtraPathsToFindDefinition, false, false);
-        const findReferencesPathOptions = getSearchPathOptions(rootFolder, "all", false, MyConfig.UseExtraPathsToFindReferences, MyConfig.UseExtraPathsToFindDefinition, false, false);
+        const findDefinitionPathOptions = getSearchPathOptions(useProjectSpecific, rootFolder, "all", true, MyConfig.UseExtraPathsToFindReferences, MyConfig.UseExtraPathsToFindDefinition, false, false);
+        const findReferencesPathOptions = getSearchPathOptions(useProjectSpecific, rootFolder, "all", false, MyConfig.UseExtraPathsToFindReferences, MyConfig.UseExtraPathsToFindDefinition, false, false);
         const pathsForDefinition = toLinuxPathsOnWindows(findDefinitionPathOptions.replace(/\s*-r?p\s+/, ""), isCygwin, isMinGW);
         const pathsForOthers = toLinuxPathsOnWindows(findReferencesPathOptions.replace(/\s*-r?p\s+/, ""), isCygwin, isMinGW);
         if (pathsForDefinition.includes(" ") || pathsForOthers.includes(" ")) {
@@ -877,12 +936,8 @@ function getCommandAliasMap(
     dumpOtherCmdAlias: boolean = false,
     newTerminal: vscode.Terminal | undefined = undefined)
     : [Map<string, string>, number, string[]] {
-
-    const rootConfig = getConfig().RootConfig;
     const isWindowsTerminal = IsWindows && (!newTerminal || !/bash/i.test(newTerminal.name));
     const projectKey = useProjectSpecific ? (rootFolderName || '') : 'notUseProject';
-    const configText = stringify(rootConfig);
-    const configKeyHeads = new Set<string>(configText.split(/=(true|false)?(&|$)/));
     let skipFoldersPattern = getOverrideConfigByPriority([projectKey, 'default'], 'skipFolders') || '^([\\.\\$]|(Release|Debug|objd?|bin|node_modules|static|dist|target|(Js)?Packages|\\w+-packages?)$|__pycache__)';
     if (useProjectSpecific) {
         skipFoldersPattern = mergeSkipFolderPattern(skipFoldersPattern);

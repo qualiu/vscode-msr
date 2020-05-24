@@ -19,7 +19,6 @@ Add **lower case** `extension name`: "**msr.{extension}.definition**" (here `{ex
 ```json
   "msr.bat.definition": {
     "description": "Batch file extension of *.bat file only (Not support *.cmd file).",
-    "type": "string",
     "default": "^\\s*:\\s*(%1)\\b|(^|\\s)set\\s+(/a\\s+)?\\\"?(%1)="
   }
 ```
@@ -31,7 +30,6 @@ Add **lower case** `extension name`: "**msr.{extension}.definition**" (here `{ex
 ```json
   "msr.fileExtensionMap.batch": {
     "description": "Batch file extensions (*.bat + *.cmd files)",
-    "type": "string",
     "default": "bat cmd"
   }
 ```
@@ -41,47 +39,11 @@ Add **lower case** `extension name`: "**msr.{extension}.definition**" (here `{ex
 ```json
   "msr.batch.definition": {
     "description": "Regex pattern to search batch file definitions of a function or variable.",
-    "type": "string",
     "default": "^\\s*:\\s*(%1)\\b|(^|\\s)set\\s+(/a\\s+)?\\\"?(%1)="
   }
 ```
 
-## Optional: Add Other Settings if Necessary
-
-For example, if you want to overwrite `default.skip.definition` for **batch** files, add "**msr.{name}.skip.definition**" into the file:
-
-```json
-  "msr.batch.skip.definition": {
-    "type": "string",
-    "default": ""
-  }
-```
-
-### Many Other Settings if You Want to Override or Add or Update
-
-- Specific type of definition searching Regex like:
-  - C# class: `msr.cs.class.definition`
-  - C# method: `msr.cs.method.definition`
-  - C# enumerate: `msr.cs.enum.definition`
-  - Python class: `msr.py.class.definition`
-- Skip definition Regex (exclude some search results from search patterns like `msr.py.class.definition`):
-  - Java: `msr.java.skip.definition` for `Java`+`Scala` (see `msr.fileExtensionMap.java`)
-  - C#: `msr.cs.skip.definition` for `C#` (`*.cs`+`*.cshtml`) (see `msr.fileExtensionMap.cs`)
-  - UI: `msr.ui.skip.definition` for `JavaScript`+`TypeScript`+`Vue` (see `msr.fileExtensionMap.ui`)
-- Specific type of checking Regex before searching (to determine which Regex patterns to use: `class`, `method` and `enum` etc.):
-  - Python class check: `msr.py.isFindClass`
-  - Python member check: `ms.py.isFindMember` (for a class `members`, like `property`/`field` in C#)
-
-## Note: Override Rule for the Language Settings in the File
-
-The explicit settings override general settings in the [file](#file-to-add-new-language-settings).
-
-For example as above: `bat` = `*.bat file`, `batch` = `*.bat + *.cmd files`, so the override results as following:
-
-- `msr.bat.definition` overrides `msr.batch.definition` overrides `msr.default.definition`
-- `msr.bat.skip.definition` overrides `msr.batch.skip.definition` overrides `msr.default.skip.definition`
-
-## Additional Explanation for the Regex Pattern Used above when Support Batch Scripts
+### Additional Explanation for the Regex Pattern Used above when Support Batch Scripts
 
 - Batch script's function definition match pattern (Functions are often written at the head of a line):
   - `^\s*:MyFunction` to match functions like `:{MyFunction}` at head of lines.
@@ -97,3 +59,61 @@ For example as above: `bat` = `*.bat file`, `batch` = `*.bat + *.cmd files`, so 
   - `^\s*:\s*(%1)\b|(^|\s)set\s+(/a\\s+)?\\"?(%1)=`
 - Finally, escape the slash `\` to `\\` for JSON file content:
   - `"^\\s*:\\s*(%1)\\b|(^|\\s)set\\s+(/a\\s+)?\\\"?(%1)="`
+
+## Optional: Add Other Settings if Necessary
+
+For example, if you want to overwrite `default.skip.definition` for **batch** files, add "**msr.{name}.skip.definition**" into the file:
+
+```json
+  "msr.batch.skip.definition": {
+    "default": ""
+  }
+```
+  
+### Many Other Settings if You Want to Override or Add or Update
+
+- Specific type of definition searching Regex like:
+  - C# class: `msr.cs.class.definition`
+  - C# method: `msr.cs.method.definition`
+  - C# enumerate: `msr.cs.enum.definition`
+  - Python class: `msr.py.class.definition`
+- Skip definition Regex (exclude some search results from search patterns like `msr.py.class.definition`):
+  - Java: `msr.java.skip.definition` for `Java`+`Scala` (see `msr.fileExtensionMap.java`)
+  - C#: `msr.cs.skip.definition` for `C#` (`*.cs`+`*.cshtml`) (see `msr.fileExtensionMap.cs`)
+  - UI: `msr.ui.skip.definition` for `JavaScript`+`TypeScript`+`Vue` (see `msr.fileExtensionMap.ui`)
+- Specific type of checking Regex before searching (to determine which Regex patterns to use: `class`, `method` and `enum` etc.):
+  - Python class check: `msr.py.isFindClass`
+  - Python member check: `ms.py.isFindMember` (for a class `members`, like `property`/`field` in C#)
+
+### Note: Override Rule for the Language Settings in the File
+
+Explicit/Specific settings will overwrite general settings in the file.
+
+For `bat`/`batch` file example as above: `bat` = `*.bat file`, `batch` = `*.bat + *.cmd files`, so the override results as following:
+
+- `msr.bat.definition` overrides `msr.batch.definition` overrides `msr.default.definition`
+- `msr.bat.skip.definition` overrides `msr.batch.skip.definition` overrides `msr.default.skip.definition`
+
+### Full Priority Order of Config Override Rule
+
+Take `skipFolders` of finding `definition` as an example, **priority order** as below: (`{subKey}` = `definition`, `{tailKey}` = `skipFolders`)
+
+- `msr.{rootFolderName}.{extension}.{subKey}.{tailKey}` like **`msr.MyRepoName.bat.definition.skipFolders`**
+- `msr.{rootFolderName}.{mappedExt}.{subKey}.{tailKey}` like **`msr.MyRepoName.batch.definition.skipFolders`**
+- `msr.{rootFolderName}.{extension}.{tailKey}` like **`msr.MyRepoName.bat.skipFolders`**
+- `msr.{rootFolderName}.{mappedExt}.{tailKey}` like **`msr.MyRepoName.batch.skipFolders`**
+- `msr.{rootFolderName}.{tailKey}` like **`msr.MyRepoName.skipFolders`**
+- `msr.{extension}.{subKey}.{tailKey}` like `msr.bat.definition.skipFolders`
+- `msr.{mappedExt}.{subKey}.{tailKey}` like `msr.batch.definition.skipFolders`
+- `msr.{extension}.{tailKey}` like `msr.bat.skipFolders`
+- `msr.{mappedExt}.{tailKey}` like `msr.batch.skipFolders`
+- `msr.default.{subKey}.{tailKey}` like `msr.default.definition.skipFolders`
+- `msr.default.{tailKey}` like `msr.default.skipFolders`
+  
+Note:
+
+- The `{rootFolderName}` is the local `save folder name` of a `git repository`, it's better to **no white spaces**.
+- `mappedExt` is a general name for a language like `cpp` or `java`, you can name it to anything as you want: `msr.fileExtensionMap.{mappedExt}`.
+- `extension` is one file extension of `mappedExt` like `cpp` / `h` / `hpp`.
+- Some config value maybe no `{subKey}`, follow the same priority order above, just ignore/remove `{subKey}`.
+

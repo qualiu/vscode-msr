@@ -4,6 +4,18 @@ All notable changes to the "vscode-msr" extension will be documented in this fil
 
 Detail see `vscode-msr` extension [commit history](https://github.com/qualiu/vscode-msr/commits/master).
 
+## [2.0.3]
+
+- Added `msr.enable.onlyFindDefinitionAndReferenceForKnownLanguages` = `true` to skip finding definition and reference for unknown languages.
+- Put `msr.tmpToggleEnableForFindDefinitionAndReference` to first priority to temporarily disable/enable finding for a language, ignore other settings.
+- Added support for `golang` but disabled as default by `msr.disable.extensionPattern`.
+- Updated root folder priority for configs like `msr.{rootFolderName}.skipFolders`.
+- Improved `skipFolder` and override rule.
+- Simplified `package.config` by removing `"type": "string"` rows.
+- Added `Find Top xxx` command palette + will write them into doskeys/alias files when cooking command shortcuts.
+- Will write `Sort xxx` commands into doskeys/alias files when cooking command shortcuts.
+- Added optional checking for `nin` and will auto download it when running `find top xxx` command palette.
+
 ## [2.0.2]
 
 - Solved initial command alias path style on `WSL` (Windows Subsystem for Linux), which read from Windows settings.

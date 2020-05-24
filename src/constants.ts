@@ -1,7 +1,7 @@
 import path = require('path');
 import ChildProcess = require('child_process');
 
-export const IsDebugMode = false; // process.execArgv && process.execArgv.length > 0 && process.execArgv.some((arg) => /^--debug=?/.test(arg) || /^--(debug|inspect)-brk=?/.test(arg));
+export const IsDebugMode = process.execArgv && process.execArgv.length > 0 && process.execArgv.some((arg) => /^--debug=?/.test(arg) || /^--(debug|inspect)-brk=?/.test(arg));
 export const SearchTextHolder = '%1';
 export const SearchTextHolderReplaceRegex = /%~?1/g;
 export const IsSupportedSystem = /win32|Windows|Linux/i.test(process.platform);

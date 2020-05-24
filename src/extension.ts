@@ -11,7 +11,7 @@ import { clearOutputChannel, disposeTerminal, outputDebug, outputDebugOrInfo, ou
 import { SearchProperty } from './ranker';
 import { escapeRegExp } from './regexUtils';
 import { ResultType, ScoreTypeResult } from './ScoreTypeResult';
-import { getCurrentWordAndText, isNullOrEmpty, quotePaths, toPath } from './utils';
+import { getCurrentWordAndText, getExtensionNoHeadDot, isNullOrEmpty, quotePaths, toPath } from './utils';
 
 import ChildProcess = require('child_process');
 import path = require('path');
@@ -150,21 +150,29 @@ export function registerExtension(context: vscode.ExtensionContext) {
 		(textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit, ...args: any[]) =>
 			runFindingCommand(FindCommandType.FindPlainTextInAllSmallFiles, textEditor)));
 
-	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.sortProjectFilesBySize',
+	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.sortSourceBySize',
 		(textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit, ...args: any[]) =>
-			runFindingCommand(FindCommandType.SortProjectFilesBySize, textEditor)));
+			runFindingCommand(FindCommandType.SortSourceBySize, textEditor)));
 
-	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.sortProjectFilesByTime',
+	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.sortSourceByTime',
 		(textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit, ...args: any[]) =>
-			runFindingCommand(FindCommandType.SortProjectFilesByTime, textEditor)));
+			runFindingCommand(FindCommandType.SortSourceByTime, textEditor)));
 
-	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.sortAllFilesBySize',
+	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.sortBySize',
 		(textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit, ...args: any[]) =>
-			runFindingCommand(FindCommandType.SortAllFilesBySize, textEditor)));
+			runFindingCommand(FindCommandType.SortBySize, textEditor)));
 
-	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.sortAllFilesByTime',
+	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.sortByTime',
 		(textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit, ...args: any[]) =>
-			runFindingCommand(FindCommandType.SortAllFilesByTime, textEditor)));
+			runFindingCommand(FindCommandType.SortByTime, textEditor)));
+
+	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.sortCodeBySize',
+		(textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit, ...args: any[]) =>
+			runFindingCommand(FindCommandType.SortCodeBySize, textEditor)));
+
+	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.sortCodeByTime',
+		(textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit, ...args: any[]) =>
+			runFindingCommand(FindCommandType.SortCodeByTime, textEditor)));
 
 	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.cookCmdAlias',
 		(textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit, ...args: any[]) =>
@@ -190,10 +198,35 @@ export function registerExtension(context: vscode.ExtensionContext) {
 		(textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit, ...args: any[]) =>
 			cookCmdShortcutsOrFile(textEditor.document.uri.fsPath, true, true, undefined, '', true)));
 
-	context.subscriptions.push(vscode.commands.registerCommand('msr.tmpToggleEnableForFindDefinitionAndReference',
-		(...args: any[]) => {
-			getConfig().toggleEnableFindingDefinitionAndReference();
+	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.tmpToggleEnableForFindDefinitionAndReference',
+		(textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit, ...args: any[]) => {
+			const extension = getExtensionNoHeadDot(path.parse(textEditor.document.uri.fsPath).ext);
+			getConfig().toggleEnableFindingDefinitionAndReference(extension);
 		}));
+
+	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.findTopFolder',
+		(textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit, ...args: any[]) =>
+			runFindingCommand(FindCommandType.FindTopFolder, textEditor)));
+
+	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.findTopType',
+		(textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit, ...args: any[]) =>
+			runFindingCommand(FindCommandType.FindTopType, textEditor)));
+
+	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.findTopSourceFolder',
+		(textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit, ...args: any[]) =>
+			runFindingCommand(FindCommandType.FindTopSourceFolder, textEditor)));
+
+	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.findTopSourceType',
+		(textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit, ...args: any[]) =>
+			runFindingCommand(FindCommandType.FindTopSourceType, textEditor)));
+
+	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.findTopCodeFolder',
+		(textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit, ...args: any[]) =>
+			runFindingCommand(FindCommandType.FindTopCodeFolder, textEditor)));
+
+	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.findTopCodeType',
+		(textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit, ...args: any[]) =>
+			runFindingCommand(FindCommandType.FindTopCodeType, textEditor)));
 }
 
 // this method is called when your extension is deactivated
@@ -201,40 +234,36 @@ export function deactivate() { }
 
 export class DefinitionFinder implements vscode.DefinitionProvider {
 	public async provideDefinition(document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken): Promise<vscode.Location[] | null> {
-		if (MyConfig.IsFindDefinitionEnabled) {
-			const forceSetSearchPaths = [document.fileName, path.parse(document.fileName).dir, ''];
-			for (let k = 0; k < forceSetSearchPaths.length; k++) {
-				const allResults = await searchMatchedWords(FindType.Definition, document, position, token, forceSetSearchPaths[k]);
-				if (allResults && allResults.length > 0) {
-					return Promise.resolve(allResults);
-				}
-			}
-
-			return searchDefinitionInCurrentFile(document, position, token).then(currentFileResults => {
-				if (currentFileResults && currentFileResults.length > 0) {
-					return Promise.resolve(currentFileResults);
-				}
-				else {
-					return Promise.resolve(searchLocalVariableDefinitionInCurrentFile(document, position, token));
-				}
-			});
-		} else {
-			outputDebug('Your extension "vscode-msr": Finding definition is disabled by setting of `msr.enable.definition`'
-				+ ' or temporarily toggled enable/disable by `msr.tmpToggleEnableForFindDefinitionAndReference`.');
-			return Promise.reject(null);
+		if (MyConfig.shouldSkipFinding(FindType.Definition, document.fileName)) {
+			return Promise.reject();
 		}
+
+		const forceSetSearchPaths = [document.fileName, path.parse(document.fileName).dir, ''];
+		for (let k = 0; k < forceSetSearchPaths.length; k++) {
+			const allResults = await searchMatchedWords(FindType.Definition, document, position, token, forceSetSearchPaths[k]);
+			if (allResults && allResults.length > 0) {
+				return Promise.resolve(allResults);
+			}
+		}
+
+		return searchDefinitionInCurrentFile(document, position, token).then(currentFileResults => {
+			if (currentFileResults && currentFileResults.length > 0) {
+				return Promise.resolve(currentFileResults);
+			}
+			else {
+				return Promise.resolve(searchLocalVariableDefinitionInCurrentFile(document, position, token));
+			}
+		});
 	}
 }
 
 export class ReferenceFinder implements vscode.ReferenceProvider {
 	public async provideReferences(document: vscode.TextDocument, position: vscode.Position, context: vscode.ReferenceContext, token: vscode.CancellationToken): Promise<vscode.Location[] | null> {
-		if (MyConfig.IsFindReferencesEnabled) {
-			return searchMatchedWords(FindType.Reference, document, position, token);
-		} else {
-			outputDebug('Your extension "vscode-msr": Finding reference is disabled by setting of `msr.enable.reference`'
-				+ ' or temporarily toggled enable/disable by `msr.tmpToggleEnableForFindDefinitionAndReference`.');
-			return Promise.reject(null);
+		if (MyConfig.shouldSkipFinding(FindType.Reference, document.fileName)) {
+			return Promise.reject();
 		}
+
+		return searchMatchedWords(FindType.Reference, document, position, token);
 	}
 }
 
@@ -246,9 +275,9 @@ function isTooFrequentSearch() {
 	return ms < 900;
 }
 
-function getCurrentFileSearchInfo(findType: FindType, document: vscode.TextDocument, position: vscode.Position, escapeTextForRegex: boolean = true): [path.ParsedPath, string, string, vscode.Range, string] {
+function getCurrentFileSearchInfo(document: vscode.TextDocument, position: vscode.Position, escapeTextForRegex: boolean = true): [path.ParsedPath, string, string, vscode.Range, string] {
 	const parsedFile = path.parse(document.fileName);
-	const extension = parsedFile.ext.replace(/^\./, '').toLowerCase() || 'default';
+	const extension = getExtensionNoHeadDot(parsedFile.ext);
 	let [currentWord, currentWordRange, currentText] = getCurrentWordAndText(document, position);
 	if (currentWord.length < 2 || !currentWordRange || !checkSearchToolExists()) {
 		return [parsedFile, extension, '', new vscode.Range(new vscode.Position(0, 0), new vscode.Position(0, 0)), ''];
@@ -265,18 +294,14 @@ function getCurrentFileSearchInfo(findType: FindType, document: vscode.TextDocum
 
 function searchMatchedWords(findType: FindType, document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken, forceSetSearchPath: string = ''): Thenable<vscode.Location[]> {
 	try {
-		if (MyConfig.shouldSkipFinding(findType, document.uri.fsPath)) {
-			return Promise.reject();
-		}
-
-		const [parsedFile, extension, currentWord, currentWordRange, currentText] = getCurrentFileSearchInfo(findType, document, position);
+		const [parsedFile, extension, currentWord, currentWordRange, currentText] = getCurrentFileSearchInfo(document, position);
 		if (!checkSearchToolExists() || token.isCancellationRequested || currentWord.length < 2 || !currentWordRange) {
 			return Promise.reject();
 		}
 
 		clearOutputChannel();
 
-		const rootFolderName = getRootFolderName(document.uri.fsPath) || '';
+		const rootFolderName = getRootFolderName(document.uri.fsPath);
 
 		const mappedExt = FileExtensionToMappedExtensionMap.get(extension) || extension;
 		if (MyConfig.IsDebug) {
@@ -301,7 +326,7 @@ function searchMatchedWords(findType: FindType, document: vscode.TextDocument, p
 		if (isSearchOneFile) {
 			extraOptions = "-I -C " + (isFindDefinition ? '-J -H 60' : '-J -H 360');
 		} else {
-			extraOptions = getRootFolderExtraOptions(rootFolderName) + getSubConfigValue(rootFolderName, extension, mappedExt, configKeyName, 'extraOptions');
+			extraOptions = getRootFolderExtraOptions(rootFolderName) + ' ' + getSubConfigValue(rootFolderName, extension, mappedExt, configKeyName, 'extraOptions');
 			// if (skipTestPathFiles && /test/i.test(document.fileName) === false && /\s+--np\s+/.test(extraOptions) === false) {
 			// 	extraOptions = '--np test ' + extraOptions;
 			// }
@@ -311,7 +336,7 @@ function searchMatchedWords(findType: FindType, document: vscode.TextDocument, p
 		const useExtraSearchPathsForDefinition = 'true' === getConfigValue(rootFolderName, extension, mappedExt, 'findDefinition.useExtraPaths');
 
 		const searchPathOptions = isNullOrEmpty(forceSetSearchPath)
-			? getSearchPathOptions(document.uri.fsPath, mappedExt, isFindDefinition, useExtraSearchPathsForReference, useExtraSearchPathsForDefinition)
+			? getSearchPathOptions(false, document.uri.fsPath, mappedExt, isFindDefinition, useExtraSearchPathsForReference, useExtraSearchPathsForDefinition)
 			: '-p ' + quotePaths(forceSetSearchPath);
 
 		let commandLine = 'msr ' + searchPathOptions;
@@ -324,9 +349,9 @@ function searchMatchedWords(findType: FindType, document: vscode.TextDocument, p
 		}
 
 		if (FindType.Definition === findType) {
-			commandLine += ' ' + searchOptions + ' ' + extraOptions;
+			commandLine += ' ' + searchOptions + ' ' + extraOptions.trim();
 		} else {
-			commandLine += ' ' + extraOptions + ' ' + searchOptions;
+			commandLine += ' ' + extraOptions + ' ' + searchOptions.trim();
 		}
 
 		commandLine = commandLine.trim().replace(SearchTextHolderReplaceRegex, currentWord);
@@ -341,11 +366,7 @@ function searchMatchedWords(findType: FindType, document: vscode.TextDocument, p
 }
 
 function searchDefinitionInCurrentFile(document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken): Thenable<vscode.Location[]> {
-	if (MyConfig.shouldSkipFinding(FindType.Definition, document.uri.fsPath)) {
-		return Promise.reject();
-	}
-
-	const [parsedFile, extension, currentWord, currentWordRange, currentText] = getCurrentFileSearchInfo(FindType.Definition, document, position);
+	const [parsedFile, extension, currentWord, currentWordRange, currentText] = getCurrentFileSearchInfo(document, position);
 	if (!checkSearchToolExists() || token.isCancellationRequested || currentWord.length < 2 || !currentWordRange) {
 		return Promise.reject();
 	}
@@ -371,11 +392,7 @@ function searchDefinitionInCurrentFile(document: vscode.TextDocument, position: 
 }
 
 function searchLocalVariableDefinitionInCurrentFile(document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken): Thenable<vscode.Location[]> {
-	if (MyConfig.shouldSkipFinding(FindType.Reference, document.uri.fsPath)) {
-		return Promise.reject();
-	}
-
-	const [parsedFile, extension, currentWord, currentWordRange, currentText] = getCurrentFileSearchInfo(FindType.Definition, document, position);
+	const [parsedFile, extension, currentWord, currentWordRange, currentText] = getCurrentFileSearchInfo(document, position);
 	if (!checkSearchToolExists() || token.isCancellationRequested || currentWord.length < 2 || !currentWordRange) {
 		return Promise.reject();
 	}
@@ -394,7 +411,7 @@ function searchLocalVariableDefinitionInCurrentFile(document: vscode.TextDocumen
 
 function getMatchedLocationsAsync(findType: FindType, cmd: string, ranker: SearchProperty, token: vscode.CancellationToken): Thenable<vscode.Location[]> {
 	const options: ExecOptions = {
-		cwd: getRootFolder(toPath(ranker.currentFile)) || ranker.currentFile.dir,
+		cwd: getRootFolder(toPath(ranker.currentFile), true) || ranker.currentFile.dir,
 		timeout: 60 * 1000,
 		maxBuffer: 10240000,
 	};
@@ -418,7 +435,6 @@ function getMatchedLocationsAsync(findType: FindType, cmd: string, ranker: Searc
 				}
 			}
 
-			// if (!isNullOrEmpty(stdout)) { return Promise.reject(); }
 			const allResults: vscode.Location[] = isNullOrEmpty(stdout) ? [] : parseCommandOutput(stdout, findType, cmd, ranker);
 
 			if (stderr) {
@@ -536,7 +552,7 @@ function parseCommandOutput(stdout: string, findType: FindType, cmd: string, ran
 	}
 
 	const subName = FindType[findType].toLowerCase();
-	const rootFolderName = getRootFolderName(toPath(ranker.currentFile)) || '';
+	const rootFolderName = getRootFolderName(toPath(ranker.currentFile));
 	const removeLowScoreResultsFactor = Number(getConfigValue(rootFolderName, ranker.extension, ranker.mappedExt, 'removeLowScoreResultsFactor') || 0.8);
 	const keepHighScoreResultCount = Number(getConfigValue(rootFolderName, ranker.extension, ranker.mappedExt, 'keepHighScoreResultCount') || -1);
 

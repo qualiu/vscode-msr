@@ -1,14 +1,19 @@
 import * as vscode from 'vscode';
-import { MsrExe } from './checkTool';
-import { SearchTextHolderReplaceRegex, SkipJumpOutForHeadResultsRegex } from './constants';
-import { FileExtensionToMappedExtensionMap, getConfig, getConfigValue, getOverrideConfigByPriority, getRootFolderExtraOptions, getRootFolderName, getSearchPathOptions, getSubConfigValue, removeSearchTextForCommandLine } from './dynamicConfig';
+import { checkAndDownloadTool, MsrExe } from './checkTool';
+import { HomeFolder, SearchTextHolderReplaceRegex, SkipJumpOutForHeadResultsRegex } from './constants';
+import { FileExtensionToMappedExtensionMap, getConfig, getConfigValue, getOverrideConfigByPriority, getRootFolder, getRootFolderExtraOptions, getRootFolderName, getSearchPathOptions, getSubConfigValue, removeSearchTextForCommandLine } from './dynamicConfig';
 import { FindCommandType } from './enums';
-import { enableColorAndHideCommandLine, outputDebug, runCommandInTerminal } from './outputUtils';
+import { enableColorAndHideCommandLine, outputDebug, outputInfo, runCommandInTerminal } from './outputUtils';
 import { SearchProperty } from './ranker';
 import { escapeRegExp, NormalTextRegex } from './regexUtils';
-import { getCurrentWordAndText, quotePaths, toPath } from './utils';
+import { getCurrentWordAndText, getExtensionNoHeadDot, isNullOrEmpty, quotePaths, replaceTextByRegex, toPath } from './utils';
 import path = require('path');
 
+const ReplaceSearchPathRegex = /-r?p\s+\S+|-r?p\s+\".+?\"/;
+
+function replaceSearchPathToDot(searchPathsOptions: string): string {
+    return replaceTextByRegex(searchPathsOptions, ReplaceSearchPathRegex, '-rp .');
+}
 
 export function runFindingCommand(findCmd: FindCommandType, textEditor: vscode.TextEditor) {
     const RootConfig = vscode.workspace.getConfiguration('msr');
@@ -22,34 +27,128 @@ export function runFindingCommand(findCmd: FindCommandType, textEditor: vscode.T
     const searchText = findCmdText.match(/Regex/i) ? escapeRegExp(rawSearchText) : rawSearchText;
 
     const parsedFile = path.parse(textEditor.document.fileName);
-    const command = getFindingCommandByCurrentWord(findCmd, searchText, parsedFile, rawSearchText, undefined);
+    let command = getFindingCommandByCurrentWord(findCmd, searchText, parsedFile, rawSearchText, undefined);
+    if (findCmdText.includes('FindTop')) {
+        const [hasGotExe, ninExePath] = checkAndDownloadTool('nin');
+        if (!hasGotExe) {
+            outputInfo('Not found nin to run ' + findCmdText + ' command:\n' + command, true);
+            return;
+        } else if (!isNullOrEmpty(ninExePath)) {
+            const folder = path.parse(ninExePath).dir;
+            if (folder === HomeFolder) {
+                command = command.replace(/\s*\|\s*nin\s+/, ' | ' + ninExePath + ' ');
+            }
+        }
+    }
+
     runCommandInTerminal(command, true, getConfig().ClearTerminalBeforeExecutingCommands);
 }
 
 export function runFindingCommandByCurrentWord(findCmd: FindCommandType, searchText: string, parsedFile: path.ParsedPath, rawSearchText: string = '') {
     const command = getFindingCommandByCurrentWord(findCmd, searchText, parsedFile, rawSearchText, undefined);
-    runCommandInTerminal(command, !getConfig().IsQuiet, getConfig().ClearTerminalBeforeExecutingCommands);
+    const myConfig = getConfig();
+    runCommandInTerminal(command, !myConfig.IsQuiet, myConfig.ClearTerminalBeforeExecutingCommands);
+}
+
+export function getSortCommandText(useProjectSpecific: boolean, addOptionalArgs: boolean, findCmd: FindCommandType, rootFolder = '', isCookingCmdAlias = false): string {
+    const findCmdText = FindCommandType[findCmd];
+    if (isNullOrEmpty(rootFolder) && useProjectSpecific) {
+        rootFolder = vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders.length > 0
+            ? vscode.workspace.workspaceFolders[0].uri.fsPath
+            : '.';
+    }
+
+    const rootFolderName = getRootFolderName(rootFolder, useProjectSpecific);
+    const folderKey = useProjectSpecific ? rootFolderName : 'default';
+    let filePattern = '';
+    if (findCmdText.includes('SortSource')) {
+        filePattern = getOverrideConfigByPriority([folderKey, 'default'], 'allFiles');
+    } else if (findCmdText.includes('SortCode')) {
+        filePattern = getOverrideConfigByPriority([folderKey, 'default'], 'codeFiles');
+    }
+
+    if (!isNullOrEmpty(filePattern)) {
+        filePattern = ' -f "' + filePattern + '"';
+    }
+
+    const optionalArgs = addOptionalArgs ? ' $*' : '';
+    let extraOptions = ' ' + getRootFolderExtraOptions(folderKey);
+    extraOptions += (findCmdText.match(/BySize/i) ? '--sz --wt' : '--wt --sz');
+    extraOptions += ' ' + getOverrideConfigByPriority([folderKey, 'default'], 'listSortingFilesOptions') as string || '-l -H 10 -T 10';
+
+    let searchPathsOptions = getSearchPathOptions(useProjectSpecific, rootFolder, '', FindCommandType.RegexFindDefinitionInCodeFiles === findCmd);
+
+    if (isCookingCmdAlias) {
+        extraOptions = replaceTextByRegex(extraOptions, /\s+(-[lICc]\s+|-[HT]\s*\d+)/, ' ');
+        extraOptions = extraOptions.trim() + ' -l' + optionalArgs;
+        searchPathsOptions = replaceSearchPathToDot(searchPathsOptions);
+    }
+
+    extraOptions = extraOptions.trim();
+    const command = MsrExe + ' ' + searchPathsOptions + filePattern + ' ' + extraOptions.trim();
+    return command.trimRight();
+}
+
+export function getFindTopDistributionCommand(useProjectSpecific: boolean, addOptionalArgs: boolean, findCmd: FindCommandType, rootFolder = ''): string {
+    const findCmdText = FindCommandType[findCmd];
+    if (isNullOrEmpty(rootFolder) && useProjectSpecific) {
+        rootFolder = vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders.length > 0
+            ? vscode.workspace.workspaceFolders[0].uri.fsPath
+            : '.';
+    }
+
+    const rootFolderName = getRootFolderName(rootFolder, useProjectSpecific);
+    const folderKey = useProjectSpecific ? rootFolderName : 'default';
+    let filePattern = '';
+    if (findCmdText.includes('TopSource')) {
+        filePattern = getOverrideConfigByPriority([folderKey, 'default'], 'allFiles');
+    } else if (findCmdText.includes('TopCode')) {
+        filePattern = getOverrideConfigByPriority([folderKey, 'default'], 'codeFiles');
+    }
+
+    if (!isNullOrEmpty(filePattern)) {
+        filePattern = ' -f "' + filePattern + '"';
+    }
+
+    const optionalArgs = addOptionalArgs ? ' $*' : '';
+    const extraOptions = "-l -PAC --xd -k 18";
+    const useExtraPaths = 'true' === getConfigValue(folderKey, '', '', 'findingCommands.useExtraPaths');
+    let searchPathsOptions = getSearchPathOptions(useProjectSpecific, rootFolder, '', FindCommandType.RegexFindDefinitionInCodeFiles === findCmd, useExtraPaths, useExtraPaths);
+    searchPathsOptions = replaceSearchPathToDot(searchPathsOptions);
+    let command = MsrExe + ' ' + searchPathsOptions + filePattern + ' ' + extraOptions.trim();
+    if (findCmdText.includes('Folder')) {
+        command += ' | nin nul "^([^\\\\/]+)[\\\\/]" -p -d ' + optionalArgs;
+    } else {
+        command += ' | nin nul "\\.(\\w+)$" -p -d ' + optionalArgs;
+    }
+
+    return command.trimRight();
 }
 
 export function getFindingCommandByCurrentWord(findCmd: FindCommandType, searchText: string, parsedFile: path.ParsedPath, rawSearchText: string = '', ranker: SearchProperty | undefined): string {
-    const extension = parsedFile.ext.replace(/^\./, '').toLowerCase() || 'default';
+    const extension = getExtensionNoHeadDot(parsedFile.ext);
     const mappedExt = FileExtensionToMappedExtensionMap.get(extension) || extension;
-
+    const rootFolder = getRootFolder(toPath(parsedFile), true) || '.';
+    const rootFolderName = getRootFolderName(rootFolder, true);
     const findCmdText = FindCommandType[findCmd];
-    const isSorting = findCmdText.match(/Sort/i) !== null;
 
-    if (!isSorting && searchText.length < 2) {
+    if (findCmdText.includes('Sort')) {
+        return getSortCommandText(true, false, findCmd, rootFolder);
+    }
+
+    if (findCmdText.includes('Top')) {
+        return getFindTopDistributionCommand(true, false, findCmd, rootFolder);
+    }
+
+    if (searchText.length < 2) {
         return '';
     }
 
     rawSearchText = rawSearchText.length < 1 ? searchText : rawSearchText;
 
-    const RootConfig = vscode.workspace.getConfiguration('msr');
     const isFindDefinition = findCmdText.indexOf('Definition') >= 0;
     const isFindReference = findCmdText.indexOf('Reference') >= 0;
     const isFindPlainText = findCmdText.indexOf('FindPlainText') >= 0;
-
-    const rootFolderName = getRootFolderName(toPath(parsedFile)) || '';
 
     let extraOptions = isFindDefinition
         ? getSubConfigValue(rootFolderName, extension, mappedExt, 'definition', 'extraOptions')
@@ -57,8 +156,6 @@ export function getFindingCommandByCurrentWord(findCmd: FindCommandType, searchT
             ? getSubConfigValue(rootFolderName, extension, mappedExt, 'reference', 'extraOptions')
             : getConfigValue(rootFolderName, extension, mappedExt, 'extraOptions')
         );
-
-    extraOptions = getRootFolderExtraOptions(rootFolderName) + extraOptions;
 
     let searchPattern = isFindDefinition
         ? getConfigValue(rootFolderName, extension, mappedExt, 'definition')
@@ -138,15 +235,8 @@ export function getFindingCommandByCurrentWord(findCmd: FindCommandType, searchT
             filePattern = getOverrideConfigByPriority([rootFolderName, 'default'], 'codeAndConfig') as string;
             break;
 
-        case FindCommandType.SortAllFilesBySize:
-        case FindCommandType.SortAllFilesByTime:
-            filePattern = '';
-            break;
-
         case FindCommandType.RegexFindReferencesInAllProjectFiles:
         case FindCommandType.FindPlainTextInAllProjectFiles:
-        case FindCommandType.SortProjectFilesBySize:
-        case FindCommandType.SortProjectFilesByTime:
             filePattern = getOverrideConfigByPriority([rootFolderName, 'default'], 'allFiles') as string;
             break;
 
@@ -154,7 +244,12 @@ export function getFindingCommandByCurrentWord(findCmd: FindCommandType, searchT
         case FindCommandType.FindPlainTextInAllSmallFiles:
         default:
             filePattern = '';
-            extraOptions = getRootFolderExtraOptions(rootFolderName) + (RootConfig.get('allSmallFiles.extraOptions') as string || '').trim();
+            const smallFileExtraOptions = isFindReference
+                ? getSubConfigValue(rootFolderName, extension, mappedExt, 'reference', 'allSmallFiles.extraOptions')
+                : getConfigValue(rootFolderName, extension, mappedExt, 'allSmallFiles.extraOptions');
+            if (!isNullOrEmpty(smallFileExtraOptions)) {
+                extraOptions = smallFileExtraOptions;
+            }
             break;
     }
 
@@ -162,14 +257,7 @@ export function getFindingCommandByCurrentWord(findCmd: FindCommandType, searchT
     //     filePattern = (MappedExtToCodeFilePatternMap.get(mappedExt) || getOverrideConfigByPriority([rootFolderName, 'default'], 'scriptFiles')) as string;
     // }
 
-    if (isSorting) {
-        searchPattern = '';
-        skipTextPattern = '';
-        extraOptions = getRootFolderExtraOptions(rootFolderName);
-        extraOptions += ' ' + (findCmdText.match(/BySize/i) ? '--sz --wt' : '--wt --sz');
-        extraOptions += ' ' + getOverrideConfigByPriority([rootFolderName, 'default'], 'listSortingFilesOptions') as string || '-l -H 10 -T 10';
-        extraOptions = extraOptions.trim();
-    } else if (isFindPlainText) {
+    if (isFindPlainText) {
         searchPattern = ' -x "' + rawSearchText.replace(/"/g, '\\"') + '"';
         skipTextPattern = '';
     } else if (searchPattern.length > 0) {
@@ -183,8 +271,9 @@ export function getFindingCommandByCurrentWord(findCmd: FindCommandType, searchT
         }
     }
 
-    const useExtraPaths = !isSorting && 'true' === getConfigValue(rootFolderName, extension, mappedExt, 'findingCommands.useExtraPaths');
-    const searchPathsOptions = getSearchPathOptions(toPath(parsedFile), mappedExt, FindCommandType.RegexFindDefinitionInCodeFiles === findCmd, useExtraPaths, useExtraPaths);
+    const useExtraPaths = 'true' === getConfigValue(rootFolderName, extension, mappedExt, 'findingCommands.useExtraPaths');
+    const searchPathsOptions = getSearchPathOptions(true, toPath(parsedFile), mappedExt, FindCommandType.RegexFindDefinitionInCodeFiles === findCmd, useExtraPaths, useExtraPaths);
+
     if (filePattern.length > 0) {
         filePattern = ' -f "' + filePattern + '"';
     }
@@ -195,7 +284,7 @@ export function getFindingCommandByCurrentWord(findCmd: FindCommandType, searchT
         skipTextPattern = ' --nt "' + skipTextPattern + '"';
     }
 
-    if (extraOptions && extraOptions.length > 1) {
+    if (!isNullOrEmpty(extraOptions)) {
         extraOptions = ' ' + extraOptions;
     }
 
@@ -218,14 +307,8 @@ export function getFindingCommandByCurrentWord(findCmd: FindCommandType, searchT
     }
 
     command = command.replace(SearchTextHolderReplaceRegex, searchText).trim();
-    if (findCmd === FindCommandType.RegexFindDefinitionInCodeFiles && NormalTextRegex.test(rawSearchText)) {
-        // command = command.replace('Search ' + searchText, 'Search ' + searchText + ' roughly');
-    }
-
-    if (!isSorting) {
-        command = command.replace(SkipJumpOutForHeadResultsRegex, ' ').trim();
-    }
-
+    command = command.replace(SkipJumpOutForHeadResultsRegex, ' ').trim();
     command = enableColorAndHideCommandLine(command);
+
     return command;
 }

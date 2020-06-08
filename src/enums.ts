@@ -4,6 +4,15 @@ export enum FindType {
     Reference = 2,
 }
 
+export enum TerminalType {
+    CMD = 1,
+    LinuxBash = 2,
+    PowerShell = 3,
+    CygwinBash = 4,
+    MinGWBash = 5,
+    WslBash = 6
+}
+
 export enum FindCommandType {
     RegexFindDefinitionInCodeFiles,
     RegexFindDefinitionInCurrentFile,

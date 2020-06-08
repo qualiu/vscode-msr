@@ -3,7 +3,7 @@
 	"displayName": "Search code + Replace files + Find definition and references for all types.",
 	"description": "Search code + Replace files + Find definition and references in multiple repository paths by msr for all coding languages + configuration + doc files.",
 	"author": "qualiu@microsoft.com",
-	"version": "2.0.3",
+	"version": "2.0.4",
 	"icon": "images/vscode-msr-icon.png",
 	"license": "completely free",
 	"publisher": "qualiu",
@@ -770,12 +770,12 @@
 				"msr.cookCmdAlias.menu.visible": {
 					"type": "boolean",
 					"default": true,
-					"description": "Cook general command alias/doskey (like 'find-def', 'find-doc') to help fast search in/out vscode."
+					"description": "Cook 1 file of general command alias/doskey (like 'find-def', 'find-doc') to help fast search in/out vscode."
 				},
 				"msr.cookCmdAliasByProject.menu.visible": {
 					"type": "boolean",
 					"default": false,
-					"description": "Cook command alias/doskey by settings of default + overwritten-by-project to help fast search in/out vscode."
+					"description": "Cook 1 file of command alias/doskey by settings of default + overwritten-by-project to help fast search in/out vscode."
 				},
 				"msr.cookCmdAliasFiles.menu.visible": {
 					"type": "boolean",
@@ -1058,7 +1058,7 @@
 					"description": "Default Regex pattern to skip folders. You can set each project's additional skip patterns: `msr.{root-folder-name}.definition.skipFolders` or `msr.{root-folder-name}.reference.skipFolders` in your personal settings file like `%APPDATA%\\Code\\User\\settings.json` on Windows (See doc: https://github.com/qualiu/vscode-msr/blob/master/README.md#specific-extra-search-paths-settings)."
 				},
 				"msr.default.allFiles": {
-					"default": "\\.(cs(html)?|cpp|cxx|h|hpp|cc?|c\\+{2}|\\w+proj|sln|nuspec|config|props|java|scala|py|go|php|vue|tsx?|jsx?|json|ya?ml|xml|ini|md|ipynb)$|^readme|^make\\w+$",
+					"default": "\\.(cs(html)?|cpp|cxx|h|hpp|cc?|c\\+{2}|\\w+proj|sln|nuspec|config|props|java|scala|py|go|php|vue|tsx?|jsx?|json|ya?ml|xml|ini|md|ipynb|sh|bat|cmd|psm?1)$|^readme|^make\\w+$",
 					"description": "Default Regex pattern for files to search."
 				},
 				"msr.default.codeFiles": {
@@ -1094,7 +1094,7 @@
 					"description": "Default Regex pattern to filter non-definitions."
 				},
 				"msr.default.definition": {
-					"default": "^\\s*(#\\s*define\\s+|(p\\w+|internal|readonly|const|static)\\s+[\\w\\s]*?)\\b(%1)\\b|^\\s*\\w+[^=\\(\\./#;:]+\\s+(%1)\\s*(?:[\\(\\{:<]|extends|implements|$)",
+					"default": "^\\s*(#\\s*define\\s+|(p\\w+|internal|readonly|const|static|type)\\s+[\\w\\s]*?)\\b(%1)\\b|^\\s*\\w+[^=\\(\\./#;:]+\\s+(%1)\\s*(?:[\\(\\{:<]|extends|implements|$)",
 					"description": "Default Regex pattern to find definitions of a word (class, method, etc.). Must use `%1` to be replaced by word to search."
 				},
 				"msr.default.reference": {

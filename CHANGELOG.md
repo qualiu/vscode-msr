@@ -4,6 +4,19 @@ All notable changes to the "vscode-msr" extension will be documented in this fil
 
 Detail see `vscode-msr` extension [commit history](https://github.com/qualiu/vscode-msr/commits/master).
 
+## [2.0.4]
+
+- Supported `MSR-RUN-CMD` with `bash terminal` of Cygwin + MinGW + WSL.
+- Fully supported `WSL` + `MinGW` + `Cygwin` without any manual configurations nor downloading.
+- Improved terminal command alias initialization for `MSR-RUN-CMD`.
+- Added script files to `msr.default.allFiles` which will benefit `find-all` command alias.
+- After consideration: Auto check `nin` existence and download it if not exist, to avoid missing `nin` when using `find-top-xxx`.
+- Improved `find-all` `find-def` `find-ref` + `find-script` + `find-config`.
+- Removed size limitation for `sort-xxx` commands.
+- Use `wget.exe` as the download tool if found on Windows.
+- Track and show time costs of loading extension + cooking command shortcuts + other important steps. Enable `msr.debug` to see them.
+- Updated doc.
+
 ## [2.0.3]
 
 - Added `msr.enable.onlyFindDefinitionAndReferenceForKnownLanguages` = `true` to skip finding definition and reference for unknown languages.

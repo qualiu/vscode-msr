@@ -2,7 +2,7 @@ import { execSync } from 'child_process';
 import * as vscode from 'vscode';
 import { IsWindows } from './constants';
 import { cookCmdShortcutsOrFile, getConfig } from './dynamicConfig';
-import { replaceTextByRegex } from './utils';
+import { nowText, replaceTextByRegex } from './utils';
 
 export const RunCmdTerminalName = 'MSR-RUN-CMD';
 const OutputChannelName = 'MSR-Def-Ref';
@@ -16,11 +16,12 @@ const ClearCmd = IsWindows && !UsePowershell ? 'cls' : "clear";
 const ShowColorHideCmdRegex = /\s+-[Cc](\s+|$)/g;
 
 export enum MessageLevel {
-	DEBUG = 0,
-	INFO = 1,
-	WARN = 2,
-	ERROR = 3,
-	FATAL = 4
+	None = 0,
+	DEBUG = 1,
+	INFO = 2,
+	WARN = 3,
+	ERROR = 4,
+	FATAL = 5
 }
 
 export function runCommandGetInfo(command: string, showCmdLevel: MessageLevel = MessageLevel.INFO, errorOutputLevel: MessageLevel = MessageLevel.ERROR, outputLevel: MessageLevel = MessageLevel.INFO): [string, any] {
@@ -66,7 +67,7 @@ export function getTerminal(): vscode.Terminal {
 		if (vscode.workspace.getConfiguration('msr').get('initProjectCmdAliasForNewTerminals') as boolean) {
 			const folders = vscode.workspace.workspaceFolders;
 			const currentPath = folders && folders.length > 0 ? folders[0].uri.fsPath : '.';
-			cookCmdShortcutsOrFile(currentPath, true, false, _terminal, ShellPath);
+			cookCmdShortcutsOrFile(currentPath, true, false, _terminal);
 		}
 	}
 
@@ -85,7 +86,7 @@ export function runCommandInTerminal(cmd: string, showTerminal = false, clearAtF
 export function sendCmdToTerminal(cmd: string, terminal: vscode.Terminal, showTerminal = false, clearAtFirst = true, isLinuxOnWindows = false) {
 	const searchAndListPattern = /\s+(-i?[tx]|-l)\s+/;
 	if (cmd.startsWith("msr") && !cmd.match(searchAndListPattern)) {
-		outputDebug("Skip running command due to not found none of matching names of -x or -t, command = " + cmd);
+		outputDebug(nowText() + "Skip running command due to not found none of matching names of -x or -t, command = " + cmd);
 		return;
 	}
 
@@ -138,7 +139,7 @@ export function outputDebugOrInfo(isDebug: boolean, message: string, showWindow:
 	}
 }
 
-export function outputDebug(message: string, showWindow: boolean = true) {
+export function outputDebug(message: string, showWindow: boolean = false) {
 	if (getConfig().IsDebug) {
 		getOutputChannel().appendLine(message);
 		showOutputChannel(showWindow);

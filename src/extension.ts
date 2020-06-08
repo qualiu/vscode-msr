@@ -2,7 +2,7 @@
 // Import the module and reference it with the alias vscode in your code below
 import { exec, ExecException, ExecOptions } from 'child_process';
 import * as vscode from 'vscode';
-import { checkSearchToolExists, MsrExe, toRunnableToolPath } from './checkTool';
+import { checkAndDownloadTool, checkSearchToolExists, MsrExe, toRunnableToolPath } from './checkTool';
 import { getFindingCommandByCurrentWord, runFindingCommand, runFindingCommandByCurrentWord } from './commands';
 import { IsWindows, SearchTextHolderReplaceRegex, SkipJumpOutForHeadResultsRegex } from './constants';
 import { cookCmdShortcutsOrFile, FileExtensionToMappedExtensionMap, getConfig, getConfigValue, getRootFolder, getRootFolderExtraOptions, getRootFolderName, getSearchPathOptions, getSubConfigValue, printConfigInfo } from './dynamicConfig';
@@ -11,11 +11,13 @@ import { clearOutputChannel, disposeTerminal, outputDebug, outputDebugOrInfo, ou
 import { SearchProperty } from './ranker';
 import { escapeRegExp } from './regexUtils';
 import { ResultType, ScoreTypeResult } from './ScoreTypeResult';
-import { getCurrentWordAndText, getExtensionNoHeadDot, isNullOrEmpty, quotePaths, toPath } from './utils';
+import { getCurrentWordAndText, getExtensionNoHeadDot, getTimeCostToNow, isNullOrEmpty, nowText, quotePaths, toOsPathBySetting, toPath } from './utils';
 
 import ChildProcess = require('child_process');
 import path = require('path');
 
+const trackBeginLoadTime = new Date();
+outputDebug(nowText() + 'Start loading extension and intialize ...');
 
 const GetFileLineTextRegex = new RegExp('(.+?):(\\d+):(.*)');
 
@@ -33,7 +35,12 @@ let SearchTimesMap = new Map<FindType, Number>();
 let lastSearchTime = process.hrtime();
 let MyConfig = getConfig();
 let RootConfig = MyConfig.RootConfig || vscode.workspace.getConfiguration('msr');
+
 checkSearchToolExists();
+checkAndDownloadTool('nin');
+
+outputDebug(nowText() + 'Finished to load extension and intialize. Cost ' + getTimeCostToNow(trackBeginLoadTime) + ' seconds.');
+
 // vscode.languages.getLanguages().then((languages: string[]) => { console.log("Known languages: " + languages); });
 
 // this method is called when your extension is activated
@@ -68,7 +75,7 @@ export function registerExtension(context: vscode.ExtensionContext) {
 	context.subscriptions.push(vscode.languages.registerReferenceProvider(selector, new ReferenceFinder));
 
 	context.subscriptions.push(vscode.window.onDidOpenTerminal(terminal => {
-		if (MyConfig.SkipInitCmdAliasForNewTerminalTitleRegex.test(terminal.name)) {
+		if (MyConfig.SkipInitCmdAliasForNewTerminalTitleRegex.test(terminal.name) || terminal.name === 'MSR-RUN-CMD') {
 			return;
 		}
 
@@ -192,11 +199,11 @@ export function registerExtension(context: vscode.ExtensionContext) {
 
 	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.cookCmdAliasDumpWithOthersToFiles',
 		(textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit, ...args: any[]) =>
-			cookCmdShortcutsOrFile(textEditor.document.uri.fsPath, false, true, undefined, '', true)));
+			cookCmdShortcutsOrFile(textEditor.document.uri.fsPath, false, true, undefined, true)));
 
 	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.cookCmdAliasDumpWithOthersToFilesByProject',
 		(textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit, ...args: any[]) =>
-			cookCmdShortcutsOrFile(textEditor.document.uri.fsPath, true, true, undefined, '', true)));
+			cookCmdShortcutsOrFile(textEditor.document.uri.fsPath, true, true, undefined, true)));
 
 	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.tmpToggleEnableForFindDefinitionAndReference',
 		(textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit, ...args: any[]) => {
@@ -316,7 +323,7 @@ function searchMatchedWords(findType: FindType, document: vscode.TextDocument, p
 		const configKeyName = FindType.Definition === findType ? 'definition' : 'reference';
 		const [filePattern, searchOptions] = ranker.getFileNamePatternAndSearchOption(extension, configKeyName, parsedFile);
 		if (filePattern.length < 1 || searchOptions.length < 1) {
-			outputError('Failed to get filePattern or searchOptions when search: ' + currentWord + ', filePattern = ' + filePattern + ', searchOptions = ' + searchOptions);
+			outputError(nowText() + 'Failed to get filePattern or searchOptions when search: ' + currentWord + ', filePattern = ' + filePattern + ', searchOptions = ' + searchOptions);
 			return Promise.reject();
 		}
 
@@ -355,12 +362,12 @@ function searchMatchedWords(findType: FindType, document: vscode.TextDocument, p
 		}
 
 		commandLine = commandLine.trim().replace(SearchTextHolderReplaceRegex, currentWord);
-		outputInfo('\n' + commandLine + '\n');
+		outputInfo('\n' + nowText() + commandLine + '\n');
 
 		return getMatchedLocationsAsync(findType, commandLine, ranker, token);
 	} catch (e) {
-		outputError(e.stack.toString());
-		outputError(e.toString());
+		outputError(nowText() + e.stack.toString());
+		outputError(nowText() + e.toString());
 		throw e;
 	}
 }
@@ -387,7 +394,7 @@ function searchDefinitionInCurrentFile(document: vscode.TextDocument, position: 
 		command = command.trim() + ' -c';
 	}
 
-	outputDebug('\n' + command + '\n');
+	outputDebug('\n' + nowText() + command + '\n');
 	return getMatchedLocationsAsync(FindType.Definition, command, ranker, token);
 }
 
@@ -404,8 +411,8 @@ function searchLocalVariableDefinitionInCurrentFile(document: vscode.TextDocumen
 		+ '\\([\\w\\s]*?' + currentWord + '\\s*(in|:)\\s*\\w+';
 
 	const filePath = quotePaths(document.fileName);
-	let command = MsrExe + ' -p ' + filePath + ' -t "' + pattern + '" -N ' + Math.max(0, position.line - 1) + ' -T 1 -I -C';
-	outputDebug('\n' + command + '\n');
+	let command = toOsPathBySetting(MsrExe) + ' -p ' + filePath + ' -t "' + pattern + '" -N ' + Math.max(0, position.line - 1) + ' -T 1 -I -C';
+	outputDebug('\n' + nowText() + command + '\n');
 	return getMatchedLocationsAsync(FindType.Definition, command, ranker, token);
 }
 
@@ -421,7 +428,7 @@ function getMatchedLocationsAsync(findType: FindType, cmd: string, ranker: Searc
 			if (error) {
 				const hasSummary = GetSummaryRegex.test(error.message);
 				if (error.message.includes(NotIgnorableError)) {
-					outputError(error.message);
+					outputError(nowText() + error.message);
 				}
 				if (hasSummary) {
 					console.info('False error message: ' + error.message);
@@ -462,9 +469,9 @@ function findAndProcessSummary(skipIfNotMatch: boolean, summaryText: string, fin
 	if (matchErrorWarn) {
 		const warnOrError = matchErrorWarn[2];
 		if (warnOrError === 'WARN') {
-			outputDebug('\n' + summaryText.replace(/^([\r\n]+)/, 'WARN: '));
+			outputDebug('\n' + nowText() + summaryText.replace(/^([\r\n]+)/, 'WARN: '));
 		} else {
-			outputError('\n' + summaryText.replace(/^([\r\n]+)/, 'ERROR: '));
+			outputError('\n' + nowText() + summaryText.replace(/^([\r\n]+)/, 'ERROR: '));
 		}
 	}
 
@@ -480,22 +487,22 @@ function findAndProcessSummary(skipIfNotMatch: boolean, summaryText: string, fin
 	if (match) {
 		const lineCount = parseInt(match[2]);
 		const costSeconds = parseFloat(match[3]);
-		outputDebug('Got matched count = ' + matchCount + ' and time cost = ' + costSeconds + ' from summary, search word = ' + ranker.currentWord);
+		outputDebug(nowText() + 'Got matched count = ' + matchCount + ' and time cost = ' + costSeconds + ' from summary, search word = ' + ranker.currentWord);
 		sumTimeCost(findType, costSeconds, lineCount);
 		if (matchCount < 1 && RootConfig.get('enable.useGeneralFindingWhenNoResults') as boolean) {
 			const findCmd = findType === FindType.Definition ? FindCommandType.RegexFindDefinitionInCodeFiles : FindCommandType.RegexFindDefinitionInCodeFiles;
 			if (!ranker.isOneFileOrFolder) {
 				runFindingCommandByCurrentWord(findCmd, ranker.currentWord, ranker.currentFile);
-				outputInfo('Will run general search, please check results in `MSR-RUN-CMD` in `TERMINAL` tab. Set `msr.quiet` to avoid switching tabs; Disable `msr.enable.useGeneralFindingWhenNoResults` to disable re-running.');
-				outputInfo('Try extensive search if still no results. Use context menu or: Click a word or select a text  --> Press `F12` --> Type `msr` + `find` and choose to search.');
+				outputInfo(nowText() + 'Will run general search, please check results in `MSR-RUN-CMD` in `TERMINAL` tab. Set `msr.quiet` to avoid switching tabs; Disable `msr.enable.useGeneralFindingWhenNoResults` to disable re-running.');
+				outputInfo(nowText() + 'Try extensive search if still no results. Use context menu or: Click a word or select a text  --> Press `F12` --> Type `msr` + `find` and choose to search.');
 			}
 		}
 		else if (matchCount > MyConfig.ReRunSearchInTerminalIfResultsMoreThan && costSeconds <= MyConfig.ReRunCmdInTerminalIfCostLessThan) {
-			outputInfo('Will re-run and show clickable + colorful results in `MSR-RUN-CMD` in `TERMINAL` tab. Set `msr.quiet` to avoid switching tabs; Decrease `msr.reRunSearchInTerminalIfCostLessThan` value for re-running.');
+			outputInfo(nowText() + 'Will re-run and show clickable + colorful results in `MSR-RUN-CMD` in `TERMINAL` tab. Set `msr.quiet` to avoid switching tabs; Decrease `msr.reRunSearchInTerminalIfCostLessThan` value for re-running.');
 			runCommandInTerminal(toRunnableToolPath(cmd).replace(SkipJumpOutForHeadResultsRegex, ' ').trim(), false, getConfig().ClearTerminalBeforeExecutingCommands);
 		}
 	} else if (!ranker.isOneFileOrFolder) {
-		outputDebug('Failed to get time cost in summary. Search word = ' + ranker.currentWord);
+		outputDebug(nowText() + 'Failed to get time cost in summary. Search word = ' + ranker.currentWord);
 	}
 
 	return true;
@@ -513,9 +520,9 @@ function sumTimeCost(findType: FindType, costSeconds: Number, lineCount: Number)
 	const message = 'Search-' + FindType[findType] + ' cost ' + costSeconds.toFixed(3) + ' s for ' + lineCount + ' lines, speed = ' + Math.round(speed) + ' lines/s.';
 
 	if (times > 3 && average > ExpectedMaxTimeCostSecond && speed < ExpectedMinLinesPerSecond) {
-		outputWarn(message + ' If CPU and disk are not busy, try to be faster: https://github.com/qualiu/vscode-msr/blob/master/README.md#avoid-security-software-downgrade-search-performance');
+		outputWarn(nowText() + message + ' If CPU and disk are not busy, try to be faster: https://github.com/qualiu/vscode-msr/blob/master/README.md#avoid-security-software-downgrade-search-performance');
 	} else {
-		outputDebug(message);
+		outputDebug(nowText() + message);
 	}
 }
 
@@ -575,7 +582,7 @@ function parseCommandOutput(stdout: string, findType: FindType, cmd: string, ran
 	});
 
 	typeToResultsMap.forEach((v, type) => {
-		outputDebug(ResultType[type] + ' count = ' + v.length + ', search word = ' + ranker.currentWord);
+		outputDebug(nowText() + ResultType[type] + ' count = ' + v.length + ', search word = ' + ranker.currentWord);
 	});
 
 	let highValueResults = [...typeToResultsMap.get(ResultType.Class) || [], ...typeToResultsMap.get(ResultType.Enum) || []];
@@ -684,11 +691,11 @@ function parseMatchedText(text: string, ranker: SearchProperty): ScoreTypeResult
 			return new ScoreTypeResult(score, type, text, new vscode.Location(uri, pos));
 		}
 		else {
-			outputError('Failed to match words by Regex = "' + ranker.currentWordRegex + '" from matched result: ' + m[3]);
+			outputError(nowText() + 'Failed to match words by Regex = "' + ranker.currentWordRegex + '" from matched result: ' + m[3]);
 		}
 	}
 	else {
-		outputError('Failed to match GetFileLineTextRegex = "' + GetFileLineTextRegex.source + '" from matched result: ' + text);
+		outputError(nowText() + 'Failed to match GetFileLineTextRegex = "' + GetFileLineTextRegex.source + '" from matched result: ' + text);
 	}
 
 	return null;

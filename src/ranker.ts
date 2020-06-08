@@ -6,7 +6,7 @@ import { FindType } from './enums';
 import { outputDebug, outputError } from './outputUtils';
 import { createRegex, EmptyRegex, getAllSingleWords } from './regexUtils';
 import { ResultType } from './ScoreTypeResult';
-import { getExtensionNoHeadDot, isNullOrEmpty, toPath } from './utils';
+import { getExtensionNoHeadDot, isNullOrEmpty, nowText, toPath } from './utils';
 import path = require('path');
 
 let RootConfig = getConfig().RootConfig || vscode.workspace.getConfiguration('msr');
@@ -168,7 +168,7 @@ export class SearchProperty {
 			this.isFindClass = true;
 		}
 
-		outputDebug('Final-Check: isFindMember = ' + this.isFindMember + ', isFindClass = ' + this.isFindClass + ' , isFindMethod = ' + this.isFindMethod + ' , isFindEnum = ' + this.isFindEnum);
+		outputDebug(nowText() + 'Final-Check: isFindMember = ' + this.isFindMember + ', isFindClass = ' + this.isFindClass + ' , isFindMethod = ' + this.isFindMethod + ' , isFindEnum = ' + this.isFindEnum);
 
 		const classPattern = this.getSpecificConfigValue('class.definition', false).replace(SearchTextHolderReplaceRegex, currentWord);
 		this.classDefinitionRegex = classPattern.length < 1 ? EmptyRegex : new RegExp(classPattern);
@@ -205,7 +205,7 @@ export class SearchProperty {
 
 		outputDebug('scoreWordsText = ' + this.scoreWordsText);
 		outputDebug('promoteSelfFileMatchScore = ' + this.promoteSelfFileMatchScore);
-		outputDebug('scoreWordSet[' + this.scoreWordSet.size + '] = ' + Array.from(this.scoreWordSet).join(' '));
+		outputDebug(nowText() + 'scoreWordSet[' + this.scoreWordSet.size + '] = ' + Array.from(this.scoreWordSet).join(' '));
 	}
 
 	private getCheckingRegex(configKeyTail: string, allowEmpty: boolean): RegExp {
@@ -258,7 +258,7 @@ export class SearchProperty {
 		const pattern = getOverrideConfigByPriority(prefixes, configKeyTail, allowEmpty) as string || '';
 		if (!isNullOrEmpty(pattern) && configKeyTail.includes('definition') && !configKeyTail.includes('skip') && pattern.indexOf(SearchTextHolder) < 0) {
 			const keys = prefixes.join('.' + configKeyTail + ' or ');
-			outputError('Not found word-holder: "' + SearchTextHolder + '" in search option, please check configuration of ' + keys + ', searchPattern = ' + pattern);
+			outputError(nowText() + 'Not found word-holder: "' + SearchTextHolder + '" in search option, please check configuration of ' + keys + ', searchPattern = ' + pattern);
 			return '';
 		}
 
@@ -374,7 +374,7 @@ export class SearchProperty {
 
 		if (isNullOrEmpty(searchPattern)) {
 			searchPattern = "-t Not-Found-SearchPattern";
-			outputError('Not found search pattern for search word: ' + this.currentWord);
+			outputError(nowText() + 'Not found search pattern for search word: ' + this.currentWord);
 		} else {
 			searchPattern = '-t "' + searchPattern + '"';
 		}
@@ -423,7 +423,7 @@ export class SearchProperty {
 
 		let score = 1;
 		const isSameFile = resultFilePath === this.currentFilePath;
-		const isInSameFolder = path.parse(resultFilePath).dir === this.currentFile.dir;
+		const isInSameFolder = path.dirname(resultFilePath) === this.currentFile.dir;
 		const boostFactor = isSameFile ? 2 : (isInSameFolder ? 1.5 : 1);
 
 		if (this.isFindConstant) {

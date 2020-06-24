@@ -4,6 +4,12 @@ All notable changes to the "vscode-msr" extension will be documented in this fil
 
 Detail see `vscode-msr` extension [commit history](https://github.com/qualiu/vscode-msr/commits/master).
 
+## [2.0.5]
+
+- Updated args-passing for Linux bash command shortcuts (use `"$@"` instead of `$@`).
+- Supported reading newly added command shorts for CMD terminal on Windows, when cooking shortcuts(doskeys).
+- Supported `/mnt/c/` style path on WSL (`/c/` style is already supported).
+
 ## [2.0.4]
 
 - Supported `MSR-RUN-CMD` with `bash terminal` of Cygwin + MinGW + WSL.

@@ -403,6 +403,15 @@ Note: Check [**your personal settings**](https://code.visualstudio.com/docs/gets
   "terminal.integrated.shell.windows": "D:\\cygwin64\\bin\\bash.exe"
   ```
 
+#### Use Short Paths for WSL Bash Terminal on Windows
+
+- Set **/etc/wsl.conf** like below to use short paths (like **`/c/`** instead of **`/mnt/c/`**) :
+  ```
+  [automount]
+  root = /
+  options = "metadata"
+  ```
+
 ### Additional Settings in [Your Personal Settings file](https://code.visualstudio.com/docs/getstarted/settings#_settings-file-locations)
 
 - Set `skipFolders` for Specific Project
@@ -569,7 +578,11 @@ Long existing [VsCode Bug](https://github.com/microsoft/vscode/issues/96754): `U
 
 It's better to be solved by `vscode` itself to remove final duplicate results, or provide an interface for extensions to do it.
 
-However, there're 2 workarounds for finding definition. (No workaround for vscode duplicate results bug.)
+However, there're 1 workaround for duplicate results + 2 workarounds for finding definition as below:
+
+#### Workaround for VsCode Duplicate Results Bug
+
+- [Temporarily toggle](#get-the-best-combined-power) `"enalbe/disable"` this extension, or disable one extension.
 
 #### Workaround for VsCode Finding Definition Bug
 

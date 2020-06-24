@@ -6,8 +6,8 @@ export enum FindType {
 
 export enum TerminalType {
     CMD = 1,
-    LinuxBash = 2,
-    PowerShell = 3,
+    PowerShell = 2,
+    LinuxBash = 3,
     CygwinBash = 4,
     MinGWBash = 5,
     WslBash = 6

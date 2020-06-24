@@ -1,7 +1,7 @@
 import { ParsedPath } from 'path';
 import { isNullOrUndefined } from 'util';
 import * as vscode from 'vscode';
-import { IsWindows, IsWSL, ShouldQuotePathRegex, TrimSearchTextRegex } from './constants';
+import { IsLinux, IsWindows, IsWSL, ShouldQuotePathRegex, TrimSearchTextRegex } from './constants';
 import { TerminalType } from './enums';
 import path = require('path');
 import fs = require('fs');
@@ -9,9 +9,13 @@ import fs = require('fs');
 export const MatchWindowsDiskRegex = /^([A-Z]):/i;
 export const TerminalExePath = vscode.workspace.getConfiguration('terminal.integrated.shell').get(IsWindows ? 'windows' : 'linux') as string || '';
 
+let HasMountPrefixForWSL: boolean | undefined = undefined;
+
 function getDefaultTerminalType(): TerminalType {
-    if (!IsWindows) {
+    if (IsLinux) {
         return TerminalType.LinuxBash;
+    } else if (IsWSL) {
+        return TerminalType.WslBash;
     } else if (/cmd.exe$/i.test(TerminalExePath)) {
         return TerminalType.CMD;
     } else if (/PowerShell.exe$/i.test(TerminalExePath)) {
@@ -59,7 +63,7 @@ export function toCygwinPath(winPath: string) {
 
 export function toOsPath(windowsPath: string, terminalType: TerminalType): string {
     if (IsWSL || TerminalType.WslBash === terminalType) {
-        return toWSLPath(windowsPath);
+        return toWSLPath(windowsPath, TerminalType.WslBash === terminalType);
     } else if (TerminalType.CygwinBash === terminalType) {
         return toCygwinPath(windowsPath);
     } else if (TerminalType.MinGWBash === terminalType) {
@@ -96,8 +100,8 @@ export function toPath(parsedPath: ParsedPath) {
     return path.join(parsedPath.dir, parsedPath.base);
 }
 
-export function toWSLPath(winPath: string) {
-    if (!IsWSL) {
+export function toWSLPath(winPath: string, isWslTerminal: boolean = false) {
+    if (!IsWSL && !isWslTerminal) {
         return winPath;
     }
 
@@ -108,12 +112,26 @@ export function toWSLPath(winPath: string) {
 
     const disk = match[1].toLowerCase();
     const tail = replaceText(winPath.substring(match.length), '\\', '/');
+
+    // https://docs.microsoft.com/en-us/windows/wsl/wsl-config#configure-per-distro-launch-settings-with-wslconf
     const shortPath = '/' + disk + tail;
-    if (fs.existsSync(shortPath)) {
+    if (HasMountPrefixForWSL === false) {
         return shortPath;
+    } else if (HasMountPrefixForWSL === undefined) {
+        if (fs.existsSync(shortPath)) {
+            HasMountPrefixForWSL = false;
+            return shortPath;
+        }
     }
 
-    return '/' + disk + tail; // '/mnt/' + disk + tail;
+    const longPath = '/mnt/' + disk + tail;
+    if (fs.existsSync(longPath)) {
+        HasMountPrefixForWSL = true;
+        return longPath;
+    } else {
+        HasMountPrefixForWSL = false;
+        return shortPath;
+    }
 }
 
 export function nowText(tailText: string = ' '): string {
@@ -128,14 +146,14 @@ export function getTimeCostToNow(begin: Date): number {
     return (Date.now() - begin.valueOf()) / 1000;
 }
 
-export function toWSLPaths(winPaths: Set<string>): Set<string> {
-    if (!IsWSL) {
+export function toWSLPaths(winPaths: Set<string>, isWslTerminal: boolean = false): Set<string> {
+    if (!IsWSL && !isWslTerminal) {
         return winPaths;
     }
 
     let pathSet = new Set<string>();
     winPaths.forEach(p => {
-        pathSet.add(toWSLPath(p));
+        pathSet.add(toWSLPath(p, isWslTerminal));
     });
     return pathSet;
 }

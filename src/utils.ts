@@ -35,6 +35,10 @@ function getDefaultTerminalType(): TerminalType {
 
 export const DefaultTerminalType = getDefaultTerminalType();
 
+export function isWindowsTerminalType(terminalType: TerminalType): boolean {
+    return IsWindows && (TerminalType.CMD === terminalType || TerminalType.PowerShell === terminalType);
+}
+
 export function quotePaths(paths: string) {
     if (ShouldQuotePathRegex.test(paths)) {
         return '"' + paths + '"';

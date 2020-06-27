@@ -1,8 +1,16 @@
 # Change Log
 
-All notable changes to the "vscode-msr" extension will be documented in this file.
+All notable changes to this "vscode-msr" extension will be documented in this file.
 
-Detail see `vscode-msr` extension [commit history](https://github.com/qualiu/vscode-msr/commits/master).
+## [2.0.6]
+
+- Improved PowerShell to CMD command shortcuts initialization on Windows.
+- Improved command shortcuts arg-passing for all Bash terminals on Windows + WSL + Linux.
+- Improved general command shortcuts checking and updating.
+- Not activate OUTPUT channel to show info when cooking command shortcuts.
+- Used real `$HOME` for MinGW terminal.
+- Used `~/` to display home folder for command shortcuts path of Bash terminals.
+- Updated command shortcuts tip for PowerShell terminal.
 
 ## [2.0.5]
 

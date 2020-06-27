@@ -131,6 +131,13 @@ export function outputInfo(message: string, showWindow: boolean = true) {
 	}
 }
 
+export function outputInfoQuiet(message: string, showWindow: boolean = false) {
+	if (getConfig().ShowInfo) {
+		getOutputChannel().appendLine(message);
+		showOutputChannel(showWindow, false);
+	}
+}
+
 export function outputDebugOrInfo(isDebug: boolean, message: string, showWindow: boolean = true) {
 	if (isDebug) {
 		outputDebug(message, showWindow);

@@ -56,6 +56,8 @@ Then it's the **light** and **right** tool for you (just **2~3 MB** storage + **
 
 - [**Easy to Support New Languages**](#easy-to-support-new-languages) with an example of support `batch` scripts (`*.bat` + `*.cmd` files).
 
+- **Automated** command shortcuts on **Linux** + **WSL** + [**4 types of terminals on Windows**](#supported-4-terminal-types-on-windows).
+
 - All just leverage one [tiny exe: msr-EXE](https://github.com/qualiu/msr/blob/master/README.md) **without** `storage`/`cache`, `server`/`service`, `network`, etc.
   - This extension costs **2~3 MB** download/storage + **3~10 MB** running memory.
   - Much faster than professional language extensions in some cases (like results in same file or folder).
@@ -96,7 +98,7 @@ You can also manually **download** the tiny [msr.EXE](https://github.com/qualiu/
 
     - **If `wget.exe` exists**: (check by command `"where wget.exe"`, you can get it by [choco](https://chocolatey.org/packages/Wget) or [cygwin](https://github.com/qualiu/msrTools/blob/master/system/install-cygwin.bat))
 
-      **wget** <https://github.com/qualiu/msr/raw/master/tools/msr.exe> -O msr.exe && icacls msr.exe /grant %USERNAME%:RX && **copy** [msr.exe](https://github.com/qualiu/msr/raw/master/tools/msr.exe) `%SystemRoot%\`
+      **wget** <https://github.com/qualiu/msr/raw/master/tools/msr.exe> -O msr.exe -q && icacls msr.exe /grant %USERNAME%:RX && **copy** [msr.exe](https://github.com/qualiu/msr/raw/master/tools/msr.exe) `%SystemRoot%\`
 
     - Otherwise use `PowerShell`:
 
@@ -104,7 +106,11 @@ You can also manually **download** the tiny [msr.EXE](https://github.com/qualiu/
 
   - **Linux**: `Ubuntu`/`CentOS`/`Fedora`: (If it's a 32-bit system, use **[msr-i386.gcc48](https://github.com/qualiu/msr/raw/master/tools/msr-i386.gcc48)**. `gcc`/`g++` >= 4.8)
 
-    **wget** <https://github.com/qualiu/msr/raw/master/tools/msr.gcc48> -O msr.gcc48 && `chmod +x msr.gcc48` && `cp msr.gcc48 /usr/bin/msr`
+    **wget** <https://github.com/qualiu/msr/raw/master/tools/msr.gcc48> -O msr.gcc48 -q && `chmod +x msr.gcc48` && `cp msr.gcc48 /usr/bin/msr`
+
+  - **Cygwin** [bash terminal on Windows](#supported-4-terminal-types-on-windows):
+
+    **wget** <https://github.com/qualiu/msr/raw/master/tools/msr.cygwin> -O msr.cygwin -q && `chmod +x msr.cygwin` && `cp msr.cygwin /usr/bin/msr`
 
 After done, you can directly run **msr --help** (or **msr -h** or just **msr**) should display [colorful usages and examples on Windows](https://qualiu.github.io/msr/usage-by-running/msr-Windows.html) or Linux like: [Fedora](https://qualiu.github.io/msr/usage-by-running/msr-Fedora-25.html) and [CentOS](https://qualiu.github.io/msr/usage-by-running/msr-CentOS-7.html).
 
@@ -155,7 +161,8 @@ You can generate the command shortcuts (alias/doskey) to directly use for search
 
 ### Command Shortcuts
 
-After you cooked command alias/doskeys, you'll see messages below: (You can **write**/**update** doskeys in file)
+- After you cooked command alias/doskeys, you'll see messages below: (You can **write**/**update** doskeys in file)
+- Automated command shortcuts on **Linux** + **WSL** + [**4 types of terminals** on Windows](#supported-4-terminal-types-on-windows).
 
 ```bash
 Now you can directly use the command shortcuts in/out-of vscode to search + replace like:
@@ -381,36 +388,39 @@ Note: Check [**your personal settings**](https://code.visualstudio.com/docs/gets
 
   - Due to `Powershell` cannot use `doskey` command shortcuts. (You can [cook command **script files**](#make-command-shortcuts-to-search-or-replace-in-or-out-of-vscode) then add the script folder to `%PATH%` or `$PATH`)
 
-- Supported terminals: ([settings file](https://code.visualstudio.com/docs/getstarted/settings#_settings-file-locations) like: `%APPDATA%\Code\User\settings.json` on Windows)
+#### Supported 4 Terminal Types on Windows
 
-  - [Official integrated terminals](https://code.visualstudio.com/docs/editor/integrated-terminal#_configuration) like:
+Supported various types of terminals: ([settings file](https://code.visualstudio.com/docs/getstarted/settings#_settings-file-locations) like: `%APPDATA%\Code\User\settings.json` on Windows)
 
-  ```cpp
-  // Command Prompt
-  "terminal.integrated.shell.windows": "C:\\Windows\\System32\\cmd.exe"
+- [Official integrated terminals](https://code.visualstudio.com/docs/editor/integrated-terminal#_configuration) like:
 
-  // Git Bash (MinGW)
-  "terminal.integrated.shell.windows": "C:\\Program Files\\Git\\bin\\bash.exe"
+```cpp
+// Command Prompt
+"terminal.integrated.shell.windows": "C:\\Windows\\System32\\cmd.exe"
 
-  // Ubuntu Bash on Windows (WSL):
-  "terminal.integrated.shell.windows": "C:\\Windows\\System32\\bash.exe"
-  ```
+// Git Bash (MinGW)
+"terminal.integrated.shell.windows": "C:\\Program Files\\Git\\bin\\bash.exe"
 
-  - `Cygwin` integration (on Windows), you can set in [your personal settings file](https://code.visualstudio.com/docs/getstarted/settings#_settings-file-locations) like:
+// Ubuntu Bash on Windows (WSL):
+"terminal.integrated.shell.windows": "C:\\Windows\\System32\\bash.exe"
+```
 
-  ```cpp
-  // Cygwin Bash. One command to install Cygwin (into a folder no pollution): https://github.com/qualiu/msrTools/blob/master/system/install-cygwin.bat
-  "terminal.integrated.shell.windows": "D:\\cygwin64\\bin\\bash.exe"
-  ```
+- `Cygwin` integration (on Windows), you can set in [your personal settings file](https://code.visualstudio.com/docs/getstarted/settings#_settings-file-locations) like:
 
-#### Use Short Paths for WSL Bash Terminal on Windows
+```cpp
+// Cygwin Bash. One command to install Cygwin (into a folder no pollution): https://github.com/qualiu/msrTools/blob/master/system/install-cygwin.bat
+"terminal.integrated.shell.windows": "D:\\cygwin64\\bin\\bash.exe"
+```
 
-- Set **/etc/wsl.conf** like below to use short paths (like **`/c/`** instead of **`/mnt/c/`**) :
-  ```
-  [automount]
-  root = /
-  options = "metadata"
-  ```
+#### Use Short Mount Paths for WSL Bash Terminal on Windows
+
+- Set **/etc/wsl.conf** like below to use short mount paths (like **`/c/`** instead of **`/mnt/c/`**):
+
+```bash
+[automount]
+root = /
+options = "metadata"
+```
 
 ### Additional Settings in [Your Personal Settings file](https://code.visualstudio.com/docs/getstarted/settings#_settings-file-locations)
 
@@ -582,7 +592,7 @@ However, there're 1 workaround for duplicate results + 2 workarounds for finding
 
 #### Workaround for VsCode Duplicate Results Bug
 
-- [Temporarily toggle](#get-the-best-combined-power) `"enalbe/disable"` this extension, or disable one extension.
+- [Temporarily toggle](#get-the-best-combined-power) `"enable/disable"` this extension, or disable one extension.
 
 #### Workaround for VsCode Finding Definition Bug
 

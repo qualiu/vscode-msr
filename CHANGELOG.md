@@ -2,6 +2,11 @@
 
 All notable changes to this "vscode-msr" extension will be documented in this file.
 
+## [2.0.7]
+
+- Robust wget downloading commands.
+- Run `npm audit fix` command.
+
 ## [2.0.6]
 
 - Improved PowerShell to CMD command shortcuts initialization on Windows.

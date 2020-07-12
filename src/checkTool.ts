@@ -40,7 +40,7 @@ export function getDownloadCommandForNewTerminal(terminalType: TerminalType, exe
 
 	const extension = path.extname(TerminalTypeToMsrExeMap.get(terminalType) || '.gcc48');
 
-	const pureDownloadCmd = 'wget ' + SourceExeHomeUrl + exeName64bit + extension + ' -O ~/' + exeName64bit + '.tmp --quiet'
+	const pureDownloadCmd = 'wget ' + SourceExeHomeUrl + exeName64bit + extension + ' -O ~/' + exeName64bit + '.tmp --quiet --no-check-certificate'
 		+ ' && mv -f ~/' + exeName64bit + '.tmp ~/' + exeName64bit
 		+ ' && chmod +x ~/' + exeName64bit + ' && export PATH=~/:$PATH';
 
@@ -119,7 +119,7 @@ function getDownloadCommand(exeName64bit: string, saveExePath: string = ''): str
 	const downloadCommand = IsWindows && !isWgetExistsOnWindows
 		? 'Powershell -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; '
 		+ "Invoke-WebRequest -Uri '" + sourceUrl + "' -OutFile '" + tmpSaveExePath + '.tmp' + "'" + '"'
-		: 'wget "' + sourceUrl + '" -O "' + tmpSaveExePath + '.tmp"';
+		: 'wget "' + sourceUrl + '" -O "' + tmpSaveExePath + '.tmp" --quiet --no-check-certificate';
 
 	const renameFileCommand = IsWindows
 		? 'move /y "' + tmpSaveExePath + '.tmp" "' + saveExePath + '"'

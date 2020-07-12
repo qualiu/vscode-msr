@@ -596,16 +596,17 @@ However, there're 1 workaround for duplicate results + 2 workarounds for finding
 
 #### Workaround for VsCode Finding Definition Bug
 
-- Set **msr.quiet** = **false**: Un-check it from user settings, which is opposite to [Set Quiet Mode](#more-settings-like-quiet-mode).
+- **Method-1**: Set **msr.quiet** = **false**: Un-check it from user settings, which is opposite to [Set Quiet Mode](#more-settings-like-quiet-mode).
   - This will let you see the matched results and able to **click and go to the locations**.
-  - But this may **annoy you** to activate and show 2 channels:
+  - But this may **annoy you** to activate and show 2 channels each time `"Go To Definition"`:
     - It'll show search command + results in the `MSR-Def-Ref` channel in `OUTPUT` tab each time.
     - And re-run search in `MSR-RUN-CMD` in `TERMINAL` tab if `got multiple results` or `no results found`.
-- Set **msr.reRunSearchInTerminalIfResultsMoreThan** = **0** (default =1).
+  - The best scenario of this method is probably when you're **`"just reviewing or reading code"`**.
+- **Method-2**: Set **msr.reRunSearchInTerminalIfResultsMoreThan** = **0** (default =1).
   - This is more **quiet**: It won't activate the channels and tabs above.
   - This just re-run the search command in `MSR-RUN-CMD` channel in `TERMINAL` tab to let you **click and go**.
   - You can also re-use the commands, add [**some options**](#brief-usage-summary-for-search-or-configuration) to **filter your search** or **replace files**.
-  - But, you can **only see them when** you selected them and no other channels or tabs hide them.
+  - But you can **only see them when** when `MSR-RUN-CMD` is the active window(terminal).
 
 ### One Redundant Finding Definition was Triggered if Used `Ctrl` + `Mouse left click`
 

@@ -2,6 +2,10 @@
 
 All notable changes to this "vscode-msr" extension will be documented in this file.
 
+## [2.0.8]
+
+- Create default download folder if not exists for Windows 10 latest version which no %USERPROFILE%\Desktop folder.
+
 ## [2.0.7]
 
 - Robust wget downloading commands.

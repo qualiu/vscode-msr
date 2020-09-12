@@ -206,6 +206,11 @@ function autoDownloadTool(exeName64bit: string): [boolean, string] {
 		const downloadCommand = getDownloadCommand(exeName64bit);
 		outputKeyInfo(downloadCommand);
 		try {
+			const saveFolder = path.dirname(tmpSaveExePath);
+			if (!fs.existsSync(saveFolder)) {
+				fs.mkdirSync(saveFolder);
+			}
+
 			let output = ChildProcess.execSync(downloadCommand).toString();
 			outputKeyInfo(output);
 		} catch (err) {

@@ -2,6 +2,22 @@
 
 All notable changes to this "vscode-msr" extension will be documented in this file.
 
+## [2.0.9]
+- Changed column index begin from 0 for definition results to try to avoid duplication when working with other extensions.
+- Disabled `finding-references` for all languages as needless noise, use menus + command alias.
+- Improved searching for cases of text contains variable style `"$"` on Linux or Linux terminals on Windows.
+- Use/Output relative paths for Linux terminals (like: MinGW + Cygwin) on Windows, to help click + open search result locations.
+- Menu changes:
+  - Show menu: `"Regex find all references in all source files"`.
+  - Hided menu: `"Regex find all pure references in all code files"`.
+  - Added but hided: `"Regex find all all pure references in all source files"`.
+- Cooking command alias: permanently to file or temporarily for a vscode terminal:
+  - Removed `-I` to show warnings and other info (especially when listing with `-l`).
+  - Added 2 configs: `msr.cookCmdAlias.hideWarningsAndExtraInfo` + `msr.cookCmdAlias.outputFullPath`.
+- Toggle enable/disable only for `finding-definition`.
+- Enabled finding definition for all languages: Changed `msr.enable.onlyFindDefinitionForKnownLanguages` = `false`.
+- Enabled `golang`: Removed `go` from `msr.disable.extensionPattern`.
+
 ## [2.0.8]
 
 - Create default download folder if not exists for Windows 10 latest version which no %USERPROFILE%\Desktop folder.
@@ -42,8 +58,8 @@ All notable changes to this "vscode-msr" extension will be documented in this fi
 
 ## [2.0.3]
 
-- Added `msr.enable.onlyFindDefinitionAndReferenceForKnownLanguages` = `true` to skip finding definition and reference for unknown languages.
-- Put `msr.tmpToggleEnableForFindDefinitionAndReference` to first priority to temporarily disable/enable finding for a language, ignore other settings.
+- Added `msr.enable.onlyFindDefinitionForKnownLanguages` = `true` to skip finding definition and reference for unknown languages.
+- Put `msr.tmpToggleEnableFindingDefinition` to first priority to temporarily disable/enable finding for a language, ignore other settings.
 - Added support for `golang` but disabled as default by `msr.disable.extensionPattern`.
 - Updated root folder priority for configs like `msr.{rootFolderName}.skipFolders`.
 - Improved `skipFolder` and override rule.
@@ -137,7 +153,7 @@ All notable changes to this "vscode-msr" extension will be documented in this fi
 
 ## [1.1.11]
 
-- Changed shortcut key of `msr.tmpToggleEnableForFindDefinitionAndReference` from `F2` to `Alt+F2`.
+- Changed shortcut key of `msr.tmpToggleEnableFindingDefinition` from `F2` to `Alt+F2`.
 
 ## [1.1.10]
 

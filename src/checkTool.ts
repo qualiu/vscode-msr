@@ -60,7 +60,7 @@ export function GetSetToolEnvCommand(terminalType: TerminalType, addTailTextIfNo
 	}
 
 	let toolFolderSet = new Set<string>();
-	ToolNameToPathMap.forEach((value, key, _m) => {
+	ToolNameToPathMap.forEach((value, _key, _m) => {
 		toolFolderSet.add(path.dirname(value));
 	});
 
@@ -107,14 +107,14 @@ function getTmpSaveExePath(exeName64bit: string): string {
 function getDownloadCommand(exeName64bit: string, saveExePath: string = ''): string {
 	const sourceExeName = getSourceExeName(exeName64bit);
 	const sourceUrl = getDownloadUrl(sourceExeName);
-	const [IsExistIcacls, _] = IsWindows ? isToolExistsInPath('icacls') : [false, ''];
+	const [IsExistIcacls] = IsWindows ? isToolExistsInPath('icacls') : [false, ''];
 	const tmpSaveExePath = getTmpSaveExePath(exeName64bit);
 
 	if (isNullOrEmpty(saveExePath)) {
 		saveExePath = tmpSaveExePath;
 	}
 
-	const [isWgetExistsOnWindows, wgetPath] = IsWindows ? isToolExistsInPath('wget.exe') : [false, ''];
+	const [isWgetExistsOnWindows] = IsWindows ? isToolExistsInPath('wget.exe') : [false, ''];
 
 	const downloadCommand = IsWindows && !isWgetExistsOnWindows
 		? 'Powershell -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; '
@@ -214,8 +214,9 @@ function autoDownloadTool(exeName64bit: string): [boolean, string] {
 			let output = ChildProcess.execSync(downloadCommand).toString();
 			outputKeyInfo(output);
 		} catch (err) {
-			outputError('\n' + nowText() + 'Failed to download `' + exeName64bit + '`: ' + err);
-			outputError('\n' + nowText() + 'Please manually download `' + exeName64bit + '` and add its folder to ' + PathEnvName + ': ' + getDownloadUrl(sourceExeName));
+			outputError('\n' + nowText() + 'Failed to download ' + sourceExeName + ' : ' + err);
+			outputError('\n' + nowText() + 'Please manually download ' + sourceExeName + ' and add its folder to ' + PathEnvName + ': ' + getDownloadUrl(sourceExeName));
+			outputError('\n' + nowText() + '如果在中国无法从github下载 ' + sourceExeName + ' 可从另两处试下载：https://gitee.com/qualiu/msr/tree/master/tools 或者 https://sourceforge.net/projects/avasattva/files/');
 			return [false, ''];
 		}
 

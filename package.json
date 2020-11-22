@@ -3,7 +3,7 @@
     "displayName": "Search code + Replace files + Find definition and references for all types.",
     "description": "Search code + Replace files + Find definition and references in multiple repository paths by msr for all coding languages + configuration + doc files.",
     "author": "qualiu@microsoft.com",
-    "version": "2.0.8",
+    "version": "2.0.9",
     "icon": "images/vscode-msr-icon.png",
     "license": "completely free",
     "publisher": "qualiu",
@@ -42,7 +42,9 @@
         "Vue",
         "PowerShell",
         "Batch",
-        "Bash"
+        "Bash",
+        "shell",
+        "script"
     ],
     "activationEvents": [
         "*"
@@ -83,8 +85,8 @@
                 }
             },
             {
-                "command": "msr.regexFindInAllProjectFiles",
-                "title": "Regex find all references in code + config + doc.",
+                "command": "msr.regexFindInAllSourceFiles",
+                "title": "Regex find all references in all source files.",
                 "category": "msr",
                 "icon": {
                     "dark": "images/vscode-msr-small.svg",
@@ -110,7 +112,7 @@
                 }
             },
             {
-                "command": "msr.regexFindReferenceInCodeFiles",
+                "command": "msr.regexFindReferencesInCodeFiles",
                 "title": "Regex find all references in code files.",
                 "category": "msr",
                 "icon": {
@@ -119,8 +121,17 @@
                 }
             },
             {
-                "command": "msr.regexFindPureReferenceInCodeFiles",
+                "command": "msr.regexFindPureReferencesInCodeFiles",
                 "title": "Regex find all pure references in code files.",
+                "category": "msr",
+                "icon": {
+                    "dark": "images/vscode-msr-small.svg",
+                    "light": "images/vscode-msr-small.svg"
+                }
+            },
+            {
+                "command": "msr.regexFindPureReferencesInAllSourceFiles",
+                "title": "Regex find all pure references in all source files.",
                 "category": "msr",
                 "icon": {
                     "dark": "images/vscode-msr-small.svg",
@@ -182,7 +193,7 @@
                 }
             },
             {
-                "command": "msr.findSelectedPlainTextInAllProjectFiles",
+                "command": "msr.findSelectedPlainTextInAllSourceFiles",
                 "title": "Find `selected plain text` in code + config + doc.",
                 "category": "msr",
                 "icon": {
@@ -308,8 +319,8 @@
                 }
             },
             {
-                "command": "msr.tmpToggleEnableForFindDefinitionAndReference",
-                "title": "Toggle enable finding definition + reference",
+                "command": "msr.tmpToggleEnableFindingDefinition",
+                "title": "Temporarily toggle enable/disable finding definition.",
                 "category": "msr",
                 "icon": {
                     "dark": "images/vscode-msr-small.svg",
@@ -389,8 +400,8 @@
                     "group": "msr"
                 },
                 {
-                    "when": "config.msr.menu.visible && config.msr.regexFindInAllProjectFiles.menu.visible",
-                    "command": "msr.regexFindInAllProjectFiles",
+                    "when": "config.msr.menu.visible && config.msr.regexFindInAllSourceFiles.menu.visible",
+                    "command": "msr.regexFindInAllSourceFiles",
                     "group": "msr"
                 },
                 {
@@ -404,13 +415,18 @@
                     "group": "msr"
                 },
                 {
-                    "when": "config.msr.menu.visible && config.msr.regexFindReferenceInCodeFiles.menu.visible",
-                    "command": "msr.regexFindReferenceInCodeFiles",
+                    "when": "config.msr.menu.visible && config.msr.regexFindReferencesInCodeFiles.menu.visible",
+                    "command": "msr.regexFindReferencesInCodeFiles",
                     "group": "msr"
                 },
                 {
-                    "when": "config.msr.menu.visible && config.msr.regexFindPureReferenceInCodeFiles.menu.visible",
-                    "command": "msr.regexFindPureReferenceInCodeFiles",
+                    "when": "config.msr.menu.visible && config.msr.regexFindPureReferencesInCodeFiles.menu.visible",
+                    "command": "msr.regexFindPureReferencesInCodeFiles",
+                    "group": "msr"
+                },
+                {
+                    "when": "config.msr.menu.visible && config.msr.regexFindPureReferencesInAllSourceFiles.menu.visible",
+                    "command": "msr.regexFindPureReferencesInAllSourceFiles",
                     "group": "msr"
                 },
                 {
@@ -444,8 +460,8 @@
                     "group": "msr"
                 },
                 {
-                    "when": "config.msr.menu.visible && config.msr.findSelectedPlainTextInAllProjectFiles.menu.visible",
-                    "command": "msr.findSelectedPlainTextInAllProjectFiles",
+                    "when": "config.msr.menu.visible && config.msr.findSelectedPlainTextInAllSourceFiles.menu.visible",
+                    "command": "msr.findSelectedPlainTextInAllSourceFiles",
                     "group": "msr"
                 },
                 {
@@ -514,8 +530,8 @@
                     "group": "msr"
                 },
                 {
-                    "when": "config.msr.menu.visible && config.msr.tmpToggleEnableForFindDefinitionAndReference.menu.visible",
-                    "command": "msr.tmpToggleEnableForFindDefinitionAndReference",
+                    "when": "config.msr.menu.visible && config.msr.tmpToggleEnableFindingDefinition.menu.visible",
+                    "command": "msr.tmpToggleEnableFindingDefinition",
                     "group": "msr"
                 },
                 {
@@ -563,7 +579,7 @@
                     "group": "msr"
                 },
                 {
-                    "command": "msr.regexFindInAllProjectFiles",
+                    "command": "msr.regexFindInAllSourceFiles",
                     "group": "msr"
                 },
                 {
@@ -575,11 +591,15 @@
                     "group": "msr"
                 },
                 {
-                    "command": "msr.regexFindReferenceInCodeFiles",
+                    "command": "msr.regexFindReferencesInCodeFiles",
                     "group": "msr"
                 },
                 {
-                    "command": "msr.regexFindPureReferenceInCodeFiles",
+                    "command": "msr.regexFindPureReferencesInCodeFiles",
+                    "group": "msr"
+                },
+                {
+                    "command": "msr.regexFindPureReferencesInAllSourceFiles",
                     "group": "msr"
                 },
                 {
@@ -607,7 +627,7 @@
                     "group": "msr"
                 },
                 {
-                    "command": "msr.findSelectedPlainTextInAllProjectFiles",
+                    "command": "msr.findSelectedPlainTextInAllSourceFiles",
                     "group": "msr"
                 },
                 {
@@ -663,7 +683,7 @@
                     "group": "msr"
                 },
                 {
-                    "command": "msr.tmpToggleEnableForFindDefinitionAndReference",
+                    "command": "msr.tmpToggleEnableFindingDefinition",
                     "group": "msr"
                 },
                 {
@@ -694,7 +714,7 @@
         },
         "keybindings": [
             {
-                "command": "msr.tmpToggleEnableForFindDefinitionAndReference",
+                "command": "msr.tmpToggleEnableFindingDefinition",
                 "key": "Alt+F2",
                 "when": "editorTextFocus"
             }
@@ -732,10 +752,10 @@
                     "default": true,
                     "description": "Overwrite the default initialized command shortcuts (alias/doskeys) of a project when open a new terminal."
                 },
-                "msr.tmpToggleEnableForFindDefinitionAndReference.menu.visible": {
+                "msr.tmpToggleEnableFindingDefinition.menu.visible": {
                     "type": "boolean",
                     "default": false,
-                    "description": "Temporarily toggle enable/disable finding definition/reference for current live vscode."
+                    "description": "Temporarily toggle enable/disable finding definition for current live vscode."
                 },
                 "msr.findTopFolder.menu.visible": {
                     "type": "boolean",
@@ -809,9 +829,9 @@
                     "type": "boolean",
                     "default": true
                 },
-                "msr.regexFindInAllProjectFiles.menu.visible": {
+                "msr.regexFindInAllSourceFiles.menu.visible": {
                     "type": "boolean",
-                    "default": false
+                    "default": true
                 },
                 "msr.regexFindReferencesInCodeAndConfig.menu.visible": {
                     "type": "boolean",
@@ -821,13 +841,17 @@
                     "type": "boolean",
                     "default": true
                 },
-                "msr.regexFindReferenceInCodeFiles.menu.visible": {
+                "msr.regexFindReferencesInCodeFiles.menu.visible": {
                     "type": "boolean",
                     "default": false
                 },
-                "msr.regexFindPureReferenceInCodeFiles.menu.visible": {
+                "msr.regexFindPureReferencesInCodeFiles.menu.visible": {
                     "type": "boolean",
-                    "default": true
+                    "default": false
+                },
+                "msr.regexFindPureReferencesInAllSourceFiles.menu.visible": {
+                    "type": "boolean",
+                    "default": false
                 },
                 "msr.regexFindReferencesInDocs.menu.visible": {
                     "type": "boolean",
@@ -853,7 +877,7 @@
                     "type": "boolean",
                     "default": false
                 },
-                "msr.findSelectedPlainTextInAllProjectFiles.menu.visible": {
+                "msr.findSelectedPlainTextInAllSourceFiles.menu.visible": {
                     "type": "boolean",
                     "default": false
                 },
@@ -910,7 +934,7 @@
                     "description": "Regex pattern of project root folder names to disable finding definition and references."
                 },
                 "msr.disable.extensionPattern": {
-                    "default": "tsx?|jsx?|go",
+                    "default": "tsx?|jsx?",
                     "description": "Regex pattern of file extensions to disable finding definition and references. Example: tsx?|jsx?|py|java|cpp"
                 },
                 "msr.disable.findDef.extensionPattern": {
@@ -918,7 +942,7 @@
                     "description": "Regex pattern of file extensions to disable finding definition. Example: tsx?|jsx?|py|java|cpp"
                 },
                 "msr.disable.findRef.extensionPattern": {
-                    "default": "tsx?|jsx?",
+                    "default": "tsx?|jsx?|.*",
                     "description": "Regex pattern of file extensions to disable finding reference. Example: tsx?|jsx?|py|java|cpp"
                 },
                 "msr.findingCommands.useExtraPaths": {
@@ -941,9 +965,9 @@
                     "default": true,
                     "description": "Enable finding commands."
                 },
-                "msr.enable.onlyFindDefinitionAndReferenceForKnownLanguages": {
+                "msr.enable.onlyFindDefinitionForKnownLanguages": {
                     "type": "boolean",
-                    "default": true,
+                    "default": false,
                     "description": "Only enable finding definition and reference for known language type: exist `msr.fileExtensionMap.{name}` or `msr.{name}.definition`"
                 },
                 "msr.enable.useGeneralFindingWhenNoResults": {
@@ -1044,9 +1068,13 @@
                     "description": "Print extra info like command line."
                 },
                 "msr.default.listSortingFilesOptions": {
-                    "type": "boolean",
                     "default": "-l -H 10 -T 10",
                     "description": "Default list file options. Like listing top 10 and bottom 10 files: -l -H 10 -T 10"
+                },
+                "msr.useRelativePathForLinuxTerminalsOnWindows": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Search '.' other than full project paths if it's on Windows with Linux terminals(MinGW/Cygwin) to avoid unable to click + open search results."
                 },
                 "msr.debug": {
                     "type": "boolean",
@@ -1113,8 +1141,16 @@
                     "default": "",
                     "description": "Save folder for command shortcuts file when cooking. If not set, will use `%USERPROFILE%\\Desktop` (Windows) or `~/` (Linux) for single file, and `%USERPROFILE%\\Desktop\\cmdAlias` or `~/cmdAlias/` for multiple script files."
                 },
+                "msr.cookCmdAlias.hideWarningsAndExtraInfo": {
+                    "default": false,
+                    "description": "When cooking command alias/shortcuts, add -I to hide warnings and extra info (overwrite default extraOption)."
+                },
+                "msr.cookCmdAlias.outputFullPath": {
+                    "default": true,
+                    "description": "When cooking command alias/shortcuts, add -W to output full path (overwrite default extraOption)."
+                },
                 "msr.default.extraOptions": {
-                    "default": "--s1 1B --s2 3.6MB -I -C -c",
+                    "default": "--s1 1B --s2 3.6MB -C -c",
                     "description": "Default extra searching options. Like: -W --xd --xf --s1 1B --s2 3.6MB -I -C -c"
                 },
                 "msr.definition.extraOptions": {

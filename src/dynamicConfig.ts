@@ -93,7 +93,7 @@ export class DynamicConfig {
     public RootFolder: string = ".";
 
     // Temp toggle enable/disable finding definition and reference
-    public IsEnabledFindingDefinitionAndReference: boolean = true;
+    public IsEnabledFindingDefinition: boolean = true;
 
     public ClearTerminalBeforeExecutingCommands: boolean = false;
     public ShowInfo: boolean = false;
@@ -107,7 +107,7 @@ export class DynamicConfig {
 
     public ReRunCmdInTerminalIfCostLessThan: number = 3.3;
     public ReRunSearchInTerminalIfResultsMoreThan: number = 1;
-    public OnlyFindDefinitionAndReferenceForKnownLanguages: boolean = true;
+    public OnlyFindDefinitionForKnownLanguages: boolean = true;
 
     public ConfigAndDocFilesRegex: RegExp = new RegExp('to-load');
     public CodeAndConfigAndDocFilesRegex: RegExp = new RegExp('to-load');
@@ -131,6 +131,8 @@ export class DynamicConfig {
 
     public UseExtraPathsToFindReferences: boolean = false;
     public UseExtraPathsToFindDefinition: boolean = true;
+    public HideWarningsAndExtraInfoWhenCookingCommandAlias: boolean = false;
+    public OutputFullPathWhenCookingCommandAlias: boolean = true;
 
     private TmpToggleEnabledExtensionToValueMap = new Map<string, boolean>();
 
@@ -138,7 +140,7 @@ export class DynamicConfig {
         return FileExtensionToMappedExtensionMap.has(extension) || this.RootConfig.get(extension) !== undefined;
     }
 
-    public toggleEnableFindingDefinitionAndReference(extension: string) {
+    public toggleEnableFindingDefinition(extension: string) {
         const isKnownType = this.isKnownLanguage(extension);
         const mappedExt = FileExtensionToMappedExtensionMap.get(extension) || extension;
         const currentStatus = this.TmpToggleEnabledExtensionToValueMap.get(mappedExt);
@@ -148,12 +150,12 @@ export class DynamicConfig {
             if (isKnownType) {
                 isEnabled = !this.DisabledFileExtensionRegex.test(extension) && !this.DisableFindDefinitionFileExtensionRegex.test(extension);
             } else {
-                isEnabled = !MyConfig.OnlyFindDefinitionAndReferenceForKnownLanguages;
+                isEnabled = !MyConfig.OnlyFindDefinitionForKnownLanguages;
             }
         }
 
         this.TmpToggleEnabledExtensionToValueMap.set(mappedExt, !isEnabled);
-        outputInfo(nowText() + 'Toggle to `' + (isEnabled ? 'disabled' : 'enabled') + '` for `' + mappedExt + '` files to find definition/references.');
+        outputInfo(nowText() + 'Toggle to `' + (isEnabled ? 'disabled' : 'enabled') + '` for `' + mappedExt + '` files to find definition.');
     }
 
     private getConfigValue(configTailKey: string): string {
@@ -175,7 +177,7 @@ export class DynamicConfig {
             });
         }
 
-        this.OnlyFindDefinitionAndReferenceForKnownLanguages = this.getConfigValue('enable.onlyFindDefinitionAndReferenceForKnownLanguages') === 'true';
+        this.OnlyFindDefinitionForKnownLanguages = this.getConfigValue('enable.onlyFindDefinitionForKnownLanguages') === 'true';
         if (vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders.length > 0) {
             this.RootFolder = vscode.workspace.workspaceFolders[0].uri.fsPath;
         }
@@ -210,6 +212,8 @@ export class DynamicConfig {
         this.DisableFindDefinitionFileExtensionRegex = createRegex(this.getConfigValue('disable.findDef.extensionPattern'), 'i', true);
         this.DisableFindReferenceFileExtensionRegex = createRegex(this.getConfigValue('disable.findRef.extensionPattern'), 'i', true);
 
+        this.HideWarningsAndExtraInfoWhenCookingCommandAlias = this.getConfigValue('cookCmdAlias.hideWarningsAndExtraInfo') === 'true';
+        this.OutputFullPathWhenCookingCommandAlias = this.getConfigValue('cookCmdAlias.outputFullPath') === 'true';
         this.ExcludeFoldersFromSettings.clear();
         if (this.AutoMergeSkipFolders) {
             this.ExcludeFoldersFromSettings = this.getExcludeFolders('search');
@@ -222,18 +226,20 @@ export class DynamicConfig {
         const extension = getExtensionNoHeadDot(parsedFile.ext);
         const mappedExt = FileExtensionToMappedExtensionMap.get(extension) || extension;
 
-        const findTypeText = 'finding `' + FindType[findType] + '` in `' + mappedExt + '` files';
-        const toggleTip = 'Change it or temporarily toggle `enable/disable`.';
+        const findTypeText = 'finding "' + FindType[findType] + '` in `' + mappedExt + '` files';
+        const toggleTip = FindType.Reference === findType ? '' : 'Change it or temporarily toggle `enable/disable`.';
         const toggleStatus = this.TmpToggleEnabledExtensionToValueMap.get(mappedExt);
-        if (toggleStatus !== undefined) {
+
+        // don't enable finding references:
+        if (toggleStatus !== undefined && FindType.Reference !== findType) {
             const status = true === toggleStatus ? '`enabled`' : '`disabled`';
-            outputInfo(nowText() + 'Toggle status = ' + status + ' for ' + findTypeText + ' because menu or hot key of `msr.tmpToggleEnableForFindDefinitionAndReference` had been triggered.');
+            outputInfo(nowText() + 'Toggle status = ' + status + ' for ' + findTypeText + ' because menu or hot key of `msr.tmpToggleEnableFindingDefinition` had been triggered.');
             return false === toggleStatus;
         }
 
-        if (this.OnlyFindDefinitionAndReferenceForKnownLanguages) {
+        if (this.OnlyFindDefinitionForKnownLanguages) {
             if (isNullOrEmpty(mappedExt) || !this.isKnownLanguage(extension)) {
-                outputInfo(nowText() + 'Disabled ' + findTypeText + '` files due to `msr.enable.onlyFindDefinitionAndReferenceForKnownLanguages` = true'
+                outputInfo(nowText() + 'Disabled ' + findTypeText + '` files due to `msr.enable.onlyFindDefinitionForKnownLanguages` = true'
                     + ' + Not exist `msr.fileExtensionMap.' + extension + '` nor `msr.' + extension + '.xxx`. ' + toggleTip);
                 return true;
             }
@@ -249,7 +255,7 @@ export class DynamicConfig {
         }
 
         if (checkRegex.test(extension)) {
-            const configName = FindType.Definition === findType ? 'msr.disable.findDef.extensionPattern' : 'msr.disable.findRef.extensionPattern';
+            const configName = FindType.Definition === findType ? 'disable.findDef.extensionPattern' : 'disable.findRef.extensionPattern';
             outputInfo(nowText() + 'Disabled ' + findTypeText + '` by `' + configName + '` = "' + this.RootConfig.get(configName) + '". ' + toggleTip);
             return true;
         }
@@ -624,7 +630,7 @@ export function cookCmdShortcutsOrFile(
         useProjectSpecific = false;
     }
 
-    const [cmdAliasMap, oldCmdCount, commands] = getCommandAliasMap(terminalType, rootFolderName, useProjectSpecific, writeToEachFile, dumpOtherCmdAlias, newTerminal);
+    const [cmdAliasMap, oldCmdCount, commands] = getCommandAliasMap(terminalType, rootFolderName, useProjectSpecific, writeToEachFile, dumpOtherCmdAlias);
     const fileName = (useProjectSpecific ? rootFolderName + '.' : '') + 'msr-cmd-alias' + (isWindowsTerminal ? '.doskeys' : '.bashrc');
     const cmdAliasFile = toWSLPath(path.join(saveFolder, fileName));
     const quotedCmdAliasFile = quotePaths(cmdAliasFile);
@@ -1045,8 +1051,7 @@ function getCommandAliasMap(
     rootFolderName: string,
     useProjectSpecific: boolean,
     writeToEachFile: boolean,
-    dumpOtherCmdAlias: boolean = false,
-    newTerminal: vscode.Terminal | undefined = undefined)
+    dumpOtherCmdAlias: boolean = false)
     : [Map<string, string>, number, string[]] {
 
     const isWindowsTerminal = isWindowsTerminalType(terminalType);
@@ -1283,12 +1288,18 @@ function outputCmdAliasGuide(isWindowsTerminal: boolean, cmdAliasFile: string, s
 }
 
 function addFullPathHideWarningOption(extraOption: string): string {
-    if (!/(^|\s+)-[PACIGMOZc]*?W/.test(extraOption)) {
+    const hasFoundOutputFullPath = /(^|\s+)-[PACIGMOZc]*?W/.test(extraOption);
+    if (!hasFoundOutputFullPath && MyConfig.OutputFullPathWhenCookingCommandAlias) {
         extraOption = '-W ' + extraOption.trimLeft();
+    } else if (hasFoundOutputFullPath && !MyConfig.OutputFullPathWhenCookingCommandAlias) {
+        extraOption = extraOption.replace(/ -W /, ' ');
     }
 
-    if (!/(^|\s+)-[PACWGMOZc]*?I/.test(extraOption)) {
+    const hasFoundNoExtraInfo = /(^|\s+)-[PACWGMOZc]*?I/.test(extraOption);
+    if (!hasFoundNoExtraInfo && MyConfig.HideWarningsAndExtraInfoWhenCookingCommandAlias) {
         extraOption = '-I ' + extraOption.trimLeft();
+    } else if (hasFoundNoExtraInfo && !MyConfig.HideWarningsAndExtraInfoWhenCookingCommandAlias) {
+        extraOption = extraOption.replace(/ -I /, ' ');
     }
 
     return extraOption.trim();

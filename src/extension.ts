@@ -17,7 +17,7 @@ import ChildProcess = require('child_process');
 import path = require('path');
 
 const trackBeginLoadTime = new Date();
-outputDebug(nowText() + 'Start loading extension and intialize ...');
+outputDebug(nowText() + 'Start loading extension and initialize ...');
 
 const GetFileLineTextRegex = new RegExp('(.+?):(\\d+):(.*)');
 
@@ -39,7 +39,7 @@ let RootConfig = MyConfig.RootConfig || vscode.workspace.getConfiguration('msr')
 checkSearchToolExists();
 checkAndDownloadTool('nin');
 
-outputDebug(nowText() + 'Finished to load extension and intialize. Cost ' + getTimeCostToNow(trackBeginLoadTime) + ' seconds.');
+outputDebug(nowText() + 'Finished to load extension and initialize. Cost ' + getTimeCostToNow(trackBeginLoadTime) + ' seconds.');
 
 // vscode.languages.getLanguages().then((languages: string[]) => { console.log("Known languages: " + languages); });
 
@@ -94,145 +94,149 @@ export function registerExtension(context: vscode.ExtensionContext) {
 	}));
 
 	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.regexFindDefinitionInCodeFiles',
-		(textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit, ...args: any[]) =>
+		(textEditor: vscode.TextEditor, _edit: vscode.TextEditorEdit, ..._args: any[]) =>
 			runFindingCommand(FindCommandType.RegexFindDefinitionInCodeFiles, textEditor)));
 
 	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.regexFindDefinitionInCurrentFile',
-		(textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit, ...args: any[]) =>
+		(textEditor: vscode.TextEditor, _edit: vscode.TextEditorEdit, ..._args: any[]) =>
 			runFindingCommand(FindCommandType.RegexFindDefinitionInCurrentFile, textEditor)));
 
 	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.regexFindReferencesInCurrentFile',
-		(textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit, ...args: any[]) =>
+		(textEditor: vscode.TextEditor, _edit: vscode.TextEditorEdit, ..._args: any[]) =>
 			runFindingCommand(FindCommandType.RegexFindReferencesInCurrentFile, textEditor)));
 
-	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.regexFindReferenceInCodeFiles',
-		(textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit, ...args: any[]) =>
+	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.regexFindReferencesInCodeFiles',
+		(textEditor: vscode.TextEditor, _edit: vscode.TextEditorEdit, ..._args: any[]) =>
 			runFindingCommand(FindCommandType.RegexFindReferencesInCodeFiles, textEditor)));
 
-	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.regexFindPureReferenceInCodeFiles',
-		(textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit, ...args: any[]) =>
+	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.regexFindPureReferencesInCodeFiles',
+		(textEditor: vscode.TextEditor, _edit: vscode.TextEditorEdit, ..._args: any[]) =>
 			runFindingCommand(FindCommandType.RegexFindPureReferencesInCodeFiles, textEditor)));
 
+	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.regexFindPureReferencesInAllSourceFiles',
+		(textEditor: vscode.TextEditor, _edit: vscode.TextEditorEdit, ..._args: any[]) =>
+			runFindingCommand(FindCommandType.RegexFindPureReferencesInAllSourceFiles, textEditor)));
+
 	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.regexFindReferencesInDocs',
-		(textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit, ...args: any[]) =>
+		(textEditor: vscode.TextEditor, _edit: vscode.TextEditorEdit, ..._args: any[]) =>
 			runFindingCommand(FindCommandType.RegexFindReferencesInDocs, textEditor)));
 
 	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.regexFindReferencesInConfigFiles',
-		(textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit, ...args: any[]) =>
+		(textEditor: vscode.TextEditor, _edit: vscode.TextEditorEdit, ..._args: any[]) =>
 			runFindingCommand(FindCommandType.RegexFindReferencesInConfigFiles, textEditor)));
 
-	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.regexFindInAllProjectFiles',
-		(textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit, ...args: any[]) =>
-			runFindingCommand(FindCommandType.RegexFindReferencesInAllProjectFiles, textEditor)));
+	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.regexFindInAllSourceFiles',
+		(textEditor: vscode.TextEditor, _edit: vscode.TextEditorEdit, ..._args: any[]) =>
+			runFindingCommand(FindCommandType.RegexFindReferencesInAllSourceFiles, textEditor)));
 
 	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.regexFindReferencesInCodeAndConfig',
-		(textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit, ...args: any[]) =>
+		(textEditor: vscode.TextEditor, _edit: vscode.TextEditorEdit, ..._args: any[]) =>
 			runFindingCommand(FindCommandType.RegexFindReferencesInCodeAndConfig, textEditor)));
 
 	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.regexFindInAllSmallFiles',
-		(textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit, ...args: any[]) =>
+		(textEditor: vscode.TextEditor, _edit: vscode.TextEditorEdit, ..._args: any[]) =>
 			runFindingCommand(FindCommandType.RegexFindReferencesInAllSmallFiles, textEditor)));
 
 	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.findSelectedPlainTextInCodeFiles',
-		(textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit, ...args: any[]) =>
+		(textEditor: vscode.TextEditor, _edit: vscode.TextEditorEdit, ..._args: any[]) =>
 			runFindingCommand(FindCommandType.FindPlainTextInCodeFiles, textEditor)));
 
 	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.findSelectedPlainTextInConfigFiles',
-		(textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit, ...args: any[]) =>
+		(textEditor: vscode.TextEditor, _edit: vscode.TextEditorEdit, ..._args: any[]) =>
 			runFindingCommand(FindCommandType.FindPlainTextInConfigFiles, textEditor)));
 
 	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.findSelectedPlainTextInDocFiles',
-		(textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit, ...args: any[]) =>
+		(textEditor: vscode.TextEditor, _edit: vscode.TextEditorEdit, ..._args: any[]) =>
 			runFindingCommand(FindCommandType.FindPlainTextInDocFiles, textEditor)));
 
 	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.findSelectedPlainTextInCodeAndConfigFiles',
-		(textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit, ...args: any[]) =>
+		(textEditor: vscode.TextEditor, _edit: vscode.TextEditorEdit, ..._args: any[]) =>
 			runFindingCommand(FindCommandType.FindPlainTextInConfigAndConfigFiles, textEditor)));
 
-	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.findSelectedPlainTextInAllProjectFiles',
-		(textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit, ...args: any[]) =>
-			runFindingCommand(FindCommandType.FindPlainTextInAllProjectFiles, textEditor)));
+	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.findSelectedPlainTextInAllSourceFiles',
+		(textEditor: vscode.TextEditor, _edit: vscode.TextEditorEdit, ..._args: any[]) =>
+			runFindingCommand(FindCommandType.FindPlainTextInAllSourceFiles, textEditor)));
 
 	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.findSelectedPlainTextInAllSmallFiles',
-		(textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit, ...args: any[]) =>
+		(textEditor: vscode.TextEditor, _edit: vscode.TextEditorEdit, ..._args: any[]) =>
 			runFindingCommand(FindCommandType.FindPlainTextInAllSmallFiles, textEditor)));
 
 	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.sortSourceBySize',
-		(textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit, ...args: any[]) =>
+		(textEditor: vscode.TextEditor, _edit: vscode.TextEditorEdit, ..._args: any[]) =>
 			runFindingCommand(FindCommandType.SortSourceBySize, textEditor)));
 
 	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.sortSourceByTime',
-		(textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit, ...args: any[]) =>
+		(textEditor: vscode.TextEditor, _edit: vscode.TextEditorEdit, ..._args: any[]) =>
 			runFindingCommand(FindCommandType.SortSourceByTime, textEditor)));
 
 	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.sortBySize',
-		(textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit, ...args: any[]) =>
+		(textEditor: vscode.TextEditor, _edit: vscode.TextEditorEdit, ..._args: any[]) =>
 			runFindingCommand(FindCommandType.SortBySize, textEditor)));
 
 	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.sortByTime',
-		(textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit, ...args: any[]) =>
+		(textEditor: vscode.TextEditor, _edit: vscode.TextEditorEdit, ..._args: any[]) =>
 			runFindingCommand(FindCommandType.SortByTime, textEditor)));
 
 	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.sortCodeBySize',
-		(textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit, ...args: any[]) =>
+		(textEditor: vscode.TextEditor, _edit: vscode.TextEditorEdit, ..._args: any[]) =>
 			runFindingCommand(FindCommandType.SortCodeBySize, textEditor)));
 
 	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.sortCodeByTime',
-		(textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit, ...args: any[]) =>
+		(textEditor: vscode.TextEditor, _edit: vscode.TextEditorEdit, ..._args: any[]) =>
 			runFindingCommand(FindCommandType.SortCodeByTime, textEditor)));
 
 	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.cookCmdAlias',
-		(textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit, ...args: any[]) =>
+		(textEditor: vscode.TextEditor, _edit: vscode.TextEditorEdit, ..._args: any[]) =>
 			cookCmdShortcutsOrFile(textEditor.document.uri.fsPath, false, false)));
 
 	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.cookCmdAliasByProject',
-		(textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit, ...args: any[]) =>
+		(textEditor: vscode.TextEditor, _edit: vscode.TextEditorEdit, ..._args: any[]) =>
 			cookCmdShortcutsOrFile(textEditor.document.uri.fsPath, true, false)));
 
 	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.cookCmdAliasFiles',
-		(textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit, ...args: any[]) =>
+		(textEditor: vscode.TextEditor, _edit: vscode.TextEditorEdit, ..._args: any[]) =>
 			cookCmdShortcutsOrFile(textEditor.document.uri.fsPath, false, true)));
 
 	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.cookCmdAliasFilesByProject',
-		(textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit, ...args: any[]) =>
+		(textEditor: vscode.TextEditor, _edit: vscode.TextEditorEdit, ..._args: any[]) =>
 			cookCmdShortcutsOrFile(textEditor.document.uri.fsPath, true, true)));
 
 	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.cookCmdAliasDumpWithOthersToFiles',
-		(textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit, ...args: any[]) =>
+		(textEditor: vscode.TextEditor, _edit: vscode.TextEditorEdit, ..._args: any[]) =>
 			cookCmdShortcutsOrFile(textEditor.document.uri.fsPath, false, true, undefined, true)));
 
 	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.cookCmdAliasDumpWithOthersToFilesByProject',
-		(textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit, ...args: any[]) =>
+		(textEditor: vscode.TextEditor, _edit: vscode.TextEditorEdit, ..._args: any[]) =>
 			cookCmdShortcutsOrFile(textEditor.document.uri.fsPath, true, true, undefined, true)));
 
-	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.tmpToggleEnableForFindDefinitionAndReference',
-		(textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit, ...args: any[]) => {
+	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.tmpToggleEnableFindingDefinition',
+		(textEditor: vscode.TextEditor, _edit: vscode.TextEditorEdit, ..._args: any[]) => {
 			const extension = getExtensionNoHeadDot(path.parse(textEditor.document.uri.fsPath).ext);
-			getConfig().toggleEnableFindingDefinitionAndReference(extension);
+			getConfig().toggleEnableFindingDefinition(extension);
 		}));
 
 	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.findTopFolder',
-		(textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit, ...args: any[]) =>
+		(textEditor: vscode.TextEditor, _edit: vscode.TextEditorEdit, ..._args: any[]) =>
 			runFindingCommand(FindCommandType.FindTopFolder, textEditor)));
 
 	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.findTopType',
-		(textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit, ...args: any[]) =>
+		(textEditor: vscode.TextEditor, _edit: vscode.TextEditorEdit, ..._args: any[]) =>
 			runFindingCommand(FindCommandType.FindTopType, textEditor)));
 
 	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.findTopSourceFolder',
-		(textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit, ...args: any[]) =>
+		(textEditor: vscode.TextEditor, _edit: vscode.TextEditorEdit, ..._args: any[]) =>
 			runFindingCommand(FindCommandType.FindTopSourceFolder, textEditor)));
 
 	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.findTopSourceType',
-		(textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit, ...args: any[]) =>
+		(textEditor: vscode.TextEditor, _edit: vscode.TextEditorEdit, ..._args: any[]) =>
 			runFindingCommand(FindCommandType.FindTopSourceType, textEditor)));
 
 	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.findTopCodeFolder',
-		(textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit, ...args: any[]) =>
+		(textEditor: vscode.TextEditor, _edit: vscode.TextEditorEdit, ..._args: any[]) =>
 			runFindingCommand(FindCommandType.FindTopCodeFolder, textEditor)));
 
 	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.findTopCodeType',
-		(textEditor: vscode.TextEditor, edit: vscode.TextEditorEdit, ...args: any[]) =>
+		(textEditor: vscode.TextEditor, _edit: vscode.TextEditorEdit, ..._args: any[]) =>
 			runFindingCommand(FindCommandType.FindTopCodeType, textEditor)));
 }
 
@@ -265,7 +269,7 @@ export class DefinitionFinder implements vscode.DefinitionProvider {
 }
 
 export class ReferenceFinder implements vscode.ReferenceProvider {
-	public async provideReferences(document: vscode.TextDocument, position: vscode.Position, context: vscode.ReferenceContext, token: vscode.CancellationToken): Promise<vscode.Location[] | null> {
+	public async provideReferences(document: vscode.TextDocument, position: vscode.Position, _context: vscode.ReferenceContext, token: vscode.CancellationToken): Promise<vscode.Location[] | null> {
 		if (MyConfig.shouldSkipFinding(FindType.Reference, document.fileName)) {
 			return Promise.reject();
 		}
@@ -381,7 +385,7 @@ function searchDefinitionInCurrentFile(document: vscode.TextDocument, position: 
 	const mappedExt = FileExtensionToMappedExtensionMap.get(extension) || extension;
 	let ranker = new SearchProperty(FindType.Definition, currentWord, currentWordRange, currentText, parsedFile, mappedExt, true);
 
-	let command = getFindingCommandByCurrentWord(FindCommandType.RegexFindDefinitionInCurrentFile, currentWord, parsedFile, '', ranker);
+	let command = getFindingCommandByCurrentWord(false, FindCommandType.RegexFindDefinitionInCurrentFile, currentWord, parsedFile, '', ranker);
 	if (/\s+-[A-Zc]*?I[A-Zc]*(\s+|$)/.test(command) === false) {
 		command = command.trim() + ' -I';
 	}
@@ -423,7 +427,7 @@ function getMatchedLocationsAsync(findType: FindType, cmd: string, ranker: Searc
 		maxBuffer: 10240000,
 	};
 
-	return new Promise<vscode.Location[]>((resolve, reject) => {
+	return new Promise<vscode.Location[]>((resolve, _reject) => {
 		const process = exec(cmd, options, (error: | ExecException | null, stdout: string, stderr: string) => {
 			if (error) {
 				const hasSummary = GetSummaryRegex.test(error.message);
@@ -682,13 +686,15 @@ function parseMatchedText(text: string, ranker: SearchProperty): ScoreTypeResult
 		const wm = ranker.currentWordRegex.exec(m[3]);
 		if (wm !== null) {
 			const row = parseInt(m[2]);
-			const pos = new vscode.Position(row - 1, wm.index);
-			const [type, score] = MyConfig.NeedSortResults ? ranker.getTypeAndScore(m[1], row, m[3]) : [ResultType.Other, 1];
+			const begin = new vscode.Position(row - 1, Math.max(0, wm.index - 1));
+			// some official extension may return whole function block.
+			// const end = new vscode.Position(row - 1, wm.index - 1 + ranker.currentWord.length - 1);
+			const [type, score] = MyConfig.NeedSortResults ? ranker.getTypeAndScore(m[1], m[3]) : [ResultType.Other, 1];
 			if (!MyConfig.NeedSortResults) {
 				console.log('Score = ' + score + ': ' + text);
 			}
 
-			return new ScoreTypeResult(score, type, text, new vscode.Location(uri, pos));
+			return new ScoreTypeResult(score, type, text, new vscode.Location(uri, begin));
 		}
 		else {
 			outputError(nowText() + 'Failed to match words by Regex = "' + ranker.currentWordRegex + '" from matched result: ' + m[3]);

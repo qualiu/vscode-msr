@@ -39,6 +39,10 @@ export function isWindowsTerminalType(terminalType: TerminalType): boolean {
     return IsWindows && (TerminalType.CMD === terminalType || TerminalType.PowerShell === terminalType);
 }
 
+export function isLinuxTerminalOnWindows(terminalType: TerminalType = DefaultTerminalType): boolean {
+    return IsWindows && !isWindowsTerminalType(terminalType);
+}
+
 export function quotePaths(paths: string) {
     if (ShouldQuotePathRegex.test(paths)) {
         return '"' + paths + '"';
@@ -65,7 +69,7 @@ export function toCygwinPath(winPath: string) {
     return path.replace(' ', '\\ ');
 }
 
-export function toOsPath(windowsPath: string, terminalType: TerminalType): string {
+export function toOsPath(windowsPath: string, terminalType: TerminalType = DefaultTerminalType): string {
     if (IsWSL || TerminalType.WslBash === terminalType) {
         return toWSLPath(windowsPath, TerminalType.WslBash === terminalType);
     } else if (TerminalType.CygwinBash === terminalType) {

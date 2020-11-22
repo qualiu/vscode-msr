@@ -2,11 +2,11 @@ import * as vscode from 'vscode';
 import { checkAndDownloadTool, MsrExe } from './checkTool';
 import { HomeFolder, SearchTextHolderReplaceRegex, SkipJumpOutForHeadResultsRegex } from './constants';
 import { FileExtensionToMappedExtensionMap, getConfig, getConfigValue, getOverrideConfigByPriority, getRootFolder, getRootFolderExtraOptions, getRootFolderName, getSearchPathOptions, getSubConfigValue, removeSearchTextForCommandLine } from './dynamicConfig';
-import { FindCommandType } from './enums';
+import { FindCommandType, TerminalType } from './enums';
 import { enableColorAndHideCommandLine, outputDebug, outputInfo, runCommandInTerminal } from './outputUtils';
 import { SearchProperty } from './ranker';
 import { escapeRegExp, NormalTextRegex } from './regexUtils';
-import { DefaultTerminalType, getCurrentWordAndText, getExtensionNoHeadDot, isNullOrEmpty, nowText, quotePaths, replaceTextByRegex, toOsPath, toPath } from './utils';
+import { DefaultTerminalType, getCurrentWordAndText, getExtensionNoHeadDot, isLinuxTerminalOnWindows, isNullOrEmpty, nowText, quotePaths, replaceTextByRegex, toOsPath, toPath } from './utils';
 import path = require('path');
 
 const ReplaceSearchPathRegex = /-r?p\s+\S+|-r?p\s+\".+?\"/;
@@ -27,7 +27,7 @@ export function runFindingCommand(findCmd: FindCommandType, textEditor: vscode.T
     const searchText = findCmdText.match(/Regex/i) ? escapeRegExp(rawSearchText) : rawSearchText;
 
     const parsedFile = path.parse(textEditor.document.fileName);
-    let command = getFindingCommandByCurrentWord(findCmd, searchText, parsedFile, rawSearchText, undefined);
+    let command = getFindingCommandByCurrentWord(true, findCmd, searchText, parsedFile, rawSearchText, undefined);
     if (findCmdText.includes('FindTop')) {
         const [hasGotExe, ninExePath] = checkAndDownloadTool('nin');
         if (!hasGotExe) {
@@ -45,7 +45,7 @@ export function runFindingCommand(findCmd: FindCommandType, textEditor: vscode.T
 }
 
 export function runFindingCommandByCurrentWord(findCmd: FindCommandType, searchText: string, parsedFile: path.ParsedPath, rawSearchText: string = '') {
-    const command = getFindingCommandByCurrentWord(findCmd, searchText, parsedFile, rawSearchText, undefined);
+    const command = getFindingCommandByCurrentWord(false, findCmd, searchText, parsedFile, rawSearchText, undefined);
     const myConfig = getConfig();
     runCommandInTerminal(command, !myConfig.IsQuiet, myConfig.ClearTerminalBeforeExecutingCommands);
 }
@@ -126,30 +126,43 @@ export function getFindTopDistributionCommand(useProjectSpecific: boolean, addOp
     return command.trimRight();
 }
 
-export function getFindingCommandByCurrentWord(findCmd: FindCommandType, searchText: string, parsedFile: path.ParsedPath, rawSearchText: string = '', ranker: SearchProperty | undefined): string {
+export function getFindingCommandByCurrentWord(isForTerminal: boolean, findCmd: FindCommandType, searchText: string, parsedFile: path.ParsedPath, rawSearchText: string = '', ranker: SearchProperty | undefined): string {
     const extension = getExtensionNoHeadDot(parsedFile.ext);
     const mappedExt = FileExtensionToMappedExtensionMap.get(extension) || extension;
     const rootFolder = getRootFolder(toPath(parsedFile), true) || '.';
     const rootFolderName = getRootFolderName(rootFolder, true);
+    const useRelativeFolder = getOverrideConfigByPriority([rootFolderName, ''], 'useRelativePathForLinuxTerminalsOnWindows') === 'true';
+    const rootFolderOsPath = toOsPath(rootFolder);
+    const shouldChangeFolder = rootFolderOsPath.startsWith('/') && isForTerminal && useRelativeFolder && isLinuxTerminalOnWindows();
     const findCmdText = FindCommandType[findCmd];
+    function changeRootSearchFolderInCommand(command: string): string {
+        if (shouldChangeFolder) {
+            const pattern = new RegExp(' (-r?p) ' + rootFolderOsPath + '/?');
+            command = command.replace(pattern, ' $1 ./');
+            command = command.replace(/ -W /, ' ');
+        }
+
+        return command;
+    }
 
     if (findCmdText.includes('Sort')) {
-        return getSortCommandText(true, false, findCmd, rootFolder);
+        const command = getSortCommandText(true, false, findCmd, rootFolder);
+        return changeRootSearchFolderInCommand(command);
     }
 
     if (findCmdText.includes('Top')) {
-        return getFindTopDistributionCommand(true, false, findCmd, rootFolder);
+        const command = getFindTopDistributionCommand(true, false, findCmd, rootFolder);
+        return changeRootSearchFolderInCommand(command);
     }
 
     if (searchText.length < 2) {
         return '';
     }
 
-    rawSearchText = rawSearchText.length < 1 ? searchText : rawSearchText;
-
     const isFindDefinition = findCmdText.indexOf('Definition') >= 0;
     const isFindReference = findCmdText.indexOf('Reference') >= 0;
     const isFindPlainText = findCmdText.indexOf('FindPlainText') >= 0;
+    rawSearchText = rawSearchText.length < 1 ? searchText : rawSearchText;
 
     let extraOptions = isFindDefinition
         ? getSubConfigValue(rootFolderName, extension, mappedExt, 'definition', 'extraOptions')
@@ -236,8 +249,9 @@ export function getFindingCommandByCurrentWord(findCmd: FindCommandType, searchT
             filePattern = getOverrideConfigByPriority([rootFolderName, 'default'], 'codeAndConfig') as string;
             break;
 
-        case FindCommandType.RegexFindReferencesInAllProjectFiles:
-        case FindCommandType.FindPlainTextInAllProjectFiles:
+        case FindCommandType.RegexFindReferencesInAllSourceFiles:
+        case FindCommandType.FindPlainTextInAllSourceFiles:
+        case FindCommandType.RegexFindPureReferencesInAllSourceFiles:
             filePattern = getOverrideConfigByPriority([rootFolderName, 'default'], 'allFiles') as string;
             break;
 
@@ -258,6 +272,15 @@ export function getFindingCommandByCurrentWord(findCmd: FindCommandType, searchT
     //     filePattern = (MappedExtToCodeFilePatternMap.get(mappedExt) || getOverrideConfigByPriority([rootFolderName, 'default'], 'scriptFiles')) as string;
     // }
 
+    if (TerminalType.CMD !== DefaultTerminalType) {
+        // escape double quoted variables
+        if (isFindPlainText) {
+            rawSearchText = rawSearchText.replace(/(\$\w+)/g, '\\$1');
+        } else {
+            searchText = searchText.replace(/(\$\w+)/g, '\\\\$1');
+        }
+    }
+
     if (isFindPlainText) {
         searchPattern = ' -x "' + rawSearchText.replace(/"/g, '\\"') + '"';
         skipTextPattern = '';
@@ -265,7 +288,8 @@ export function getFindingCommandByCurrentWord(findCmd: FindCommandType, searchT
         searchPattern = ' -t "' + searchPattern + '"';
     }
 
-    if (findCmd === FindCommandType.RegexFindPureReferencesInCodeFiles) {
+    // FindCommandType.RegexFindPureReferencesInCodeFiles || FindCommandType.RegexFindPureReferencesInAllSourceFiles
+    if (findCmdText.includes('RegexFindPureReference')) {
         const skipPattern = getConfigValue(rootFolderName, extension, mappedExt, 'skip.pureReference', true).trim();
         if (skipPattern.length > 0 && /\s+--nt\s+/.test(searchPattern) !== true) {
             skipTextPattern = skipPattern;
@@ -273,7 +297,7 @@ export function getFindingCommandByCurrentWord(findCmd: FindCommandType, searchT
     }
 
     const parsedFilePath = toPath(parsedFile);
-    const osFilePath = toOsPath(parsedFilePath, DefaultTerminalType);
+    const osFilePath = toOsPath(parsedFilePath);
     const useExtraPaths = 'true' === getConfigValue(rootFolderName, extension, mappedExt, 'findingCommands.useExtraPaths');
     const searchPathsOptions = getSearchPathOptions(true, parsedFilePath, mappedExt, FindCommandType.RegexFindDefinitionInCodeFiles === findCmd, useExtraPaths, useExtraPaths);
 
@@ -312,6 +336,6 @@ export function getFindingCommandByCurrentWord(findCmd: FindCommandType, searchT
     command = command.replace(SearchTextHolderReplaceRegex, searchText).trim();
     command = command.replace(SkipJumpOutForHeadResultsRegex, ' ').trim();
     command = enableColorAndHideCommandLine(command);
-
+    command = changeRootSearchFolderInCommand(command);
     return command;
 }

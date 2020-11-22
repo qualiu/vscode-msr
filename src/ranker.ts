@@ -416,7 +416,7 @@ export class SearchProperty {
 		return Array.from(skipPatternSet).join('|');
 	}
 
-	public getTypeAndScore(resultFilePath: string, resultRow: Number, resultText: string): [ResultType, Number] {
+	public getTypeAndScore(resultFilePath: string, resultText: string): [ResultType, Number] {
 		if (this.findType !== FindType.Definition) {
 			return [ResultType.Other, 1];
 		}

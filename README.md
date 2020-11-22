@@ -123,7 +123,7 @@ To adjust the colors, for example, if it's default `dark-blue` color theme:
 - Open your [personal settings file](https://code.visualstudio.com/docs/getstarted/settings#_settings-file-locations) with `code` or other tools like:
   - Windows: code `%APPDATA%\Code\User\settings.json`
   - Linux: code `$HOME/.config/Code/User/settings`
-- Add or change **terminal.ansiBrightBlue** like below:
+- Add or change **terminal.ansiBrightBlue** like below: (Add outer brackets `"{ }"` if the file is empty)
 
 ```json
 "workbench.colorCustomizations": {
@@ -212,17 +212,17 @@ But you can still use the `command platte` or `right-pop-menu` (like `Regex find
 
 If you want to support unknown languages, do **anyone** of below:
 
-- Set `msr.enable.onlyFindDefinitionAndReferenceForKnownLanguages` = **false** in [personal settings file](https://code.visualstudio.com/docs/getstarted/settings#_settings-file-locations) or un-check it in [user settings](https://code.visualstudio.com/docs/getstarted/settings#_creating-user-and-workspace-settings).
+- Set `msr.enable.onlyFindDefinitionForKnownLanguages` = **false** in [personal settings file](https://code.visualstudio.com/docs/getstarted/settings#_settings-file-locations) or un-check it in [user settings](https://code.visualstudio.com/docs/getstarted/settings#_creating-user-and-workspace-settings).
 - See [Easy to Support New Languages](#easy-to-support-new-languages) to add one or two config values.
 
 ## Easy to Support New Languages
 
 [Currently support well](#current-support-to-finding-definition-and-references) for: `C#`, `C++/C`, `Python`, `PowerShell`, `Batch/Bash`, `Java`, etc.
 
-This extension is **disabled** for some languages which has good official/professional extension support, to enable finding `definition` + `reference`:
+This extension is **disabled** for some languages which has good official/professional extension support, to enable finding `definition`:
 
 - Temporarily enable: See [temporarily toggle](#get-the-best-combined-power)(just press `Alt+F2` or menu or command palette).
-- Permanently enable: Change **msr.disable.extensionPattern** (current default value = `"tsx?|jsx?|go"`)
+- Permanently enable: Change **msr.disable.extensionPattern** value.
 
 Other languages use a rough support: When click `"Go To Definition"` just like click the **right-pop-menu**: `"Regex find as 'class' or 'method' definition roughly"`.
 
@@ -282,7 +282,7 @@ Set `msr.menu.visible` = `false` to hide all context menus of `Regex find xxx` +
 
 ### Get the Best Combined Power
 
-Just press `Alt+F2` to **temporarily toggle** `Enable`/`Disable` of **`Finding Definition + References`**. [Change `Alt+F2`](https://code.visualstudio.com/docs/getstarted/keybindings#_keyboard-shortcuts-editor) if hot-keys conflict.
+Just press `Alt+F2` to **temporarily toggle** `Enable`/`Disable` of **`Finding Definition`**. [Change `Alt+F2`](https://code.visualstudio.com/docs/getstarted/keybindings#_keyboard-shortcuts-editor) if hot-keys conflict.
 
 It's useful when the official/professional plugins got problems:
 
@@ -297,7 +297,7 @@ Note for the `toggle`:
 
 This **temporarily ignores all other settings** like below to enable/disable finding for a language:
 
-- `msr.enable.onlyFindDefinitionAndReferenceForKnownLanguages`
+- `msr.enable.onlyFindDefinitionForKnownLanguages`
   - Known language **type** means exist "msr.fileExtensionMap.**{name}**" like "msr.fileExtensionMap.**python**".
 - `msr.disable.extensionPattern`
 - `msr.disable.findDef.extensionPattern`
@@ -306,13 +306,13 @@ This **temporarily ignores all other settings** like below to enable/disable fin
 There're another 2 ways to toggle besides the hot key (`Alt+F2`):
 
 - **Command Palette**: Press `F1` to open command palette, then type `msr temp` or `msr toggle` etc.
-- **Right-Pop-Menu**: Change `msr.tmpToggleEnableForFindDefinitionAndReference.menu.visible` then use it.
+- **Right-Pop-Menu**: Change `msr.tmpToggleEnableFindingDefinition.menu.visible` then use it.
 
 [Set **quiet mode**](#more-settings-like-quiet-mode) if you don't want to activate vscode tabs like `OUTPUT` and `TERMINAL`.
 
 ### Disable Finding Definition and References for Specific File Types
 
-- `msr.disable.extensionPattern` (current default value = `"tsx?|jsx?|go"`)
+- `msr.disable.extensionPattern`
 
   Regex pattern of **file name extensions** to **disable** `find definition and references`.
 

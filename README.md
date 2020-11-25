@@ -28,7 +28,7 @@ Have you suffered issues below in your daily work?
 
 Then it's the **light** and **right** tool for you (just **2~3 MB** storage + **3~10 MB** running memory).
 
-**Note**: ([**Temp-toggle**](#get-the-best-combined-power) or [**change settings**](#disable-finding-definition-and-references-for-specific-file-types) for languages like `golang` which is disabled by default settings.)
+**Note**: ([**Temp-toggle**](#get-the-best-combined-power) or [**change settings**](#disable-finding-definition-and-references-for-specific-file-types) for languages disabled by default settings.)
 
 - Only support: **64-bit** + **32-bit** : **Windows** + **WSL** + **Linux** (`Ubuntu`+`CentOS`+`Fedora`: `gcc/g++` >= `4.8`).
 - [**Workaround**](#workaround-to-long-existing-vscode-bug-impact-to-finding-definition-and-reference) to [long existing VsCode bug](https://github.com/microsoft/vscode/issues/96754) impact to `Go To Definition` and `Find All Reference`.
@@ -78,13 +78,13 @@ Strongly recommend: Add [msr.EXE](https://github.com/qualiu/msr#liberate--digiti
 If not found [msr.EXE](https://github.com/qualiu/msr#liberate--digitize-daily-works-by-2-exe-file-processing-data-mining-map-reduce) in `%PATH%` or `$PATH`:
 
 - **Windows**: If not found in `%PATH%` by command `"where msr.exe"`
-  - Auto check and download to `%USERPROFILE%\Desktop\msr.exe` when launching vscode.
-  - Add `%USERPROFILE%\Desktop` to `%PATH%` **temporarily** each time in each [newly opened terminal](#auto-set-command-shortcuts-for-new-terminals).
+  - Auto check and download to `%USERPROFILE%\msr.exe` when launching vscode.
+  - Add `%USERPROFILE%` to `%PATH%` **temporarily** each time in each [newly opened terminal](#auto-set-command-shortcuts-for-new-terminals).
 - **Linux**: If not found in `$PATH` by command `"whereis msr"`
   - Auto check and download to `~/msr` when launching vscode.
   - Add `~/` to `$PATH` **temporarily** each time in each [newly opened terminal](#auto-set-command-shortcuts-for-new-terminals).
 
-You cannot copy and use `msr` [command lines](#reuse-the-command-to-search-further-or-replace-files) or `find-xxx` [doskeys/alias](#command-shortcuts) **outside** `vscode` terminals since `msr` not exist in `%PATH%` or `$PATH`.
+To copy and use `msr` [command lines](#reuse-the-command-to-search-further-or-replace-files) or `find-xxx` [doskeys/alias](#command-shortcuts) **outside** `vscode` terminals, **add** `msr` folder to `%PATH%` or `$PATH`.
 
 ### Or Manually Download + Set PATH Once And Forever
 
@@ -198,9 +198,9 @@ You can search **in vscode terminal** like: `find-def MyClass` or `find-ref "cla
 
 Each time it will write 1 or multiple script files to the folder of `msr.cmdAlias.saveFolder`, if not set:
 
-- Single alias/doskey file: Save to `%USERPROFILE%\Desktop\` on Windows or `~/` on Linux.
+- Single alias/doskey file: Save to `%USERPROFILE%\` on Windows or `~/` on Linux.
 
-- Multiple script files: Save to `%USERPROFILE%\Desktop\cmdAlias\` on Windows or `~/cmdAlias/` on Linux.
+- Multiple script files: Save to `%USERPROFILE%\cmdAlias\` on Windows or `~/cmdAlias/` on Linux.
 
 When you open a new terminal, will [**auto set project specific command shortcuts**](#auto-set-command-shortcuts-for-new-terminals) which most helpful to get a temporary command shortcuts of each project's specific settings plus `.vscode/settings.json` in it's root folder.
 
@@ -292,7 +292,7 @@ It's useful when the official/professional plugins got problems:
 Note for the `toggle`:
 
 - See [workaround](#workaround-to-long-existing-vscode-bug-impact-to-finding-definition-and-reference) if you encounter cases like [error impact of `vscode-python` + `vscode-powershell` to vscode](https://github.com/microsoft/vscode/issues/96754).
-- Only impact `"find definition"` + `"find references"`, you can still **search** or **replace** by menus or [command shortcuts](#command-shortcuts).
+- Only impact `"find definition"`, you can still **search** or **replace** by menus or [command shortcuts](#command-shortcuts).
 - This is effective until you reload or restart current vscode window. (Permanent changes see settings below.)
 
 This **temporarily ignores all other settings** like below to enable/disable finding for a language:

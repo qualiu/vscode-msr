@@ -3,7 +3,7 @@
     "displayName": "Search code + Replace files + Find definition and references for all types.",
     "description": "Search code + Replace files + Find definition and references in multiple repository paths by msr for all coding languages + configuration + doc files.",
     "author": "qualiu@microsoft.com",
-    "version": "2.0.9",
+    "version": "2.1.0",
     "icon": "images/vscode-msr-icon.png",
     "license": "completely free",
     "publisher": "qualiu",
@@ -741,7 +741,7 @@
                 "msr.initProjectCmdAliasForNewTerminals": {
                     "type": "boolean",
                     "default": true,
-                    "description": "Initialize command shortcuts (alias/doskeys) for newly created/opened terminals with a temp file cooked by project settings. (You can run `PowerShell` to change back from `cmd` console on Windows)"
+                    "description": "Initialize command shortcuts (alias/doskeys) for newly created/opened terminals with a temp file cooked by project settings. (You can type `exit` to back to PowerShell console on Windows)"
                 },
                 "msr.skipInitCmdAliasForNewTerminalTitleRegex": {
                     "default": "PowerShell\\s*Integrated\\s*Console",
@@ -1071,11 +1071,6 @@
                     "default": "-l -H 10 -T 10",
                     "description": "Default list file options. Like listing top 10 and bottom 10 files: -l -H 10 -T 10"
                 },
-                "msr.useRelativePathForLinuxTerminalsOnWindows": {
-                    "type": "boolean",
-                    "default": true,
-                    "description": "Search '.' other than full project paths if it's on Windows with Linux terminals(MinGW/Cygwin) to avoid unable to click + open search results."
-                },
                 "msr.debug": {
                     "type": "boolean",
                     "default": false,
@@ -1130,7 +1125,7 @@
                     "description": "Default Regex pattern to find references of a word (class, method, etc.). Must use `%1` to be replaced by word to search."
                 },
                 "msr.allSmallFiles.extraOptions": {
-                    "default": "-W --s1 1B --s2 1.6MB -I -C -c",
+                    "default": "--s1 1B --s2 1.6MB -I -C -c",
                     "description": "Default extra searching options for small files. Will merge `msr.{root-folder-name}.extraOptions` if you set in your personal settings file like `%APPDATA%\\Code\\User\\settings.json` on Windows (See doc: https://github.com/qualiu/vscode-msr/blob/master/README.md#specific-extra-search-paths-settings)."
                 },
                 "msr.default.scriptFiles": {
@@ -1139,7 +1134,7 @@
                 },
                 "msr.cmdAlias.saveFolder": {
                     "default": "",
-                    "description": "Save folder for command shortcuts file when cooking. If not set, will use `%USERPROFILE%\\Desktop` (Windows) or `~/` (Linux) for single file, and `%USERPROFILE%\\Desktop\\cmdAlias` or `~/cmdAlias/` for multiple script files."
+                    "description": "Save folder for command shortcuts file when cooking. If not set, will use `%USERPROFILE%` (Windows) or `~/` (Linux) for single file, and `%USERPROFILE%\\cmdAlias` or `~/cmdAlias/` for multiple script files."
                 },
                 "msr.cookCmdAlias.hideWarningsAndExtraInfo": {
                     "default": false,
@@ -1148,6 +1143,20 @@
                 "msr.cookCmdAlias.outputFullPath": {
                     "default": true,
                     "description": "When cooking command alias/shortcuts, add -W to output full path (overwrite default extraOption)."
+                },
+                "msr.cookCmdAlias.outputRelativePathForLinuxTerminalsOnWindows": {
+                    "default": true,
+                    "description": "When cooking command alias/shortcuts, remove -W to output relative path for Linux terminals on Windows (overwrite default extraOption)."
+                },
+                "msr.searchRelativePathForLinuxTerminalsOnWindows": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Use relative path: Search '.' other than full project paths if it's on Windows with Linux terminals(MinGW/Cygwin) to avoid unable to click + open search results."
+                },
+                "msr.searchRelativePathForNativeTerminals": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Use relative path: Search '.' other than full project paths for native system terminals to output short paths."
                 },
                 "msr.default.extraOptions": {
                     "default": "--s1 1B --s2 3.6MB -C -c",

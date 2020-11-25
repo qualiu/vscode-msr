@@ -1,13 +1,15 @@
 import { ParsedPath } from 'path';
-import { isNullOrUndefined } from 'util';
 import * as vscode from 'vscode';
 import { IsLinux, IsWindows, IsWSL, ShouldQuotePathRegex, TrimSearchTextRegex } from './constants';
 import { TerminalType } from './enums';
 import path = require('path');
 import fs = require('fs');
+import os = require('os');
 
+export const PathEnvName = IsWindows ? '%PATH%' : '$PATH';
 export const MatchWindowsDiskRegex = /^([A-Z]):/i;
 export const TerminalExePath = vscode.workspace.getConfiguration('terminal.integrated.shell').get(IsWindows ? 'windows' : 'linux') as string || '';
+const GetInputPathsRegex: RegExp = /^(msr\s+-[r\s]*-?p)\s+("[^\"]+"|\S+)/;
 
 let HasMountPrefixForWSL: boolean | undefined = undefined;
 
@@ -35,6 +37,10 @@ function getDefaultTerminalType(): TerminalType {
 
 export const DefaultTerminalType = getDefaultTerminalType();
 
+export function isWindowsTerminalOnWindows(terminalType = DefaultTerminalType) {
+    return TerminalType.CMD === terminalType || (TerminalType.PowerShell === terminalType && IsWindows);
+}
+
 export function isWindowsTerminalType(terminalType: TerminalType): boolean {
     return IsWindows && (TerminalType.CMD === terminalType || TerminalType.PowerShell === terminalType);
 }
@@ -43,9 +49,88 @@ export function isLinuxTerminalOnWindows(terminalType: TerminalType = DefaultTer
     return IsWindows && !isWindowsTerminalType(terminalType);
 }
 
-export function quotePaths(paths: string) {
+export const IsWindowsTerminalOnWindows: boolean = isWindowsTerminalOnWindows(DefaultTerminalType);
+export const IsLinuxTerminalOnWindows: boolean = isLinuxTerminalOnWindows(DefaultTerminalType);
+
+export function changeFindingCommandForLinuxTerminalOnWindows(command: string): string {
+    if (TerminalType.CygwinBash !== DefaultTerminalType && TerminalType.MinGWBash !== DefaultTerminalType) {
+        return command;
+    }
+
+    const match = GetInputPathsRegex.exec(command);
+    if (!match) {
+        return command;
+    }
+
+    const paths = match[1].startsWith('"') ? match[2].substr(1, match[2].length - 2) : match[2];
+    const newPaths = paths.split(/\s*[,;]/)
+        .map((p, _index, _a) =>
+            TerminalType.CygwinBash === DefaultTerminalType
+                ? toCygwinPath(p)
+                : toMinGWPath(p)
+        );
+
+    return match[1] + ' ' + quotePaths(newPaths.join(',')) + command.substring(match[0].length);
+}
+
+export function getPathEnvSeparator(terminalType: TerminalType) {
+    return isWindowsTerminalOnWindows(terminalType) ? ";" : ":";
+}
+
+export function checkAddFolderToPath(exeFolder: string, terminalType: TerminalType, prepend = true) {
+    const oldPathValue = process.env['PATH'] || (IsWindows ? '%PATH%' : '$PATH');
+    const paths = oldPathValue.split(IsWindows ? ';' : ':');
+    const trimTailRegex = IsWindows ? new RegExp('[\\s\\\\]+$') : new RegExp('/$');
+    const foundFolders = IsWindows
+        ? paths.filter(a => a.trim().replace(trimTailRegex, '').toLowerCase() === exeFolder.toLowerCase())
+        : paths.filter(a => a.replace(trimTailRegex, '') === exeFolder);
+
+    if (foundFolders.length > 0) {
+        return false;
+    }
+
+    const separator = getPathEnvSeparator(terminalType);
+    const newValue = prepend
+        ? exeFolder + separator + oldPathValue
+        : oldPathValue + separator + exeFolder;
+
+    process.env['PATH'] = newValue;
+
+    return true;
+}
+
+export function getTerminalShellExePath(): string {
+    // https://code.visualstudio.com/docs/editor/integrated-terminal#_configuration
+    const shellConfig = vscode.workspace.getConfiguration('terminal.integrated.shell');
+    const shellExePath = !shellConfig ? '' : shellConfig.get(IsWindows ? 'windows' : 'linux') as string || '';
+    if (isNullOrEmpty(shellExePath)) {
+        if (IsWSL || IsLinux) {
+            return 'bash';
+        }
+    }
+
+    return shellExePath;
+}
+
+export function getHomeFolderForLinuxTerminalOnWindows(): string {
+    const shellExePath = getTerminalShellExePath();
+    const folder = path.dirname(shellExePath);
+    const home = path.join(path.dirname(folder), 'home', os.userInfo().username);
+    return home;
+}
+
+export function removeQuotesForPath(paths: string) {
+    if (paths.startsWith('"') || paths.startsWith("'")) {
+        return paths.substr(1, paths.length - 2);
+    } else {
+        return paths;
+    }
+}
+
+export function quotePaths(paths: string, quote = '"') {
+    paths = removeQuotesForPath(paths);
     if (ShouldQuotePathRegex.test(paths)) {
-        return '"' + paths + '"';
+        return quote + paths + quote;
     } else {
         return paths;
     }
@@ -167,7 +252,7 @@ export function toWSLPaths(winPaths: Set<string>, isWslTerminal: boolean = false
 }
 
 export function isNullOrEmpty(obj: string | undefined): boolean {
-    return isNullOrUndefined(obj) || obj.length === 0;
+    return obj === null || obj === undefined || obj.length === 0;
 }
 
 export function getCurrentWordAndText(document: vscode.TextDocument, position: vscode.Position, textEditor: vscode.TextEditor | undefined = undefined)
@@ -239,7 +324,7 @@ export function replaceTextByRegex(sourceText: string, toFindRegex: RegExp, repl
 }
 
 export function getExtensionNoHeadDot(extension: string | undefined, defaultValue: string = 'default'): string {
-    if (isNullOrUndefined(extension) || isNullOrEmpty(extension)) {
+    if (!extension || isNullOrEmpty(extension)) {
         return defaultValue;
     }
 

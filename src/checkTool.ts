@@ -1,66 +1,64 @@
 import path = require('path');
 import fs = require('fs');
+import os = require('os');
 import https = require('https');
 import crypto = require('crypto');
 import ChildProcess = require('child_process');
 import { HomeFolder, IsDebugMode, IsSupportedSystem, IsWindows } from './constants';
 import { TerminalType } from './enums';
 import { clearOutputChannel, outputDebug, outputError, outputInfo, outputKeyInfo } from './outputUtils';
-import { getTimeCostToNow, isNullOrEmpty, nowText, quotePaths, toOsPaths } from './utils';
-
-let isMsrToolExists = false;
+import { checkAddFolderToPath, DefaultTerminalType, getHomeFolderForLinuxTerminalOnWindows, getTerminalShellExePath, getTimeCostToNow, isLinuxTerminalOnWindows, isNullOrEmpty, isWindowsTerminalOnWindows, nowText, PathEnvName, quotePaths, toCygwinPath, toOsPath, toOsPaths } from './utils';
 
 export const MsrExe = 'msr';
-export let MsrExePath: string = '';
-let ToolNameToPathMap = new Map<string, string>();
-
 const SourceMd5FileUrl = 'https://raw.githubusercontent.com/qualiu/msr/master/tools/md5.txt';
-const WhereCmd = IsWindows ? 'where' : 'whereis';
-const PathEnvName = IsWindows ? '%PATH%' : '$PATH';
-
 const Is64BitOS = process.arch.match(/x64|\s+64/);
-const ExeExtension = IsWindows ? '.exe' : '.gcc48';
 const SourceExeHomeUrl = 'https://raw.githubusercontent.com/qualiu/msr/master/tools/';
-const ExeNameTail = Is64BitOS ? '' : (IsWindows ? '-Win32' : '-i386');
-
-export const TerminalTypeToMsrExeMap = new Map<TerminalType, string>()
-	.set(TerminalType.CMD, 'msr.exe')
-	.set(TerminalType.PowerShell, 'msr.exe')
-	.set(TerminalType.MinGWBash, 'msr.exe')
-	.set(TerminalType.CygwinBash, 'msr.cygwin')
-	.set(TerminalType.LinuxBash, 'msr.gcc48')
-	.set(TerminalType.WslBash, 'msr.gcc48')
+const SourceExeNameTail = Is64BitOS ? '' : (IsWindows ? '-Win32' : '-i386');
+export const TerminalTypeToSourceExtensionMap = new Map<TerminalType, string>()
+	.set(TerminalType.CMD, '.exe')
+	.set(TerminalType.PowerShell, IsWindows ? '.exe' : '.gcc48')
+	.set(TerminalType.MinGWBash, '.exe')
+	.set(TerminalType.CygwinBash, '.cygwin')
+	.set(TerminalType.LinuxBash, '.gcc48')
+	.set(TerminalType.WslBash, '.gcc48')
 	;
 
-export function getDownloadCommandForNewTerminal(terminalType: TerminalType, exeName64bit: string = 'msr'): string {
-	// others have already checked and downloaded.
-	if (TerminalType.CygwinBash !== terminalType && TerminalType.WslBash !== terminalType) {
-		return '';
-	}
+let SourceMd5Text = '';
+let TerminalTypeToToolNamePathMap = new Map<TerminalType, Map<string, string>>();
 
-	const extension = path.extname(TerminalTypeToMsrExeMap.get(terminalType) || '.gcc48');
-
-	const pureDownloadCmd = 'wget ' + SourceExeHomeUrl + exeName64bit + extension + ' -O ~/' + exeName64bit + '.tmp --quiet --no-check-certificate'
-		+ ' && mv -f ~/' + exeName64bit + '.tmp ~/' + exeName64bit
-		+ ' && chmod +x ~/' + exeName64bit + ' && export PATH=~/:$PATH';
-
-	const firstCheck = 'whereis ' + exeName64bit + ' | egrep -e "/' + exeName64bit + '\\s+"';
-
-	const lastCheck = '(ls -al ~/' + exeName64bit + ' 2>/dev/null | egrep -e "^-[rw-]*?x.*?/' + exeName64bit + '\\s*$" || ( ' + pureDownloadCmd + ' ) )';
-	const downloadCmd = firstCheck + ' || ' + lastCheck;
-	return downloadCmd;
+function getFileMd5(filePath: string) {
+	const hash = crypto.createHash('md5');
+	const content = fs.readFileSync(filePath, { encoding: '' });
+	const md5 = hash.update(content).digest('hex');
+	return md5;
 }
 
-export function GetSetToolEnvCommand(terminalType: TerminalType, addTailTextIfNotEmpty: string = ''): string {
-	if (ToolNameToPathMap.size < 1) {
-		return '';
+function updateToolNameToPathMap(terminalType: TerminalType, toolName: string, toolPath: string, canReCheck = true) {
+	let toolNameToPathMap = TerminalTypeToToolNamePathMap.get(terminalType);
+	if (!toolNameToPathMap) {
+		toolNameToPathMap = new Map<string, string>();
+		TerminalTypeToToolNamePathMap.set(terminalType, toolNameToPathMap);
 	}
-	if (terminalType !== TerminalType.CMD && terminalType !== TerminalType.PowerShell && terminalType !== TerminalType.LinuxBash && TerminalType.MinGWBash !== terminalType) {
+
+	toolNameToPathMap.set(toolName, toolPath);
+	if (canReCheck && IsWindows && (terminalType === TerminalType.CMD || TerminalType.PowerShell === terminalType)) {
+		const tp = terminalType === TerminalType.CMD ? TerminalType.PowerShell : TerminalType.CMD;
+		updateToolNameToPathMap(tp, toolName, toolPath, false);
+	}
+}
+
+export function getSetToolEnvCommand(terminalType: TerminalType, addTailTextIfNotEmpty: string = ''): string {
+	if (terminalType === TerminalType.CygwinBash || TerminalType.WslBash === terminalType) {
 		return '';
 	}
 
 	let toolFolderSet = new Set<string>();
-	ToolNameToPathMap.forEach((value, _key, _m) => {
+	const toolNameToPathMap = TerminalTypeToToolNamePathMap.get(terminalType);
+	if (!toolNameToPathMap || toolNameToPathMap.size < 1) {
+		return '';
+	}
+
+	toolNameToPathMap.forEach((value, _key, _m) => {
 		toolFolderSet.add(path.dirname(value));
 	});
 
@@ -72,279 +70,346 @@ export function GetSetToolEnvCommand(terminalType: TerminalType, addTailTextIfNo
 			return "$env:Path = $env:Path + ';" + toolFolders.join(';') + "'" + addTailTextIfNotEmpty;
 		case TerminalType.LinuxBash:
 		case TerminalType.MinGWBash:
+		default:
 			return 'export PATH=$PATH:' + toolFolders.join(':').replace(' ', '\\ ') + addTailTextIfNotEmpty;
-		// case TerminalType.CygwinBash:
-		// return 'export PATH=$HOME/Desktop/:' + toolFolders.join(':') + ':$PATH' + addTailTextIfNotEmpty;
-		// case TerminalType.WslBash:
-		// 	return 'export PATH=' + toolFolders.join(':') + ':' + '$PATH' + addTailTextIfNotEmpty;
 	}
 }
 
-function getSourceExeName(exeName64bit: string): string {
-	return exeName64bit + ExeNameTail + ExeExtension;
-}
+export class ToolChecker {
+	private terminalType: TerminalType;
+	private autoDownload: boolean;
+	private MatchExeMd5Regex: RegExp = /to-load/;
+	private MsrExePath: string = '';
+	private isMsrToolExists = false;
+	private isTerminalOfWindows: boolean;
 
-function getRegexToMatchSourceExeMd5(exeName64bit: string): RegExp {
-	return new RegExp('^(\\S+)\\s+' + getSourceExeName(exeName64bit).replace(/^(\w+)/, '($1)') + '\\s*$', 'm');
-}
-
-const MatchMsrExeMd5Regex = getRegexToMatchSourceExeMd5('msr');
-const MatchExeMd5Regex = new RegExp('^(\\S+)\\s+(msr|nin)' + ExeNameTail + ExeExtension + '\\s*$', 'm');
-
-function getDownloadUrl(sourceExeName: string): string {
-	return SourceExeHomeUrl + sourceExeName;
-}
-
-function getSaveExeName(exeName64bit: string) {
-	return IsWindows ? exeName64bit + '.exe' : exeName64bit;
-}
-
-function getTmpSaveExePath(exeName64bit: string): string {
-	const saveExeName = getSaveExeName(exeName64bit);
-	return path.join(HomeFolder, saveExeName);
-}
-
-function getDownloadCommand(exeName64bit: string, saveExePath: string = ''): string {
-	const sourceExeName = getSourceExeName(exeName64bit);
-	const sourceUrl = getDownloadUrl(sourceExeName);
-	const [IsExistIcacls] = IsWindows ? isToolExistsInPath('icacls') : [false, ''];
-	const tmpSaveExePath = getTmpSaveExePath(exeName64bit);
-
-	if (isNullOrEmpty(saveExePath)) {
-		saveExePath = tmpSaveExePath;
+	constructor(terminalType: TerminalType = DefaultTerminalType, autoDownload = true) {
+		this.terminalType = terminalType;
+		this.autoDownload = autoDownload;
+		this.isTerminalOfWindows = isWindowsTerminalOnWindows(this.terminalType);
+		const sourceExeExtension = TerminalTypeToSourceExtensionMap.get(this.terminalType) || '';
+		this.MatchExeMd5Regex = new RegExp('^(\\S+)\\s+(\\w+)' + SourceExeNameTail + sourceExeExtension + '\\s*$', 'm');
 	}
 
-	const [isWgetExistsOnWindows] = IsWindows ? isToolExistsInPath('wget.exe') : [false, ''];
-
-	const downloadCommand = IsWindows && !isWgetExistsOnWindows
-		? 'Powershell -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; '
-		+ "Invoke-WebRequest -Uri '" + sourceUrl + "' -OutFile '" + tmpSaveExePath + '.tmp' + "'" + '"'
-		: 'wget "' + sourceUrl + '" -O "' + tmpSaveExePath + '.tmp" --quiet --no-check-certificate';
-
-	const renameFileCommand = IsWindows
-		? 'move /y "' + tmpSaveExePath + '.tmp" "' + saveExePath + '"'
-		: 'mv -f "' + tmpSaveExePath + '.tmp" "' + saveExePath + '"';
-
-	const setExecutableCommand = IsWindows
-		? (IsExistIcacls ? ' && icacls "' + saveExePath + '" /grant %USERNAME%:RX' : '')
-		: ' && chmod +x "' + saveExePath + '"';
-
-	return downloadCommand + ' && ' + renameFileCommand + ' ' + setExecutableCommand;
-}
-
-export function toRunnableToolPath(commandLine: string) {
-	const TmpMsrExePath = getTmpSaveExePath('msr');
-	if (MsrExePath === TmpMsrExePath) {
-		return quotePaths(TmpMsrExePath) + commandLine.replace(/^msr\s+/, ' ');
-	} else {
-		return commandLine;
-	}
-}
-
-// Always check tool exists if not exists in previous check, avoid need reloading.
-export function checkSearchToolExists(forceCheck: boolean = false, clearOutputBeforeWarning: boolean = false): boolean {
-	if (isMsrToolExists && !forceCheck) {
-		return true;
-	}
-
-	if (!IsSupportedSystem) {
-		outputError(nowText() + 'Sorry, "' + process.platform + ' platform" is not supported yet: Support 64-bit + 32-bit : Windows + Linux (Ubuntu / CentOS / Fedora which gcc/g++ version >= 4.8).');
-		outputError(nowText() + 'https://github.com/qualiu/vscode-msr/blob/master/README.md');
-		return false;
-	}
-
-	[isMsrToolExists, MsrExePath] = isToolExistsInPath('msr');
-
-	if (!isMsrToolExists) {
-		if (clearOutputBeforeWarning) {
-			clearOutputChannel();
+	public checkAndDownloadTool(exeName64bit: string): [boolean, string] {
+		const [isExisted, exePath] = this.isToolExistsInPath(exeName64bit);
+		const exeName = this.getSourceExeName(exeName64bit);
+		outputDebug(nowText() + (isExisted ? 'Found ' + exeName + ' = ' + exePath : 'Not found ' + exeName + ', will download it.'));
+		if (isExisted) {
+			this.setEnvironmentForTool();
+			return [isExisted, exePath];
 		}
 
-		outputError(nowText() + 'Not found `msr` in ' + PathEnvName + ' by checking command: ' + WhereCmd + ' msr');
-		outputError(nowText() + 'Please download it (just copy + paste the command line) follow: https://github.com/qualiu/vscode-msr/blob/master/README.md#more-freely-to-use-and-help-you-more');
-
-		[isMsrToolExists, MsrExePath] = autoDownloadTool('msr');
+		return this.autoDownloadTool(exeName64bit);
 	}
 
-	if (isMsrToolExists) {
-		outputDebug(nowText() + 'Found msr = ' + MsrExePath + ' , will check new version ...');
-		checkToolNewVersion();
+	public getDownloadCommandForNewTerminal(exeName64bit: string = 'msr'): string {
+		// others have already checked and downloaded.
+		if (TerminalType.CygwinBash !== this.terminalType && TerminalType.WslBash !== this.terminalType) {
+			return '';
+		}
+
+		const sourceExeName = this.getSourceExeName(exeName64bit);
+		const tmpSaveExePath = '~/' + sourceExeName + '.tmp';
+		const targetExePath = '~/' + exeName64bit;
+		const pureDownloadCmd = 'wget ' + SourceExeHomeUrl + sourceExeName + ' -O ' + tmpSaveExePath + ' --no-check-certificate'
+			+ ' && mv -f ' + tmpSaveExePath + ' ' + targetExePath
+			+ ' && chmod +x ' + targetExePath + ' && export PATH=~/:$PATH';
+
+		const firstCheck = 'whereis ' + exeName64bit + ' | egrep -e "/' + exeName64bit + '\\s+"';
+
+		const lastCheck = '(ls -al ' + targetExePath + ' 2>/dev/null | egrep -e "^-[rw-]*?x.*?/' + exeName64bit + '\\s*$" || ( ' + pureDownloadCmd + ' ) )';
+		const downloadCmd = firstCheck + ' || ' + lastCheck;
+		return downloadCmd;
 	}
 
-	return isMsrToolExists;
-}
+	private getDownloadUrl(sourceExeName: string): string {
+		return SourceExeHomeUrl + sourceExeName;
+	}
 
-function isToolExistsInPath(exeToolName: string): [boolean, string] {
-	const whereCmd = (IsWindows ? 'where' : 'whereis') + ' ' + exeToolName;
-	try {
-		let output = ChildProcess.execSync(whereCmd).toString();
-		if (IsWindows) {
-			const exePaths = /\.exe$/i.test(exeToolName)
-				? output.split(/[\r\n]+/)
-				: output.split(/[\r\n]+/).filter(a => !/cygwin/i.test(a) && new RegExp('\\b' + exeToolName + '\\.\\w+$', 'i').test(a));
-			if (exePaths.length > 0) {
-				return [true, exePaths[0]];
-			}
+	private getSourceExeName(exeName64bit: string): string {
+		return exeName64bit + SourceExeNameTail + TerminalTypeToSourceExtensionMap.get(this.terminalType);
+	}
+
+	private getSaveExeName(exeName64bit: string) {
+		return exeName64bit + (this.isTerminalOfWindows ? '.exe' : '');
+	}
+
+	private getTempSaveExePath(exeName64bit: string): string {
+		const saveExeName = this.getSaveExeName(exeName64bit);
+		const folder = isLinuxTerminalOnWindows(this.terminalType) ? getHomeFolderForLinuxTerminalOnWindows() : HomeFolder;
+		const savePath = path.join(toOsPath(folder, this.terminalType), saveExeName);
+		return this.isTerminalOfWindows ? savePath : savePath.replace(/\\/g, '/');
+	}
+
+	private getDownloadCommand(exeName64bit: string, saveExePath: string = ''): string {
+		const sourceExeName = this.getSourceExeName(exeName64bit);
+		const sourceUrl = this.getDownloadUrl(sourceExeName);
+		const [IsExistIcacls] = this.isTerminalOfWindows ? this.isToolExistsInPath('icacls') : [false, ''];
+		if (isNullOrEmpty(saveExePath)) {
+			saveExePath = this.getTempSaveExePath(exeName64bit);
+		}
+
+		const tmpSaveExePath = quotePaths(saveExePath + '.tmp');
+		saveExePath = saveExePath.startsWith('"') ? saveExePath : quotePaths(saveExePath);
+
+		const [isWgetExistsOnWindows] = this.isTerminalOfWindows ? this.isToolExistsInPath('wget.exe') : [false, ''];
+
+		const downloadCommand = this.isTerminalOfWindows && !isWgetExistsOnWindows
+			? 'Powershell -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; '
+			+ "Invoke-WebRequest -Uri '" + sourceUrl + "' -OutFile " + quotePaths(tmpSaveExePath, "'") + '"'
+			: 'wget "' + sourceUrl + '" -O ' + tmpSaveExePath + ' --no-check-certificate';
+
+		const renameFileCommand = this.isTerminalOfWindows
+			? 'move /y ' + tmpSaveExePath + ' ' + saveExePath
+			: 'mv -f ' + tmpSaveExePath + ' ' + saveExePath;
+
+		const setExecutableCommand = this.isTerminalOfWindows
+			? (IsExistIcacls ? ' && icacls ' + saveExePath + ' /grant %USERNAME%:RX' : '')
+			: ' && chmod +x ' + saveExePath;
+
+		return downloadCommand + ' && ' + renameFileCommand + ' ' + setExecutableCommand;
+	}
+
+	public toRunnableToolPath(commandLine: string) {
+		const TmpMsrExePath = this.getTempSaveExePath('msr');
+		if (this.MsrExePath === TmpMsrExePath) {
+			return quotePaths(TmpMsrExePath) + commandLine.replace(/^msr\s+/, ' ');
 		} else {
-			const exeMatch = new RegExp('(\\S+/' + exeToolName + ')(\\s+|$)').exec(output);
-			if (exeMatch) {
-				return [true, exeMatch[1]];
-			}
+			return commandLine;
 		}
-	} catch (err) {
-		outputDebug(nowText() + err.toString());
 	}
 
-	return [false, ''];
-}
+	// Always check tool exists if not exists in previous check, avoid need reloading.
+	public checkSearchToolExists(forceCheck: boolean = false, clearOutputBeforeWarning: boolean = false): boolean {
+		if (this.isMsrToolExists && !forceCheck) {
+			return true;
+		}
 
-function autoDownloadTool(exeName64bit: string): [boolean, string] {
-	const tmpSaveExePath = getTmpSaveExePath(exeName64bit);
-	const sourceExeName = getSourceExeName(exeName64bit);
-	if (!fs.existsSync(tmpSaveExePath)) {
-		outputKeyInfo('\n' + nowText() + 'Will try to download the tiny tool `' + exeName64bit + '` by command:');
-		const downloadCommand = getDownloadCommand(exeName64bit);
-		outputKeyInfo(downloadCommand);
+		if (!IsSupportedSystem) {
+			outputError(nowText() + 'Sorry, "' + process.platform + ' platform" is not supported yet: Support 64-bit + 32-bit : Windows + Linux (Ubuntu / CentOS / Fedora which gcc/g++ version >= 4.8).');
+			outputError(nowText() + 'https://github.com/qualiu/vscode-msr/blob/master/README.md');
+			return false;
+		}
+
+		[this.isMsrToolExists, this.MsrExePath] = this.isToolExistsInPath('msr');
+
+		if (!this.isMsrToolExists) {
+			if (clearOutputBeforeWarning) {
+				clearOutputChannel();
+			}
+
+			const sourceExeName = this.getSourceExeName('msr');
+			outputError(nowText() + 'Not found ' + sourceExeName + ' in ' + PathEnvName + ' for ' + TerminalType[this.terminalType] + ' terminal:');
+			outputError(nowText() + 'Please download it (just copy + paste the command line) follow: https://github.com/qualiu/vscode-msr/blob/master/README.md#more-freely-to-use-and-help-you-more');
+
+			if (this.autoDownload) {
+				[this.isMsrToolExists, this.MsrExePath] = this.autoDownloadTool('msr');
+			}
+		}
+
+		if (this.isMsrToolExists) {
+			outputDebug(nowText() + 'Found msr = ' + this.MsrExePath + ' , will check new version ...');
+			this.checkToolNewVersion();
+		}
+
+		return this.isMsrToolExists;
+	}
+
+	private isToolExistsInPath(exeToolName: string): [boolean, string] {
+		const whereCmd = (IsWindows ? 'where' : 'whereis') + ' ' + exeToolName;
 		try {
+			let output = ChildProcess.execSync(whereCmd).toString();
+			if (IsWindows) {
+				if (TerminalType.CygwinBash === this.terminalType) {
+					const exeTitle = exeToolName.replace(/^(msr|nin).*/, '$1');
+					const folder = path.dirname(getTerminalShellExePath());
+					const binExe = path.join(folder, exeTitle);
+					if (fs.existsSync(binExe)) {
+						return [true, binExe];
+					}
+					const homeExe = path.join(path.dirname(folder), 'home', os.userInfo().username, exeTitle);
+					if (fs.existsSync(homeExe)) {
+						return [true, homeExe];
+					}
+					outputError(nowText() + 'Not found any of: ' + binExe + ' + ' + homeExe + ' for ' + TerminalType[this.terminalType] + ' terminal.');
+				} else {
+					const exePaths = /\.exe$/i.test(exeToolName)
+						? output.split(/[\r\n]+/)
+						: output.split(/[\r\n]+/).filter(a => !/cygwin/i.test(a) && new RegExp('\\b' + exeToolName + '\\.\\w+$', 'i').test(a));
+
+					if (exePaths.length > 0) {
+						return [true, exePaths[0]];
+					}
+				}
+			} else {
+				const exeMatch = new RegExp('(\\S+/' + exeToolName + ')(\\s+|$)').exec(output);
+				if (exeMatch) {
+					return [true, exeMatch[1]];
+				}
+			}
+		} catch (err) {
+			outputDebug(nowText() + err.toString());
+		}
+
+		return [false, ''];
+	}
+
+	private autoDownloadTool(exeName64bit: string): [boolean, string] {
+		const tmpSaveExePath = this.getTempSaveExePath(exeName64bit);
+		const sourceExeName = this.getSourceExeName(exeName64bit);
+		const targetExePath = path.join(path.dirname(tmpSaveExePath), isWindowsTerminalOnWindows(this.terminalType) ? exeName64bit + '.exe' : exeName64bit);
+		if (!fs.existsSync(tmpSaveExePath)) {
+			outputKeyInfo('\n' + nowText() + 'Will try to download the tiny tool "' + sourceExeName + '" by command:');
+			const downloadCommand = this.getDownloadCommand(exeName64bit);
+			outputKeyInfo(downloadCommand);
 			const saveFolder = path.dirname(tmpSaveExePath);
-			if (!fs.existsSync(saveFolder)) {
-				fs.mkdirSync(saveFolder);
+			try {
+				if (saveFolder !== '~' && !fs.existsSync(saveFolder)) {
+					fs.mkdirSync(saveFolder);
+				}
+			} catch (err) {
+				outputError('\`n' + nowText() + 'Failed to create save folder: ' + saveFolder + ' for ' + sourceExeName);
+				// return [false, ''];
 			}
 
-			let output = ChildProcess.execSync(downloadCommand).toString();
-			outputKeyInfo(output);
-		} catch (err) {
-			outputError('\n' + nowText() + 'Failed to download ' + sourceExeName + ' : ' + err);
-			outputError('\n' + nowText() + 'Please manually download ' + sourceExeName + ' and add its folder to ' + PathEnvName + ': ' + getDownloadUrl(sourceExeName));
-			outputError('\n' + nowText() + '如果在中国无法从github下载 ' + sourceExeName + ' 可从另两处试下载：https://gitee.com/qualiu/msr/tree/master/tools 或者 https://sourceforge.net/projects/avasattva/files/');
-			return [false, ''];
-		}
+			try {
+				let output = ChildProcess.execSync(downloadCommand).toString();
+				outputKeyInfo(output);
+			} catch (err) {
+				outputError('\n' + nowText() + 'Failed to download ' + sourceExeName + ' : ' + err);
+				outputError('\n' + nowText() + 'Please manually download ' + sourceExeName + ' and add its folder to ' + PathEnvName + ': ' + this.getDownloadUrl(sourceExeName));
+				outputError('\n' + nowText() + '如果在中国无法从github下载 ' + sourceExeName + ' 可从另两处试下载：https://gitee.com/qualiu/msr/tree/master/tools 或者 https://sourceforge.net/projects/avasattva/files/');
+				return [false, ''];
+			}
 
-		if (!fs.existsSync(tmpSaveExePath)) {
-			outputError(nowText() + 'Downloading completed but not found tmp tool `' + exeName64bit + '`: ' + tmpSaveExePath);
-			return [false, ''];
+			if (!fs.existsSync(targetExePath)) {
+				outputError(nowText() + 'Downloading completed but not found tmp tool "' + sourceExeName + '": ' + targetExePath);
+				return [false, ''];
+			} else {
+				outputKeyInfo(nowText() + 'Successfully downloaded tmp tool "' + sourceExeName + '": ' + targetExePath);
+			}
 		} else {
-			outputKeyInfo(nowText() + 'Successfully downloaded tmp tool `' + exeName64bit + '`: ' + tmpSaveExePath);
+			outputInfo(nowText() + 'Found existing tmp tool "' + sourceExeName + '": ' + targetExePath + ' , skip downloading.');
 		}
-	} else {
-		outputInfo(nowText() + 'Found existing tmp tool `' + exeName64bit + '`: ' + tmpSaveExePath + ' , skip downloading.');
+
+		this.addTmpExeToPath(exeName64bit);
+		return [true, targetExePath];
 	}
 
-	addTmpExeToPath(exeName64bit);
-	return [true, tmpSaveExePath];
-}
+	private addTmpExeToPath(exeName64bit: string) {
+		const saveExeName = this.getSaveExeName(exeName64bit);
+		const tmpSaveExePath = this.getTempSaveExePath(exeName64bit);
+		if (exeName64bit === 'msr') {
+			this.MsrExePath = tmpSaveExePath;
+			updateToolNameToPathMap(this.terminalType, 'msr', tmpSaveExePath);
+		} else if (exeName64bit === 'nin') {
+			updateToolNameToPathMap(this.terminalType, 'nin', tmpSaveExePath);
+		}
 
-function addTmpExeToPath(exeName64bit: string) {
-	const saveExeName = getSaveExeName(exeName64bit);
-	const tmpSaveExePath = getTmpSaveExePath(exeName64bit);
-	if (exeName64bit === 'msr') {
-		MsrExePath = tmpSaveExePath;
-		ToolNameToPathMap.set('msr', tmpSaveExePath);
-	} else if (exeName64bit === 'nin') {
-		ToolNameToPathMap.set('nin', tmpSaveExePath);
+		const exeFolder = path.dirname(tmpSaveExePath);
+		if (checkAddFolderToPath(exeFolder, this.terminalType)) {
+			outputKeyInfo(nowText() + 'Temporarily added ' + saveExeName + ' folder: ' + exeFolder + ' to ' + PathEnvName);
+			outputKeyInfo(nowText() + 'Suggest that add the folder to ' + PathEnvName + ' to freely use/call ' + exeName64bit + ' everywhere (you can also copy/move "' + tmpSaveExePath + '" to a folder already in ' + PathEnvName + ').');
+		}
 	}
 
-	const exeFolder = path.dirname(tmpSaveExePath);
-	const oldPathValue = process.env['PATH'] || (IsWindows ? '%PATH%' : '$PATH');
-	const paths = oldPathValue.split(IsWindows ? ';' : ':');
-	const trimTailRegex = IsWindows ? new RegExp('[\\s\\\\]+$') : new RegExp('/$');
-	const foundFolders = IsWindows
-		? paths.filter(a => a.trim().replace(trimTailRegex, '').toLowerCase() === exeFolder.toLowerCase())
-		: paths.filter(a => a.replace(trimTailRegex, '') === exeFolder);
-
-	if (foundFolders.length < 1) {
-		process.env['PATH'] = oldPathValue + (IsWindows ? ';' : ':') + exeFolder;
-		outputKeyInfo(nowText() + 'Temporarily added ' + saveExeName + ' folder: ' + exeFolder + ' to ' + PathEnvName);
-		outputKeyInfo(nowText() + 'Suggest that add the folder to ' + PathEnvName + ' to freely use/call `msr` everywhere (you can also copy/move "' + tmpSaveExePath + '" to a folder already in ' + PathEnvName + ').');
-	}
-}
-
-function checkToolNewVersion() {
-	if (MsrExePath.length < 1) {
-		return;
+	private setEnvironmentForTool() {
+		if (TerminalType.CygwinBash === this.terminalType) {
+			const shellExe = getTerminalShellExePath();
+			const shellExeFolder = path.dirname(shellExe);
+			process.env['CYGWIN_ROOT'] = shellExeFolder.replace('\\', '\\\\');
+			checkAddFolderToPath(shellExeFolder, TerminalType.CMD);
+		}
 	}
 
-	if (!IsDebugMode) {
-		const now = new Date();
-		const hour = now.getHours();
-		if (now.getDay() !== 2 || hour < 9 || hour > 11) {
-			outputDebug(nowText() + 'Skip checking for now. Only check at every Tuesday 09:00 ~ 11:00.');
+	private checkToolNewVersion() {
+		if (this.MsrExePath.length < 1) {
 			return;
 		}
-	}
 
-	const trackCheckBeginTime = new Date();
-
-	const request = https.get(SourceMd5FileUrl, function (response) {
-		response.on('data', function (data) {
-			if (data) {
-				let sourceText: string = data.toString();
-				const [hasMin, ninExePath] = isToolExistsInPath('nin');
-
-				const currentMsrMd5 = getFileMd5(MsrExePath);
-				let currentExeNameToMd5Map = new Map<string, string>().set('msr', currentMsrMd5);
-				let exeName64bitToPathMap = new Map<string, string>().set('msr', MsrExePath);
-				if (hasMin) {
-					currentExeNameToMd5Map.set('nin', getFileMd5(ninExePath));
-					exeName64bitToPathMap.set('nin', ninExePath);
-				}
-
-				let oldExeNames = new Set<string>();
-				const matchingRegex = hasMin ? MatchExeMd5Regex : MatchMsrExeMd5Regex;
-				while (true) {
-					const matchInfo = matchingRegex.exec(sourceText);
-					if (!matchInfo) {
-						break;
-					}
-
-					sourceText = sourceText.substring(matchInfo.index + matchInfo[0].length);
-
-					const latestMd5 = matchInfo[1];
-					const exeName64bit = matchInfo[2];
-					const currentMd5 = currentExeNameToMd5Map.get(exeName64bit) || '';
-					if (currentMd5.toLowerCase() !== latestMd5.toLowerCase()) {
-						oldExeNames.add(exeName64bit);
-						outputKeyInfo(nowText() + 'Found new version of `' + exeName64bit + '` which md5 = ' + latestMd5 + ' , source-info = ' + SourceMd5FileUrl);
-						outputKeyInfo(nowText() + 'Current `' + exeName64bit + '` md5 = ' + currentMd5 + ' , path = ' + exeName64bitToPathMap.get(exeName64bit));
-					} else {
-						outputDebug(nowText() + 'Great! Your `' + exeName64bit + '` exe is latest! md5 = ' + latestMd5 + ' , exe = ' + exeName64bitToPathMap.get(exeName64bit) + ' , sourceMD5 = ' + SourceMd5FileUrl);
-					}
-				}
-
-				if (oldExeNames.size > 0) {
-					outputKeyInfo('\n' + nowText() + 'You can download + update `' + Array.from(oldExeNames).join(' + ') + '` by command line below:');
-					oldExeNames.forEach(exeName => {
-						const currentExeSavePath = exeName64bitToPathMap.get(exeName);
-						const downloadCommand = getDownloadCommand(exeName, currentExeSavePath);
-						outputKeyInfo(downloadCommand + '\n');
-					});
-				}
-
-				outputDebug(nowText() + 'Finished to check tool versions. Cost ' + getTimeCostToNow(trackCheckBeginTime) + ' seconds.');
+		if (!IsDebugMode) {
+			const now = new Date();
+			const hour = now.getHours();
+			if (now.getDay() !== 2 || hour < 9 || hour > 11) {
+				outputDebug(nowText() + 'Skip checking for now. Only check at every Tuesday 09:00 ~ 11:00.');
+				return;
 			}
+		}
+
+		if (!isNullOrEmpty(SourceMd5Text)) {
+			this.compareToolVersions(SourceMd5Text, new Date());
+			return;
+		}
+
+		const trackCheckBeginTime = new Date();
+		const checker = this;
+		const request = https.get(SourceMd5FileUrl, function (response) {
+			response.on('data', function (data) {
+				if (data) {
+					const sourceMd5Lines = data.toString();
+					if (!isNullOrEmpty(sourceMd5Lines)) {
+						SourceMd5Text = sourceMd5Lines;
+					}
+					checker.compareToolVersions(sourceMd5Lines, trackCheckBeginTime);
+				}
+			});
 		});
-	});
 
-	request.end();
+		request.end();
 
-	request.on('error', (err) => {
-		outputDebug(nowText() + 'Failed to read source md5 from ' + SourceMd5FileUrl + '. Cost ' + getTimeCostToNow(trackCheckBeginTime) + ' seconds. Error: ' + err.message);
-	});
-}
-
-function getFileMd5(filePath: string) {
-	const hash = crypto.createHash('md5');
-	const content = fs.readFileSync(filePath, { encoding: '' });
-	const md5 = hash.update(content).digest('hex');
-	return md5;
-}
-
-export function checkAndDownloadTool(exeName64bit: string): [boolean, string] {
-	const [isExisted, exePath] = isToolExistsInPath(exeName64bit);
-	outputDebug(nowText() + (isExisted ? 'Found ' + exeName64bit + ' = ' + exePath : 'Not found ' + exeName64bit + ', will download it.'));
-	if (isExisted) {
-		return [isExisted, exePath];
+		request.on('error', (err) => {
+			outputDebug(nowText() + 'Failed to read source md5 from ' + SourceMd5FileUrl + '. Cost ' + getTimeCostToNow(trackCheckBeginTime) + ' seconds. Error: ' + err.message);
+		});
 	}
 
-	return autoDownloadTool(exeName64bit);
+	private compareToolVersions(allMd5Text: string, trackCheckBeginTime: Date) {
+		const [hasNin, ninExePath] = this.isToolExistsInPath('nin');
+		const currentMsrMd5 = getFileMd5(this.MsrExePath);
+		let currentExeNameToMd5Map = new Map<string, string>().set('msr', currentMsrMd5);
+		let exeName64bitToPathMap = new Map<string, string>().set('msr', this.MsrExePath);
+		if (hasNin) {
+			currentExeNameToMd5Map.set('nin', getFileMd5(ninExePath));
+			exeName64bitToPathMap.set('nin', ninExePath);
+		}
+
+		let oldExeNames = new Set<string>();
+		let foundCount = 0;
+		while (foundCount < currentExeNameToMd5Map.size) {
+			const matchInfo = this.MatchExeMd5Regex.exec(allMd5Text);
+			if (!matchInfo) {
+				outputError(nowText() + 'Cannot match source MD5 text with Regex: "' + this.MatchExeMd5Regex.source + '" , remained text = ' + allMd5Text);
+				break;
+			}
+
+			foundCount++;
+			allMd5Text = allMd5Text.substring(matchInfo.index + matchInfo[0].length);
+			const latestMd5 = matchInfo[1];
+			const exeName64bit = matchInfo[2];
+			const sourceExeName = this.getSourceExeName(exeName64bit);
+			const currentMd5 = currentExeNameToMd5Map.get(exeName64bit) || '';
+			if (currentMd5.toLowerCase() !== latestMd5.toLowerCase()) {
+				oldExeNames.add(sourceExeName);
+				outputKeyInfo(nowText() + 'Found new version of ' + sourceExeName + ' which md5 = ' + latestMd5 + ' , source-info = ' + SourceMd5FileUrl);
+				outputKeyInfo(nowText() + 'Current ' + sourceExeName + ' md5 = ' + currentMd5 + ' , path = ' + exeName64bitToPathMap.get(exeName64bit));
+			} else {
+				outputDebug(nowText() + 'Great! Your ' + sourceExeName + ' is latest! md5 = ' + latestMd5 + ' , exe = ' + exeName64bitToPathMap.get(exeName64bit) + ' , sourceMD5 = ' + SourceMd5FileUrl);
+			}
+		}
+
+		if (oldExeNames.size > 0) {
+			outputKeyInfo('\n' + nowText() + 'You can download + update "' + Array.from(oldExeNames).join(' + ') + '" like below for your ' + TerminalType[this.terminalType] + ' terminal:');
+			oldExeNames.forEach(exeName => {
+				const exeName64bit = exeName.replace(/^(\w+).*/, '$1');
+				let currentExeSavePath = exeName64bitToPathMap.get(exeName64bit) || '';
+				if (TerminalType.CygwinBash === this.terminalType) {
+					currentExeSavePath = toCygwinPath(currentExeSavePath);
+				}
+				const downloadCommand = this.getDownloadCommand(exeName64bit, currentExeSavePath);
+				outputKeyInfo(downloadCommand + '\n');
+			});
+		}
+
+		outputDebug(nowText() + 'Finished to check tool versions. Cost ' + getTimeCostToNow(trackCheckBeginTime) + ' seconds.');
+	}
 }

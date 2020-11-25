@@ -2,7 +2,19 @@
 
 All notable changes to this "vscode-msr" extension will be documented in this file.
 
+## [2.1.0]
+
+- Improved Cygwin/MinGW terminals on Windows: 
+  - Searching paths using Windows style + Running commands using Linux style.
+  - Output relative paths for command alias: Added `msr.cookCmdAlias.outputRelativePathForLinuxTerminalsOnWindows` = `true`.
+  - Supported checking 2 versions of tools used (Windows EXE for searching + Linux EXE for running commands).
+- Changed default save tool folder on Windows: from `%USERPROFILE%\Desktop\` to `%USERPROFILE%\`.
+- Supported searching with relative paths to output short paths:
+  - Added `msr.searchRelativePathForNativeTerminals` + `msr.searchRelativePathForLinuxTerminalsOnWindows`.
+- Removed `-W` from `msr.allSmallFiles.extraOptions` to output short paths.
+
 ## [2.0.9]
+
 - Changed column index begin from 0 for definition results to try to avoid duplication when working with other extensions.
 - Disabled `finding-references` for all languages as needless noise, use menus + command alias.
 - Improved searching for cases of text contains variable style `"$"` on Linux or Linux terminals on Windows.

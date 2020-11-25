@@ -17,5 +17,5 @@ export const IsWSL = !IsWindows && (
 
 export const IsLinux = !IsWindows && !IsWSL;
 
-export const ShouldQuotePathRegex = IsWindows ? /[^\w,\.\\/:-]/ : /[^\w,\.\\/-]/;
-export const HomeFolder = IsWindows ? path.join(process.env['USERPROFILE'] || '', 'Desktop') : process.env['HOME'] || '.';
+export const ShouldQuotePathRegex = IsWindows ? /[^\w,\.\\/:~-]/ : /[^\w,\.\\/~-]/;
+export const HomeFolder = IsWindows ? path.join(process.env['USERPROFILE'] || '.') : process.env['HOME'] || '.';

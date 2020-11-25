@@ -2,17 +2,16 @@
 // Import the module and reference it with the alias vscode in your code below
 import { exec, ExecException, ExecOptions } from 'child_process';
 import * as vscode from 'vscode';
-import { checkAndDownloadTool, checkSearchToolExists, MsrExe, toRunnableToolPath } from './checkTool';
+import { MsrExe, ToolChecker } from './checkTool';
 import { getFindingCommandByCurrentWord, runFindingCommand, runFindingCommandByCurrentWord } from './commands';
 import { IsWindows, SearchTextHolderReplaceRegex, SkipJumpOutForHeadResultsRegex } from './constants';
 import { cookCmdShortcutsOrFile, FileExtensionToMappedExtensionMap, getConfig, getConfigValue, getRootFolder, getRootFolderExtraOptions, getRootFolderName, getSearchPathOptions, getSubConfigValue, printConfigInfo } from './dynamicConfig';
-import { FindCommandType, FindType } from './enums';
+import { FindCommandType, FindType, TerminalType } from './enums';
 import { clearOutputChannel, disposeTerminal, outputDebug, outputDebugOrInfo, outputError, outputInfo, outputResult, outputWarn, RunCmdTerminalName, runCommandInTerminal } from './outputUtils';
 import { SearchProperty } from './ranker';
 import { escapeRegExp } from './regexUtils';
 import { ResultType, ScoreTypeResult } from './ScoreTypeResult';
-import { getCurrentWordAndText, getExtensionNoHeadDot, getTimeCostToNow, isNullOrEmpty, nowText, quotePaths, toOsPathBySetting, toPath } from './utils';
-
+import { changeFindingCommandForLinuxTerminalOnWindows, DefaultTerminalType, getCurrentWordAndText, getExtensionNoHeadDot, getTimeCostToNow, IsLinuxTerminalOnWindows, isNullOrEmpty, nowText, quotePaths, toPath } from './utils';
 import ChildProcess = require('child_process');
 import path = require('path');
 
@@ -32,12 +31,19 @@ const ExpectedMaxTimeCostSecond = 3.0;
 let SearchToCostSumMap = new Map<FindType, Number>();
 let SearchTimesMap = new Map<FindType, Number>();
 
-let lastSearchTime = process.hrtime();
 let MyConfig = getConfig();
 let RootConfig = MyConfig.RootConfig || vscode.workspace.getConfiguration('msr');
 
-checkSearchToolExists();
-checkAndDownloadTool('nin');
+const LinuxToolChecker = new ToolChecker(DefaultTerminalType, false);
+if (IsLinuxTerminalOnWindows && TerminalType.CygwinBash === DefaultTerminalType) {
+	LinuxToolChecker.checkSearchToolExists();
+}
+
+const PlatformToolChecker = new ToolChecker(IsWindows ? TerminalType.CMD : TerminalType.LinuxBash);
+PlatformToolChecker.checkSearchToolExists();
+PlatformToolChecker.checkAndDownloadTool('nin');
+
+const RunCommandChecker = TerminalType.CygwinBash === DefaultTerminalType ? LinuxToolChecker : PlatformToolChecker;
 
 outputDebug(nowText() + 'Finished to load extension and initialize. Cost ' + getTimeCostToNow(trackBeginLoadTime) + ' seconds.');
 
@@ -246,7 +252,7 @@ export function deactivate() { }
 export class DefinitionFinder implements vscode.DefinitionProvider {
 	public async provideDefinition(document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken): Promise<vscode.Location[] | null> {
 		if (MyConfig.shouldSkipFinding(FindType.Definition, document.fileName)) {
-			return Promise.reject();
+			return Promise.resolve([]);
 		}
 
 		const forceSetSearchPaths = [document.fileName, path.parse(document.fileName).dir, ''];
@@ -271,7 +277,7 @@ export class DefinitionFinder implements vscode.DefinitionProvider {
 export class ReferenceFinder implements vscode.ReferenceProvider {
 	public async provideReferences(document: vscode.TextDocument, position: vscode.Position, _context: vscode.ReferenceContext, token: vscode.CancellationToken): Promise<vscode.Location[] | null> {
 		if (MyConfig.shouldSkipFinding(FindType.Reference, document.fileName)) {
-			return Promise.reject();
+			return Promise.resolve([]);
 		}
 
 		return searchMatchedWords(FindType.Reference, document, position, token);
@@ -279,18 +285,12 @@ export class ReferenceFinder implements vscode.ReferenceProvider {
 }
 
 // Cannot avoid too frequent searching by mouse hover + click, because `Visual Studio Code` will not effect. So let VSCode solve this bug.
-function isTooFrequentSearch() {
-	const elapse = process.hrtime(lastSearchTime);
-	const ms = elapse[0] * 1000 + elapse[1] / 1000000;
-	lastSearchTime = process.hrtime();
-	return ms < 900;
-}
 
 function getCurrentFileSearchInfo(document: vscode.TextDocument, position: vscode.Position, escapeTextForRegex: boolean = true): [path.ParsedPath, string, string, vscode.Range, string] {
 	const parsedFile = path.parse(document.fileName);
 	const extension = getExtensionNoHeadDot(parsedFile.ext);
 	let [currentWord, currentWordRange, currentText] = getCurrentWordAndText(document, position);
-	if (currentWord.length < 2 || !currentWordRange || !checkSearchToolExists()) {
+	if (currentWord.length < 2 || !currentWordRange || !PlatformToolChecker.checkSearchToolExists()) {
 		return [parsedFile, extension, '', new vscode.Range(new vscode.Position(0, 0), new vscode.Position(0, 0)), ''];
 	}
 
@@ -306,8 +306,8 @@ function getCurrentFileSearchInfo(document: vscode.TextDocument, position: vscod
 function searchMatchedWords(findType: FindType, document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken, forceSetSearchPath: string = ''): Thenable<vscode.Location[]> {
 	try {
 		const [parsedFile, extension, currentWord, currentWordRange, currentText] = getCurrentFileSearchInfo(document, position);
-		if (!checkSearchToolExists() || token.isCancellationRequested || currentWord.length < 2 || !currentWordRange) {
-			return Promise.reject();
+		if (!PlatformToolChecker.checkSearchToolExists() || token.isCancellationRequested || currentWord.length < 2 || !currentWordRange) {
+			return Promise.resolve([]);
 		}
 
 		clearOutputChannel();
@@ -328,7 +328,7 @@ function searchMatchedWords(findType: FindType, document: vscode.TextDocument, p
 		const [filePattern, searchOptions] = ranker.getFileNamePatternAndSearchOption(extension, configKeyName, parsedFile);
 		if (filePattern.length < 1 || searchOptions.length < 1) {
 			outputError(nowText() + 'Failed to get filePattern or searchOptions when search: ' + currentWord + ', filePattern = ' + filePattern + ', searchOptions = ' + searchOptions);
-			return Promise.reject();
+			return Promise.resolve([]);
 		}
 
 		const isFindDefinition = FindType.Definition === findType;
@@ -347,7 +347,7 @@ function searchMatchedWords(findType: FindType, document: vscode.TextDocument, p
 		const useExtraSearchPathsForDefinition = 'true' === getConfigValue(rootFolderName, extension, mappedExt, 'findDefinition.useExtraPaths');
 
 		const searchPathOptions = isNullOrEmpty(forceSetSearchPath)
-			? getSearchPathOptions(false, document.uri.fsPath, mappedExt, isFindDefinition, useExtraSearchPathsForReference, useExtraSearchPathsForDefinition)
+			? getSearchPathOptions(false, false, document.uri.fsPath, mappedExt, isFindDefinition, useExtraSearchPathsForReference, useExtraSearchPathsForDefinition)
 			: '-p ' + quotePaths(forceSetSearchPath);
 
 		let commandLine = 'msr ' + searchPathOptions;
@@ -367,19 +367,18 @@ function searchMatchedWords(findType: FindType, document: vscode.TextDocument, p
 
 		commandLine = commandLine.trim().replace(SearchTextHolderReplaceRegex, currentWord);
 		outputInfo('\n' + nowText() + commandLine + '\n');
-
 		return getMatchedLocationsAsync(findType, commandLine, ranker, token);
 	} catch (e) {
 		outputError(nowText() + e.stack.toString());
 		outputError(nowText() + e.toString());
-		throw e;
+		return Promise.resolve([]);
 	}
 }
 
 function searchDefinitionInCurrentFile(document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken): Thenable<vscode.Location[]> {
 	const [parsedFile, extension, currentWord, currentWordRange, currentText] = getCurrentFileSearchInfo(document, position);
-	if (!checkSearchToolExists() || token.isCancellationRequested || currentWord.length < 2 || !currentWordRange) {
-		return Promise.reject();
+	if (!PlatformToolChecker.checkSearchToolExists() || token.isCancellationRequested || currentWord.length < 2 || !currentWordRange) {
+		return Promise.resolve([]);
 	}
 
 	const mappedExt = FileExtensionToMappedExtensionMap.get(extension) || extension;
@@ -404,8 +403,8 @@ function searchDefinitionInCurrentFile(document: vscode.TextDocument, position: 
 
 function searchLocalVariableDefinitionInCurrentFile(document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken): Thenable<vscode.Location[]> {
 	const [parsedFile, extension, currentWord, currentWordRange, currentText] = getCurrentFileSearchInfo(document, position);
-	if (!checkSearchToolExists() || token.isCancellationRequested || currentWord.length < 2 || !currentWordRange) {
-		return Promise.reject();
+	if (!PlatformToolChecker.checkSearchToolExists() || token.isCancellationRequested || currentWord.length < 2 || !currentWordRange) {
+		return Promise.resolve([]);
 	}
 
 	const mappedExt = FileExtensionToMappedExtensionMap.get(extension) || extension;
@@ -415,7 +414,7 @@ function searchLocalVariableDefinitionInCurrentFile(document: vscode.TextDocumen
 		+ '\\([\\w\\s]*?' + currentWord + '\\s*(in|:)\\s*\\w+';
 
 	const filePath = quotePaths(document.fileName);
-	let command = toOsPathBySetting(MsrExe) + ' -p ' + filePath + ' -t "' + pattern + '" -N ' + Math.max(0, position.line - 1) + ' -T 1 -I -C';
+	let command = MsrExe + ' -p ' + filePath + ' -t "' + pattern + '" -N ' + Math.max(0, position.line - 1) + ' -T 1 -I -C';
 	outputDebug('\n' + nowText() + command + '\n');
 	return getMatchedLocationsAsync(FindType.Definition, command, ranker, token);
 }
@@ -451,7 +450,7 @@ function getMatchedLocationsAsync(findType: FindType, cmd: string, ranker: Searc
 			if (stderr) {
 				if (!findAndProcessSummary(false, stderr, findType, cmd, ranker)) {
 					if (/\bmsr\b.*?\s+not\s+/.test(stderr)) {
-						checkSearchToolExists(true, false);
+						PlatformToolChecker.checkSearchToolExists(true, false);
 					}
 				}
 			}
@@ -503,7 +502,8 @@ function findAndProcessSummary(skipIfNotMatch: boolean, summaryText: string, fin
 		}
 		else if (matchCount > MyConfig.ReRunSearchInTerminalIfResultsMoreThan && costSeconds <= MyConfig.ReRunCmdInTerminalIfCostLessThan) {
 			outputInfo(nowText() + 'Will re-run and show clickable + colorful results in `MSR-RUN-CMD` in `TERMINAL` tab. Set `msr.quiet` to avoid switching tabs; Decrease `msr.reRunSearchInTerminalIfCostLessThan` value for re-running.');
-			runCommandInTerminal(toRunnableToolPath(cmd).replace(SkipJumpOutForHeadResultsRegex, ' ').trim(), false, getConfig().ClearTerminalBeforeExecutingCommands);
+			cmd = changeFindingCommandForLinuxTerminalOnWindows(cmd);
+			runCommandInTerminal(RunCommandChecker.toRunnableToolPath(cmd).replace(SkipJumpOutForHeadResultsRegex, ' ').trim(), false, getConfig().ClearTerminalBeforeExecutingCommands);
 		}
 	} else if (!ranker.isOneFileOrFolder) {
 		outputDebug(nowText() + 'Failed to get time cost in summary. Search word = ' + ranker.currentWord);
@@ -562,7 +562,6 @@ function parseCommandOutput(stdout: string, findType: FindType, cmd: string, ran
 		return allResults;
 	}
 
-	const subName = FindType[findType].toLowerCase();
 	const rootFolderName = getRootFolderName(toPath(ranker.currentFile));
 	const removeLowScoreResultsFactor = Number(getConfigValue(rootFolderName, ranker.extension, ranker.mappedExt, 'removeLowScoreResultsFactor') || 0.8);
 	const keepHighScoreResultCount = Number(getConfigValue(rootFolderName, ranker.extension, ranker.mappedExt, 'keepHighScoreResultCount') || -1);

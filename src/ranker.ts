@@ -11,9 +11,9 @@ import path = require('path');
 
 let RootConfig = getConfig().RootConfig || vscode.workspace.getConfiguration('msr');
 
-export class SearchProperty {
+export class Ranker {
 	public isOneFileOrFolder: boolean;
-
+	public canRunCommandInTerminal: boolean = false;
 	public currentFile: ParsedPath;
 	public currentFilePath: string;
 	public extension: string;
@@ -73,9 +73,11 @@ export class SearchProperty {
 	private demotePathRegex: RegExp;
 	private demotePathScore: number;
 	private promoteSelfFileMatchScore: number = 200;
+	private IsJustFindingClassOrMethod: boolean = false;
 
-	constructor(findType: FindType, currentWord: string, currentWordRange: vscode.Range, currentText: string, currentFile: ParsedPath, mappedExt: string, isOneFileOrFolder = false) {
+	constructor(findType: FindType, currentWord: string, currentWordRange: vscode.Range, currentText: string, currentFile: ParsedPath, mappedExt: string, isOneFileOrFolder = false, isJustFindingClassOrMethod = false) {
 		this.isOneFileOrFolder = isOneFileOrFolder;
+		this.IsJustFindingClassOrMethod = isJustFindingClassOrMethod;
 		const MyConfig = getConfig();
 		this.findType = findType;
 		this.currentWord = currentWord;
@@ -99,11 +101,11 @@ export class SearchProperty {
 		this.isFindClassOrEnumRegex = this.getCheckingRegex('isFindClassOrEnum', false);
 		this.methodQuoteRegex = new RegExp('\\b' + currentWord + '\\b\\s*\\(');
 
-		this.isFindClass = this.isFindClassRegex.test(currentText);
-		this.isFindMethod = this.isFindMethodRegex.test(currentText);
-		this.isFindMember = this.isFindMemberRegex.test(currentText) && !this.methodQuoteRegex.test(currentText);
-		this.isFindEnum = this.isFindEnumRegex.test(this.currentText);
-		this.isFindClassOrEnum = this.isFindClassOrEnumRegex.test(this.currentText);
+		this.isFindClass = this.IsJustFindingClassOrMethod || this.isFindClassRegex.test(currentText);
+		this.isFindMethod = this.IsJustFindingClassOrMethod || this.isFindMethodRegex.test(currentText);
+		this.isFindMember = !this.IsJustFindingClassOrMethod && this.isFindMemberRegex.test(currentText) && !this.methodQuoteRegex.test(currentText);
+		this.isFindEnum = !this.IsJustFindingClassOrMethod && this.isFindEnumRegex.test(this.currentText);
+		this.isFindClassOrEnum = !this.IsJustFindingClassOrMethod && this.isFindClassOrEnumRegex.test(this.currentText);
 		this.isFindConstantRegex = this.getCheckingRegex('isFindConstant', false);
 		if (/^[A-Z]/.test(this.currentWord)) {
 			this.isFindConstant = (this.isFindConstantRegex.source === EmptyRegex.source
@@ -269,7 +271,7 @@ export class SearchProperty {
 		extension: string,
 		configKeyName: string,
 		parsedFile: ParsedPath): [string, string] {
-		const MyConfig = getConfig();
+		const config = getConfig();
 
 		let specificPatterns = new Set<string>();
 		if (configKeyName === 'definition') {
@@ -327,7 +329,7 @@ export class SearchProperty {
 		const RootConfig = vscode.workspace.getConfiguration('msr');
 		const codeFilesKey = this.mappedExt === 'ui' ? 'default.codeFilesPlusUI' : 'default.codeFiles';
 		let filePattern = MappedExtToCodeFilePatternMap.get(this.mappedExt) || '\\.' + extension + '$';
-		if (MyConfig.SearchAllFilesWhenFindingReferences && configKeyName === 'reference') {
+		if (config.SearchAllFilesWhenFindingReferences && configKeyName === 'reference') {
 			filePattern = RootConfig.get('default.allFiles') as string;
 			const defaultFindRef = RootConfig.get('default.reference') as string;
 			if (defaultFindRef.length > 1) {
@@ -341,7 +343,7 @@ export class SearchProperty {
 			if (/\W$/.test(this.currentWord) && searchPattern.endsWith('\\b')) {
 				searchPattern = searchPattern.substring(0, searchPattern.length - 2);
 			}
-		} else if (MyConfig.SearchAllFilesWhenFindingDefinitions && configKeyName === 'definition') {
+		} else if (config.SearchAllFilesWhenFindingDefinitions && configKeyName === 'definition') {
 			filePattern = RootConfig.get(codeFilesKey) as string;
 			const defaultFindDef = RootConfig.get('default.definition') as string;
 			if (defaultFindDef.length > 1) {
@@ -349,11 +351,11 @@ export class SearchProperty {
 			}
 		}
 
-		if (!MyConfig.SearchAllFilesWhenFindingDefinitions && !MyConfig.SearchAllFilesWhenFindingReferences) {
-			if (MyConfig.ConfigAndDocFilesRegex.test(parsedFile.base)) {
+		if (!config.SearchAllFilesWhenFindingDefinitions && !config.SearchAllFilesWhenFindingReferences) {
+			if (config.ConfigAndDocFilesRegex.test(parsedFile.base)) {
 				filePattern = configKeyName === 'definition'
 					? RootConfig.get(codeFilesKey) as string
-					: MyConfig.CodeAndConfigAndDocFilesRegex.source;
+					: config.CodeAndConfigAndDocFilesRegex.source;
 			}
 
 			if (configKeyName === 'definition') {

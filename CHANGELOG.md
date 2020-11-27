@@ -2,6 +2,12 @@
 
 All notable changes to this "vscode-msr" extension will be documented in this file.
 
+## [2.1.1]
+
+- Accelerated searching code quite a lot.
+- Corrected searching definition when `msr.searchRelativePathForNativeTerminals` = `true`.
+- Supported finding definition in extra paths.
+
 ## [2.1.0]
 
 - Improved Cygwin/MinGW terminals on Windows: 

@@ -16,7 +16,7 @@ const FolderToPathPairRegex = /(\w+\S+?)\s*=\s*(\S+.+)$/;
 
 const CookCmdDocUrl = 'https://github.com/qualiu/vscode-msr/blob/master/README.md#command-shortcuts';
 
-let MyConfig: DynamicConfig;
+export let MyConfig: DynamicConfig;
 
 export let FileExtensionToMappedExtensionMap = new Map<string, string>();
 // 	.set('cxx', 'cpp')
@@ -400,13 +400,14 @@ export function getSearchPathOptions(
     useExtraSearchPathsForReference: boolean = true,
     useExtraSearchPathsForDefinition: boolean = true,
     useSkipFolders: boolean = true,
-    usePathListFiles: boolean = true): string {
-
+    usePathListFiles: boolean = true,
+    forceSetSearchPath: string = ''): string {
     const rootFolder = getRootFolder(codeFilePath);
     const rootFolderName = getRootFolderName(codeFilePath, true);
-    const rootPaths = MyConfig.FindReferencesInAllRootFolders
-        ? getRootFolders(codeFilePath)
-        : getRootFolder(codeFilePath);
+    const findAllFolders = isFindingDefinition ? MyConfig.FindDefinitionInAllFolders : MyConfig.FindReferencesInAllRootFolders;
+    const rootPaths = !isNullOrEmpty(forceSetSearchPath)
+        ? forceSetSearchPath
+        : (findAllFolders ? getRootFolders(codeFilePath) : getRootFolder(codeFilePath));
 
     const folderKey = useProjectSpecific ? rootFolderName : '';
     const folderKeyDefault = isNullOrEmpty(folderKey) ? 'default' : folderKey;
@@ -418,9 +419,13 @@ export function getSearchPathOptions(
     const terminalType = !toRunInTerminal && isLinuxTerminalOnWindows() ? TerminalType.CMD : DefaultTerminalType;
     const skipFolderOptions = useSkipFolders && skipFoldersPattern.length > 1 ? ' --nd "' + skipFoldersPattern + '"' : '';
     if ((isFindingDefinition && !useExtraSearchPathsForDefinition) || (!isFindingDefinition && !useExtraSearchPathsForReference)) {
-        return isNullOrEmpty(rootPaths)
-            ? '-p ' + quotePaths(isFindingDefinition ? toOsPath(replaceToRelativeSearchPath(toRunInTerminal, path.dirname(codeFilePath), rootFolder), terminalType) : codeFilePath)
-            : '-rp ' + quotePaths(toOsPathsForText(replaceToRelativeSearchPath(toRunInTerminal, rootPaths, rootFolder), terminalType)) + skipFolderOptions;
+        if (isNullOrEmpty(rootPaths)) { // files not in project
+            const searchPaths = quotePaths(isFindingDefinition ? toOsPath(replaceToRelativeSearchPath(toRunInTerminal, path.dirname(codeFilePath), rootFolder), terminalType) : codeFilePath);
+            return '-p ' + searchPaths;
+        } else {
+            const searchPaths = quotePaths(toOsPathsForText(replaceToRelativeSearchPath(toRunInTerminal, rootPaths, rootFolder), terminalType));
+            return '-rp ' + searchPaths + skipFolderOptions;
+        }
     }
 
     let extraSearchPathSet = getExtraSearchPathsOrFileLists('default.extraSearchPaths', folderKeyDefault);
@@ -453,9 +458,10 @@ export function getSearchPathOptions(
     pathFilesText = quotePaths(pathFilesText);
 
     const readPathListOptions = usePathListFiles && pathListFileSet.size > 0 ? ' -w "' + pathFilesText + '"' : '';
-    return isNullOrEmpty(rootPaths)
-        ? '-p ' + replaceToRelativeSearchPath(toRunInTerminal, pathsText, rootFolder) + readPathListOptions + skipFolderOptions
-        : '-rp ' + replaceToRelativeSearchPath(toRunInTerminal, pathsText, rootFolder) + readPathListOptions + skipFolderOptions;
+    const searchPaths = replaceToRelativeSearchPath(toRunInTerminal, pathsText, rootFolder);
+    const recursiveOption = isNullOrEmpty(rootPaths) ? '-p' : '-rp';
+    const otherOptions = isNullOrEmpty(rootPaths) ? '' : readPathListOptions + skipFolderOptions;
+    return recursiveOption + ' ' + quotePaths(searchPaths) + otherOptions;
 }
 
 export function getExtraSearchPathsOrFileLists(configKey: string, folderName: string): Set<string> {

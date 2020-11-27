@@ -206,10 +206,6 @@ When you open a new terminal, will [**auto set project specific command shortcut
 
 ## Enable Finding Definition and References for Unknown Languages
 
-Since `2.0.3`, no longer support `"Go To Definition"` or `"Find All Reference"` for **unknown languages**.
-
-But you can still use the `command platte` or `right-pop-menu` (like `Regex find references in small files`).
-
 If you want to support unknown languages, do **anyone** of below:
 
 - Set `msr.enable.onlyFindDefinitionForKnownLanguages` = **false** in [personal settings file](https://code.visualstudio.com/docs/getstarted/settings#_settings-file-locations) or un-check it in [user settings](https://code.visualstudio.com/docs/getstarted/settings#_creating-user-and-workspace-settings).
@@ -341,6 +337,16 @@ There're another 2 ways to toggle besides the hot key (`Alt+F2`):
 
 - `msr.enable.definition`: Set to `false` or un-check it to **disable** `find definitions` function for all types of files.
 - `msr.enable.reference`: Set to `false` or un-check it to **disable** `find references` function for all types of files.
+
+### Output Relative Paths or Full Paths
+- For cooking command alias/shortcuts and using it:
+  - `msr.cookCmdAlias.outputFullPath`
+  - `msr.cookCmdAlias.outputRelativePathForLinuxTerminalsOnWindows`: 
+- For search output (from `menu` or `auto-triggered re-run when got multiple results`):
+  - `msr.searchRelativePathForLinuxTerminalsOnWindows`:
+    - Set `true` to help click + open results in `vscode` for Cygwin/MinGW/WSL terminals on Windows.
+  - `msr.searchRelativePathForNativeTerminals`: Enable it to get short paths.
+- Just add `-W` to output full paths when you re-use the command line and if it output relative paths.
 
 ## More Settings like Quiet Mode
 

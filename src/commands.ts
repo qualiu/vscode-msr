@@ -4,7 +4,7 @@ import { HomeFolder, SearchTextHolderReplaceRegex, SkipJumpOutForHeadResultsRege
 import { FileExtensionToMappedExtensionMap, getConfig, getConfigValue, getOverrideConfigByPriority, getRootFolder, getRootFolderExtraOptions, getRootFolderName, getSearchPathOptions, getSubConfigValue, removeSearchTextForCommandLine, replaceToRelativeSearchPath } from './dynamicConfig';
 import { FindCommandType, TerminalType } from './enums';
 import { enableColorAndHideCommandLine, outputDebug, outputInfo, runCommandInTerminal } from './outputUtils';
-import { SearchProperty } from './ranker';
+import { Ranker } from './ranker';
 import { escapeRegExp, NormalTextRegex } from './regexUtils';
 import { changeFindingCommandForLinuxTerminalOnWindows, DefaultTerminalType, getCurrentWordAndText, getExtensionNoHeadDot, IsLinuxTerminalOnWindows, isLinuxTerminalOnWindows, isNullOrEmpty, nowText, quotePaths, replaceTextByRegex, toOsPath, toPath } from './utils';
 import path = require('path');
@@ -78,7 +78,6 @@ export function getSortCommandText(toRunInTerminal: boolean, useProjectSpecific:
     extraOptions += ' ' + getOverrideConfigByPriority([folderKey, 'default'], 'listSortingFilesOptions') as string || '-l -H 10 -T 10';
 
     let searchPathsOptions = getSearchPathOptions(toRunInTerminal, useProjectSpecific, rootFolder, '', FindCommandType.RegexFindDefinitionInCodeFiles === findCmd);
-
     if (isCookingCmdAlias) {
         extraOptions = replaceTextByRegex(extraOptions, /(^|\s+)(-[lICc]\s+|-[HT]\s*\d+)/, ' ');
         extraOptions = replaceTextByRegex(extraOptions, /(^|\s+)(--s[12])\s+\S+\s*/, ' ');
@@ -127,7 +126,7 @@ export function getFindTopDistributionCommand(toRunInTerminal: boolean, useProje
     return command.trimRight();
 }
 
-export function getFindingCommandByCurrentWord(toRunInTerminal: boolean, findCmd: FindCommandType, searchText: string, parsedFile: path.ParsedPath, rawSearchText: string = '', ranker: SearchProperty | undefined): string {
+export function getFindingCommandByCurrentWord(toRunInTerminal: boolean, findCmd: FindCommandType, searchText: string, parsedFile: path.ParsedPath, rawSearchText: string = '', ranker: Ranker | undefined): string {
     const extension = getExtensionNoHeadDot(parsedFile.ext);
     const mappedExt = FileExtensionToMappedExtensionMap.get(extension) || extension;
     const rootFolder = getRootFolder(toPath(parsedFile), true) || '.';

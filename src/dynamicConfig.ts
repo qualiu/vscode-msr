@@ -101,7 +101,7 @@ export class DynamicConfig {
     public DescendingSortForConsoleOutput: boolean = false;
     public DescendingSortForVSCode: boolean = false;
 
-    public DefaultMaxSearchDepth: number = 16;
+    public MaxSearchDepth: number = 16;
     public NeedSortResults: boolean = false;
 
     public ReRunCmdInTerminalIfCostLessThan: number = 3.3;
@@ -135,11 +135,35 @@ export class DynamicConfig {
     public OutputRelativePathForLinuxTerminalsOnWindows: boolean = true;
     public SearchRelativePathForLinuxTerminalsOnWindows: boolean = true;
     public SearchRelativePathForNativeTerminals: boolean = true;
+    public UseDefaultFindingClassCheckExtensionRegex: RegExp = new RegExp('to-load');
+    public AllSourceFileExtensionRegex: RegExp = new RegExp('to-load');
+    public AllFileExtensionMapExtRegex: RegExp[] = [];
+    public MaxWaitSecondsForSearchDefinition: number = 36.0;
+    public MaxWaitSecondsForAutoReSearchDefinition: number = 60.0;
 
     private TmpToggleEnabledExtensionToValueMap = new Map<string, boolean>();
 
     public isKnownLanguage(extension: string): boolean {
         return FileExtensionToMappedExtensionMap.has(extension) || this.RootConfig.get(extension) !== undefined;
+    }
+
+    public isUnknownFileType(extension: string): boolean {
+        const ext = extension.replace(/.*?\.(\w+)$/, '$1');
+        if (this.isKnownLanguage(ext)) {
+            return false;
+        }
+
+        if (this.AllSourceFileExtensionRegex.test(extension)) {
+            return false;
+        }
+
+        for (let reg of this.AllFileExtensionMapExtRegex) {
+            if (extension.match(reg)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     public toggleEnableFindingDefinition(extension: string) {
@@ -164,15 +188,19 @@ export class DynamicConfig {
         return getOverrideConfigByPriority([this.RootFolder, 'default', ''], configTailKey);
     }
 
+
+
     public update() {
         this.RootConfig = vscode.workspace.getConfiguration('msr');
-
+        this.AllFileExtensionMapExtRegex = [];
         const fileExtensionMapInConfig = this.RootConfig.get('fileExtensionMap') as {};
         if (fileExtensionMapInConfig) {
             Object.keys(fileExtensionMapInConfig).forEach((mapExt) => {
                 const extensions = (this.RootConfig.get('fileExtensionMap.' + mapExt) as string).split(/\s+/);
                 const regexExtensions = extensions.map(ext => escapeRegExp(ext));
-                MappedExtToCodeFilePatternMap.set(mapExt, '\\.(' + regexExtensions.join('|') + ')$');
+                const extensionsRegex = new RegExp('\\.(' + regexExtensions.join('|') + ')$', 'i');
+                this.AllFileExtensionMapExtRegex.push(extensionsRegex);
+                MappedExtToCodeFilePatternMap.set(mapExt, extensionsRegex.source);
                 extensions.forEach((ext) => {
                     FileExtensionToMappedExtensionMap.set(ext, mapExt);
                 });
@@ -199,7 +227,7 @@ export class DynamicConfig {
         this.IsDebug = this.getConfigValue('debug') === 'true';
         this.DescendingSortForConsoleOutput = this.getConfigValue('descendingSortForConsoleOutput') === 'true';
         this.DescendingSortForVSCode = this.getConfigValue('descendingSortForVSCode') === 'true';
-        this.DefaultMaxSearchDepth = parseInt(this.getConfigValue('maxSearchDepth') || '0');
+        this.MaxSearchDepth = parseInt(this.getConfigValue('maxSearchDepth') || '0');
         this.NeedSortResults = this.getConfigValue('sortResults') === 'true';
         this.ReRunCmdInTerminalIfCostLessThan = Number(this.getConfigValue('reRunSearchInTerminalIfCostLessThan') || '3.3');
         this.ReRunSearchInTerminalIfResultsMoreThan = Number(this.getConfigValue('reRunSearchInTerminalIfResultsMoreThan') || '1');
@@ -219,6 +247,12 @@ export class DynamicConfig {
         this.OutputRelativePathForLinuxTerminalsOnWindows = this.getConfigValue('cookCmdAlias.outputRelativePathForLinuxTerminalsOnWindows') === 'true';
         this.SearchRelativePathForLinuxTerminalsOnWindows = this.getConfigValue('searchRelativePathForLinuxTerminalsOnWindows') === 'true';
         this.SearchRelativePathForNativeTerminals = this.getConfigValue('searchRelativePathForNativeTerminals') === 'true';
+
+        this.UseDefaultFindingClassCheckExtensionRegex = createRegex(this.getConfigValue('useDefaultFindingClass.extensions'));
+        this.AllSourceFileExtensionRegex = createRegex(this.getConfigValue('allFiles'));
+
+        this.MaxWaitSecondsForSearchDefinition = Number(this.getConfigValue('searchDefinition.timeoutSeconds'));
+        this.MaxWaitSecondsForAutoReSearchDefinition = Number(this.getConfigValue('autoRunSearchDefinition.timeoutSeconds'));
 
         this.ExcludeFoldersFromSettings.clear();
         if (this.AutoMergeSkipFolders) {
@@ -356,10 +390,10 @@ export function getRootFolderExtraOptions(rootFolderName: string): string {
 }
 
 export function getOverrideConfigByPriority(priorityPrefixList: string[], configNameTail: string, allowEmpty: boolean = true): string {
-    const RootConfig = vscode.workspace.getConfiguration('msr');
+    const config = vscode.workspace.getConfiguration('msr');
     for (let k = 0; k < priorityPrefixList.length; k++) {
         const name = (priorityPrefixList[k].length > 0 ? priorityPrefixList[k] + '.' : priorityPrefixList[k]) + configNameTail;
-        let valueObject = RootConfig.get(name);
+        let valueObject = config.get(name);
         if (valueObject === undefined || valueObject === null) {
             continue;
         }
@@ -388,7 +422,15 @@ export function replaceToRelativeSearchPath(toRunInTerminal: boolean, searchPath
         return searchPaths;
     }
 
-    return searchPaths.replace(rootFolder, '.');
+    const paths = searchPaths.split(',').map(a => {
+        if (a === rootFolder) {
+            return ".";
+        }
+        return IsWindows ? a.replace(rootFolder + '\\', ".\\") : a.replace(rootFolder + "/", "./");
+    });
+
+    searchPaths = paths.join(',');
+    return searchPaths;
 }
 
 export function getSearchPathOptions(

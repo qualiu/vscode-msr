@@ -1,7 +1,7 @@
 
 import { exec, ExecException, ExecOptions } from 'child_process';
 import * as vscode from 'vscode';
-import { ToolChecker } from './checkTool';
+import { setSearchDepthInCommandLine, setTimeoutInCommandLine, ToolChecker } from './checkTool';
 import { runFindingCommandByCurrentWord } from './commands';
 import { IsWindows, SearchTextHolderReplaceRegex, SkipJumpOutForHeadResultsRegex } from './constants';
 import { FileExtensionToMappedExtensionMap, getConfig, getConfigValue, getRootFolder, getRootFolderExtraOptions, getRootFolderName, getSearchPathOptions, getSubConfigValue, MyConfig } from './dynamicConfig';
@@ -53,22 +53,15 @@ export class Searcher {
   public Ranker: Ranker;
   public Process: ChildProcess.ChildProcess | null = null;
   public IsCompleted: boolean = false;
-  private readonly GetSearchDepthRegex: RegExp = /\s+-k\s+\d+/;
 
-  constructor(findType: FindType, name: string, sourcePath: string, maxSearchDepth: number, commandLine: string, ranker: Ranker) {
+  constructor(findType: FindType, name: string, sourcePath: string, maxSearchDepth: number, commandLine: string, ranker: Ranker, timeoutSeconds: number) {
     this.FindType = findType;
     this.Name = name;
     this.SourcePath = sourcePath;
     this.MaxSearchDepth = maxSearchDepth;
     this.Ranker = ranker;
-    const match = this.GetSearchDepthRegex.exec(commandLine);
-    if (match) {
-      commandLine = commandLine.replace(this.GetSearchDepthRegex, ' -k ' + this.MaxSearchDepth);
-    } else {
-      commandLine = commandLine.trimRight() + ' -k ' + this.MaxSearchDepth;
-    }
-
-    this.CommandLine = commandLine;
+    this.CommandLine = setSearchDepthInCommandLine(commandLine, this.MaxSearchDepth);
+    this.CommandLine = setTimeoutInCommandLine(this.CommandLine, timeoutSeconds);
   }
 
   public toString() {
@@ -98,24 +91,23 @@ export class Searcher {
   }
 }
 
-export function getCurrentFileSearchInfo(document: vscode.TextDocument, position: vscode.Position, escapeTextForRegex: boolean = true): [path.ParsedPath, string, string, vscode.Range, string] {
-  const parsedFile = path.parse(document.fileName);
-  const extension = getExtensionNoHeadDot(parsedFile.ext);
-  let [currentWord, currentWordRange, currentText] = getCurrentWordAndText(document, position);
-  if (currentWord.length < 2 || !currentWordRange || !PlatformToolChecker.checkSearchToolExists()) {
-    return [parsedFile, extension, '', new vscode.Range(new vscode.Position(0, 0), new vscode.Position(0, 0)), ''];
+export function createSearcher(name: string, sourcePath: string, recursive: boolean,
+  findType: FindType, document: vscode.TextDocument, position: vscode.Position,
+  timeout: number = MyConfig.MaxWaitSecondsForSearchDefinition, maxSearchDepth: number = MyConfig.MaxSearchDepth,
+  isJustFindingClassOrMethod = false, canUseDefaultFindingDefinition = true)
+  : Searcher | null {
+  outputDebug(nowText() + 'Will create ranker + command line for searcher: ' + name);
+  const [commandLine, ranker] = getSearchCommandLineAndRanker(findType, document, position, recursive, sourcePath, isJustFindingClassOrMethod, canUseDefaultFindingDefinition);
+  if (isNullOrEmpty(commandLine) || ranker === null) {
+    return null;
   }
 
-  const isPowershell = /psm?1$/.exec(extension);
-  if (isPowershell && currentText.indexOf('$' + currentWord) >= 0) {
-    currentWord = '$' + currentWord;
-  }
-
-  const searchText = escapeTextForRegex ? escapeRegExp(currentWord) : currentWord;
-  return [parsedFile, extension, searchText, currentWordRange, currentText];
+  return new Searcher(findType, name, sourcePath, maxSearchDepth, commandLine, ranker, timeout);
 }
 
-export function getSearchCommandLineAndRanker(findType: FindType, document: vscode.TextDocument, position: vscode.Position, isRecursive: boolean, forceSetSearchPath: string = '', isJustFindingClassOrMethod = false):
+function getSearchCommandLineAndRanker(findType: FindType,
+  document: vscode.TextDocument, position: vscode.Position, isRecursive: boolean,
+  forceSetSearchPath: string = '', isJustFindingClassOrMethod = false, canUseDefaultFindingDefinition = true):
   [string, Ranker | null] {
   const [parsedFile, extension, currentWord, currentWordRange, currentText] = getCurrentFileSearchInfo(document, position);
   if (!PlatformToolChecker.checkSearchToolExists() || currentWord.length < 2 || !currentWordRange) {
@@ -132,7 +124,8 @@ export function getSearchCommandLineAndRanker(findType: FindType, document: vsco
   const currentFilePath = toPath(parsedFile);
   const isSearchOneFile = forceSetSearchPath === currentFilePath;
   const isSearchCurrentFileFolder = forceSetSearchPath === parsedFile.dir;
-  let ranker = new Ranker(findType, currentWord, currentWordRange, currentText, parsedFile, mappedExt, isSearchOneFile || isSearchCurrentFileFolder, isJustFindingClassOrMethod);
+  let ranker = new Ranker(findType, position, currentWord, currentWordRange, currentText, parsedFile, mappedExt,
+    isSearchOneFile || isSearchCurrentFileFolder, isJustFindingClassOrMethod, canUseDefaultFindingDefinition);
 
   const configKeyName = FindType.Definition === findType ? 'definition' : 'reference';
   const [filePattern, searchOptions] = ranker.getFileNamePatternAndSearchOption(extension, configKeyName, parsedFile);
@@ -168,8 +161,8 @@ export function getSearchCommandLineAndRanker(findType: FindType, document: vsco
     commandLine += ' -f ' + filePattern;
   }
 
-  if (isNullOrEmpty(forceSetSearchPath) && MyConfig.DefaultMaxSearchDepth > 0 && !CheckMaxSearchDepthRegex.test(commandLine)) {
-    extraOptions = extraOptions.trimRight() + ' -k ' + MyConfig.DefaultMaxSearchDepth.toString();
+  if (isNullOrEmpty(forceSetSearchPath) && MyConfig.MaxSearchDepth > 0 && !CheckMaxSearchDepthRegex.test(commandLine)) {
+    extraOptions = extraOptions.trimRight() + ' -k ' + MyConfig.MaxSearchDepth.toString();
   }
 
   if (FindType.Definition === findType) {
@@ -182,18 +175,23 @@ export function getSearchCommandLineAndRanker(findType: FindType, document: vsco
   return [commandLine, ranker];
 }
 
-export function createSearcher(name: string, sourcePath: string, recursive: boolean,
-  findType: FindType, document: vscode.TextDocument, position: vscode.Position,
-  maxSearchDepth: number = MyConfig.DefaultMaxSearchDepth,
-  isJustFindingClassOrMethod = false)
-  : Searcher | null {
-  const [commandLine, ranker] = getSearchCommandLineAndRanker(findType, document, position, recursive, sourcePath, isJustFindingClassOrMethod);
-  if (isNullOrEmpty(commandLine) || ranker === null) {
-    return null;
+export function getCurrentFileSearchInfo(document: vscode.TextDocument, position: vscode.Position, escapeTextForRegex: boolean = true): [path.ParsedPath, string, string, vscode.Range, string] {
+  const parsedFile = path.parse(document.fileName);
+  const extension = getExtensionNoHeadDot(parsedFile.ext);
+  let [currentWord, currentWordRange, currentText] = getCurrentWordAndText(document, position);
+  if (currentWord.length < 2 || !currentWordRange || !PlatformToolChecker.checkSearchToolExists()) {
+    return [parsedFile, extension, '', new vscode.Range(new vscode.Position(0, 0), new vscode.Position(0, 0)), ''];
   }
 
-  return new Searcher(findType, name, sourcePath, maxSearchDepth, commandLine, ranker);
+  const isPowershell = /psm?1$/.exec(extension);
+  if (isPowershell && currentText.indexOf('$' + currentWord) >= 0) {
+    currentWord = '$' + currentWord;
+  }
+
+  const searchText = escapeTextForRegex ? escapeRegExp(currentWord) : currentWord;
+  return [parsedFile, extension, searchText, currentWordRange, currentText];
 }
+
 
 export function getMatchedLocationsAsync(findType: FindType, cmd: string, ranker: Ranker, token: vscode.CancellationToken, searcher: Searcher | null = null): Thenable<vscode.Location[]> {
   const options: ExecOptions = {
@@ -473,12 +471,12 @@ function parseMatchedText(text: string, ranker: Ranker): ScoreTypeResult | null 
       const begin = new vscode.Position(row - 1, Math.max(0, wm.index - 1));
       // some official extension may return whole function block.
       // const end = new vscode.Position(row - 1, wm.index - 1 + ranker.currentWord.length - 1);
-      const [type, score] = MyConfig.NeedSortResults ? ranker.getTypeAndScore(m[1], m[3]) : [ResultType.Other, 1];
+      const [type, score] = MyConfig.NeedSortResults ? ranker.getTypeAndScore(begin, m[1], m[3]) : [ResultType.Other, 1];
       if (!MyConfig.NeedSortResults) {
         console.log('Score = ' + score + ': ' + text);
       }
 
-      return new ScoreTypeResult(score, type, text, new vscode.Location(uri, begin));
+      return 0 === score ? null : new ScoreTypeResult(score, type, text, new vscode.Location(uri, begin));
     }
     else {
       outputError(nowText() + 'Failed to match words by Regex = "' + ranker.currentWordRegex + '" from matched result: ' + m[3]);

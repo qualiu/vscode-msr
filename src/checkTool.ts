@@ -5,9 +5,10 @@ import https = require('https');
 import crypto = require('crypto');
 import ChildProcess = require('child_process');
 import { HomeFolder, IsDebugMode, IsSupportedSystem, IsWindows } from './constants';
+import { MyConfig } from './dynamicConfig';
 import { TerminalType } from './enums';
 import { clearOutputChannel, outputDebug, outputError, outputInfo, outputKeyInfo } from './outputUtils';
-import { checkAddFolderToPath, DefaultTerminalType, getHomeFolderForLinuxTerminalOnWindows, getTerminalShellExePath, getTimeCostToNow, isLinuxTerminalOnWindows, isNullOrEmpty, isWindowsTerminalOnWindows, nowText, PathEnvName, quotePaths, toCygwinPath, toOsPath, toOsPaths } from './utils';
+import { checkAddFolderToPath, DefaultTerminalType, getHomeFolderForLinuxTerminalOnWindows, getTerminalShellExePath, getTimeCostToNow, isLinuxTerminalOnWindows, isNullOrEmpty, isWindowsTerminalOnWindows, nowText, PathEnvName, quotePaths, runCommandGetOutput, toCygwinPath, toOsPath, toOsPaths } from './utils';
 
 export const MsrExe = 'msr';
 const SourceMd5FileUrl = 'https://raw.githubusercontent.com/qualiu/msr/master/tools/md5.txt';
@@ -23,14 +24,48 @@ export const TerminalTypeToSourceExtensionMap = new Map<TerminalType, string>()
 	.set(TerminalType.WslBash, '.gcc48')
 	;
 
+let MsrHelpText = '';
+let NinHelpText = '';
+const GetSearchDepthRegex: RegExp = /\s+(-k|--max-depth)\s+\d+/;
+const GetTimeoutRegex: RegExp = /\s+--timeout\s+(-?\d+)/;
+export let IsTimeoutSupported: boolean = false;
+
 let SourceMd5Text = '';
 let TerminalTypeToToolNamePathMap = new Map<TerminalType, Map<string, string>>();
+
+export function setTimeoutInCommandLine(command: string, timeoutSeconds = MyConfig.MaxWaitSecondsForSearchDefinition) {
+	if (timeoutSeconds > 0 && IsTimeoutSupported) {
+		return setArgValueInCommandLine(command, GetTimeoutRegex, '--timeout', timeoutSeconds.toString());
+	} else {
+		return command;
+	}
+}
+
+export function setSearchDepthInCommandLine(command: string, maxDepth = MyConfig.MaxSearchDepth) {
+	return setArgValueInCommandLine(command, GetSearchDepthRegex, '-k', maxDepth.toString());
+}
+
+export function setArgValueInCommandLine(commandLine: string, getArgRegex: RegExp, argName: string, argValue: string): string {
+	const match = getArgRegex.exec(commandLine);
+	if (match) {
+		commandLine = commandLine.replace(getArgRegex, ' ' + argName + ' ' + argValue);
+	} else {
+		commandLine = commandLine.trimRight() + ' ' + argName + ' ' + argValue;
+	}
+	return commandLine;
+}
 
 function getFileMd5(filePath: string) {
 	const hash = crypto.createHash('md5');
 	const content = fs.readFileSync(filePath, { encoding: '' });
 	const md5 = hash.update(content).digest('hex');
 	return md5;
+}
+
+export function isArgSupported(argName: string, toolName = 'msr'): boolean {
+	const isLongArgName = argName.startsWith('--') || (!argName.startsWith('-') && argName.length > 1);
+	const regex = new RegExp((isLongArgName ? '^\\s*--' : '^\\s*-') + argName.replace(/^-+/, '') + "\\s", 'm');
+	return regex.test(toolName === 'msr' ? MsrHelpText : NinHelpText);
 }
 
 function updateToolNameToPathMap(terminalType: TerminalType, toolName: string, toolPath: string, canReCheck = true) {
@@ -97,10 +132,20 @@ export class ToolChecker {
 		outputDebug(nowText() + (isExisted ? 'Found ' + exeName + ' = ' + exePath : 'Not found ' + exeName + ', will download it.'));
 		if (isExisted) {
 			this.setEnvironmentForTool();
+			this.updateHelpText(exeName64bit, exePath);
 			return [isExisted, exePath];
 		}
 
 		return this.autoDownloadTool(exeName64bit);
+	}
+
+	private updateHelpText(exeName64bit: string, exePath: string) {
+		if (exeName64bit === 'msr') {
+			MsrHelpText = runCommandGetOutput(exePath + ' -h -C');
+			IsTimeoutSupported = isArgSupported('--timeout', 'msr');
+		} else {
+			NinHelpText = runCommandGetOutput(exePath + ' -h -C');
+		}
 	}
 
 	public getDownloadCommandForNewTerminal(exeName64bit: string = 'msr'): string {
@@ -209,6 +254,7 @@ export class ToolChecker {
 		}
 
 		if (this.isMsrToolExists) {
+			this.updateHelpText('msr', this.MsrExePath);
 			outputDebug(nowText() + 'Found msr = ' + this.MsrExePath + ' , will check new version ...');
 			this.checkToolNewVersion();
 		}
@@ -306,6 +352,8 @@ export class ToolChecker {
 		} else if (exeName64bit === 'nin') {
 			updateToolNameToPathMap(this.terminalType, 'nin', tmpSaveExePath);
 		}
+
+		this.updateHelpText(exeName64bit, tmpSaveExePath);
 
 		const exeFolder = path.dirname(tmpSaveExePath);
 		if (checkAddFolderToPath(exeFolder, this.terminalType)) {

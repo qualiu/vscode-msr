@@ -5,6 +5,7 @@ import { TerminalType } from './enums';
 import path = require('path');
 import fs = require('fs');
 import os = require('os');
+import ChildProcess = require('child_process');
 
 export const PathEnvName = IsWindows ? '%PATH%' : '$PATH';
 export const MatchWindowsDiskRegex = /^([A-Z]):/i;
@@ -35,6 +36,7 @@ function getDefaultTerminalType(): TerminalType {
     }
 }
 
+// Must copy/update extension + Restart vscode if using WSL terminal on Windows:
 export const DefaultTerminalType = getDefaultTerminalType();
 
 export function isWindowsTerminalOnWindows(terminalType = DefaultTerminalType) {
@@ -50,10 +52,20 @@ export function isLinuxTerminalOnWindows(terminalType: TerminalType = DefaultTer
 }
 
 export const IsWindowsTerminalOnWindows: boolean = isWindowsTerminalOnWindows(DefaultTerminalType);
+
+// Must copy/update extension + Restart vscode if using WSL terminal on Windows:
 export const IsLinuxTerminalOnWindows: boolean = isLinuxTerminalOnWindows(DefaultTerminalType);
 
+export function runCommandGetOutput(command: string): string {
+    try {
+        return ChildProcess.execSync(command).toString();
+    } catch (err) {
+        return '';
+    }
+}
+
 export function changeFindingCommandForLinuxTerminalOnWindows(command: string): string {
-    if (TerminalType.CygwinBash !== DefaultTerminalType && TerminalType.MinGWBash !== DefaultTerminalType) {
+    if (!IsLinuxTerminalOnWindows) {
         return command;
     }
 
@@ -64,10 +76,7 @@ export function changeFindingCommandForLinuxTerminalOnWindows(command: string): 
 
     const paths = match[1].startsWith('"') ? match[2].substr(1, match[2].length - 2) : match[2];
     const newPaths = paths.split(/\s*[,;]/)
-        .map((p, _index, _a) =>
-            TerminalType.CygwinBash === DefaultTerminalType
-                ? toCygwinPath(p)
-                : toMinGWPath(p)
+        .map((p, _index, _a) => toOsPath(p)
         );
 
     return match[1] + ' ' + quotePaths(newPaths.join(',')) + command.substring(match[0].length);

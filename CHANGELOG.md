@@ -2,6 +2,16 @@
 
 All notable changes to this "vscode-msr" extension will be documented in this file.
 
+## [2.1.2]
+
+- Check and support `--timeout` option when searching.
+- Accelerated searching + improved result precision.
+- Improved finding class from script/doc/config files.
+- Added `msr.default.isFindClassWithWordCheck` + `msr.useDefaultFindingClass.extensions`.
+- Reduced duplicate search caused by `Peek` + `Go-To` definition from mouse-click.
+- Support timeout for searching or running commands:
+  - Added `msr.searchDefinition.timeoutSeconds` + `msr.autoRunSearchDefinition.timeoutSeconds`.
+
 ## [2.1.1]
 
 - Accelerated searching code quite a lot.

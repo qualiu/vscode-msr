@@ -3,7 +3,7 @@
     "displayName": "Search code + Replace files + Find definition and references for all types.",
     "description": "Search code + Replace files + Find definition and references in multiple repository paths by msr for all coding languages + configuration + doc files.",
     "author": "qualiu@microsoft.com",
-    "version": "2.1.1",
+    "version": "2.1.2",
     "icon": "images/vscode-msr-icon.png",
     "license": "completely free",
     "publisher": "qualiu",
@@ -1113,7 +1113,7 @@
                     "description": "Default Regex pattern for configuration + document files."
                 },
                 "msr.default.skip.definition": {
-                    "default": "^\\s*(return|await|throw|except|raise|new|(el)?if|for|from|val)\\s+|^\\s*p\\w+\\s+%1\\s*\\(",
+                    "default": "^\\s*(return|await|throw|except|raise|new|(el)?if|for|from|val)\\s+|new\\s+%1\\s*\\(|=\\s*%1\\s*\\(|^\\s*p\\w+\\s+%1\\s*\\(",
                     "description": "Default Regex pattern to filter non-definitions."
                 },
                 "msr.default.definition": {
@@ -1187,8 +1187,12 @@
                     "default": "^\\s*[\\w\\s]{0,30}\\b(function|def)\\s+(%1)\\b|\\s(%1)\\s*(?:[\\[<].*?[\\]>]\\s*)?\\("
                 },
                 "msr.default.isFindClass": {
-                    "default": "\\(\\s*%1\\s*\\)\\s*\\w+|\\b%1\\s*<|\\b(class|struct|object)\\s+\\w+|\\b(new|is|as)\\s+%1\\b|=\\s*%1\\s*\\(|\\s+%1\\.\\w+\\s*\\(|\\b%1\\s*[<>]|[<\\[]\\s*%1\\b|\\b%1\\s*[\\[>]",
+                    "default": "\\b[a-zA-Z]\\w+\\.%1\\b([^\\.\\w]|$)|\\b%1\\b\\s+\\w+|\\(\\s*%1\\s*\\)\\s*\\w+|\\b%1\\s*<|\\b(class|struct|object)\\s+\\w+|\\b(new|is|as)\\s+%1\\b|=\\s*%1\\s*\\(|\\s+%1\\.\\w+\\s*\\(|\\b%1\\s*[<>]|[<\\[]\\s*%1\\b|\\b%1\\s*[\\[>]",
                     "description": "Default Regex pattern to check if what-to-find is a `class`."
+                },
+                "msr.default.isFindClassWithWordCheck": {
+                    "default": "^[A-Z]\\w+$",
+                    "description": "Default Regex pattern to check the class name %1 which is usually a capitalized word. If set to empty will skip checking."
                 },
                 "msr.default.isFindClassOrEnum": {
                     "default": "[^\\.\\w]([A-Z]\\w+(\\.|::))+\\b%1[^\\.\\w]",
@@ -1206,12 +1210,24 @@
                     "default": "[^\\.\\w][A-Z]\\w+(\\.|->|::)%1\\b(?!\\s*[\\.\\(])",
                     "description": "Default Regex to check if what-to-find is an `enum`."
                 },
+                "msr.searchDefinition.timeoutSeconds": {
+                    "default": 36,
+                    "description": "Default timeout seconds to wait for searching definition."
+                },
+                "msr.autoRunSearchDefinition.timeoutSeconds": {
+                    "default": 60,
+                    "description": "Default timeout seconds to wait for auto-triggered searching definition in terminal when no results or multiple results found."
+                },
                 "msr.default.isFindConstant": {
                     "default": "^[A-Z_0-9]+$",
                     "description": "Default Regex pattern to check if `current word` is a constant."
                 },
+                "msr.useDefaultFindingClass.extensions": {
+                    "default": "\\.(sh|md|txt|json|yaml|xml|bat|cmd)$",
+                    "description": "When finding class/method definitions from script/doc files, skip self defined patterns for these languages/extensions."
+                },
                 "msr.default.class.definition": {
-                    "default": "^\\s*[\\w\\s]*?\\b(class|struct|enum|interface)\\s+(%1)\\b",
+                    "default": "^\\s*[\\w\\s]*?\\b(class|struct|enum|interface|object)\\s+(%1)\\b",
                     "description": "Default Regex pattern to search class definitions."
                 },
                 "msr.default.member.definition": {
@@ -1225,6 +1241,14 @@
                 "msr.default.enum.definition": {
                     "default": "^\\s*(\\[.*?\\]\\s*)?(%1)\\b(\\s*=\\s*\\w+)?\\s*,?",
                     "description": "Default Regex pattern to search `enum` definition."
+                },
+                "msr.java.class.definition": {
+                    "default": "^\\s*[\\w\\s]*?@?\\s*\\b(class|struct|enum|interface|object)\\s+(%1)\\b",
+                    "description": "Scala Regex pattern to search class definitions."
+                },
+                "msr.java.method.definition": {
+                    "default": "^\\s*\\w+.*?\\s+(%1)\\s*\\(.*?\\).*?\\{?\\s*$",
+                    "description": "Scala Regex pattern to search class definitions."
                 },
                 "msr.cs.codeAndConfigDocs": {
                     "default": "\\.(cs(html)?|csproj|sln|nuspec|config|props|json|ya?ml|xml|ini|md|ipynb)$",
@@ -1287,7 +1311,7 @@
                     "description": "Regex pattern to skip C++ or C struct or class `member` definition."
                 },
                 "msr.cpp.skip.definition": {
-                    "default": "^\\s*(return|throw|new|case)\\s+",
+                    "default": "^\\s*(return|throw|new|case)\\s+|new\\s+%1\\s*\\(|=\\s*%1\\s*\\(",
                     "description": "Regex pattern to filter C++ or C non-definitions."
                 },
                 "msr.py.codeAndConfigDocs": {
@@ -1331,7 +1355,7 @@
                     "description": "Default Regex pattern to find UI definitions of a word (class, method, etc.). Must use `%1` to be replaced by word to search."
                 },
                 "msr.ui.skip.definition": {
-                    "default": "^\\s*(return|await|throw|except|raise|new|(el)?if|for|from|val)\\s+",
+                    "default": "^\\s*(return|await|throw|except|raise|new|(el)?if|for|from|val)\\s+|new\\s+%1\\s*\\(|=\\s*%1\\s*\\(",
                     "description": "Default Regex pattern to filter non-definitions."
                 },
                 "msr.ui.class.definition": {

@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
-import { MsrExe, ToolChecker } from './checkTool';
+import { MsrExe, setTimeoutInCommandLine, ToolChecker } from './checkTool';
 import { HomeFolder, SearchTextHolderReplaceRegex, SkipJumpOutForHeadResultsRegex } from './constants';
-import { FileExtensionToMappedExtensionMap, getConfig, getConfigValue, getOverrideConfigByPriority, getRootFolder, getRootFolderExtraOptions, getRootFolderName, getSearchPathOptions, getSubConfigValue, removeSearchTextForCommandLine, replaceToRelativeSearchPath } from './dynamicConfig';
+import { FileExtensionToMappedExtensionMap, getConfig, getConfigValue, getOverrideConfigByPriority, getRootFolder, getRootFolderExtraOptions, getRootFolderName, getSearchPathOptions, getSubConfigValue, MyConfig, removeSearchTextForCommandLine, replaceToRelativeSearchPath } from './dynamicConfig';
 import { FindCommandType, TerminalType } from './enums';
 import { enableColorAndHideCommandLine, outputDebug, outputInfo, runCommandInTerminal } from './outputUtils';
 import { Ranker } from './ranker';
@@ -47,6 +47,7 @@ export function runFindingCommand(findCmd: FindCommandType, textEditor: vscode.T
 export function runFindingCommandByCurrentWord(findCmd: FindCommandType, searchText: string, parsedFile: path.ParsedPath, rawSearchText: string = '') {
     let command = getFindingCommandByCurrentWord(false, findCmd, searchText, parsedFile, rawSearchText, undefined);
     command = changeFindingCommandForLinuxTerminalOnWindows(command);
+    command = setTimeoutInCommandLine(command, MyConfig.MaxWaitSecondsForAutoReSearchDefinition);
     const myConfig = getConfig();
     runCommandInTerminal(command, !myConfig.IsQuiet, myConfig.ClearTerminalBeforeExecutingCommands);
 }
@@ -170,12 +171,16 @@ export function getFindingCommandByCurrentWord(toRunInTerminal: boolean, findCmd
             : getConfigValue(rootFolderName, extension, mappedExt, 'extraOptions')
         );
 
-    let searchPattern = isFindDefinition
-        ? getConfigValue(rootFolderName, extension, mappedExt, 'definition')
-        : (isFindReference
+    let searchPattern = '';
+    if (isFindDefinition) {
+        searchPattern = MyConfig.UseDefaultFindingClassCheckExtensionRegex.test(parsedFile.ext)
+            ? getConfigValue(rootFolderName, 'default', '', 'definition')
+            : getConfigValue(rootFolderName, extension, mappedExt, 'definition');
+    } else {
+        searchPattern = isFindReference
             ? getConfigValue(rootFolderName, extension, mappedExt, 'reference')
-            : ''
-        );
+            : '';
+    }
 
     if (isFindReference) {
         if (/^\W/.test(searchText) && searchPattern.startsWith('\\b')) {

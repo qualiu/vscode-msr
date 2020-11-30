@@ -215,34 +215,78 @@ export function registerExtension(context: vscode.ExtensionContext) {
 // this method is called when your extension is deactivated
 export function deactivate() { }
 
+// Reduce duplicate search: Peek + Go-To definition by mouse-click.
+class SearchTimeInfo {
+	public Document: vscode.TextDocument;
+	public Position: vscode.Position;
+	public Time: Date;
+	public AsyncResult: Promise<vscode.Location[] | null> = Promise.resolve(null);
+	public Result: vscode.Location[] | null = null;
+
+	constructor(document: vscode.TextDocument, position: vscode.Position, time = new Date()) {
+		this.Document = document;
+		this.Position = position;
+		this.Time = time;
+	}
+
+	public isCloseAndSameSearch(other: SearchTimeInfo) {
+		const useLast = other && this && this.Position.line === other.Position.line && this.Position.character === other.Position.character
+			&& Math.abs(this.Time.getTime() - other.Time.getTime()) <= 800
+			&& this.Document.uri === other.Document.uri && this.Document.fileName === other.Document.fileName;
+		if (this && other) {
+			outputDebug(nowText() + "UseLastSearch = " + useLast + ": this time = " + this.Time.toISOString() + ", other time = " + other.Time.toISOString() + ", diff = " + (this.Time.getTime() - other.Time.getTime()) + " ms.");
+		}
+		return useLast;
+	}
+}
+
+let LastSearchInfo: SearchTimeInfo | null = null;
+
 export class DefinitionFinder implements vscode.DefinitionProvider {
 	public async provideDefinition(document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken): Promise<vscode.Location[] | null> {
 		if (MyConfig.shouldSkipFinding(FindType.Definition, document.fileName)) {
 			return Promise.resolve([]);
 		}
 
+		let thisSearch = new SearchTimeInfo(document, position);
+		if (LastSearchInfo && thisSearch.isCloseAndSameSearch(LastSearchInfo)) {
+			return LastSearchInfo.AsyncResult;
+		}
+
+		LastSearchInfo = new SearchTimeInfo(document, position);
 		clearOutputChannel();
 
 		// rootFolder is empty for external file:
 		const rootFolder = getRootFolder(document.fileName);
+		const isExternalFile = isNullOrEmpty(rootFolder);
 		const sourceFileFolder = path.parse(document.fileName).dir;
 		let currentFileSearchers = [
-			createSearcher("Search-Current-File-Class-Method", document.fileName, false, FindType.Definition, document, position, 1, true),
-			createSearcher("Search-Current-File", document.fileName, false, FindType.Definition, document, position, 1)
+			createSearcher("Search-Current-File-Class-Method", document.fileName, false, FindType.Definition, document, position, -1, 1, true, false),
+			createSearcher("Search-Current-File", document.fileName, false, FindType.Definition, document, position, -1, 1, false)
 		];
 
 		let currentFolderSearchers = [
-			createSearcher("Search-Current-Fold-Class-Method", sourceFileFolder, false, FindType.Definition, document, position, 1, true),
-			createSearcher("Search-Current-Folder", sourceFileFolder, false, FindType.Definition, document, position, 1)
+			createSearcher("Search-Current-Folder-Class-Method", sourceFileFolder, false, FindType.Definition, document, position, -1, 1, true, false),
+			createSearcher("Search-Current-Folder", sourceFileFolder, false, FindType.Definition, document, position, -1, 1, false)
 		];
 
 		let slowSearchers: (Searcher | null)[] = [];
-		slowSearchers.push(createSearcher("Search-Current-Folder-Recursively", sourceFileFolder, true, FindType.Definition, document, position, 7));
+		slowSearchers.push(createSearcher("Search-Current-Folder-Recursively", sourceFileFolder, true, FindType.Definition, document, position, 9, 7));
 
 		const parentFolder = path.dirname(sourceFileFolder);
 		const parentFolders = Array.from(new Set<string>([parentFolder, path.dirname(parentFolder)]));
+		const diskRegex = IsWindows ? /^[A-Z]:\\.+?\\\w+/i : new RegExp('^/[^/]+/[^/]+$');
 		for (let k = 0; k < parentFolders.length; k++) {
-			slowSearchers.push(createSearcher("Search-Parent-Up-" + (k + 1), parentFolders[k], true, FindType.Definition, document, position, 9));
+			// avoid searching disk root for external files + avoid out of repo folder for internal files.
+			if (isExternalFile && parentFolders[k].match(diskRegex) || !isExternalFile && parentFolders[k].startsWith(rootFolder)) {
+				slowSearchers.push(createSearcher("Search-Parent-Up-" + (k + 1), parentFolders[k], true, FindType.Definition, document, position, 16, 9));
+			}
+		}
+
+		const testFolderMatch = document.fileName.match(new RegExp('[\\\\/]test[\\\\/]'));
+		if (testFolderMatch) {
+			const testParentFolder = document.fileName.substring(0, testFolderMatch.index);
+			slowSearchers.push(createSearcher('Search-Test-Parent-Folder', testParentFolder, true, FindType.Definition, document, position));
 		}
 
 		const repoSearcher = isNullOrEmpty(rootFolder) ? null : createSearcher("Search-This-Repo", rootFolder, true, FindType.Definition, document, position);
@@ -338,7 +382,9 @@ export class DefinitionFinder implements vscode.DefinitionProvider {
 			});
 		}
 
-		return returnGroupSearchResult(0);
+		LastSearchInfo.Time = new Date();
+		LastSearchInfo.AsyncResult = returnGroupSearchResult(0);
+		return LastSearchInfo.AsyncResult;
 	}
 }
 
@@ -364,7 +410,7 @@ function searchDefinitionInCurrentFile(document: vscode.TextDocument, position: 
 	}
 
 	const mappedExt = FileExtensionToMappedExtensionMap.get(extension) || extension;
-	let ranker = new Ranker(FindType.Definition, currentWord, currentWordRange, currentText, parsedFile, mappedExt, true);
+	let ranker = new Ranker(FindType.Definition, position, currentWord, currentWordRange, currentText, parsedFile, mappedExt, true);
 
 	let command = getFindingCommandByCurrentWord(false, FindCommandType.RegexFindDefinitionInCurrentFile, currentWord, parsedFile, '', ranker);
 	if (/\s+-[A-Zc]*?I[A-Zc]*(\s+|$)/.test(command) === false) {
@@ -390,7 +436,7 @@ function searchLocalVariableDefinitionInCurrentFile(document: vscode.TextDocumen
 	}
 
 	const mappedExt = FileExtensionToMappedExtensionMap.get(extension) || extension;
-	let ranker = new Ranker(FindType.Definition, currentWord, currentWordRange, currentText, parsedFile, mappedExt, true);
+	let ranker = new Ranker(FindType.Definition, position, currentWord, currentWordRange, currentText, parsedFile, mappedExt, true);
 
 	const pattern = '\\w+\\s+(' + currentWord + ')\\s*=' + '|'
 		+ '\\([\\w\\s]*?' + currentWord + '\\s*(in|:)\\s*\\w+';

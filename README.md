@@ -26,7 +26,7 @@ Have you suffered issues below in your daily work?
   - Build **Z GB outputs** to the disk.
   - Offer **N GB running memory** to the `official/professional` language extensions.
 
-Then it's the **light** and **right** tool for you (just **2~3 MB** storage + **3~10 MB** running memory).
+Then it's the **light** and **right** tool for you(just **2~3 MB** storage + **3~10 MB** running memory) to search definition(near precise) + replace files.
 
 **Note**: ([**Temp-toggle**](#get-the-best-combined-power) or [**change settings**](#disable-finding-definition-and-references-for-specific-file-types) for languages disabled by default settings.)
 
@@ -404,7 +404,7 @@ Supported various types of terminals: ([settings file](https://code.visualstudio
 // Command Prompt
 "terminal.integrated.shell.windows": "C:\\Windows\\System32\\cmd.exe"
 
-// Git Bash (MinGW)
+// Git Bash(MinGW): Built-in environment variable: MSYSTEM like: MSYSTEM=MINGW64
 "terminal.integrated.shell.windows": "C:\\Program Files\\Git\\bin\\bash.exe"
 
 // Ubuntu Bash on Windows (WSL):
@@ -625,9 +625,9 @@ You can use `Ctrl + Mouse hover` to `peek definition`, use `F12` to `go to defin
 
 ### Current Support to Finding Definition and References
 
-- Near-precise support: Will show **multiple results** for **same name** `classes/methods/etc`, due to this is a light tool without syntax parsing and cache.
-- Near-precise support `class`, `methods`, `enum`, `field`, `property` for **C#**, **Python**, **Java**, **Scala**, **C++** / **C**.
-- Rough support `class` and `method` for all type of languages (you can copy/write configurations follow existing languages).
+- **Near-precise** support: Will show **multiple results** for **same name** `classes/methods/etc`, due to this is a light tool without syntax parsing and cache.
+- **Near-precise** support `class`, `methods`, `enum`, `field`, `property` for **C#**, **Python**, **Java**, **Scala**, **C++** / **C**.
+- **Rough** support `class` and `method` for all type of languages (you can copy/write configurations follow existing languages).
 
   Welcome + Please help to improve searching definitions and references for `classes` and `methods`, and add supports for `enum` , `property`, `field` etc.
 

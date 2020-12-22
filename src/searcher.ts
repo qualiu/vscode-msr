@@ -7,7 +7,7 @@ import { IsWindows, SearchTextHolderReplaceRegex, SkipJumpOutForHeadResultsRegex
 import { FileExtensionToMappedExtensionMap, getConfig, getConfigValue, getRootFolder, getRootFolderExtraOptions, getRootFolderName, getSearchPathOptions, getSubConfigValue, MyConfig } from './dynamicConfig';
 import { FindCommandType, FindType, TerminalType } from './enums';
 import { outputDebug, outputDebugOrInfo, outputError, outputInfo, outputResult, outputWarn, runCommandInTerminal } from './outputUtils';
-import { Ranker } from './ranker';
+import { ForceSetting, Ranker } from './ranker';
 import { escapeRegExp } from './regexUtils';
 import { ResultType, ScoreTypeResult } from './ScoreTypeResult';
 import { changeFindingCommandForLinuxTerminalOnWindows, DefaultTerminalType, getCurrentWordAndText, getExtensionNoHeadDot, IsLinuxTerminalOnWindows, isNullOrEmpty, nowText, quotePaths, toPath } from './utils';
@@ -94,10 +94,10 @@ export class Searcher {
 export function createSearcher(name: string, sourcePath: string, recursive: boolean,
   findType: FindType, document: vscode.TextDocument, position: vscode.Position,
   timeout: number = MyConfig.MaxWaitSecondsForSearchDefinition, maxSearchDepth: number = MyConfig.MaxSearchDepth,
-  isJustFindingClassOrMethod = false, canUseDefaultFindingDefinition = true)
+  forceSetting = new ForceSetting())
   : Searcher | null {
   outputDebug(nowText() + 'Will create ranker + command line for searcher: ' + name);
-  const [commandLine, ranker] = getSearchCommandLineAndRanker(findType, document, position, recursive, sourcePath, isJustFindingClassOrMethod, canUseDefaultFindingDefinition);
+  const [commandLine, ranker] = getSearchCommandLineAndRanker(findType, document, position, recursive, sourcePath, forceSetting);
   if (isNullOrEmpty(commandLine) || ranker === null) {
     return null;
   }
@@ -105,9 +105,15 @@ export function createSearcher(name: string, sourcePath: string, recursive: bool
   return new Searcher(findType, name, sourcePath, maxSearchDepth, commandLine, ranker, timeout);
 }
 
+export function createCommandSearcher(name: string, sourcePath: string, commandLine: string, ranker: Ranker,
+  timeout: number = MyConfig.MaxWaitSecondsForSearchDefinition, maxSearchDepth: number = MyConfig.MaxSearchDepth)
+  : Searcher {
+  return new Searcher(FindType.Definition, name, sourcePath, maxSearchDepth, commandLine, ranker, timeout);
+}
+
 function getSearchCommandLineAndRanker(findType: FindType,
   document: vscode.TextDocument, position: vscode.Position, isRecursive: boolean,
-  forceSetSearchPath: string = '', isJustFindingClassOrMethod = false, canUseDefaultFindingDefinition = true):
+  forceSetSearchPath: string = '', forceSetting = new ForceSetting()):
   [string, Ranker | null] {
   const [parsedFile, extension, currentWord, currentWordRange, currentText] = getCurrentFileSearchInfo(document, position);
   if (!PlatformToolChecker.checkSearchToolExists() || currentWord.length < 2 || !currentWordRange) {
@@ -123,9 +129,8 @@ function getSearchCommandLineAndRanker(findType: FindType,
 
   const currentFilePath = toPath(parsedFile);
   const isSearchOneFile = forceSetSearchPath === currentFilePath;
-  const isSearchCurrentFileFolder = forceSetSearchPath === parsedFile.dir;
-  let ranker = new Ranker(findType, position, currentWord, currentWordRange, currentText, parsedFile, mappedExt,
-    isSearchOneFile || isSearchCurrentFileFolder, isJustFindingClassOrMethod, canUseDefaultFindingDefinition);
+  const isSearchOneFileOrFolder = isSearchOneFile || forceSetSearchPath === parsedFile.dir;
+  let ranker = new Ranker(document, findType, position, currentWord, currentWordRange, currentText, parsedFile, mappedExt, isSearchOneFileOrFolder, forceSetting);
 
   const configKeyName = FindType.Definition === findType ? 'definition' : 'reference';
   const [filePattern, searchOptions] = ranker.getFileNamePatternAndSearchOption(extension, configKeyName, parsedFile);
@@ -276,7 +281,7 @@ function findAndProcessSummary(skipIfNotMatch: boolean, summaryText: string, fin
     outputDebug(nowText() + 'Got matched count = ' + matchCount + ' and time cost = ' + costSeconds + ' from summary, search word = ' + ranker.currentWord);
     sumTimeCost(findType, costSeconds, lineCount);
     if (matchCount < 1 && RootConfig.get('enable.useGeneralFindingWhenNoResults') as boolean) {
-      const findCmd = findType === FindType.Definition ? FindCommandType.RegexFindDefinitionInCodeFiles : FindCommandType.RegexFindDefinitionInCodeFiles;
+      const findCmd = findType === FindType.Definition ? FindCommandType.RegexFindAsClassOrMethodDefinitionInCodeFiles : FindCommandType.RegexFindAsClassOrMethodDefinitionInCodeFiles;
       if (!ranker.isOneFileOrFolder && ranker.canRunCommandInTerminal) {
         runFindingCommandByCurrentWord(findCmd, ranker.currentWord, ranker.currentFile);
         outputInfo(nowText() + 'Will run general search, please check results in `MSR-RUN-CMD` in `TERMINAL` tab. Set `msr.quiet` to avoid switching tabs; Disable `msr.enable.useGeneralFindingWhenNoResults` to disable re-running.');
@@ -398,7 +403,7 @@ function parseCommandOutput(stdout: string, findType: FindType, cmd: string, ran
 
 
   scoreList.sort((a, b) => a.valueOf() - b.valueOf());
-  const averageScore = scoreSum / scoreList.length;
+  const averageScore = scoreSum / Math.max(1, scoreList.length);
   const removeThreshold = ranker.isOneFileOrFolder && findType === FindType.Definition ? averageScore : averageScore * removeLowScoreResultsFactor;
 
   const isDescending = MyConfig.DescendingSortForVSCode;
@@ -446,8 +451,8 @@ function parseCommandOutput(stdout: string, findType: FindType, cmd: string, ran
     console.log(debugList[k]);
   }
 
-  const maxScore = scoreList[scoreList.length - 1];
-  const minScore = scoreList[0];
+  const maxScore = scoreList.length < 1 ? -1 : scoreList[scoreList.length - 1];
+  const minScore = scoreList.length < 1 ? -1 : scoreList[0];
   console.log('Count = ' + scoreList.length + ' , averageScore = ' + averageScore.toFixed(1)
     + ' , max = ' + maxScore.toFixed(1) + ' , min = ' + minScore.toFixed(1)
     + (maxScore.valueOf() === 0 ? '' : ' , min/max = ' + (minScore.valueOf() / maxScore.valueOf()).toFixed(2))

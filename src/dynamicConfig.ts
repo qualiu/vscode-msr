@@ -61,8 +61,8 @@ export function getSubConfigValue(rootFolderName: string, extension: string, map
 
 export function GetConfigPriorityPrefixes(rootFolderName: string, extension: string, mappedExt: string, addDefault: boolean = true): string[] {
     let prefixSet = new Set<string>([
-        rootFolderName + '.' + extension,
-        rootFolderName + '.' + mappedExt,
+        (rootFolderName + '.' + extension).replace(/\.$/, ''),
+        (rootFolderName + '.' + mappedExt).replace(/\.$/, ''),
         rootFolderName,
         extension,
         mappedExt,
@@ -140,6 +140,7 @@ export class DynamicConfig {
     public AllFileExtensionMapExtRegex: RegExp[] = [];
     public MaxWaitSecondsForSearchDefinition: number = 36.0;
     public MaxWaitSecondsForAutoReSearchDefinition: number = 60.0;
+    private ScriptFileExtensionRegex: RegExp = new RegExp('to-load');
 
     private TmpToggleEnabledExtensionToValueMap = new Map<string, boolean>();
 
@@ -253,12 +254,17 @@ export class DynamicConfig {
 
         this.MaxWaitSecondsForSearchDefinition = Number(this.getConfigValue('searchDefinition.timeoutSeconds'));
         this.MaxWaitSecondsForAutoReSearchDefinition = Number(this.getConfigValue('autoRunSearchDefinition.timeoutSeconds'));
+        this.ScriptFileExtensionRegex = createRegex(this.getConfigValue('scriptFiles'));
 
         this.ExcludeFoldersFromSettings.clear();
         if (this.AutoMergeSkipFolders) {
             this.ExcludeFoldersFromSettings = this.getExcludeFolders('search');
             this.getExcludeFolders('files').forEach(a => this.ExcludeFoldersFromSettings.add(a));
         }
+    }
+
+    public isScriptFile(extension: string): boolean {
+        return this.ScriptFileExtensionRegex.test(extension.startsWith('.') ? extension : '.' + extension);
     }
 
     public shouldSkipFinding(findType: FindType, currentFilePath: string): boolean {
@@ -394,7 +400,7 @@ export function getOverrideConfigByPriority(priorityPrefixList: string[], config
     for (let k = 0; k < priorityPrefixList.length; k++) {
         const name = (priorityPrefixList[k].length > 0 ? priorityPrefixList[k] + '.' : priorityPrefixList[k]) + configNameTail;
         let valueObject = config.get(name);
-        if (valueObject === undefined || valueObject === null) {
+        if (valueObject === undefined || valueObject === null || typeof (valueObject) === 'object') {
             continue;
         }
 
@@ -590,9 +596,9 @@ function getLinuxHomeFolderOnWindows(terminalType: TerminalType): string {
     return folder.replace(/^home/, '/home');
 }
 
-function getCmdAliasSaveFolder(isGeneralCmdAlias: boolean, terminalType: TerminalType): string {
+function getCmdAliasSaveFolder(isGeneralCmdAlias: boolean, terminalType: TerminalType, forceUseDefault = false): string {
     const rootConfig = getConfig().RootConfig;
-    let saveFolder = !isGeneralCmdAlias ? os.tmpdir() : toWSLPath(rootConfig.get('cmdAlias.saveFolder') as string || HomeFolder);
+    let saveFolder = !isGeneralCmdAlias ? os.tmpdir() : toWSLPath(forceUseDefault ? HomeFolder : (rootConfig.get('cmdAlias.saveFolder') as string || HomeFolder));
     const linuxHomeFolderOnWindows = getLinuxHomeFolderOnWindows(terminalType);
     if (saveFolder.match(/^[A-Z]:/i) && (IsWSL || TerminalType.CygwinBash === terminalType || TerminalType.MinGWBash === terminalType)) {
         try {
@@ -836,9 +842,10 @@ export function cookCmdShortcutsOrFile(
 
         const defaultCmdAliasFileForTerminal = toOsPath(defaultCmdAliasFile.replace(linuxHomeFolderOnWindows, '$HOME'), terminalType);
         const slashQuotedDefaultCmdAliasFile = defaultCmdAliasFileForTerminal.includes(' ') ? '\\"' + defaultCmdAliasFileForTerminal + '\\"' : defaultCmdAliasFileForTerminal;
-
+        const linuxDefaultSaveFolderForDisplay = getCmdAliasSaveFolder(true, terminalType, true);
+        const rawLinuxDisplayPath = toOsPath(defaultCmdAliasFile.replace(linuxDefaultSaveFolderForDisplay, '~').replace('\\', '/'), terminalType);
         const createCmdAliasTip = ' You can also create shortcuts in ' + (isWindowsTerminal ? '' : 'other files like ');
-        let finalGuide = ' You can disable msr.initProjectCmdAliasForNewTerminals in user settings. More detail: ' + CookCmdDocUrl;
+        let finalGuide = ' You can disable msr.initProjectCmdAliasForNewTerminals in user settings. Add/Remove menus + More functions + details: ' + CookCmdDocUrl;
         let canRunShowDef = true;
         if (newTerminal && isWindowsTerminal) {
             let cmd = '';
@@ -851,7 +858,7 @@ export function cookCmdShortcutsOrFile(
                 cmd = setEnvCmd + 'cmd /k ' + '"doskey /MACROFILE=' + quotedFileForPS + ' && doskey /macros | msr -t find-def -x msr --nx use- --nt out- -e \\s+-+\\w+\\S* -PM'
                     + ' & echo. & echo Type exit if you want to back to PowerShell without ' + commands.length + shortcutsExample
                     + finalGuide
-                    + ' | msr -aPA -e .+ -ix powershell -t m*alias^|find-\\S+^|sort-\\S+^|out-\\S+^|use-\\S+^|msr.init\\S+^|\\S*msr-cmd-alias\\S*'
+                    + ' | msr -aPA -e .+ -ix powershell -t m*alias^|find-\\S+^|sort-\\S+^|out-\\S+^|use-\\S+^|msr.init\\S+^|\\S*msr-cmd-alias\\S*^|menus^|functions^|details'
                     + '"';
                 runCmdInTerminal(cmd, true);
             } else if (TerminalType.CMD !== terminalType) {
@@ -885,7 +892,7 @@ export function cookCmdShortcutsOrFile(
             prepareEnvForBashOnWindows(terminalType);
 
             if (isGeneralCmdAlias) {
-                const displayPath = getDisplayPathForBash(slashQuotedDefaultCmdAliasFile, '~');
+                const displayPath = getDisplayPathForBash(rawLinuxDisplayPath, '~');
                 runCmdInTerminal('ls ~/.bashrc > /dev/null 2>&1 || echo \'source ' + displayPath + '\' >> ~/.bashrc');
                 runCmdInTerminal('msr -p ~/.bashrc 2>/dev/null -x \'source ' + displayPath + '\' -M && echo \'source ' + displayPath + '\' >> ~/.bashrc');
             }
@@ -893,11 +900,11 @@ export function cookCmdShortcutsOrFile(
 
         if (canRunShowDef || !newTerminal) {
             runCmdInTerminal('echo Now you can use ' + commands.length + shortcutsExample
-                + finalGuide + ' | msr -aPA -e .+ -x ' + commands.length + ' -it "find-\\S+|sort-\\S+|out-\\S+|use-\\S+|msr.init\\S+|other|\\S*msr-cmd-alias\\S*|(m*alias \\w+\\S*)"', true);
+                + finalGuide + ' | msr -aPA -e .+ -x ' + commands.length + ' -it "find-\\S+|sort-\\S+|out-\\S+|use-\\S+|msr.init\\S+|other|menus|functions|details|\\S*msr-cmd-alias\\S*|(m*alias \\w+\\S*)"', true);
         }
 
         function prepareEnvForBashOnWindows(terminalType: TerminalType) {
-            const displayPath = getDisplayPathForBash(toOsPath(defaultCmdAliasFile.replace(linuxHomeFolderOnWindows, '~'), terminalType), '\\~');
+            const displayPath = getDisplayPathForBash(rawLinuxDisplayPath, '\\~');
             finalGuide = createCmdAliasTip + displayPath + ' .' + finalGuide;
             if (newTerminal) {
                 const downloadCommands = [
@@ -927,11 +934,14 @@ export function cookCmdShortcutsOrFile(
                 setEnvCmd = setEnvCmd.replace('export PATH=', 'export PATH=~/:');
             }
 
+            const envRootFolder = path.dirname(path.dirname(shellExe)).replace(/([^\\])(\\{1})([^\\]|$)/g, '$1$2$2$3');
             if (TerminalType.CygwinBash === terminalType) {
-                setEnvCmd += 'export CYGWIN_ROOT=' + path.dirname(path.dirname(shellExe)).replace("\\", "\\\\");
+                setEnvCmd += 'export CYGWIN_ROOT=' + envRootFolder;
+            } else if (TerminalType.MinGWBash === terminalType) {
+                setEnvCmd += 'export MINGW_ROOT=' + quotePaths(envRootFolder);
             }
 
-            checkSetPathBeforeRunDoskeyAlias('source ' + quotePaths(toOsPath(cmdAliasFile.replace(linuxHomeFolderOnWindows, '$HOME'), terminalType)), false, setEnvCmd);
+            checkSetPathBeforeRunDoskeyAlias('source ' + quotePaths(rawLinuxDisplayPath), false, setEnvCmd);
         }
 
         outputDebug(nowText() + 'Finished to cook command shortcuts. Cost ' + getTimeCostToNow(trackBeginTime) + ' seconds.');
@@ -939,6 +949,10 @@ export function cookCmdShortcutsOrFile(
 
     function getPathCmdAliasBody(useWorkspacePath: boolean, sourceAliasFile: string, onlyForOutput: boolean = false, outputFullPath: boolean = false, useTmpFile: boolean = false): string {
         let sourceFilePath = toOsPath(sourceAliasFile, terminalType);
+        if (IsLinuxTerminalOnWindows || IsLinux) {
+            const linuxHome = toOsPath(IsLinux ? HomeFolder : getCmdAliasSaveFolder(true, terminalType, true));
+            sourceFilePath = sourceFilePath.replace(linuxHome, '~');
+        }
         const tmpSaveFile = !useTmpFile ? quotePaths(sourceFilePath) : quotePaths(sourceFilePath + `-${useWorkspacePath ? "full" : "relative"}.tmp`);
         const replaceHead = `msr -p ` + tmpSaveFile;
         const andText = isWindowsTerminal ? " & " : " ; ";
@@ -1234,7 +1248,7 @@ function getCommandAliasMap(
     const allCodeFilePattern = getOverrideConfigByPriority([projectKey, 'default', ''], 'codeFilesPlusUI');
     const extraOption = addFullPathHideWarningOption(getOverrideConfigByPriority([projectKey, 'default'], 'extraOptions'));
     commands.push(getCommandAlias('find-nd', 'msr -rp . --nd "' + skipFoldersPattern + '" ', false));
-    commands.push(getCommandAlias('find-ndp', 'msr -rp %1 --nd "' + skipFoldersPattern + '" ', false));
+    commands.push(getCommandAlias('find-ndp', 'msr -rp %1 --nd "' + skipFoldersPattern + '" ', true));
     commands.push(getCommandAlias('find-code', 'msr -rp . --nd "' + skipFoldersPattern + '" -f "' + allCodeFilePattern + '" ' + extraOption, false));
 
     const allSmallFilesOptions = getOverrideConfigByPriority([projectKey, 'default', ''], 'allSmallFiles.extraOptions');
@@ -1270,7 +1284,8 @@ function getCommandAliasText(
     const tailArgs = !addTailArgs
         ? ""
         : (hasSearchTextHolder
-            ? (isWindowsTerminal ? ' $2 $3 $4 $5 $6 $7 $8 $9' : ' "${@:2}"')
+            // For Windows must be: ' $2 $3 $4 $5 $6 $7 $8 $9', but msr can ignore duplicate $1, so this tricky way works fine, and avoid truncating long args.
+            ? (isWindowsTerminal ? ' $*' : ' "${@:2}"')
             : (isWindowsTerminal ? ' $*' : ' "$@"')
         );
 

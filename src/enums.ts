@@ -14,7 +14,7 @@ export enum TerminalType {
 }
 
 export enum FindCommandType {
-    RegexFindDefinitionInCodeFiles,
+    RegexFindAsClassOrMethodDefinitionInCodeFiles,
     RegexFindDefinitionInCurrentFile,
     RegexFindReferencesInCurrentFile,
     RegexFindReferencesInCodeFiles,

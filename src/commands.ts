@@ -78,7 +78,7 @@ export function getSortCommandText(toRunInTerminal: boolean, useProjectSpecific:
     extraOptions += (findCmdText.match(/BySize/i) ? '--sz --wt' : '--wt --sz');
     extraOptions += ' ' + getOverrideConfigByPriority([folderKey, 'default'], 'listSortingFilesOptions') as string || '-l -H 10 -T 10';
 
-    let searchPathsOptions = getSearchPathOptions(toRunInTerminal, useProjectSpecific, rootFolder, '', FindCommandType.RegexFindDefinitionInCodeFiles === findCmd);
+    let searchPathsOptions = getSearchPathOptions(toRunInTerminal, useProjectSpecific, rootFolder, '', FindCommandType.RegexFindAsClassOrMethodDefinitionInCodeFiles === findCmd);
     if (isCookingCmdAlias) {
         extraOptions = replaceTextByRegex(extraOptions, /(^|\s+)(-[lICc]\s+|-[HT]\s*\d+)/, ' ');
         extraOptions = replaceTextByRegex(extraOptions, /(^|\s+)(--s[12])\s+\S+\s*/, ' ');
@@ -115,7 +115,7 @@ export function getFindTopDistributionCommand(toRunInTerminal: boolean, useProje
     const optionalArgs = addOptionalArgs ? ' $*' : '';
     const extraOptions = "-l -PAC --xd -k 18";
     const useExtraPaths = 'true' === getConfigValue(folderKey, '', '', 'findingCommands.useExtraPaths');
-    let searchPathsOptions = getSearchPathOptions(toRunInTerminal, useProjectSpecific, rootFolder, '', FindCommandType.RegexFindDefinitionInCodeFiles === findCmd, useExtraPaths, useExtraPaths);
+    let searchPathsOptions = getSearchPathOptions(toRunInTerminal, useProjectSpecific, rootFolder, '', FindCommandType.RegexFindAsClassOrMethodDefinitionInCodeFiles === findCmd, useExtraPaths, useExtraPaths);
     searchPathsOptions = replaceSearchPathToDot(searchPathsOptions);
     let command = MsrExe + ' ' + searchPathsOptions + filePattern + ' ' + extraOptions.trim();
     if (findCmdText.includes('Folder')) {
@@ -231,7 +231,7 @@ export function getFindingCommandByCurrentWord(toRunInTerminal: boolean, findCmd
             skipTextPattern = '';
             break;
 
-        case FindCommandType.RegexFindDefinitionInCodeFiles:
+        case FindCommandType.RegexFindAsClassOrMethodDefinitionInCodeFiles:
         case FindCommandType.RegexFindReferencesInCodeFiles:
         case FindCommandType.FindPlainTextInCodeFiles:
         case FindCommandType.RegexFindPureReferencesInCodeFiles:
@@ -304,7 +304,7 @@ export function getFindingCommandByCurrentWord(toRunInTerminal: boolean, findCmd
     const parsedFilePath = toPath(parsedFile);
     const osFilePath = toOsPath(parsedFilePath, terminalType);
     const useExtraPaths = 'true' === getConfigValue(rootFolderName, extension, mappedExt, 'findingCommands.useExtraPaths');
-    const searchPathsOptions = getSearchPathOptions(toRunInTerminal, true, parsedFilePath, mappedExt, FindCommandType.RegexFindDefinitionInCodeFiles === findCmd, useExtraPaths, useExtraPaths);
+    const searchPathsOptions = getSearchPathOptions(toRunInTerminal, true, parsedFilePath, mappedExt, FindCommandType.RegexFindAsClassOrMethodDefinitionInCodeFiles === findCmd, useExtraPaths, useExtraPaths);
 
     if (filePattern.length > 0) {
         filePattern = ' -f "' + filePattern + '"';

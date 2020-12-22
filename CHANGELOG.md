@@ -2,6 +2,15 @@
 
 All notable changes to this "vscode-msr" extension will be documented in this file.
 
+## [2.1.3]
+
+- Improved finding definition for precision + speed.
+- Used a simple and tricky way to support long arguments(count > 9) for Windows command alias (`doskeys`).
+- Added string type to configuration items to avoid showing "null" when changing user settings of `msr.xxx`.
+- Exported `MINGW_ROOT` for MINGW terminal on Windows to shorten output paths of MINGW system files.
+- Added `*.rst` + `*.rs` as source file extensions to search.
+- Fixed command alias `find-ndp` for Linux/Cygwin/MinGW terminals.
+
 ## [2.1.2]
 
 - Check and support `--timeout` option when searching.

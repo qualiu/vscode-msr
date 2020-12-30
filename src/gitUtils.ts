@@ -140,6 +140,7 @@ export class GitIgnore {
         skipPatterns.add(this.getPattern('.git/'));
       }
 
+      let errorList = new Array<string>();
       for (let row = 0; row < lines.length; row++) {
         const line = lines[row].trim();
         if (ignoreRegex.test(line)) {
@@ -156,15 +157,30 @@ export class GitIgnore {
             return;
           }
         }
-        skipPatterns.add(this.getPattern(line));
+
+        const pattern = this.getPattern(line);
+
+        try {
+          new RegExp(pattern);
+          skipPatterns.add(pattern);
+        } catch (err) {
+          const message = 'Error[' + (errorList.length + 1) + ']:' + ' at ' + this.IgnoreFilePath + ':' + row + ' : Input_Git_Ignore = ' + line + ' , Skip_Paths_Regex = ' + pattern + ' , error = ' + err.toString();
+          errorList.push(message);
+          outputError('\n' + nowText() + message + '\n');
+        }
       }
 
       this.SkipPathPattern = this.mergeToTerminalSkipPattern(skipPatterns);
       this.Valid = this.SkipPathPattern.length > 0;
       const cost = (new Date()).valueOf() - beginTime.valueOf();
+
+      if (errorList.length > 0) {
+        outputError(errorList.join('\n'));
+      }
+
       const message = 'Cost ' + (cost / 1000).toFixed(3) + ' s to parse ' + skipPatterns.size
-        + ' ignore-path patterns and ' + this.ExemptionCount + ' exemptions from: ' + this.IgnoreFilePath
-        + ' , SkipPathPattern.length = ' + this.SkipPathPattern.length;
+        + ' patterns, omitted errors = ' + errorList.length + ', ignored ' + this.ExemptionCount + ' exemptions from: ' + this.IgnoreFilePath
+        + ' , ' + SkipPathVariableName + '.length = ' + this.SkipPathPattern.length;
       outputInfo(nowText() + message);
       const saveFolder = path.dirname(getGeneralCmdAliasFilePath(DefaultTerminalType));
       this.SetSkipPathEnvFile = path.join(saveFolder, path.basename(this.RootFolder) + '.set-git-skip-paths-env.tmp' + (this.IsCmdTerminal ? '.cmd' : '.sh'));
@@ -237,15 +253,31 @@ export class GitIgnore {
 
     let pattern = line.replace(/\/\**\s*$/g, '/'); // remove tail '/*'
 
+    if (pattern === '*~' || pattern === '*~$') {
+      pattern = '~$';
+      outputDebugOrInfo(!IsDebugMode, 'Skip_Paths_Regex = ' + pattern);
+      return pattern;
+    }
+
+    pattern = pattern.replace(/~\$\*/g, '~\\$[^/]*'); // replace ~$* to ~\$[^/]*
+    pattern = pattern.replace(/\*\.(\w+(\[[0-9A-Za-z\._-]+\])?)\*$/g, '[^/]*\\.$1[^/]*$');
+    pattern = pattern.replace(/(?<![\]])\*\.(\w+(\[[0-9A-Za-z\._-]+\])?)$/g, '[^/]*\\.$1$');
+    pattern = pattern.replace(/(\*\\?\.)(\w+(\[[0-9A-Za-z\._-]+\])?)$/, '$1$2$');
+
+    if (pattern.startsWith('*')) {
+      pattern = pattern.replace(/^\*+(\w+\\?\.\w+(\[[0-9A-Za-z\._-]+\])?)$/, '$1');
+      pattern = pattern.replace(/^\*+/, '');
+    }
+
+    pattern = pattern.replace(/(?<![\]])\*\./g, '[^/]*\\.');
+    if (pattern.startsWith('[^/]*\\.')) {
+      pattern = pattern.substring('[^/]*'.length);
+    }
+
+    pattern = pattern.replace('[^/][^/]*', '[^/]*');
+
     // The character "?" matches any one character except "/".
     pattern = pattern.replace('?', '[^/]?');
-    if (isExtension) {
-      // pattern = pattern.replace(/^\*\.(\w+[^\./]*)$/, '\\.$1');
-      // pattern = pattern.replace(/^\*\.(\w+[^/]*)$/, '[^/]*\\.$1');
-      pattern = pattern.replace(/^\*\.(\w+[^/]*)$/, '\\.$1');
-    } else {
-      pattern = pattern.replace(/^\*\./, '[^/]*\.'); // replace head *.ext to [^/]*\.ext
-    }
 
     pattern = pattern.replace(/(?![\\/])\.\*/, '\\.[^/]*');
     pattern = pattern.replace(/\/\*\./, '/[^/]*\.');
@@ -257,15 +289,36 @@ export class GitIgnore {
     pattern = pattern.replace(/(?<![\\/])\./g, '\\.');
     pattern = pattern.replace(/(?<!\\)\.(?![\*\?])/, '\\.');
 
-    if (isExtension) {
+    // escape * $
+    pattern = pattern.replace(/(?<![\.\]\\])(\*)/, '[^/]*');
+
+    pattern = pattern.replace(/\.((\[[a-zA-Z0-9-]+\]){3})$/, '.$1$');
+
+    // reduce pattern length and make it readable.
+    let k = pattern.indexOf("[");
+    while (k >= 0 && k + 3 < pattern.length && pattern[k + 3] === ']') {
+      const a = pattern[k + 1].toLowerCase();
+      if (a >= 'a' && a <= 'z') {
+        const b = pattern[k + 2].toLowerCase();
+        pattern = pattern.substring(0, k) + pattern[k + 1] + pattern.substring(k + 4);
+        k = pattern.indexOf("[", Math.max(0, k - 4));
+      } else {
+        k = pattern.indexOf("[", k + 4);
+      }
+    }
+
+    if (isExtension && !pattern.endsWith('$')) {
       pattern += '$';
+    }
+
+    if (pattern.endsWith('[^/]*')) {
+      pattern = pattern.substring(0, pattern.length - '[^/]*'.length);
     }
 
     if (isNullOrEmpty(pattern)) {
       return '';
     }
 
-    // let pattern = isInTopFolder ? '^\\./' + pattern.replace(new RegExp('^/'), "") : pattern;
     pattern = this.replaceSlashForSkipPattern(pattern);
     outputDebugOrInfo(!IsDebugMode, 'Skip_Paths_Regex = ' + pattern);
     return pattern;

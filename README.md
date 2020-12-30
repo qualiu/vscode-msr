@@ -140,7 +140,7 @@ If you cannot get search results **in 1~2 seconds** for just **10000 code files*
 Follow [official Windows doc](https://support.microsoft.com/en-us/help/4028485/windows-10-add-an-exclusion-to-windows-security):
 
 - Add "**Folder exclusions**" for your `source code paths` (usually the save folders of `git clone` repositories).
-- If still no obvious improvement:
+- If still slow and no obvious improvement:
   - Add "**Process** type": like `msr.exe` (or `msr.cygwin`/`msr.gcc48`) and/or `msr` to exclusions. 
   - Adde "**File** type": like `D:\tools\msr.exe` (or `/usr/bin/msr` etc.)  to exclusions.
 

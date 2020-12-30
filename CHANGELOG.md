@@ -2,6 +2,10 @@
 
 All notable changes to this "vscode-msr" extension will be documented in this file.
 
+## [2.1.5]
+
+- Robust `git-ignore` for some cases (if enabled `msr.useGitIgnoreFile`).
+
 ## [2.1.4]
 
 - Supported `git-ignore` by **.gitignore** file in **top folder**: (To enable it: set `msr.useGitIgnoreFile` = `true`)

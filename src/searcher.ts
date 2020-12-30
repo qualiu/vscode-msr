@@ -3,8 +3,9 @@ import { exec, ExecException, ExecOptions } from 'child_process';
 import * as vscode from 'vscode';
 import { setSearchDepthInCommandLine, setTimeoutInCommandLine, ToolChecker } from './checkTool';
 import { runFindingCommandByCurrentWord } from './commands';
+import { getConfigValueByRoot, getSubConfigValue } from './configUtils';
 import { IsWindows, SearchTextHolderReplaceRegex, SkipJumpOutForHeadResultsRegex } from './constants';
-import { FileExtensionToMappedExtensionMap, getConfig, getConfigValue, getRootFolder, getRootFolderExtraOptions, getRootFolderName, getSearchPathOptions, getSubConfigValue, MyConfig } from './dynamicConfig';
+import { FileExtensionToMappedExtensionMap, getConfig, getRootFolder, getRootFolderExtraOptions, getRootFolderName, getSearchPathOptions, GitIgnoreInfo, MyConfig } from './dynamicConfig';
 import { FindCommandType, FindType, TerminalType } from './enums';
 import { outputDebug, outputDebugOrInfo, outputError, outputInfo, outputResult, outputWarn, runCommandInTerminal } from './outputUtils';
 import { ForceSetting, Ranker } from './ranker';
@@ -291,6 +292,7 @@ function findAndProcessSummary(skipIfNotMatch: boolean, summaryText: string, fin
     else if (ranker.canRunCommandInTerminal && matchCount > MyConfig.ReRunSearchInTerminalIfResultsMoreThan && costSeconds <= MyConfig.ReRunCmdInTerminalIfCostLessThan) {
       outputInfo(nowText() + 'Will re-run and show clickable + colorful results in `MSR-RUN-CMD` in `TERMINAL` tab. Set `msr.quiet` to avoid switching tabs; Decrease `msr.reRunSearchInTerminalIfCostLessThan` value for re-running.');
       cmd = changeFindingCommandForLinuxTerminalOnWindows(cmd);
+      cmd = GitIgnoreInfo.replaceToSkipPathVariable(cmd);
       runCommandInTerminal(RunCommandChecker.toRunnableToolPath(cmd).replace(SkipJumpOutForHeadResultsRegex, ' ').trim(), false, getConfig().ClearTerminalBeforeExecutingCommands);
     }
   } else if (!ranker.isOneFileOrFolder) {
@@ -351,8 +353,8 @@ function parseCommandOutput(stdout: string, findType: FindType, cmd: string, ran
   }
 
   const rootFolderName = getRootFolderName(toPath(ranker.currentFile));
-  const removeLowScoreResultsFactor = Number(getConfigValue(rootFolderName, ranker.extension, ranker.mappedExt, 'removeLowScoreResultsFactor') || 0.8);
-  const keepHighScoreResultCount = Number(getConfigValue(rootFolderName, ranker.extension, ranker.mappedExt, 'keepHighScoreResultCount') || -1);
+  const removeLowScoreResultsFactor = Number(getConfigValueByRoot(rootFolderName, ranker.extension, ranker.mappedExt, 'removeLowScoreResultsFactor') || 0.8);
+  const keepHighScoreResultCount = Number(getConfigValueByRoot(rootFolderName, ranker.extension, ranker.mappedExt, 'keepHighScoreResultCount') || -1);
 
   let scoreSum = 0;
   let scoreList: Number[] = [];

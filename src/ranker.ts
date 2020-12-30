@@ -1,7 +1,8 @@
 import { ParsedPath } from 'path';
 import * as vscode from 'vscode';
+import { GetConfigPriorityPrefixes, getConfigValueByRoot, getOverrideConfigByPriority, getOverrideOrDefaultConfig } from './configUtils';
 import { SearchTextHolder, SearchTextHolderReplaceRegex } from './constants';
-import { getConfig, GetConfigPriorityPrefixes, getConfigValue, getOverrideConfigByPriority, getOverrideOrDefaultConfig, getRootFolderName, MappedExtToCodeFilePatternMap, MyConfig } from './dynamicConfig';
+import { getConfig, getRootFolderName, MappedExtToCodeFilePatternMap, MyConfig } from './dynamicConfig';
 import { FindType } from './enums';
 import { outputDebug, outputError } from './outputUtils';
 import { createRegex, EmptyRegex, getAllSingleWords } from './regexUtils';
@@ -244,8 +245,8 @@ export class Ranker {
 	private getCheckingRegex(configKeyTail: string, allowEmpty: boolean, matchAnyIfEmpty: boolean = false): RegExp {
 		const useDefault = configKeyTail === 'isFindClass' && MyConfig.UseDefaultFindingClassCheckExtensionRegex.test(this.currentFile.ext);
 		const rawPattern = useDefault
-			? getConfigValue(this.rootFolderName, 'default', '', configKeyTail, allowEmpty)
-			: getConfigValue(this.rootFolderName, this.extension, this.mappedExt, configKeyTail, allowEmpty);
+			? getConfigValueByRoot(this.rootFolderName, 'default', '', configKeyTail, allowEmpty)
+			: getConfigValueByRoot(this.rootFolderName, this.extension, this.mappedExt, configKeyTail, allowEmpty);
 		const pattern = rawPattern.replace(SearchTextHolderReplaceRegex, this.currentWord);
 		return matchAnyIfEmpty && isNullOrEmpty(pattern) ? new RegExp(".?") : createRegex(pattern);
 	}
@@ -422,11 +423,11 @@ export class Ranker {
 		}
 
 		if (this.ForceUseDefaultFindingDefinition) {
-			filePattern = getConfigValue(this.rootFolderName, '', '', 'codeFiles', false, true)
-				|| getConfigValue(this.rootFolderName, '', '', 'allFiles', false, true);
+			filePattern = getConfigValueByRoot(this.rootFolderName, '', '', 'codeFiles', false, true)
+				|| getConfigValueByRoot(this.rootFolderName, '', '', 'allFiles', false, true);
 		} else if (MyConfig.isUnknownFileType(this.currentFile.ext)) {
 			let patternSet = new Set<string>([
-				getConfigValue(this.rootFolderName, 'default', '', 'codeFiles', false),
+				getConfigValueByRoot(this.rootFolderName, 'default', '', 'codeFiles', false),
 				'\\.' + extension + '$'
 			]);
 			patternSet.delete('');

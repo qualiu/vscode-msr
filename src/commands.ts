@@ -1,11 +1,13 @@
 import * as vscode from 'vscode';
 import { MsrExe, setTimeoutInCommandLine, ToolChecker } from './checkTool';
+import { getConfigValueByRoot, getOverrideConfigByPriority, getSubConfigValue, RootFolder } from './configUtils';
 import { HomeFolder, SearchTextHolderReplaceRegex, SkipJumpOutForHeadResultsRegex } from './constants';
-import { FileExtensionToMappedExtensionMap, getConfig, getConfigValue, getOverrideConfigByPriority, getRootFolder, getRootFolderExtraOptions, getRootFolderName, getSearchPathOptions, getSubConfigValue, MyConfig, removeSearchTextForCommandLine, replaceToRelativeSearchPath } from './dynamicConfig';
+import { FileExtensionToMappedExtensionMap, getConfig, getRootFolder, getRootFolderExtraOptions, getRootFolderName, getSearchPathOptions, GitIgnoreInfo, MyConfig, removeSearchTextForCommandLine, replaceToRelativeSearchPath } from './dynamicConfig';
 import { FindCommandType, TerminalType } from './enums';
 import { enableColorAndHideCommandLine, outputDebug, outputInfo, runCommandInTerminal } from './outputUtils';
 import { Ranker } from './ranker';
 import { escapeRegExp, NormalTextRegex } from './regexUtils';
+import { SearchConfig } from './searchConfig';
 import { changeFindingCommandForLinuxTerminalOnWindows, DefaultTerminalType, getCurrentWordAndText, getExtensionNoHeadDot, IsLinuxTerminalOnWindows, isLinuxTerminalOnWindows, isNullOrEmpty, nowText, quotePaths, replaceTextByRegex, toOsPath, toPath } from './utils';
 import path = require('path');
 
@@ -48,6 +50,7 @@ export function runFindingCommandByCurrentWord(findCmd: FindCommandType, searchT
     let command = getFindingCommandByCurrentWord(false, findCmd, searchText, parsedFile, rawSearchText, undefined);
     command = changeFindingCommandForLinuxTerminalOnWindows(command);
     command = setTimeoutInCommandLine(command, MyConfig.MaxWaitSecondsForAutoReSearchDefinition);
+    command = GitIgnoreInfo.replaceToSkipPathVariable(command);
     const myConfig = getConfig();
     runCommandInTerminal(command, !myConfig.IsQuiet, myConfig.ClearTerminalBeforeExecutingCommands);
 }
@@ -55,9 +58,7 @@ export function runFindingCommandByCurrentWord(findCmd: FindCommandType, searchT
 export function getSortCommandText(toRunInTerminal: boolean, useProjectSpecific: boolean, addOptionalArgs: boolean, findCmd: FindCommandType, rootFolder = '', isCookingCmdAlias = false): string {
     const findCmdText = FindCommandType[findCmd];
     if (isNullOrEmpty(rootFolder) && useProjectSpecific) {
-        rootFolder = vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders.length > 0
-            ? vscode.workspace.workspaceFolders[0].uri.fsPath
-            : '.';
+        rootFolder = RootFolder;
     }
 
     const rootFolderName = getRootFolderName(rootFolder, useProjectSpecific);
@@ -94,9 +95,7 @@ export function getSortCommandText(toRunInTerminal: boolean, useProjectSpecific:
 export function getFindTopDistributionCommand(toRunInTerminal: boolean, useProjectSpecific: boolean, addOptionalArgs: boolean, findCmd: FindCommandType, rootFolder = ''): string {
     const findCmdText = FindCommandType[findCmd];
     if (isNullOrEmpty(rootFolder) && useProjectSpecific) {
-        rootFolder = vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders.length > 0
-            ? vscode.workspace.workspaceFolders[0].uri.fsPath
-            : '.';
+        rootFolder = RootFolder;
     }
 
     const rootFolderName = getRootFolderName(rootFolder, useProjectSpecific);
@@ -114,7 +113,7 @@ export function getFindTopDistributionCommand(toRunInTerminal: boolean, useProje
 
     const optionalArgs = addOptionalArgs ? ' $*' : '';
     const extraOptions = "-l -PAC --xd -k 18";
-    const useExtraPaths = 'true' === getConfigValue(folderKey, '', '', 'findingCommands.useExtraPaths');
+    const useExtraPaths = 'true' === getConfigValueByRoot(folderKey, '', '', 'findingCommands.useExtraPaths');
     let searchPathsOptions = getSearchPathOptions(toRunInTerminal, useProjectSpecific, rootFolder, '', FindCommandType.RegexFindAsClassOrMethodDefinitionInCodeFiles === findCmd, useExtraPaths, useExtraPaths);
     searchPathsOptions = replaceSearchPathToDot(searchPathsOptions);
     let command = MsrExe + ' ' + searchPathsOptions + filePattern + ' ' + extraOptions.trim();
@@ -133,7 +132,7 @@ export function getFindingCommandByCurrentWord(toRunInTerminal: boolean, findCmd
     const rootFolder = getRootFolder(toPath(parsedFile), true) || '.';
     const rootFolderName = getRootFolderName(rootFolder, true);
     const rootFolderOsPath = toOsPath(rootFolder);
-    const shouldChangeFolder = rootFolderOsPath.startsWith('/') && toRunInTerminal && IsLinuxTerminalOnWindows && getConfig().SearchRelativePathForLinuxTerminalsOnWindows;
+    const shouldChangeFolder = rootFolderOsPath.startsWith('/') && toRunInTerminal && IsLinuxTerminalOnWindows && SearchConfig.SearchRelativePathForLinuxTerminalsOnWindows;
     const findCmdText = FindCommandType[findCmd];
     function changeSearchFolderInCommand(command: string): string {
         if (shouldChangeFolder) {
@@ -168,17 +167,17 @@ export function getFindingCommandByCurrentWord(toRunInTerminal: boolean, findCmd
         ? getSubConfigValue(rootFolderName, extension, mappedExt, 'definition', 'extraOptions')
         : (isFindReference
             ? getSubConfigValue(rootFolderName, extension, mappedExt, 'reference', 'extraOptions')
-            : getConfigValue(rootFolderName, extension, mappedExt, 'extraOptions')
+            : getConfigValueByRoot(rootFolderName, extension, mappedExt, 'extraOptions')
         );
 
     let searchPattern = '';
     if (isFindDefinition) {
         searchPattern = MyConfig.UseDefaultFindingClassCheckExtensionRegex.test(parsedFile.ext)
-            ? getConfigValue(rootFolderName, 'default', '', 'definition')
-            : getConfigValue(rootFolderName, extension, mappedExt, 'definition');
+            ? getConfigValueByRoot(rootFolderName, 'default', '', 'definition')
+            : getConfigValueByRoot(rootFolderName, extension, mappedExt, 'definition');
     } else {
         searchPattern = isFindReference
-            ? getConfigValue(rootFolderName, extension, mappedExt, 'reference')
+            ? getConfigValueByRoot(rootFolderName, extension, mappedExt, 'reference')
             : '';
     }
 
@@ -193,9 +192,9 @@ export function getFindingCommandByCurrentWord(toRunInTerminal: boolean, findCmd
     }
 
     let skipTextPattern = isFindDefinition
-        ? getConfigValue(rootFolderName, extension, mappedExt, 'skip.definition')
+        ? getConfigValueByRoot(rootFolderName, extension, mappedExt, 'skip.definition')
         : (isFindReference
-            ? getConfigValue(rootFolderName, extension, mappedExt, 'skip.reference')
+            ? getConfigValueByRoot(rootFolderName, extension, mappedExt, 'skip.reference')
             : ''
         );
 
@@ -207,15 +206,15 @@ export function getFindingCommandByCurrentWord(toRunInTerminal: boolean, findCmd
             const useDefaultValues = [false, true];
             for (let k = 0; k < useDefaultValues.length; k++) {
                 const allowEmpty = k === 0;
-                definitionPatterns.add(getConfigValue(rootFolderName, extension, mappedExt, 'class.definition', allowEmpty, useDefaultValues[k]))
-                    .add(getConfigValue(rootFolderName, extension, mappedExt, 'member.definition', allowEmpty, useDefaultValues[k]))
-                    .add(getConfigValue(rootFolderName, extension, mappedExt, 'constant.definition', allowEmpty, useDefaultValues[k]))
-                    .add(getConfigValue(rootFolderName, extension, mappedExt, 'enum.definition', allowEmpty, useDefaultValues[k]))
-                    .add(getConfigValue(rootFolderName, extension, mappedExt, 'method.definition', allowEmpty, useDefaultValues[k]));
+                definitionPatterns.add(getConfigValueByRoot(rootFolderName, extension, mappedExt, 'class.definition', allowEmpty, useDefaultValues[k]))
+                    .add(getConfigValueByRoot(rootFolderName, extension, mappedExt, 'member.definition', allowEmpty, useDefaultValues[k]))
+                    .add(getConfigValueByRoot(rootFolderName, extension, mappedExt, 'constant.definition', allowEmpty, useDefaultValues[k]))
+                    .add(getConfigValueByRoot(rootFolderName, extension, mappedExt, 'enum.definition', allowEmpty, useDefaultValues[k]))
+                    .add(getConfigValueByRoot(rootFolderName, extension, mappedExt, 'method.definition', allowEmpty, useDefaultValues[k]));
 
                 definitionPatterns.delete('');
                 if (definitionPatterns.size < 1) {
-                    definitionPatterns.add((getConfigValue(rootFolderName, extension, mappedExt, 'definition', allowEmpty, useDefaultValues[k])));
+                    definitionPatterns.add((getConfigValueByRoot(rootFolderName, extension, mappedExt, 'definition', allowEmpty, useDefaultValues[k])));
                     definitionPatterns.delete('');
                 }
                 if (definitionPatterns.size > 0) {
@@ -224,7 +223,7 @@ export function getFindingCommandByCurrentWord(toRunInTerminal: boolean, findCmd
             }
 
             searchPattern = Array.from(definitionPatterns).join('|');
-            skipTextPattern = ranker ? ranker.getSkipPatternForDefinition() : getConfigValue(rootFolderName, extension, mappedExt, 'skip.definition');
+            skipTextPattern = ranker ? ranker.getSkipPatternForDefinition() : getConfigValueByRoot(rootFolderName, extension, mappedExt, 'skip.definition');
             break;
 
         case FindCommandType.RegexFindReferencesInCurrentFile:
@@ -265,7 +264,7 @@ export function getFindingCommandByCurrentWord(toRunInTerminal: boolean, findCmd
             filePattern = '';
             const smallFileExtraOptions = isFindReference
                 ? getSubConfigValue(rootFolderName, extension, mappedExt, 'reference', 'allSmallFiles.extraOptions')
-                : getConfigValue(rootFolderName, extension, mappedExt, 'allSmallFiles.extraOptions');
+                : getConfigValueByRoot(rootFolderName, extension, mappedExt, 'allSmallFiles.extraOptions');
             if (!isNullOrEmpty(smallFileExtraOptions)) {
                 extraOptions = smallFileExtraOptions;
             }
@@ -294,7 +293,7 @@ export function getFindingCommandByCurrentWord(toRunInTerminal: boolean, findCmd
 
     // FindCommandType.RegexFindPureReferencesInCodeFiles || FindCommandType.RegexFindPureReferencesInAllSourceFiles
     if (findCmdText.includes('RegexFindPureReference')) {
-        const skipPattern = getConfigValue(rootFolderName, extension, mappedExt, 'skip.pureReference', true).trim();
+        const skipPattern = getConfigValueByRoot(rootFolderName, extension, mappedExt, 'skip.pureReference', true).trim();
         if (skipPattern.length > 0 && /\s+--nt\s+/.test(searchPattern) !== true) {
             skipTextPattern = skipPattern;
         }
@@ -303,7 +302,7 @@ export function getFindingCommandByCurrentWord(toRunInTerminal: boolean, findCmd
     const terminalType = !toRunInTerminal && isLinuxTerminalOnWindows() ? TerminalType.CMD : DefaultTerminalType;
     const parsedFilePath = toPath(parsedFile);
     const osFilePath = toOsPath(parsedFilePath, terminalType);
-    const useExtraPaths = 'true' === getConfigValue(rootFolderName, extension, mappedExt, 'findingCommands.useExtraPaths');
+    const useExtraPaths = 'true' === getConfigValueByRoot(rootFolderName, extension, mappedExt, 'findingCommands.useExtraPaths');
     const searchPathsOptions = getSearchPathOptions(toRunInTerminal, true, parsedFilePath, mappedExt, FindCommandType.RegexFindAsClassOrMethodDefinitionInCodeFiles === findCmd, useExtraPaths, useExtraPaths);
 
     if (filePattern.length > 0) {

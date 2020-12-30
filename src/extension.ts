@@ -1,15 +1,17 @@
 // The module 'vscode' contains the VS Code extensibility API
 // Import the module and reference it with the alias vscode in your code below
 import * as vscode from 'vscode';
-import { MsrExe } from './checkTool';
+import { IsForwardingSlashSupportedOnWindows, MsrExe } from './checkTool';
 import { getFindingCommandByCurrentWord, runFindingCommand } from './commands';
+import { getConfigValueByRoot } from './configUtils';
 import { IsWindows, SearchTextHolderReplaceRegex } from './constants';
-import { cookCmdShortcutsOrFile, FileExtensionToMappedExtensionMap, getConfig, getConfigValue, getRootFolder, getRootFolderName, MyConfig, printConfigInfo } from './dynamicConfig';
-import { FindCommandType, FindType } from './enums';
-import { clearOutputChannel, disposeTerminal, outputDebug, RunCmdTerminalName } from './outputUtils';
+import { cookCmdShortcutsOrFile } from './cookCommandAlias';
+import { FileExtensionToMappedExtensionMap, getConfig, getRootFolder, getRootFolderName, MyConfig, printConfigInfo } from './dynamicConfig';
+import { FindCommandType, FindType, TerminalType } from './enums';
+import { clearOutputChannel, disposeTerminal, outputDebug, RunCmdTerminalName, runCommandInTerminal } from './outputUtils';
 import { ForceSetting, Ranker } from './ranker';
 import { createCommandSearcher, createSearcher, getCurrentFileSearchInfo, PlatformToolChecker, Searcher } from './searcher';
-import { getExtensionNoHeadDot, isNullOrEmpty, nowText, quotePaths, toPath } from './utils';
+import { DefaultTerminalType, getExtensionNoHeadDot, IsLinuxTerminalOnWindows, isNullOrEmpty, nowText, quotePaths, toPath } from './utils';
 import path = require('path');
 
 outputDebug(nowText() + 'Start loading extension and initialize ...');
@@ -242,6 +244,9 @@ class SearchTimeInfo {
 
 let LastSearchInfo: SearchTimeInfo | null = null;
 
+// to ease running command later (like: using git-ignore to export/set variables)
+runCommandInTerminal('echo TerminalType = ' + TerminalType[DefaultTerminalType] + ', Universal slash = ' + IsForwardingSlashSupportedOnWindows, true, false, IsLinuxTerminalOnWindows);
+
 export class DefinitionFinder implements vscode.DefinitionProvider {
 	public async provideDefinition(document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken): Promise<vscode.Location[] | null> {
 		if (MyConfig.shouldSkipFinding(FindType.Definition, document.fileName)) {
@@ -455,7 +460,7 @@ function getCommandToSearchLocalVariableOrConstant(document: vscode.TextDocument
 	let ranker = new Ranker(document, FindType.Definition, position, currentWord, currentWordRange, currentText, parsedFile, mappedExt, true, new ForceSetting(false, false, true));
 	const pattern = isVariableInit
 		? getSearchPatternForLocalVairableOrConstant(currentWord)
-		: getConfigValue(getRootFolderName(document.fileName), extension, mappedExt, 'definition') + '|^\\w*[^;]{0,120}\\s+' + currentWord + '\\s*;\\s*$';
+		: getConfigValueByRoot(getRootFolderName(document.fileName), extension, mappedExt, 'definition') + '|^\\w*[^;]{0,120}\\s+' + currentWord + '\\s*;\\s*$';
 
 	const filePath = quotePaths(document.fileName);
 	let command = MsrExe + ' -p ' + filePath + ' -t "' + pattern + '"' + ' -N ' + position.line + ' -T 1 -I -C';

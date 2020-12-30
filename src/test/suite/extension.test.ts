@@ -1,25 +1,14 @@
-import * as assert from 'assert';
 import { before } from 'mocha';
-
 // You can import and use all API from the 'vscode' module
 // as well as import your extension to test it
 import * as vscode from 'vscode';
-import * as path from 'path';
-import fs = require('fs');
-import { getConfig } from '../../dynamicConfig';
+import { checkConfigKeysInDoc, readAllKeys } from './configAndDocTest';
+import { testCmdTerminal, testCmdTerminalWithForwardingSlash, testLinuxTerminal, testNotSkipDotPaths, testOmitExemptions } from './gitIgnoreTest';
 
-suite('Extension Test Suite', () => {
-    const GitRootPath = path.resolve(__dirname, '../../../');
-    const ConfigFilePath = path.join(GitRootPath, 'package.json');
-    const DocFilePath = path.join(GitRootPath, 'README.md');
-    const KeyRegex = /["`](msr\.\w+[\.\w]*)/g;
-    const SkipKeysRegex = /^(msr.xxx)|\.project\d+|default.extra\w*Groups|\.My|^msr.py.extra\w*|^msr.\w+(\.\w+)?.definition|msr.\w+.codeFiles|fileExtensionMap|\.default\.$|bat\w*\.skipFolders/i;
-    const ExemptDuplicateKeyRegex = /^(msr\.)?\w*(find|sort|make)\w+$|^msr.cookCmdAlias\w*/i;
-    const ExemptNoValueKeyRegex = /extra|skip.definition|extensionPattern|projectRootFolderNamePattern|cmdAlias\w*|^\w*(find|sort)\w+$/i;
-    const NonStringValueRegex = /^(\d+|bool\w*$)/;
 
+suite('Test-1: Configuration and doc test suite', () => {
     before(() => {
-        vscode.window.showInformationMessage('Start all tests.');
+        vscode.window.showInformationMessage('Start testing configuration keys + keys in readme doc.');
     });
 
     test('Configuration keys call be all successfully retrieved', () => {
@@ -27,90 +16,32 @@ suite('Extension Test Suite', () => {
     });
 
     test('Keys referenced in readme doc must be defined in configuration.', () => {
-        const allKeys = readAllKeys();
+        checkConfigKeysInDoc();
+    });
+});
 
-        assert.ok(fs.existsSync(DocFilePath), 'Should exist doc file: ' + DocFilePath);
-        const lines = fs.readFileSync(DocFilePath).toString();
-        let errorMessages = [];
-        const rootConfig = getConfig().RootConfig;
-
-        let keyCount = 0;
-        let m;
-        do {
-            m = KeyRegex.exec(lines);
-            if (m) {
-                keyCount++;
-                const fullKey = m[1];
-                console.log('Found doc key = ' + fullKey + ' in ' + DocFilePath);
-                if (!allKeys.has(fullKey) && !SkipKeysRegex.test(fullKey)) {
-                    const shortKey = fullKey.replace(/^msr\./, '');
-                    const configValue = rootConfig.get(shortKey);
-                    if (configValue === undefined) {
-                        errorMessages.push('Not found in configuration file: Key = ' + fullKey + ' in ' + DocFilePath);
-                    }
-                }
-            }
-        } while (m);
-
-        console.log('Found ' + keyCount + ' in ' + DocFilePath);
-        assert.ok(keyCount > 0, 'Just found ' + keyCount + ' keys in ' + DocFilePath);
-        assert.ok(errorMessages.length < 1, 'Caught ' + errorMessages.length + ' errors as below:\n' + errorMessages.join('\n'));
+suite('Test-2: Parsing .gitignore test', () => {
+    before(() => {
+        vscode.window.showInformationMessage('Will start parsing .gitignore test for terminals: CMD + MinGW + Cygwin + WSL + Bash.');
     });
 
-    function readAllKeys(printInfo: boolean = false): Set<string> {
-        assert.ok(fs.existsSync(ConfigFilePath), 'Should exist config file: ' + ConfigFilePath);
-        const lines = fs.readFileSync(ConfigFilePath).toString();
-        const rootConfig = getConfig().RootConfig;
+    test('Parsing .gitignore with relative path for Linux terminal or Windows WSL/Cygwin/MinGW terminal.', () => {
+        testLinuxTerminal();
+    });
 
-        let allKeys: string[] = [];
-        let m;
-        do {
-            m = KeyRegex.exec(lines);
-            if (m) {
-                const fullKey = m[1];
-                allKeys.push(fullKey);
-                const key = fullKey.replace(/^msr\./, '');
-                const value = rootConfig.get(key);
-                const valueText = !value || NonStringValueRegex.test(value as string || '') ? value : '"' + value + '"';
-                if (printInfo) {
-                    console.info('Found config key = ' + fullKey + ' , value = ' + valueText);
-                }
+    test('Parsing .gitignore with relative path for Windows CMD terminal.', () => {
+        testCmdTerminal();
+    });
 
-                if (ExemptDuplicateKeyRegex.test(key) === false && !key.endsWith('.')) {
-                    assert.notEqual(value, undefined, 'Value should not be undefined for key = ' + fullKey);
-                }
+    test('Parsing .gitignore omit exemptions.', () => {
+        testOmitExemptions();
+    });
 
-                const textValue = String(value);
-                if (ExemptNoValueKeyRegex.test(key) === false) {
-                    assert.notEqual(0, textValue.length, 'Value should not be empty for key = ' + fullKey);
-                    if (textValue.length > 0) {
-                        const paths = textValue.split(/\s*[,;]\s*/).map(a => a.trim());
-                        paths.forEach(a => {
-                            if (a.length > 1 && fs.existsSync(a)) {
-                                assert.fail('Should not store personal or test settings: Key = ' + fullKey + ' , local path value = ' + a + ' , fullValue = ' + textValue);
-                            }
-                        });
-                    }
-                }
-            }
-        } while (m);
+    test('Parsing .gitignore not skip dot/dollar paths.', () => {
+        testNotSkipDotPaths();
+    });
 
-        let keySet = new Set<string>();
-        allKeys.forEach(a => {
-            if (keySet.has(a)) {
-                if (!ExemptDuplicateKeyRegex.test(a)) {
-                    assert.fail('Duplicate key: ' + a + ' in ' + ConfigFilePath);
-                }
-            } else {
-                keySet.add(a);
-            }
-        });
-
-        if (printInfo) {
-            console.log('Total key count = ' + allKeys.length + ' in ' + ConfigFilePath);
-        }
-
-        assert.ok(allKeys.length > 1, 'Error key count = ' + allKeys.length + ' in ' + ConfigFilePath);
-        return keySet;
-    }
+    test('Parsing .gitignore with relative path + forwarding slash for Windows CMD terminal.', () => {
+        testCmdTerminalWithForwardingSlash();
+    });
 });

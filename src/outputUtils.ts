@@ -1,8 +1,10 @@
 import { execSync } from 'child_process';
 import * as vscode from 'vscode';
+import { RootFolder } from './configUtils';
 import { IsWindows } from './constants';
-import { cookCmdShortcutsOrFile, getConfig } from './dynamicConfig';
-import { nowText, replaceTextByRegex } from './utils';
+import { cookCmdShortcutsOrFile } from './cookCommandAlias';
+import { getConfig } from './dynamicConfig';
+import { IsLinuxTerminalOnWindows, nowText, replaceTextByRegex } from './utils';
 
 export const RunCmdTerminalName = 'MSR-RUN-CMD';
 const OutputChannelName = 'MSR-Def-Ref';
@@ -65,9 +67,9 @@ export function getTerminal(): vscode.Terminal {
 	if (!_terminal) {
 		_terminal = vscode.window.createTerminal(RunCmdTerminalName, ShellPath);
 		if (vscode.workspace.getConfiguration('msr').get('initProjectCmdAliasForNewTerminals') as boolean) {
-			const folders = vscode.workspace.workspaceFolders;
-			const currentPath = folders && folders.length > 0 ? folders[0].uri.fsPath : '.';
-			cookCmdShortcutsOrFile(currentPath, true, false, _terminal);
+			// const folders = vscode.workspace.workspaceFolders;
+			// const currentPath = folders && folders.length > 0 ? folders[0].uri.fsPath : '.';
+			cookCmdShortcutsOrFile(RootFolder, true, false, _terminal);
 		}
 	}
 
@@ -78,12 +80,12 @@ export function disposeTerminal() {
 	_terminal = undefined;
 }
 
-export function runCommandInTerminal(cmd: string, showTerminal = false, clearAtFirst = true, isLinuxOnWindows = false) {
+export function runCommandInTerminal(cmd: string, showTerminal = false, clearAtFirst = true, isLinuxOnWindows = IsLinuxTerminalOnWindows) {
 	cmd = enableColorAndHideCommandLine(cmd); // cmd += ' -M '; // to hide summary.
 	sendCmdToTerminal(cmd, getTerminal(), showTerminal, clearAtFirst, isLinuxOnWindows);
 }
 
-export function sendCmdToTerminal(cmd: string, terminal: vscode.Terminal, showTerminal = false, clearAtFirst = true, isLinuxOnWindows = false) {
+export function sendCmdToTerminal(cmd: string, terminal: vscode.Terminal, showTerminal = false, clearAtFirst = true, isLinuxOnWindows = IsLinuxTerminalOnWindows) {
 	const searchAndListPattern = /\s+(-i?[tx]|-l)\s+/;
 	if (cmd.startsWith("msr") && !cmd.match(searchAndListPattern)) {
 		outputDebug(nowText() + "Skip running command due to not found none of matching names of -x or -t, command = " + cmd);
@@ -95,13 +97,17 @@ export function sendCmdToTerminal(cmd: string, terminal: vscode.Terminal, showTe
 	}
 
 	if (clearAtFirst) {
-		// vscode.commands.executeCommand('workbench.action.terminal.clear');
-		terminal.sendText(isLinuxOnWindows ? 'clear' : ClearCmd);
+		clearTerminal(terminal, isLinuxOnWindows);
 	} else {
 		terminal.sendText('\n');
 	}
 
 	terminal.sendText(cmd);
+}
+
+export function clearTerminal(terminal: vscode.Terminal, isLinuxOnWindows = IsLinuxTerminalOnWindows) {
+	// vscode.commands.executeCommand('workbench.action.terminal.clear');
+	terminal.sendText(isLinuxOnWindows ? 'clear' : ClearCmd);
 }
 
 export function outputWarn(message: string, showWindow: boolean = true) {

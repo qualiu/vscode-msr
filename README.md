@@ -139,8 +139,10 @@ If you cannot get search results **in 1~2 seconds** for just **10000 code files*
 
 Follow [official Windows doc](https://support.microsoft.com/en-us/help/4028485/windows-10-add-an-exclusion-to-windows-security):
 
-- Add "**Folder exclusions**" for your `source code folders` (usually the save folders of `git clone` repositories).
-- Add "**Process** type" (name) + "**File** type" (path) exclusions for [msr.EXE](https://github.com/qualiu/msr#liberate--digitize-daily-works-by-2-exe-file-processing-data-mining-map-reduce) if above no significant improvement.
+- Add "**Folder exclusions**" for your `source code paths` (usually the save folders of `git clone` repositories).
+- If still no obvious improvement:
+  - Add "**Process** type": like `msr.exe` (or `msr.cygwin`/`msr.gcc48`) and/or `msr` to exclusions. 
+  - Adde "**File** type": like `D:\tools\msr.exe` (or `/usr/bin/msr` etc.)  to exclusions.
 
 (You probably have done for others tools like `golang`, npm `node.exe` , `pip.exe` and `python.exe` etc.)
 
@@ -182,10 +184,10 @@ alias find-pure-ref
 malias find -x all -H 9
 malias "find[\w-]*ref"
 malias ".*?(find-\S+)=.*" -o "\2"  :  To see all find-xxx alias/doskeys.
-malias use-rp :  To see matched alias/doskeys like 'use-rp', 'out-rp', 'use-wp' and 'out-fp' etc.
-use-wp  - Use workspace root paths as input: Root folders of current workspace and extra paths you added.
-use-rp  - Use relative path as input: The dynamic current folder.
-out-rp  - Output relative path. This will not effect if use-wp which input full paths of current workspace.
+malias use-rp :  To see matched alias/doskeys like 'use-rp', 'out-rp', 'use-fp' and 'out-fp' etc.
+use-rp  - Search relative path(.) as input path: Output relative paths if no -W.
+use-fp  - Search workspace root paths: Output absolute/full paths (regardless of -W).
+out-rp  - Output relative path. This will not effect if use-fp which input full paths of current workspace.
 out-fp  - Output full path.
 Add -W to output full path; -I to suppress warnings; -o to replace text, -j to preview changes, -R to replace files.
 You can also create your own command shortcuts in the file: {msr.cmdAlias.saveFolder}\msr-cmd-alias.doskeys
@@ -203,6 +205,20 @@ Each time it will write 1 or multiple script files to the folder of `msr.cmdAlia
 - Multiple script files: Save to `%USERPROFILE%\cmdAlias\` on Windows or `~/cmdAlias/` on Linux.
 
 When you open a new terminal, will [**auto set project specific command shortcuts**](#auto-set-command-shortcuts-for-new-terminals) which most helpful to get a temporary command shortcuts of each project's specific settings plus `.vscode/settings.json` in it's root folder.
+
+## Use git-ignore
+
+Open user settings, set `msr.useGitIgnoreFile` = `true` (or `msr.{project-folder-name}.useGitIgnoreFile` = `true`)
+- This use the `.gitignore` file only in top folder of the project, without other kinds/folders of git-ignore files.
+- Omit file/folder exemptions (like `!not-exclude.txt`) as default.
+  - Set `msr.omitGitIgnoreExemptions` = `false` to not use git-ignore if found exemptions.
+
+Parsing result of `gitignore` file: see `MSR-Def-Ref` output channel.
+
+A better solution can be:
+- Use `git ls-files` command output all file list to `/tmp/{project}-git-files.txt`.
+- Use `msr -w /tmp/{project}-git-files.txt` instead of current `msr -rp .` or `msr -rp {project}-full-path`.
+- Create a file watcher to auto update `/tmp/{project}-git-files.txt` when captured file `deletion` or `creation` events.
 
 ## Enable Finding Definition and References for Unknown Languages
 
@@ -341,7 +357,7 @@ There're another 2 ways to toggle besides the hot key (`Alt+F2`):
 ### Output Relative Paths or Full Paths
 - For cooking command alias/shortcuts and using it:
   - `msr.cookCmdAlias.outputFullPath`
-  - `msr.cookCmdAlias.outputRelativePathForLinuxTerminalsOnWindows`: 
+  - `msr.cookCmdAlias.outputRelativePathForLinuxTerminalsOnWindows`:
 - For search output (from `menu` or `auto-triggered re-run when got multiple results`):
   - `msr.searchRelativePathForLinuxTerminalsOnWindows`:
     - Set `true` to help click + open results in `vscode` for Cygwin/MinGW/WSL terminals on Windows.

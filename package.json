@@ -3,7 +3,7 @@
     "displayName": "Search code + Replace files + Find definition and references for all types.",
     "description": "Search code + Replace files + Find definition and references in multiple repository paths by msr for all coding languages + configuration + doc files.",
     "author": "qualiu@microsoft.com",
-    "version": "2.1.3",
+    "version": "2.1.4",
     "icon": "images/vscode-msr-icon.png",
     "license": "completely free",
     "publisher": "qualiu",
@@ -820,7 +820,7 @@
                 },
                 "msr.regexFindDefinitionInCurrentFile.menu.visible": {
                     "type": "boolean",
-                    "default": true
+                    "default": false
                 },
                 "msr.regexFindReferencesInCurrentFile.menu.visible": {
                     "type": "boolean",
@@ -1090,6 +1090,26 @@
                     "default": "^([\\.\\$]|(Release|Debug|objd?|bin|node_modules|static|dist|target|(Js)?Packages|\\w+-packages?)$|__pycache__)",
                     "description": "Default Regex pattern to skip folders. You can set each project's additional skip patterns: `msr.{root-folder-name}.definition.skipFolders` or `msr.{root-folder-name}.reference.skipFolders` in your personal settings file like `%APPDATA%\\Code\\User\\settings.json` on Windows (See doc: https://github.com/qualiu/vscode-msr/blob/master/README.md#specific-extra-search-paths-settings)."
                 },
+                "msr.useGitIgnoreFile": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Use '.gitignore' file if exists in local git repository root folder."
+                },
+                "msr.omitGitIgnoreExemptions": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Use '.gitignore' file even if there're exemptions (like '!xxx') and omit them. Otherwise not use git-ignore."
+                },
+                "msr.skipDotFoldersIfUseGitIgnoreFile": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Skip dot/dollar folders like: .{folder-name} or '${folder-name}' when using '.gitignore' file."
+                },
+                "msr.exportLongSkipFoldersLength": {
+                    "type": "integer",
+                    "default": 200,
+                    "description": "Export to a temp variable Skip_Git_Paths (for --np like using '.gitignore') if length exceeds this value (avoid long git-ignore pattern)."
+                },
                 "msr.default.allFiles": {
                     "type": "string",
                     "default": "\\.(cs(html)?|cpp|cxx|h|hpp|cc?|c\\+{2}|\\w+proj|sln|nuspec|config|props|java|scala|py|go|rs|php|vue|tsx?|jsx?|json|ya?ml|xml|ini|md|ipynb|rst|sh|bat|cmd|psm?1)$|^readme|^make\\w+$",
@@ -1161,17 +1181,17 @@
                     "description": "Save folder for command shortcuts file when cooking. If not set, will use `%USERPROFILE%` (Windows) or `~/` (Linux) for single file, and `%USERPROFILE%\\cmdAlias` or `~/cmdAlias/` for multiple script files."
                 },
                 "msr.cookCmdAlias.hideWarningsAndExtraInfo": {
-                    "type": "string",
+                    "type": "boolean",
                     "default": false,
                     "description": "When cooking command alias/shortcuts, add -I to hide warnings and extra info (overwrite default extraOption)."
                 },
                 "msr.cookCmdAlias.outputFullPath": {
-                    "type": "string",
-                    "default": true,
+                    "type": "boolean",
+                    "default": false,
                     "description": "When cooking command alias/shortcuts, add -W to output full path (overwrite default extraOption)."
                 },
                 "msr.cookCmdAlias.outputRelativePathForLinuxTerminalsOnWindows": {
-                    "type": "string",
+                    "type": "boolean",
                     "default": true,
                     "description": "When cooking command alias/shortcuts, remove -W to output relative path for Linux terminals on Windows (overwrite default extraOption)."
                 },
@@ -1182,7 +1202,7 @@
                 },
                 "msr.searchRelativePathForNativeTerminals": {
                     "type": "boolean",
-                    "default": false,
+                    "default": true,
                     "description": "Use relative path: Search '.' other than full project paths for native system terminals to output short paths."
                 },
                 "msr.default.extraOptions": {

@@ -28,7 +28,10 @@ let MsrHelpText = '';
 let NinHelpText = '';
 const GetSearchDepthRegex: RegExp = /\s+(-k|--max-depth)\s+\d+/;
 const GetTimeoutRegex: RegExp = /\s+--timeout\s+(-?\d+)/;
+const CheckForwardingSlashSupportOnWindowsText = "Support '/' on Windows";
+
 export let IsTimeoutSupported: boolean = false;
+export let IsForwardingSlashSupportedOnWindows = false;
 
 let SourceMd5Text = '';
 let TerminalTypeToToolNamePathMap = new Map<TerminalType, Map<string, string>>();
@@ -142,6 +145,7 @@ export class ToolChecker {
 	private updateHelpText(exeName64bit: string, exePath: string) {
 		if (exeName64bit === 'msr') {
 			MsrHelpText = runCommandGetOutput(exePath + ' -h -C');
+			IsForwardingSlashSupportedOnWindows = MsrHelpText.includes(CheckForwardingSlashSupportOnWindowsText);
 			IsTimeoutSupported = isArgSupported('--timeout', 'msr');
 		} else {
 			NinHelpText = runCommandGetOutput(exePath + ' -h -C');

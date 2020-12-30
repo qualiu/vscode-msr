@@ -2,6 +2,18 @@
 
 All notable changes to this "vscode-msr" extension will be documented in this file.
 
+## [2.1.4]
+
+- Supported `git-ignore` by **.gitignore** file in **top folder**: (To enable it: set `msr.useGitIgnoreFile` = `true`)
+  - Added `msr.useGitIgnoreFile` = **false** which disable this non-precise function.
+  - Added `msr.omitGitIgnoreExemptions` = **true** to skip exemptions like `!not-exclude.txt`.
+  - Added `msr.skipDotFoldersIfUseGitIgnoreFile` = **true** to skip paths like `.git`.
+  - Auto detect and use forwarding slash support for CMD terminal on Windows.
+- Corrected 3 config items with right type.
+- Set `msr.searchRelativePathForNativeTerminals` = `true` as default.
+- Set `msr.cookCmdAlias.outputFullPath` = `false` as default.
+- Hide menu: set `msr.regexFindDefinitionInCurrentFile.menu.visible` = `false` as default.
+
 ## [2.1.3]
 
 - Improved finding definition for precision + speed.
@@ -156,7 +168,7 @@ All notable changes to this "vscode-msr" extension will be documented in this fi
 - Added `msr.overwriteProjectCmdAliasForNewTerminals` and default = `true` when initialize a new terminal.
 - Don't clear terminal: Added `msr.clearTerminalBeforeExecutingCommands` and set default value = `false`.
 - Added 4 command alias:
-  - `use-wp` : Use workspace paths: `msr -rp path1,path2`
+  - `use-fp` : Use workspace paths: `msr -rp path1,path2`
   - `use-rp` : Use relative path: `msr -rp .`
   - `out-rp` : Output relative path (remove `-W` if has in command line/alias)
   - `out-fp` : Output full path (add `-W` if not in command line/alias)

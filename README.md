@@ -98,19 +98,19 @@ You can also manually **download** the tiny [msr.EXE](https://github.com/qualiu/
 
     - **If `wget.exe` exists**: (check by command `"where wget.exe"`, you can get it by [choco](https://chocolatey.org/packages/Wget) or [cygwin](https://github.com/qualiu/msrTools/blob/master/system/install-cygwin.bat))
 
-      **wget** <https://github.com/qualiu/msr/raw/master/tools/msr.exe> -O msr.exe -q && icacls msr.exe /grant %USERNAME%:RX && **copy** [msr.exe](https://github.com/qualiu/msr/raw/master/tools/msr.exe) `%SystemRoot%\`
+      **wget** <https://github.com/qualiu/msr/raw/master/tools/msr.exe> -O msr.exe.tmp && `move /y msr.exe.tmp msr.exe` && `icacls msr.exe /grant %USERNAME%:RX` && **copy** [msr.exe](https://github.com/qualiu/msr/raw/master/tools/msr.exe) `%SystemRoot%\`
 
     - Otherwise use `PowerShell`:
 
-      **PowerShell** `-Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri 'https://github.com/qualiu/msr/raw/master/tools/msr.exe' -OutFile msr.exe"` && icacls msr.exe /grant %USERNAME%:RX && **copy** [msr.exe](https://github.com/qualiu/msr/raw/master/tools/msr.exe) `%SystemRoot%\`
+      **PowerShell** `-Command "$ProgressPreference = 'SilentlyContinue'; [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri 'https://github.com/qualiu/msr/raw/master/tools/msr.exe' -OutFile msr.exe.tmp"` && `move /y msr.exe.tmp msr.exe` && `icacls msr.exe /grant %USERNAME%:RX` && **copy** [msr.exe](https://github.com/qualiu/msr/raw/master/tools/msr.exe) `%SystemRoot%\`
 
   - **Linux**: `Ubuntu`/`CentOS`/`Fedora`: (If it's a 32-bit system, use **[msr-i386.gcc48](https://github.com/qualiu/msr/raw/master/tools/msr-i386.gcc48)**. `gcc`/`g++` >= 4.8)
 
-    **wget** <https://github.com/qualiu/msr/raw/master/tools/msr.gcc48> -O msr.gcc48 -q && `chmod +x msr.gcc48` && `cp msr.gcc48 /usr/bin/msr`
+    **wget** <https://github.com/qualiu/msr/raw/master/tools/msr.gcc48> -O msr.gcc48.tmp && `mv -f msr.gcc48.tmp msr.gcc48` && `chmod +x msr.gcc48` && `cp msr.gcc48 /usr/bin/msr`
 
   - **Cygwin** [bash terminal on Windows](#supported-4-terminal-types-on-windows):
 
-    **wget** <https://github.com/qualiu/msr/raw/master/tools/msr.cygwin> -O msr.cygwin -q && `chmod +x msr.cygwin` && `cp msr.cygwin /usr/bin/msr`
+    **wget** <https://github.com/qualiu/msr/raw/master/tools/msr.cygwin> -O msr.cygwin.tmp && `mv -f msr.cygwin.tmp msr.cygwin` && `chmod +x msr.cygwin` && `cp msr.cygwin /usr/bin/msr`
 
 After done, you can directly run **msr --help** (or **msr -h** or just **msr**) should display [colorful usages and examples on Windows](https://qualiu.github.io/msr/usage-by-running/msr-Windows.html) or Linux like: [Fedora](https://qualiu.github.io/msr/usage-by-running/msr-Fedora-25.html) and [CentOS](https://qualiu.github.io/msr/usage-by-running/msr-CentOS-7.html).
 

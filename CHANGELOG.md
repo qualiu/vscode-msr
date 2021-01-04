@@ -2,6 +2,12 @@
 
 All notable changes to this "vscode-msr" extension will be documented in this file.
 
+## [2.1.6]
+
+- Improved `git-ignore`: Added heading slash `/` to skip-patterns if it starts with a word.
+- Accelerated downloading + not silent downloading commands.
+- Improved support for Java case of `@interface`.
+
 ## [2.1.5]
 
 - Robust `git-ignore` for some cases (if enabled `msr.useGitIgnoreFile`).

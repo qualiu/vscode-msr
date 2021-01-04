@@ -15,7 +15,7 @@ import { changeFindingCommandForLinuxTerminalOnWindows, DefaultTerminalType, get
 import ChildProcess = require('child_process');
 import path = require('path');
 
-const GetFileLineTextRegex = new RegExp('(.+?):(\\d+):(.*)');
+const GetFileLineTextRegex = new RegExp('^(.+?):(\\d+):(.*)');
 
 const RemoveCommandLineInfoRegex = / ; Directory = .*/;
 const GetSummaryRegex = /^(?:Matched|Replaced) (\d+) /m;

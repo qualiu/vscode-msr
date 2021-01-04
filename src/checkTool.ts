@@ -205,7 +205,7 @@ export class ToolChecker {
 		const [isWgetExistsOnWindows] = this.isTerminalOfWindows ? this.isToolExistsInPath('wget.exe') : [false, ''];
 
 		const downloadCommand = this.isTerminalOfWindows && !isWgetExistsOnWindows
-			? 'Powershell -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; '
+			? 'Powershell -Command "$ProgressPreference = \'SilentlyContinue\'; [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; '
 			+ "Invoke-WebRequest -Uri '" + sourceUrl + "' -OutFile " + quotePaths(tmpSaveExePath, "'") + '"'
 			: 'wget "' + sourceUrl + '" -O ' + tmpSaveExePath + ' --no-check-certificate';
 

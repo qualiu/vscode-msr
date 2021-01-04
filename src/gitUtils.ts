@@ -319,6 +319,10 @@ export class GitIgnore {
       return '';
     }
 
+    if (/^\[?\w/.test(line)) {
+      pattern = '/' + pattern;
+    }
+
     pattern = this.replaceSlashForSkipPattern(pattern);
     outputDebugOrInfo(!IsDebugMode, 'Skip_Paths_Regex = ' + pattern);
     return pattern;

@@ -3,7 +3,7 @@
     "displayName": "Search code + Replace files + Find definition and references for all types.",
     "description": "Search code + Replace files + Find definition and references in multiple repository paths by msr for all coding languages + configuration + doc files.",
     "author": "qualiu@microsoft.com",
-    "version": "2.1.5",
+    "version": "2.1.6",
     "icon": "images/vscode-msr-icon.png",
     "license": "completely free",
     "publisher": "qualiu",
@@ -947,7 +947,7 @@
                 },
                 "msr.disable.findRef.extensionPattern": {
                     "type": "string",
-                    "default": "tsx?|jsx?|.*",
+                    "default": "tsx?|jsx?|.?",
                     "description": "Regex pattern of file extensions to disable finding reference. Example: tsx?|jsx?|py|java|cpp"
                 },
                 "msr.findingCommands.useExtraPaths": {
@@ -1223,7 +1223,7 @@
                 "msr.default.isClassResult": {
                     "description": "Regex pattern to check if result is a class.",
                     "type": "string",
-                    "default": "^\\s*[\\w\\s]{0,30}\\b[Cc]lass\\s+(%1)\\b"
+                    "default": "^\\s*[\\w\\s]{0,30}@?\\b([Cc]lass|[Ii]nterface)\\s+(%1)\\b"
                 },
                 "msr.default.isEnumResult": {
                     "description": "Regex pattern to check if result is an enum.",
@@ -1312,7 +1312,7 @@
                 },
                 "msr.java.class.definition": {
                     "type": "string",
-                    "default": "^\\s*[\\w\\s]*?@?\\s*\\b(class|struct|enum|interface|object)\\s+(%1)\\b",
+                    "default": "^\\s*[\\w\\s]*?@?\\s*@?\\b(class|struct|enum|interface|object)\\s+(%1)\\b",
                     "description": "Scala Regex pattern to search class definitions."
                 },
                 "msr.java.method.definition": {
@@ -1337,7 +1337,7 @@
                 },
                 "msr.cs.method.definition": {
                     "type": "string",
-                    "default": "^\\s*\\w+[\\w\\[\\]\\.\\(\\)<>,\\s]*?\\s+(%1)\\s*(?:<.+>)?\\s*\\([^;]*$",
+                    "default": "^\\s*\\w+[\\w\\[\\]\\.\\(\\)<>,\\s]*?\\s+(%1)\\s*(?:<.+?>)?\\s*\\([^;]*$",
                     "description": "Regex pattern to search C# method definitions."
                 },
                 "msr.cs.enum.definition": {

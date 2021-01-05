@@ -483,15 +483,15 @@ export class Ranker {
 				}
 
 				if (rowSub < 0 && rowSub >= -16 && !this.ForceSetting.FindLocalVariableDefinition) {
-					let bracket = 0;
-					for (let r = position.line + 1; bracket < 2 && r < this.currentPosition.line; r++) {
+					let brackets = 0;
+					for (let r = position.line + 1; brackets < 2 && r < this.currentPosition.line; r++) {
 						const line = this.Document.lineAt(r);
 						if (line.text.match(/^\s*\{/)) {
-							bracket += 1;
+							brackets += 1;
 						}
 					}
 
-					if (bracket < 2) {
+					if (brackets < 2) {
 						return [ResultType.Other, 0];
 					}
 				}

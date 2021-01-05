@@ -3,7 +3,7 @@ import { before } from 'mocha';
 // as well as import your extension to test it
 import * as vscode from 'vscode';
 import { checkConfigKeysInDoc, readAllKeys } from './configAndDocTest';
-import { testCmdTerminal, testCmdTerminalWithForwardingSlash, testLinuxTerminal, testNotSkipDotPaths, testOmitExemptions } from './gitIgnoreTest';
+import { testCmdTerminalWithBackSlash, testCmdTerminalWithForwardSlash, testLinuxTerminal, testNotSkipDotPaths, testOmitExemptions } from './gitIgnoreTest';
 
 
 suite('Test-1: Configuration and doc test suite', () => {
@@ -30,7 +30,7 @@ suite('Test-2: Parsing .gitignore test', () => {
     });
 
     test('Parsing .gitignore with relative path for Windows CMD terminal.', () => {
-        testCmdTerminal();
+        testCmdTerminalWithBackSlash();
     });
 
     test('Parsing .gitignore omit exemptions.', () => {
@@ -42,6 +42,6 @@ suite('Test-2: Parsing .gitignore test', () => {
     });
 
     test('Parsing .gitignore with relative path + forwarding slash for Windows CMD terminal.', () => {
-        testCmdTerminalWithForwardingSlash();
+        testCmdTerminalWithForwardSlash();
     });
 });

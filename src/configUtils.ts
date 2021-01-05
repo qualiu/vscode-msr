@@ -1,11 +1,14 @@
 import * as vscode from 'vscode';
+import path = require('path');
 
 export const RootFolder: string = vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders.length > 0
   ? vscode.workspace.workspaceFolders[0].uri.fsPath
   : '.';
 
+export const RootFolderName: string = path.basename(RootFolder);
+
 export function getConfigValue(configTailKey: string): string {
-  return getOverrideConfigByPriority([RootFolder, 'default', ''], configTailKey);
+  return getOverrideConfigByPriority([RootFolderName, 'default', ''], configTailKey);
 }
 
 export function getConfigValueByRoot(rootFolderName: string, extension: string, mappedExt: string, configTailKey: string, allowEmpty = false, addDefault: boolean = true): string {

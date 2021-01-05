@@ -450,7 +450,7 @@ export class ToolChecker {
 		}
 
 		if (oldExeNames.size > 0) {
-			outputKeyInfo('\n' + nowText() + 'You can download + update "' + Array.from(oldExeNames).join(' + ') + '" like below for your ' + TerminalType[this.terminalType] + ' terminal:');
+			outputKeyInfo('\n' + nowText() + 'You can download + update (if not link files) "' + Array.from(oldExeNames).join(' + ') + '" like below for your ' + TerminalType[this.terminalType] + ' terminal:');
 			oldExeNames.forEach(exeName => {
 				const exeName64bit = exeName.replace(/^(\w+).*/, '$1');
 				let currentExeSavePath = exeName64bitToPathMap.get(exeName64bit) || '';

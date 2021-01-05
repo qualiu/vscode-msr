@@ -148,18 +148,18 @@ export function quotePaths(paths: string, quote = '"') {
 export function toMinGWPath(winPath: string) {
     const match = MatchWindowsDiskRegex.exec(winPath);
     if (!match) {
-        return replaceText(winPath, '\\', '/');
+        return replaceToForwardSlash(winPath);
     }
-    const path = '/' + match[1].toLowerCase() + replaceText(winPath.substring(match.length), '\\', '/');
+    const path = '/' + match[1].toLowerCase() + replaceToForwardSlash(winPath.substring(match.length));
     return path.replace(' ', '\\ ');
 }
 
 export function toCygwinPath(winPath: string) {
     const match = MatchWindowsDiskRegex.exec(winPath);
     if (!match) {
-        return replaceText(winPath, '\\', '/');
+        return replaceToForwardSlash(winPath);
     }
-    const path = '/cygdrive/' + match[1].toLowerCase() + replaceText(winPath.substring(match.length), '\\', '/');
+    const path = '/cygdrive/' + match[1].toLowerCase() + replaceToForwardSlash(winPath.substring(match.length));
     return path.replace(' ', '\\ ');
 }
 
@@ -213,7 +213,7 @@ export function toWSLPath(winPath: string, isWslTerminal: boolean = false) {
     }
 
     const disk = match[1].toLowerCase();
-    const tail = replaceText(winPath.substring(match.length), '\\', '/');
+    const tail = replaceToForwardSlash(winPath.substring(match.length));
 
     // https://docs.microsoft.com/en-us/windows/wsl/wsl-config#configure-per-distro-launch-settings-with-wslconf
     const shortPath = '/' + disk + tail;
@@ -312,14 +312,8 @@ export function getUniqueStringSetNoCase(textSet: Set<string>, deleteEmpty: bool
     return newSet;
 }
 
-export function replaceText(sourceText: string, toFind: string, replaceTo: string): string {
-    let newText = sourceText.replace(toFind, replaceTo);
-    while (newText !== sourceText) {
-        sourceText = newText;
-        newText = newText.replace(toFind, replaceTo);
-    }
-
-    return newText;
+export function replaceToForwardSlash(sourceText: string): string {
+    return sourceText.replace(/\\/g, '/');
 }
 
 export function replaceTextByRegex(sourceText: string, toFindRegex: RegExp, replaceTo: string): string {

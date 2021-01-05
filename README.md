@@ -141,8 +141,8 @@ Follow [official Windows doc](https://support.microsoft.com/en-us/help/4028485/w
 
 - Add "**Folder exclusions**" for your `source code paths` (usually the save folders of `git clone` repositories).
 - If still slow and no obvious improvement:
-  - Add "**Process** type": like `msr.exe` (or `msr.cygwin`/`msr.gcc48`) and/or `msr` to exclusions. 
-  - Adde "**File** type": like `D:\tools\msr.exe` (or `/usr/bin/msr` etc.)  to exclusions.
+  - Add "**Process** type": like `msr.exe` (`msr.cygwin`/`msr.gcc48`) and/or `msr` to exclusions. 
+  - Add "**File** type": like `D:\tools\msr.exe` (or `/usr/bin/msr` etc.)  to exclusions.
 
 (You probably have done for others tools like `golang`, npm `node.exe` , `pip.exe` and `python.exe` etc.)
 
@@ -173,13 +173,13 @@ find-nd -t MySearchRegex -x AndPlainText
 find-code -it MySearchRegex -x AndPlainText
 find-small -it MySearchRegex -U 5 -D 5 : Show up/down lines.
 find-doc -it MySearchRegex -x AndPlainText -l -PAC : Show pure path list.
-find-py-def MySearchRegex -x AndPlainText : Search definition in python files.
+find-py-def ClassOrMethod -x AndPlainText : Search definition in python files.
 find-py-ref MySearchRegex -x AndPlainText : Search references in python files.
 find-ref "class\s+MyClass" -x AndPlainText --np "unit|test" --xp src\ext,src\common -c show command line.
 find-def MyClass -x AndPlainText --np "unit|test" --xp src\ext,src\common -c show command line.
-find-ref MyClass --pp "test|unit" -U 3 -D 3 -H 20 -T 10 :  Preview Up/Down lines + Set Head/Tail lines in test.
-find-ref MyOldClassMethodName -o NewName -j : Just preview changes only.
-find-ref MyOldClassMethodName -o NewName -R : Replace files, add -K to backup.
+find-ref MyClass --pp "unit|test" -U 3 -D 3 -H 20 -T 10 :  Preview Up/Down lines + Set Head/Tail lines in test.
+find-ref OldClassOrMethod -o NewName -j : Just preview changes only.
+find-ref OldClassOrMethod -o NewName -R : Replace files.
 alias find-pure-ref
 malias find -x all -H 9
 malias "find[\w-]*ref"
@@ -212,10 +212,18 @@ Open user settings, set `msr.useGitIgnoreFile` = `true` (or `msr.{project-folder
 - This use the `.gitignore` file only in top folder of the project, without other kinds/folders of git-ignore files.
 - Omit file/folder exemptions (like `!not-exclude.txt`) as default.
   - Set `msr.omitGitIgnoreExemptions` = `false` to not use git-ignore if found exemptions.
+  
+Parsing result of `gitignore` file: see `MSR-Def-Ref` output channel (with `msr.debug` = `true` or launched in debug mode).
 
-Parsing result of `gitignore` file: see `MSR-Def-Ref` output channel.
+### Compare file lists to help checking if a project can use git-ignore
+- Method-1: Set `msr.autoCompareFileListsIfUsedGitIgnore` = `true` to auto compare file list at starting (opening projects).
+- Method-2: Use menu/command-palette of `msr.compareFileListsWithGitIgnore` to compare file lists if enabled `msr.useGitIgnoreFile`.
 
-A better solution can be:
+### Enable or disable git-ignore for all projects or one project
+- For all projects: Set `msr.useGitIgnoreFile` to `true` or `false`.
+- For one project: Add `msr.{project-folder-name}.useGitIgnoreFile` = `true` or `false` in [user settings](https://code.visualstudio.com/docs/getstarted/settings#_creating-user-and-workspace-settings).
+
+### A better solution to support `git-ignore` in future
 - Use `git ls-files` command output all file list to `/tmp/{project}-git-files.txt`.
 - Use `msr -w /tmp/{project}-git-files.txt` instead of current `msr -rp .` or `msr -rp {project}-full-path`.
 - Create a file watcher to auto update `/tmp/{project}-git-files.txt` when captured file `deletion` or `creation` events.
@@ -379,7 +387,9 @@ This doc listed a few configuration names. Finding more by pressing `F1` to [Ope
 
 ## Extension Settings If You Want to Change
 
-You **don't need to change settings** from [configuration file](https://github.com/qualiu/vscode-msr/blob/master/package.json) unless you want to tune or improve `Regex` patterns, or add **extra search paths** , etc.
+- You **don't need to change** [user settings](https://code.visualstudio.com/docs/getstarted/settings#_creating-user-and-workspace-settings), unless you want to tune or improve `Regex` patterns, or add **extra search paths** , etc.
+- You can use `msr.{project-folder-name}.xxx` to override all config values, like: `msr.{git-folder-name}.useGitIgnoreFile` or `msr.{git-folder-name}.skipFolders` etc.
+- Full priority/order: See [override order](https://github.com/qualiu/vscode-msr/blob/master/Add-New-Language-Support-For-Developers.md#full-priority-order-of-config-override-rule).
 
 Note: Check [**your personal settings**](https://code.visualstudio.com/docs/getstarted/settings#_settings-file-locations) (`msr.xxx` in file) with the latest tuned github settings, especially for `Regex` patterns.
 

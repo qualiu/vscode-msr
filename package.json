@@ -3,7 +3,7 @@
     "displayName": "Search code + Replace files + Find definition and references for all types.",
     "description": "Search code + Replace files + Find definition and references in multiple repository paths by msr for all coding languages + configuration + doc files.",
     "author": "qualiu@microsoft.com",
-    "version": "2.1.7",
+    "version": "2.1.8",
     "icon": "images/vscode-msr-icon.png",
     "license": "completely free",
     "publisher": "qualiu",
@@ -380,10 +380,24 @@
                     "dark": "images/vscode-msr-small.svg",
                     "light": "images/vscode-msr-small.svg"
                 }
+            },
+            {
+                "command": "msr.compareFileListsWithGitIgnore",
+                "title": "Compare file lists if used .gitignore.",
+                "category": "msr",
+                "icon": {
+                    "dark": "images/vscode-msr-small.svg",
+                    "light": "images/vscode-msr-small.svg"
+                }
             }
         ],
         "menus": {
             "editor/context": [
+                {
+                    "when": "config.msr.menu.visible && config.msr.compareFileListsWithGitIgnore.menu.visible",
+                    "command": "msr.compareFileListsWithGitIgnore",
+                    "group": "msr"
+                },
                 {
                     "when": "config.msr.menu.visible && config.msr.regexFindDefinitionInCurrentFile.menu.visible",
                     "command": "msr.regexFindDefinitionInCurrentFile",
@@ -566,6 +580,10 @@
                 }
             ],
             "commandPalette": [
+                {
+                    "command": "msr.compareFileListsWithGitIgnore",
+                    "group": "msr"
+                },
                 {
                     "command": "msr.regexFindDefinitionInCurrentFile",
                     "group": "msr"
@@ -817,6 +835,10 @@
                     "type": "boolean",
                     "default": false,
                     "description": "Cook shortcuts by project settings + Dump with other command alias/doskeys to script files to be used in other scripts or commands."
+                },
+                "msr.compareFileListsWithGitIgnore.menu.visible": {
+                    "type": "boolean",
+                    "default": false
                 },
                 "msr.regexFindDefinitionInCurrentFile.menu.visible": {
                     "type": "boolean",
@@ -1093,19 +1115,24 @@
                 "msr.useGitIgnoreFile": {
                     "type": "boolean",
                     "default": false,
-                    "description": "Use '.gitignore' file if exists in local git repository root folder."
+                    "description": "Use top folder '.gitignore' file if exists in local git repository root folder."
                 },
                 "msr.omitGitIgnoreExemptions": {
                     "type": "boolean",
                     "default": true,
                     "description": "Use '.gitignore' file even if there're exemptions (like '!xxx') and omit them. Otherwise not use git-ignore."
                 },
+                "msr.autoCompareFileListsIfUsedGitIgnore": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Auto compare file lists if used '.gitignore' (enabled `msr.useGitIgnoreFile`) when opening a project folder."
+                },
                 "msr.skipDotFoldersIfUseGitIgnoreFile": {
                     "type": "boolean",
                     "default": true,
                     "description": "Skip dot/dollar folders like: .{folder-name} or '${folder-name}' when using '.gitignore' file."
                 },
-                "msr.exportLongSkipFoldersLength": {
+                "msr.exportLongSkipGitPathsLength": {
                     "type": "integer",
                     "default": 200,
                     "description": "Export to a temp variable Skip_Git_Paths (for --np like using '.gitignore') if length exceeds this value (avoid long git-ignore pattern)."

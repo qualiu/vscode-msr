@@ -9,7 +9,7 @@ const ConfigFilePath = path.join(GitRootPath, 'package.json');
 const DocFilePath = path.join(GitRootPath, 'README.md');
 const KeyRegex = /["`](msr\.\w+[\.\w]*)/g;
 const SkipKeysRegex = /^(msr|nin)\.(exe|cygwin|gcc48|xxx)|\.project\d+|default.extra\w*Groups|\.My|^msr.py.extra\w*|^msr.\w+(\.\w+)?.definition|msr.\w+.codeFiles|fileExtensionMap|\.default\.$|bat\w*\.skipFolders/i;
-const ExemptDuplicateKeyRegex = /^(msr\.)?\w*(find|sort|make)\w+$|^msr.cookCmdAlias\w*/i;
+const ExemptDuplicateKeyRegex = /^(msr\.)?\w*(find|sort|make)\w+$|^msr.cookCmdAlias\w*|^msr.\w*GitIgnore\w*$/i;
 const ExemptNoValueKeyRegex = /extra|skip.definition|extensionPattern|projectRootFolderNamePattern|cmdAlias\w*|^\w*(find|sort)\w+$/i;
 const NonStringValueRegex = /^(\d+|bool\w*$)/;
 

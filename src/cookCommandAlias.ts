@@ -5,9 +5,10 @@ import { getConfigValueByRoot, getOverrideConfigByPriority, RootFolder } from ".
 import { HomeFolder, IsLinux, IsWindows, IsWSL, SearchTextHolderReplaceRegex } from "./constants";
 import { getConfig, getRootFolder, getRootFolderName, getSearchPathOptions, GitIgnoreInfo, MappedExtToCodeFilePatternMap, MyConfig } from "./dynamicConfig";
 import { FindCommandType, TerminalType } from "./enums";
+import { saveTextToFile } from './otherUtils';
 import { clearOutputChannel, enableColorAndHideCommandLine, MessageLevel, outputDebug, outputError, outputInfoQuiet, RunCmdTerminalName, runCommandGetInfo, runCommandInTerminal, sendCmdToTerminal } from "./outputUtils";
 import { escapeRegExp } from "./regexUtils";
-import { DefaultTerminalType, getTerminalShellExePath, getTimeCostToNow, getUniqueStringSetNoCase, IsLinuxTerminalOnWindows, isLinuxTerminalOnWindows, isNullOrEmpty, isWindowsTerminalType, nowText, quotePaths, replaceText, replaceTextByRegex, toOsPath, toOsPathsForText, toWSLPath } from "./utils";
+import { DefaultTerminalType, getTerminalShellExePath, getTimeCostToNow, getUniqueStringSetNoCase, IsLinuxTerminalOnWindows, isLinuxTerminalOnWindows, isNullOrEmpty, isWindowsTerminalType, nowText, quotePaths, replaceTextByRegex, toOsPath, toOsPathsForText, toWSLPath } from "./utils";
 import fs = require('fs');
 import os = require('os');
 import path = require('path');
@@ -206,11 +207,8 @@ export function cookCmdShortcutsOrFile(
     if (writeToEachFile) {
       if (!failedToCreateSingleScriptFolder && !skipWritingScriptNames.has(key) && (dumpOtherCmdAlias || key.startsWith('find'))) {
         const singleScriptPath = path.join(singleScriptFolder, isWindowsTerminal ? key + '.cmd' : key);
-        try {
-          fs.writeFileSync(singleScriptPath, value.trimRight() + (isWindowsTerminal ? '\r\n' : '\n'));
-        } catch (err) {
+        if (!saveTextToFile(singleScriptPath, value.trimRight() + (isWindowsTerminal ? '\r\n' : '\n'), 'single command alias script file')) {
           failureCount++;
-          outputError('\n' + nowText() + 'Failed to write single command alias script file:' + singleScriptPath + ' Error: ' + err.toString());
         }
       }
     } else {
@@ -261,10 +259,7 @@ export function cookCmdShortcutsOrFile(
       if (!isNullOrEmpty(existedText) && newTerminal && !MyConfig.OverwriteProjectCmdAliasForNewTerminals) {
         outputDebug(nowText() + `Found msr.overwriteProjectCmdAliasForNewTerminals = false, Skip writing temp command shortcuts file: ${cmdAliasFile}`);
       } else {
-        try {
-          fs.writeFileSync(cmdAliasFile, allText);
-        } catch (err) {
-          outputError('\n' + nowText() + 'Failed to save command alias file: ' + cmdAliasFile + ' Error: ' + err.toString());
+        if (!saveTextToFile(cmdAliasFile, allText, 'command alias file')) {
           return;
         }
       }
@@ -750,15 +745,13 @@ function getCommandAliasText(
   if (isWindowsTerminal) {
     if (writeToEachFile) {
       commandText = '@' + cmdBody + tailArgs;
-      commandText = replaceTextByRegex(commandText, /(\S+)\$1/, '$1%~1');
-      commandText = replaceTextByRegex(commandText, /\$(\d+)/, '%$1');
-      commandText = replaceText(commandText, '$*', '%*');
+      commandText = replaceArgForWindowsCmdAlias(commandText);
     } else {
       commandText = cmdName + '=' + cmdBody + tailArgs;
     }
   } else {
     if (useFunction) {
-      const functionName = '_' + replaceText(cmdName, '-', '_');
+      const functionName = '_' + cmdName.replace(/-/g, '_');
       if (writeToEachFile) {
         commandText = cmdBody + tailArgs;
       } else {
@@ -790,13 +783,13 @@ function outputCmdAliasGuide(isWindowsTerminal: boolean, cmdAliasFile: string, s
   outputInfoQuiet('find-code -it MySearchRegex -x AndPlainText');
   outputInfoQuiet('find-small -it MySearchRegex -U 5 -D 5 : Show up/down lines.');
   outputInfoQuiet('find-doc -it MySearchRegex -x AndPlainText -l -PAC : Show pure path list.');
-  outputInfoQuiet('find-py-def MySearchRegex -x AndPlainText : Search definition in python files.');
+  outputInfoQuiet('find-py-def ClassOrMethod -x AndPlainText : Search definition in python files.');
   outputInfoQuiet('find-py-ref MySearchRegex -x AndPlainText : Search references in python files.');
   outputInfoQuiet('find-ref "class\\s+MyClass" -x AndPlainText --np "unit|test" --xp src\\ext,src\\common -c show command line.');
   outputInfoQuiet('find-def MyClass -x AndPlainText --np "unit|test" --xp src\\ext,src\\common -c show command line.');
-  outputInfoQuiet('find-ref MyClass --pp "test|unit" -U 3 -D 3 -H 20 -T 10 :  Preview Up/Down lines + Set Head/Tail lines in test.');
-  outputInfoQuiet('find-ref MyOldClassMethodName -o NewName -j : Just preview changes only.');
-  outputInfoQuiet('find-ref MyOldClassMethodName -o NewName -R : Replace files, add -K to backup.');
+  outputInfoQuiet('find-ref MyClass --pp "unit|test" -U 3 -D 3 -H 20 -T 10 :  Preview Up/Down lines + Set Head/Tail lines in test.');
+  outputInfoQuiet('find-ref OldClassOrMethod -o NewName -j : Just preview changes only.');
+  outputInfoQuiet('find-ref OldClassOrMethod -o NewName -R : Replace files.');
   outputInfoQuiet('alias find-pure-ref');
   outputInfoQuiet('malias find -x all -H 9');
   outputInfoQuiet('malias "find[\\w-]*ref"');
@@ -846,7 +839,7 @@ function getExistingCmdAlias(terminalType: TerminalType, forMultipleFiles: boole
   let readLatestAliasCmd = refreshAliasCmd + separator + showAliasCmd;
   if (!isNativeTerminal) {
     const shellExePath = quotePaths(getTerminalShellExePath());
-    readLatestAliasCmd = shellExePath + ' -c "' + replaceText(readLatestAliasCmd, '"', '\"') + '"';
+    readLatestAliasCmd = shellExePath + ' -c "' + readLatestAliasCmd.replace(/"/g, '\\"') + '"';
   }
 
   const messageHead = 'IsNativeTerminal = ' + isNativeTerminal + ', terminalType = ' + TerminalType[terminalType] + ': ';
@@ -862,20 +855,28 @@ function getExistingCmdAlias(terminalType: TerminalType, forMultipleFiles: boole
     return map;
   }
 
-  return getCmdAliasMapFromText(output, map, forMultipleFiles);
+  return getCmdAliasMapFromText(output, map, forMultipleFiles, isWindowsTerminal);
 }
 
-function getCmdAliasMapFromText(output: string, map: Map<string, string>, forMultipleFiles: boolean) {
+function getCmdAliasMapFromText(output: string, map: Map<string, string>, forMultipleFiles: boolean, isWindowsTerminal: boolean) {
   const lines = output.split(/[\r\n]+/);
   const reg = /^(\w+[\w\.-]+)=(.+)/;
   lines.forEach(a => {
     const match = reg.exec(a);
     if (match) {
-      map.set(match[1], forMultipleFiles ? match[2] : match[0]);
+      const body = forMultipleFiles ? (isWindowsTerminal ? replaceArgForWindowsCmdAlias(match[2]) : match[2]) : match[0];
+      map.set(match[1], body);
     }
   });
 
   return map;
+}
+
+function replaceArgForWindowsCmdAlias(body: string): string {
+  body = replaceTextByRegex(body, /([\"'])\$1/, '$1%~1');
+  body = replaceTextByRegex(body, /\$(\d+)/, '%$1');
+  body = body.replace(/\$\*/g, '%*');
+  return body;
 }
 
 export function mergeSkipFolderPattern(skipFoldersPattern: string) {

@@ -5,11 +5,12 @@ import { getConfigValue } from './configUtils';
 import { IsDebugMode, IsWSL } from './constants';
 import { getGeneralCmdAliasFilePath } from './cookCommandAlias';
 import { TerminalType } from './enums';
-import { outputDebugOrInfo, outputError, outputInfo, outputWarn, runCommandInTerminal } from './outputUtils';
+import { saveTextToFile } from './otherUtils';
+import { outputDebugOrInfo, outputError, outputInfo, outputWarn, runCommandInTerminal, runRawCommandInTerminal } from './outputUtils';
 import { DefaultTerminalType, IsLinuxTerminalOnWindows, isNullOrEmpty, isWindowsTerminalOnWindows, nowText, quotePaths, toOsPath, toWSLPath } from './utils';
 
 // Another solution: (1) git ls-files > project-file-list.txt ; (2) msr -w project-file-list.txt  (3) file watcher + update list.
-// Show junk files: (1) git ls-files--ignored --others --exclude-standard (2) git ls-files --others --ignored -X .gitignore
+// Show junk files: (1) git ls-files --ignored --others --exclude-standard (2) git ls-files --others --ignored -X .gitignore
 
 const SkipPathVariableName: string = 'Skip_Git_Paths';
 
@@ -24,10 +25,11 @@ export class GitIgnore {
   private RootFolder: string = '';
   private CheckUseForwardingSlashForCmd = true;
   private ExemptionCount: number = 0;
-  private ExportLongSkipPathLength: number = 200;
+  private ExportLongSkipGitPathsLength: number = 200;
   private LastExportedSkipPaths: string = '';
   private SetSkipPathEnvFile: string = '';
   private IsCmdTerminal: boolean;
+  private MaxCommandLength: number;
 
   constructor(ignoreFilePath: string, useGitIgnoreFile: boolean = false, omitGitIgnoreExemptions: boolean = false,
     skipDotFolders: boolean = true, terminalType = DefaultTerminalType, checkUseForwardingSlashForCmd = true) {
@@ -37,8 +39,10 @@ export class GitIgnore {
     this.SkipDotFolders = skipDotFolders;
     this.Terminal = terminalType;
     this.CheckUseForwardingSlashForCmd = checkUseForwardingSlashForCmd;
-    this.ExportLongSkipPathLength = Number(getConfigValue('exportLongSkipFoldersLength'));
+    this.ExportLongSkipGitPathsLength = Number(getConfigValue('exportLongSkipGitPathsLength'));
     this.IsCmdTerminal = isWindowsTerminalOnWindows(this.Terminal);
+    this.MaxCommandLength = this.IsCmdTerminal ? 8163 : 131072;
+
     if (isNullOrEmpty(ignoreFilePath)) {
       return;
     }
@@ -56,7 +60,7 @@ export class GitIgnore {
       return '';
     }
 
-    if (pattern.length <= this.ExportLongSkipPathLength) {
+    if (pattern.length <= this.ExportLongSkipGitPathsLength) {
       return ' --np "' + pattern + '"';
     }
 
@@ -76,7 +80,7 @@ export class GitIgnore {
       return;
     }
 
-    if (pattern.length <= this.ExportLongSkipPathLength) {
+    if (pattern.length <= this.ExportLongSkipGitPathsLength) {
       return;
     }
 
@@ -98,6 +102,46 @@ export class GitIgnore {
     this.exportSkipPathVariable();
     command = command.replace('"' + this.SkipPathPattern + '"', this.getSkipPathsVariable());
     return command;
+  }
+
+  public compareFileList() {
+    if (!this.Valid) {
+      return;
+    }
+
+    const setVariableCommand = this.SkipPathPattern.length <= this.ExportLongSkipGitPathsLength
+      ? this.getExportCommand(this.SkipPathPattern)
+      : '';
+
+    const commands = this.IsCmdTerminal
+      ? [
+        setVariableCommand,
+        String.raw`git ls-files > %tmp%\git-file-list.txt`,
+        String.raw`msr -rp . --np "%Skip_Git_Paths%" -l -PIC | msr -x \ -o / -aPAC > %tmp%\ext-file-list.txt`,
+        String.raw`nin %tmp%\git-file-list.txt %tmp%\ext-file-list.txt --nt "^\.|/\." -H 5 -T 5`,
+        String.raw`nin %tmp%\git-file-list.txt %tmp%\ext-file-list.txt --nt "^\.|/\." -S -H 5 -T 5`,
+        String.raw`nin %tmp%\git-file-list.txt %tmp%\ext-file-list.txt --nt "^\.|/\." -PAC | msr -t "^(\S+.+)" -o "./\1" -PIC > %tmp%\files-only-in-git.txt`,
+        String.raw`nin %tmp%\git-file-list.txt %tmp%\ext-file-list.txt --nt "^\.|/\." -S -PAC | msr -t "^(\S+.+)" -o "./\1" -PIC > %tmp%\files-only-in-ext.txt`,
+        String.raw`for /f "tokens=*" %a in ('msr -z "%Skip_Git_Paths%" -t "\|" -o "\n" -PIC ^| msr -PIC') do @msr -p %tmp%\files-only-in-git.txt -it "%a" -H 3 -T 3 -O -c "Skip_Paths_Regex = %a"`,
+        String.raw`for /f "tokens=*" %a in ('msr -z "%Skip_Git_Paths%" -t "\|" -o "\n" -PIC ^| msr -PIC') do @msr -p %tmp%\files-only-in-ext.txt -it "%a" -H 3 -T 3 -O -c "Skip_Paths_Regex = %a"`,
+      ]
+      : [
+        setVariableCommand,
+        String.raw`git ls-files > /tmp/git-file-list.txt`,
+        String.raw`msr -rp . --np "$Skip_Git_Paths" -l -PIC > /tmp/ext-file-list.txt`,
+        String.raw`nin /tmp/git-file-list.txt /tmp/ext-file-list.txt --nt "^\.|/\." -H 5 -T 5`,
+        String.raw`nin /tmp/git-file-list.txt /tmp/ext-file-list.txt --nt "^\.|/\." -S -H 5 -T 5`,
+        String.raw`nin /tmp/git-file-list.txt /tmp/ext-file-list.txt --nt "^\.|/\." -PAC | msr -t "^(\S+.+)" -o "./\1" -PIC > /tmp/files-only-in-git.txt`,
+        String.raw`nin /tmp/git-file-list.txt /tmp/ext-file-list.txt --nt "^\.|/\." -S -PAC | msr -t "^(\S+.+)" -o "./\1" -PIC > /tmp/files-only-in-ext.txt`,
+        String.raw`msr -z "$Skip_Git_Paths" -t "\|" -o "\n" -PIC | msr -PIC | while IFS= read -r p; do msr -p /tmp/files-only-in-git.txt -it "$p" -H 3 -T 3 -O -c "Skip_Paths_Regex = $p"; done`,
+        String.raw`msr -z "$Skip_Git_Paths" -t "\|" -o "\n" -PIC | msr -PIC | while IFS= read -r p; do msr -p /tmp/files-only-in-ext.txt -it "$p" -H 3 -T 3 -O -c "Skip_Paths_Regex = $p"; done`
+      ];
+
+    commands.forEach((cmd, _idx, _commands) => {
+      if (!isNullOrEmpty(cmd)) {
+        runRawCommandInTerminal(cmd);
+      }
+    });
   }
 
   public parse(callback: (...args: any[]) => void) {
@@ -164,30 +208,48 @@ export class GitIgnore {
           new RegExp(pattern);
           skipPatterns.add(pattern);
         } catch (err) {
-          const message = 'Error[' + (errorList.length + 1) + ']:' + ' at ' + this.IgnoreFilePath + ':' + row + ' : Input_Git_Ignore = ' + line + ' , Skip_Paths_Regex = ' + pattern + ' , error = ' + err.toString();
+          const message = 'Error[' + (errorList.length + 1) + ']:' + ' at ' + this.IgnoreFilePath + ':' + row + ' : Input_Git_Ignore = ' + line
+            + ' , Skip_Paths_Regex = ' + pattern + ' , error = ' + err.toString();
           errorList.push(message);
           outputError('\n' + nowText() + message + '\n');
         }
       }
 
       this.SkipPathPattern = this.mergeToTerminalSkipPattern(skipPatterns);
-      this.Valid = this.SkipPathPattern.length > 0;
+      const setVarCmdLength = this.SkipPathPattern.length + (this.IsCmdTerminal ? '@set "="'.length : 'export =""'.length) + SkipPathVariableName.length;
+      const isInMaxLength = setVarCmdLength < this.MaxCommandLength;
+      this.Valid = this.SkipPathPattern.length > 0 && isInMaxLength;
       const cost = (new Date()).valueOf() - beginTime.valueOf();
 
       if (errorList.length > 0) {
         outputError(errorList.join('\n'));
       }
 
-      const message = 'Cost ' + (cost / 1000).toFixed(3) + ' s to parse ' + skipPatterns.size
-        + ' patterns, omitted errors = ' + errorList.length + ', ignored ' + this.ExemptionCount + ' exemptions from: ' + this.IgnoreFilePath
-        + ' , ' + SkipPathVariableName + '.length = ' + this.SkipPathPattern.length;
+      let parsedInfo = 'Parsed ' + skipPatterns.size + ' patterns, omitted ' + errorList.length + ' errors, ignored ' + this.ExemptionCount
+        + ' exemptions from: ' + this.IgnoreFilePath + ' , ' + SkipPathVariableName + '.length = ' + this.SkipPathPattern.length + '.';
+
+      const message = 'Cost ' + (cost / 1000).toFixed(3) + ' s: ' + parsedInfo;
+
       outputInfo(nowText() + message);
       const saveFolder = path.dirname(getGeneralCmdAliasFilePath(DefaultTerminalType));
-      this.SetSkipPathEnvFile = path.join(saveFolder, path.basename(this.RootFolder) + '.set-git-skip-paths-env.tmp' + (this.IsCmdTerminal ? '.cmd' : '.sh'));
+      const tmpScriptName = path.basename(this.RootFolder).replace(/[^\w\.-]/g, '-') + '.set-git-skip-paths-env.tmp';
+      this.SetSkipPathEnvFile = path.join(saveFolder, tmpScriptName + (this.IsCmdTerminal ? '.cmd' : '.sh'));
       const setEnvCommands = this.getExportCommand(this.SkipPathPattern);
-      fs.writeFileSync(this.SetSkipPathEnvFile, setEnvCommands, 'utf8');
+      saveTextToFile(this.SetSkipPathEnvFile, setEnvCommands);
       if (callback) {
         callback();
+      }
+
+      const tipHead = 'echo TerminalType = ' + TerminalType[DefaultTerminalType] + ', Universal slash = ' + IsForwardingSlashSupportedOnWindows + '. ';
+      if (!isInMaxLength) {
+        let warning = 'Will not use git-ignore: ' + parsedInfo + ' setVariableCommandLength = ' + setVarCmdLength + ' exceeds ' + this.MaxCommandLength
+          + ' which is max command length of ' + TerminalType[this.Terminal] + ' terminal.';
+        outputError(nowText() + warning);
+        warning = IsLinuxTerminalOnWindows ? warning.replace(this.IgnoreFilePath, this.IgnoreFilePath.replace(/\\/g, '/')) : warning;
+        runRawCommandInTerminal(tipHead + warning + ' | msr -aPA -t "(not use \\S+)|\\d+ e\\w+" -e "\\d+" -x ' + this.MaxCommandLength);
+      } else if (errorList.length > 0 || this.ExemptionCount > 0) {
+        parsedInfo = IsLinuxTerminalOnWindows ? parsedInfo.replace(this.IgnoreFilePath, this.IgnoreFilePath.replace(/\\/g, '/')) : parsedInfo;
+        runRawCommandInTerminal(tipHead + parsedInfo + ' | msr -aPA -e "\\d+" -t "\\d+ e\\w+"');
       }
     });
   }
@@ -243,11 +305,12 @@ export class GitIgnore {
       return '';
     }
 
-    if (this.SkipDotFolders && line.match(/^\.\w+|^\$/)) {
+    if (this.SkipDotFolders && line.match(/^\.\w+|^\$|^\.\*$/)) {
       outputDebugOrInfo(!IsDebugMode, 'Skip redundant dot/dollar-ignore-path: ' + line + '\n');
       return '';
     }
 
+    line = reduceCasePattern(line);
     const hasSlash = line.includes('/');
     const isExtension = !hasSlash && /^\*\.\w+[^/]*$/.test(line);
 
@@ -292,20 +355,7 @@ export class GitIgnore {
     // escape * $
     pattern = pattern.replace(/(?<![\.\]\\])(\*)/, '[^/]*');
 
-    pattern = pattern.replace(/\.((\[[a-zA-Z0-9-]+\]){3})$/, '.$1$');
-
-    // reduce pattern length and make it readable.
-    let k = pattern.indexOf("[");
-    while (k >= 0 && k + 3 < pattern.length && pattern[k + 3] === ']') {
-      const a = pattern[k + 1].toLowerCase();
-      if (a >= 'a' && a <= 'z') {
-        const b = pattern[k + 2].toLowerCase();
-        pattern = pattern.substring(0, k) + pattern[k + 1] + pattern.substring(k + 4);
-        k = pattern.indexOf("[", Math.max(0, k - 4));
-      } else {
-        k = pattern.indexOf("[", k + 4);
-      }
-    }
+    pattern = pattern.replace(/\.((\[[a-zA-Z0-9-]+\]){1,})$/, '.$1$');
 
     if (isExtension && !pattern.endsWith('$')) {
       pattern += '$';
@@ -323,8 +373,36 @@ export class GitIgnore {
       pattern = '/' + pattern;
     }
 
+    if (/(^|\/)[\w-]+$/.test(line)) {
+      pattern = pattern + '/';
+    }
+
+    if (line === '.*') {
+      pattern = "/\\."
+    }
+
+    if (!pattern.endsWith('$') && line.match(/\[[\._]{0,2}\]\*?\.?(\[?[a-z]?-?[a-z]\]?){3}$/i)) {
+      pattern += '$';
+    }
+
     pattern = this.replaceSlashForSkipPattern(pattern);
     outputDebugOrInfo(!IsDebugMode, 'Skip_Paths_Regex = ' + pattern);
     return pattern;
   }
+}
+
+function reduceCasePattern(pattern: string): string {
+  // reduce pattern length and make it readable.
+  let k = pattern.indexOf("[");
+  while (k >= 0 && k + 3 < pattern.length && pattern[k + 3] === ']') {
+    const a = pattern[k + 1].toLowerCase();
+    const b = pattern[k + 2].toLowerCase();
+    if (a >= 'a' && a <= 'z' && a === b) {
+      pattern = pattern.substring(0, k) + pattern[k + 1] + pattern.substring(k + 4);
+      k = pattern.indexOf("[", Math.max(0, k - 4));
+    } else {
+      k = pattern.indexOf("[", k + 4);
+    }
+  }
+  return pattern;
 }

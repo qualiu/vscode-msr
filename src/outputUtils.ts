@@ -81,7 +81,11 @@ export function disposeTerminal() {
 }
 
 export function runCommandInTerminal(cmd: string, showTerminal = false, clearAtFirst = true, isLinuxOnWindows = IsLinuxTerminalOnWindows) {
-	cmd = enableColorAndHideCommandLine(cmd); // cmd += ' -M '; // to hide summary.
+	cmd = enableColorAndHideCommandLine(cmd);
+	sendCmdToTerminal(cmd, getTerminal(), showTerminal, clearAtFirst, isLinuxOnWindows);
+}
+
+export function runRawCommandInTerminal(cmd: string, showTerminal = true, clearAtFirst = false, isLinuxOnWindows = IsLinuxTerminalOnWindows) {
 	sendCmdToTerminal(cmd, getTerminal(), showTerminal, clearAtFirst, isLinuxOnWindows);
 }
 

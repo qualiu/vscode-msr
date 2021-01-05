@@ -2,6 +2,12 @@
 
 All notable changes to this "vscode-msr" extension will be documented in this file.
 
+## [2.1.8]
+- Updated `git-ignore` patterns: Added trailing slash `/` to some word patterns.
+- Added a menu: `msr.compareFileListsWithGitIgnore` to compare file lists if enabled `msr.useGitIgnoreFile`.
+- Added `msr.autoCompareFileListsIfUsedGitIgnore` to help auto compare file lists (need change to `true`).
+- Auto transformed args (`$1` to `%1`) for other doskeys (not from vscode-msr) on Windows when cooking multiple script files.
+
 ## [2.1.7]
 
 - Unregistered `finding-reference` by adding `.*` in `msr.disable.findRef.extensionPattern`.

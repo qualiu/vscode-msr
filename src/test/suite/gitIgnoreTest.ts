@@ -31,11 +31,11 @@ export function testLinuxTerminal() {
   // Copy output from vscode: msr -p MSR-Def-Ref-output.txt -b "^Input_Git_Ignore =" -Q "^Skip_Paths_Regex|^\s*$" -S -t "^Input_Git_Ignore = (.+?)[\r\n]+Skip_Paths_Regex = (.+?)[\r\n]" -o "comparePattern(parser, '\1', String.raw`\2`);" -P
   const parser = new GitIgnore('', true, true, true, TerminalType.LinuxBash);
   // Generate test below: msr -p src\test\suite\gitIgnoreTest.ts -b "function testLinuxTerminal" -q "^\s*\}" -t "^(\s*comparePattern\(\w+, [^,]+).*" -o "\1);" -P
-  comparePattern(parser, '[Bb]in', String.raw`/Bin`);
+  comparePattern(parser, '[Bb]in', String.raw`/Bin/`);
   comparePattern(parser, '[Bb]in/', String.raw`/Bin/`);
   comparePattern(parser, '/[Bb]in/', String.raw`/Bin/`);
   comparePattern(parser, '/.[Bb]in/', String.raw`/\.Bin/`);
-  comparePattern(parser, 'build', String.raw`/build`);
+  comparePattern(parser, 'build', String.raw`/build/`);
   comparePattern(parser, '/build/', String.raw`/build/`);
   comparePattern(parser, 'build/', String.raw`/build/`);
   comparePattern(parser, '/.history/*', String.raw`/\.history/`);
@@ -54,8 +54,8 @@ export function testLinuxTerminal() {
   comparePattern(parser, '/web/.vscode', String.raw`/web/\.vscode`);
   comparePattern(parser, '/tools/build/', String.raw`/tools/build/`);
   comparePattern(parser, '/tools/bin/*.xml', String.raw`/tools/bin/[^/]*\.xml$`);
-  comparePattern(parser, '/build/obj', String.raw`/build/obj`);
-  comparePattern(parser, 'src/**/obj', String.raw`/src/.*/obj`);
+  comparePattern(parser, '/build/obj', String.raw`/build/obj/`);
+  comparePattern(parser, 'src/**/obj', String.raw`/src/.*/obj/`);
   comparePattern(parser, '*~', String.raw`~$`);
   comparePattern(parser, '*~$', String.raw`~$`);
   comparePattern(parser, '~$*', String.raw`~\$`);
@@ -73,21 +73,29 @@ export function testLinuxTerminal() {
   comparePattern(parser, '*.[Kk][Ee][Yy]', String.raw`\.KEY$`);
   comparePattern(parser, 'bin/**', String.raw`/bin/`);
   comparePattern(parser, '**/bin/', String.raw`/bin/`);
-  comparePattern(parser, '**/bin', String.raw`/bin`);
+  comparePattern(parser, '**/bin', String.raw`/bin/`);
   comparePattern(parser, '**/.env*/', String.raw`/\.env[^/]*/`);
+  comparePattern(parser, '[._]s[a-w][a-z]', String.raw`[\._]s[a-w][a-z]$`);
+  comparePattern(parser, '[._]*.s[a-w][a-z]', String.raw`[\._]*\.s[a-w][a-z]$`);
+  comparePattern(parser, '*.s[a-w][a-z]', String.raw`\.s[a-w][a-z]$`);
+  comparePattern(parser, '*.[123ab]', String.raw`\.[123ab]$`);
+  comparePattern(parser, '*.[1-9a-b]', String.raw`\.[1-9a-b]$`);
+  comparePattern(parser, '*.[123ab][4-6cd]', String.raw`\.[123ab][4-6cd]$`);
+  comparePattern(parser, '*.[1-3a-b][4-6cd][7-9ef]', String.raw`\.[1-3a-b][4-6cd][7-9ef]$`);
+  comparePattern(parser, '.*', String.raw``);
   comparePattern(parser, '.Trash-*', String.raw``);// String.raw`\.Trash-[^/]*$`);
   comparePattern(parser, '._*', String.raw``); // String.raw`\._[^/]*$`);
   comparePattern(parser, '*.~doc*', String.raw`\.~doc`); // String.raw`\.~doc[^/]*$`);
 }
 
-export function testCmdTerminal() {
+export function testCmdTerminalWithBackSlash() {
   const parser = new GitIgnore('', true, true, true, TerminalType.CMD, false);
   // Generate test below: msr -p src\test\suite\gitIgnoreTest.ts -b "function testLinuxTerminal" -q "^\s*\}" -t "^(\s*comparePattern\(\w+, [^,]+).*" -o "\1);" -P
-  comparePattern(parser, '[Bb]in', String.raw`\\Bin`);
+  comparePattern(parser, '[Bb]in', String.raw`\\Bin\\`);
   comparePattern(parser, '[Bb]in/', String.raw`\\Bin\\`);
   comparePattern(parser, '/[Bb]in/', String.raw`\\Bin\\`);
   comparePattern(parser, '/.[Bb]in/', String.raw`\\\.Bin\\`);
-  comparePattern(parser, 'build', String.raw`\\build`);
+  comparePattern(parser, 'build', String.raw`\\build\\`);
   comparePattern(parser, '/build/', String.raw`\\build\\`);
   comparePattern(parser, 'build/', String.raw`\\build\\`);
   comparePattern(parser, '/.history/*', String.raw`\\\.history\\`);
@@ -106,8 +114,8 @@ export function testCmdTerminal() {
   comparePattern(parser, '/web/.vscode', String.raw`\\web\\\.vscode`);
   comparePattern(parser, '/tools/build/', String.raw`\\tools\\build\\`);
   comparePattern(parser, '/tools/bin/*.xml', String.raw`\\tools\\bin\\[^\\]*\.xml$`);
-  comparePattern(parser, '/build/obj', String.raw`\\build\\obj`);
-  comparePattern(parser, 'src/**/obj', String.raw`\\src\\.*\\obj`);
+  comparePattern(parser, '/build/obj', String.raw`\\build\\obj\\`);
+  comparePattern(parser, 'src/**/obj', String.raw`\\src\\.*\\obj\\`);
   comparePattern(parser, '*~', String.raw`~$`);
   comparePattern(parser, '*~$', String.raw`~$`);
   comparePattern(parser, '~$*', String.raw`~\$`);
@@ -125,21 +133,29 @@ export function testCmdTerminal() {
   comparePattern(parser, '*.[Kk][Ee][Yy]', String.raw`\.KEY$`);
   comparePattern(parser, 'bin/**', String.raw`\\bin\\`);
   comparePattern(parser, '**/bin/', String.raw`\\bin\\`);
-  comparePattern(parser, '**/bin', String.raw`\\bin`);
+  comparePattern(parser, '**/bin', String.raw`\\bin\\`);
   comparePattern(parser, '**/.env*/', String.raw`\\\.env[^\\]*\\`);
+  comparePattern(parser, '[._]s[a-w][a-z]', String.raw`[\._]s[a-w][a-z]$`);
+  comparePattern(parser, '[._]*.s[a-w][a-z]', String.raw`[\._]*\.s[a-w][a-z]$`);
+  comparePattern(parser, '*.s[a-w][a-z]', String.raw`\.s[a-w][a-z]$`);
+  comparePattern(parser, '*.[123ab]', String.raw`\.[123ab]$`);
+  comparePattern(parser, '*.[1-9a-b]', String.raw`\.[1-9a-b]$`);
+  comparePattern(parser, '*.[123ab][4-6cd]', String.raw`\.[123ab][4-6cd]$`);
+  comparePattern(parser, '*.[1-3a-b][4-6cd][7-9ef]', String.raw`\.[1-3a-b][4-6cd][7-9ef]$`);
+  comparePattern(parser, '.*', String.raw``);
   comparePattern(parser, '.Trash-*', String.raw``);
   comparePattern(parser, '._*', String.raw``);
   comparePattern(parser, '*.~doc*', String.raw`\.~doc`);
 }
 
-export function testCmdTerminalWithForwardingSlash() {
+export function testCmdTerminalWithForwardSlash() {
   const parser = new GitIgnore('', true, true, true, TerminalType.CMD, true);
   // Generate test below: msr -p src\test\suite\gitIgnoreTest.ts -b "function testLinuxTerminal" -q "^\s*\}" -t "^(\s*comparePattern\(\w+, [^,]+).*" -o "\1);" -P
-  comparePattern(parser, '[Bb]in', String.raw`/Bin`);
+  comparePattern(parser, '[Bb]in', String.raw`/Bin/`);
   comparePattern(parser, '[Bb]in/', String.raw`/Bin/`);
   comparePattern(parser, '/[Bb]in/', String.raw`/Bin/`);
   comparePattern(parser, '/.[Bb]in/', String.raw`/\.Bin/`);
-  comparePattern(parser, 'build', String.raw`/build`);
+  comparePattern(parser, 'build', String.raw`/build/`);
   comparePattern(parser, '/build/', String.raw`/build/`);
   comparePattern(parser, 'build/', String.raw`/build/`);
   comparePattern(parser, '/.history/*', String.raw`/\.history/`);
@@ -158,8 +174,8 @@ export function testCmdTerminalWithForwardingSlash() {
   comparePattern(parser, '/web/.vscode', String.raw`/web/\.vscode`);
   comparePattern(parser, '/tools/build/', String.raw`/tools/build/`);
   comparePattern(parser, '/tools/bin/*.xml', String.raw`/tools/bin/[^/]*\.xml$`);
-  comparePattern(parser, '/build/obj', String.raw`/build/obj`);
-  comparePattern(parser, 'src/**/obj', String.raw`/src/.*/obj`);
+  comparePattern(parser, '/build/obj', String.raw`/build/obj/`);
+  comparePattern(parser, 'src/**/obj', String.raw`/src/.*/obj/`);
   comparePattern(parser, '*~', String.raw`~$`);
   comparePattern(parser, '*~$', String.raw`~$`);
   comparePattern(parser, '~$*', String.raw`~\$`);
@@ -177,8 +193,16 @@ export function testCmdTerminalWithForwardingSlash() {
   comparePattern(parser, '*.[Kk][Ee][Yy]', String.raw`\.KEY$`);
   comparePattern(parser, 'bin/**', String.raw`/bin/`);
   comparePattern(parser, '**/bin/', String.raw`/bin/`);
-  comparePattern(parser, '**/bin', String.raw`/bin`);
+  comparePattern(parser, '**/bin', String.raw`/bin/`);
   comparePattern(parser, '**/.env*/', String.raw`/\.env[^/]*/`);
+  comparePattern(parser, '[._]s[a-w][a-z]', String.raw`[\._]s[a-w][a-z]$`);
+  comparePattern(parser, '[._]*.s[a-w][a-z]', String.raw`[\._]*\.s[a-w][a-z]$`);
+  comparePattern(parser, '*.s[a-w][a-z]', String.raw`\.s[a-w][a-z]$`);
+  comparePattern(parser, '*.[123ab]', String.raw`\.[123ab]$`);
+  comparePattern(parser, '*.[1-9a-b]', String.raw`\.[1-9a-b]$`);
+  comparePattern(parser, '*.[123ab][4-6cd]', String.raw`\.[123ab][4-6cd]$`);
+  comparePattern(parser, '*.[1-3a-b][4-6cd][7-9ef]', String.raw`\.[1-3a-b][4-6cd][7-9ef]$`);
+  comparePattern(parser, '.*', String.raw``);
   comparePattern(parser, '.Trash-*', String.raw``);
   comparePattern(parser, '._*', String.raw``);
   comparePattern(parser, '*.~doc*', String.raw`\.~doc`);

@@ -6,12 +6,12 @@ import { getFindingCommandByCurrentWord, runFindingCommand } from './commands';
 import { getConfigValueByRoot } from './configUtils';
 import { IsWindows, SearchTextHolderReplaceRegex } from './constants';
 import { cookCmdShortcutsOrFile } from './cookCommandAlias';
-import { FileExtensionToMappedExtensionMap, getConfig, getRootFolder, getRootFolderName, MyConfig, printConfigInfo } from './dynamicConfig';
+import { FileExtensionToMappedExtensionMap, getConfig, getRootFolder, getRootFolderName, GitIgnoreInfo, MyConfig, printConfigInfo } from './dynamicConfig';
 import { FindCommandType, FindType, TerminalType } from './enums';
-import { clearOutputChannel, disposeTerminal, outputDebug, RunCmdTerminalName, runCommandInTerminal } from './outputUtils';
+import { clearOutputChannel, disposeTerminal, outputDebug, RunCmdTerminalName, runRawCommandInTerminal } from './outputUtils';
 import { ForceSetting, Ranker } from './ranker';
 import { createCommandSearcher, createSearcher, getCurrentFileSearchInfo, PlatformToolChecker, Searcher } from './searcher';
-import { DefaultTerminalType, getExtensionNoHeadDot, IsLinuxTerminalOnWindows, isNullOrEmpty, nowText, quotePaths, toPath } from './utils';
+import { DefaultTerminalType, getExtensionNoHeadDot, isNullOrEmpty, nowText, quotePaths, toPath } from './utils';
 import path = require('path');
 
 outputDebug(nowText() + 'Start loading extension and initialize ...');
@@ -215,6 +215,10 @@ export function registerExtension(context: vscode.ExtensionContext) {
 	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.findTopCodeType',
 		(textEditor: vscode.TextEditor, _edit: vscode.TextEditorEdit, ..._args: any[]) =>
 			runFindingCommand(FindCommandType.FindTopCodeType, textEditor)));
+
+	context.subscriptions.push(vscode.commands.registerCommand('msr.compareFileListsWithGitIgnore',
+		(..._args: any[]) =>
+			GitIgnoreInfo.compareFileList()));
 }
 
 // this method is called when your extension is deactivated
@@ -248,7 +252,7 @@ class SearchTimeInfo {
 let LastSearchInfo: SearchTimeInfo | null = null;
 
 // to ease running command later (like: using git-ignore to export/set variables)
-runCommandInTerminal('echo TerminalType = ' + TerminalType[DefaultTerminalType] + ', Universal slash = ' + IsForwardingSlashSupportedOnWindows, true, false, IsLinuxTerminalOnWindows);
+runRawCommandInTerminal('echo TerminalType = ' + TerminalType[DefaultTerminalType] + ', Universal slash = ' + IsForwardingSlashSupportedOnWindows);
 
 export class DefinitionFinder implements vscode.DefinitionProvider {
 	public async provideDefinition(document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken): Promise<vscode.Location[] | null> {

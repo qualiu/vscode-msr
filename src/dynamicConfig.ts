@@ -303,6 +303,10 @@ export function getConfig(reload: boolean = false): DynamicConfig {
         const terminal = getTerminal();
         clearTerminal(terminal, IsLinuxTerminalOnWindows);
         cookCmdShortcutsOrFile(RootFolder, true, false, terminal, false, true);
+        const autoCompare = getConfigValue('autoCompareFileListsIfUsedGitIgnore') === 'true';
+        if (autoCompare) {
+            GitIgnoreInfo.compareFileList();
+        }
     });
 
     return MyConfig;

@@ -46,7 +46,10 @@ export function registerExtension(context: vscode.ExtensionContext) {
 	};
 
 	context.subscriptions.push(vscode.languages.registerDefinitionProvider(selector, new DefinitionFinder));
-	context.subscriptions.push(vscode.languages.registerReferenceProvider(selector, new ReferenceFinder));
+
+	if (!MyConfig.DisableFindReferenceFileExtensionRegex.source.match(/(^|\|)\.\*/)) {
+		context.subscriptions.push(vscode.languages.registerReferenceProvider(selector, new ReferenceFinder));
+	}
 
 	context.subscriptions.push(vscode.window.onDidOpenTerminal(terminal => {
 		if (MyConfig.SkipInitCmdAliasForNewTerminalTitleRegex.test(terminal.name) || terminal.name === 'MSR-RUN-CMD') {

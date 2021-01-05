@@ -3,7 +3,7 @@
     "displayName": "Search code + Replace files + Find definition and references for all types.",
     "description": "Search code + Replace files + Find definition and references in multiple repository paths by msr for all coding languages + configuration + doc files.",
     "author": "qualiu@microsoft.com",
-    "version": "2.1.6",
+    "version": "2.1.7",
     "icon": "images/vscode-msr-icon.png",
     "license": "completely free",
     "publisher": "qualiu",
@@ -947,8 +947,8 @@
                 },
                 "msr.disable.findRef.extensionPattern": {
                     "type": "string",
-                    "default": "tsx?|jsx?|.?",
-                    "description": "Regex pattern of file extensions to disable finding reference. Example: tsx?|jsx?|py|java|cpp"
+                    "default": "tsx?|jsx?|.*",
+                    "description": "Regex pattern of file extensions to disable finding reference. Example: tsx?|jsx?|py|java|cpp (Please reload vscode if removed `.*`)"
                 },
                 "msr.findingCommands.useExtraPaths": {
                     "type": "boolean",

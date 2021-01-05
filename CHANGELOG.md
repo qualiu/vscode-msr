@@ -2,6 +2,10 @@
 
 All notable changes to this "vscode-msr" extension will be documented in this file.
 
+## [2.1.7]
+
+- Unregistered `finding-reference` by adding `.*` in `msr.disable.findRef.extensionPattern`.
+
 ## [2.1.6]
 
 - Improved `git-ignore`: Added heading slash `/` to skip-patterns if it starts with a word.

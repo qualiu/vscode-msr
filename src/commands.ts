@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { MsrExe, setTimeoutInCommandLine, ToolChecker } from './checkTool';
 import { getConfigValueByRoot, getOverrideConfigByPriority, getSubConfigValue, RootFolder } from './configUtils';
-import { HomeFolder, SearchTextHolderReplaceRegex, SkipJumpOutForHeadResultsRegex } from './constants';
+import { HomeFolder, RemoveJumpRegex, SearchTextHolderReplaceRegex, SkipJumpOutForHeadResultsRegex } from './constants';
 import { FileExtensionToMappedExtensionMap, getConfig, getRootFolder, getRootFolderExtraOptions, getRootFolderName, getSearchPathOptions, GitIgnoreInfo, MyConfig, removeSearchTextForCommandLine, replaceToRelativeSearchPath } from './dynamicConfig';
 import { FindCommandType, TerminalType } from './enums';
 import { enableColorAndHideCommandLine, outputDebug, outputInfo, runCommandInTerminal } from './outputUtils';
@@ -11,7 +11,7 @@ import { SearchConfig } from './searchConfig';
 import { changeFindingCommandForLinuxTerminalOnWindows, DefaultTerminalType, getCurrentWordAndText, getExtensionNoHeadDot, IsLinuxTerminalOnWindows, isLinuxTerminalOnWindows, isNullOrEmpty, nowText, quotePaths, replaceTextByRegex, toOsPath, toPath } from './utils';
 import path = require('path');
 
-const ReplaceSearchPathRegex = /-r?p\s+\S+|-r?p\s+\".+?\"/;
+const ReplaceSearchPathRegex = /-r?p\s+\S+|-r?p\s+\".+?\"/g;
 
 function replaceSearchPathToDot(searchPathsOptions: string): string {
     return replaceTextByRegex(searchPathsOptions, ReplaceSearchPathRegex, '-rp .');
@@ -46,8 +46,9 @@ export function runFindingCommand(findCmd: FindCommandType, textEditor: vscode.T
     runCommandInTerminal(command, true, getConfig().ClearTerminalBeforeExecutingCommands);
 }
 
-export function runFindingCommandByCurrentWord(findCmd: FindCommandType, searchText: string, parsedFile: path.ParsedPath, rawSearchText: string = '') {
-    let command = getFindingCommandByCurrentWord(false, findCmd, searchText, parsedFile, rawSearchText, undefined);
+export function runFindingCommandByCurrentWord(findCmd: FindCommandType, searchText: string, parsedFile: path.ParsedPath,
+    rawSearchText: string = '', onlyRemoveJump: boolean = false) {
+    let command = getFindingCommandByCurrentWord(false, findCmd, searchText, parsedFile, rawSearchText, undefined, onlyRemoveJump);
     command = changeFindingCommandForLinuxTerminalOnWindows(command);
     command = setTimeoutInCommandLine(command, MyConfig.MaxWaitSecondsForAutoReSearchDefinition);
     command = GitIgnoreInfo.replaceToSkipPathVariable(command);
@@ -81,8 +82,8 @@ export function getSortCommandText(toRunInTerminal: boolean, useProjectSpecific:
 
     let searchPathsOptions = getSearchPathOptions(toRunInTerminal, useProjectSpecific, rootFolder, '', FindCommandType.RegexFindAsClassOrMethodDefinitionInCodeFiles === findCmd);
     if (isCookingCmdAlias) {
-        extraOptions = replaceTextByRegex(extraOptions, /(^|\s+)(-[lICc]\s+|-[HT]\s*\d+)/, ' ');
-        extraOptions = replaceTextByRegex(extraOptions, /(^|\s+)(--s[12])\s+\S+\s*/, ' ');
+        extraOptions = replaceTextByRegex(extraOptions, /(^|\s+)(-[lICc]\s+|-[HT]\s*\d+)/g, ' ');
+        extraOptions = replaceTextByRegex(extraOptions, /(^|\s+)(--s[12])\s+\S+\s*/g, ' ');
         extraOptions = extraOptions.trim() + ' -l' + optionalArgs;
         searchPathsOptions = replaceSearchPathToDot(searchPathsOptions);
     }
@@ -126,7 +127,8 @@ export function getFindTopDistributionCommand(toRunInTerminal: boolean, useProje
     return command.trimRight();
 }
 
-export function getFindingCommandByCurrentWord(toRunInTerminal: boolean, findCmd: FindCommandType, searchText: string, parsedFile: path.ParsedPath, rawSearchText: string = '', ranker: Ranker | undefined): string {
+export function getFindingCommandByCurrentWord(toRunInTerminal: boolean, findCmd: FindCommandType, searchText: string,
+    parsedFile: path.ParsedPath, rawSearchText: string = '', ranker: Ranker | undefined, onlyRemoveJump: boolean = false): string {
     const extension = getExtensionNoHeadDot(parsedFile.ext);
     const mappedExt = FileExtensionToMappedExtensionMap.get(extension) || extension;
     const rootFolder = getRootFolder(toPath(parsedFile), true) || '.';
@@ -338,7 +340,7 @@ export function getFindingCommandByCurrentWord(toRunInTerminal: boolean, findCmd
     }
 
     command = command.replace(SearchTextHolderReplaceRegex, searchText).trim();
-    command = command.replace(SkipJumpOutForHeadResultsRegex, ' ').trim();
+    command = command.replace(onlyRemoveJump ? RemoveJumpRegex : SkipJumpOutForHeadResultsRegex, ' ').trim();
     command = enableColorAndHideCommandLine(command);
     command = changeSearchFolderInCommand(command);
     return command;

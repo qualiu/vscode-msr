@@ -42,9 +42,9 @@ Then it's the **light** and **right** tool for you(just **2~3 MB** storage + **3
 
 - Also can find **definitions** + **references** from **any type of files** + **any type** (like text `in comments` or `just typed`).
 
-- Simple + flexible configuration (`just general Regex` of `C++`,`Java`,`C#`,`Python`), overwrite default settings if need.
+- **Self-reliance**: Learn/Ramp-up faster **by yourself** -- [**Code Digging without or with Little Knowledge**](#digging-code-without-or-with-little-knowledge).
 
-- [**Normal** + **Extensive Search**](#normal-and-extensive-search) knows and serves you better.
+- [**Normal** + **Extensive Search**](#normal-and-extensive-search): Search by hot-keys/menus or typing text, in or out of VSCODE.
 
 - **Easy** + **Fast** to [**Search Further** or **Replace Files**](#reuse-the-command-to-search-further-or-replace-files): Just **reuse** the search command line by an upper arrow.
 
@@ -57,6 +57,8 @@ Then it's the **light** and **right** tool for you(just **2~3 MB** storage + **3
 - [**Easy to Support New Languages**](#easy-to-support-new-languages) with an example of support `batch` scripts (`*.bat` + `*.cmd` files).
 
 - **Automated** command shortcuts on **Linux** + **WSL** + [**4 types of terminals on Windows**](#supported-4-terminal-types-on-windows).
+
+- Simple + flexible configuration (`just general Regex` of `C++`,`Java`,`C#`,`Python`), overwrite default settings if need.
 
 - All just leverage one [tiny exe: msr-EXE](https://github.com/qualiu/msr/blob/master/README.md) **without** `storage`/`cache`, `server`/`service`, `network`, etc.
   - This extension costs **2~3 MB** download/storage + **3~10 MB** running memory.
@@ -164,7 +166,7 @@ You can generate the command shortcuts (alias/doskey) to directly use for search
 ### Command Shortcuts
 
 - After you cooked command alias/doskeys, you'll see messages below: (You can **write**/**update** doskeys in file)
-- Automated command shortcuts on **Linux** + **WSL** + [**4 types of terminals** on Windows](#supported-4-terminal-types-on-windows).
+- Automated command shortcuts on **Linux** + **WSL** + [**4 types of terminals** on Windows](#supported-4-terminal-types-on-windows) to search or [**digging**](#digging-code-without-or-with-little-knowledge) or replace files.
 
 ```bash
 Now you can directly use the command shortcuts in/out-of vscode to search + replace like:
@@ -453,6 +455,54 @@ Supported various types of terminals: ([settings file](https://code.visualstudio
 root = /
 options = "metadata"
 ```
+
+### Digging Code without or with Little Knowledge
+
+You may need fuzzy code searching for cases like below:
+- Only got piece of words from others, just human language not the exact name of code (`class`/`method`).
+- Take over a project, or already ramp-up for several days, not easy to get help.
+
+Then you can try code/knowledge digging by yourself with vscode-msr: (after [**cooking doskey/alias**](#command-shortcuts) if **out of vscode**)
+
+Examples (run in vscode terminals: like `MSR-RUN-CMD` or add/open new terminals):
+- Fuzzy search a class/method:
+  - **find-def** `"\w*Keyword\w*You-Heard-or-Knew\w*"`
+- Fuzzy search a class/method, **ignore case**:
+	- **find-def** `"\w*Keyword\w*"` **-i**
+  - **find-def** `"\w*Keyword\w*"` **-i** -x `class`
+  - **find-ref** `"class\s+\w*Keyword\w*"` **-i**
+  - **find-all** -i -t `"class\s+\w*keyword\w*"`
+  - **find-def** `"\w*Keyword\w*"` **-i -x** `enum`
+  - **find-def** `"\w*Keyword\w*"` **-ix** `public` -H `20` -T `20` --nx `internal` -d `"^(src)$|keyword"` --nd `"test|^(unit|bin$)|demo"`
+  - **find-def** `"\w*Keyword\w*"` **-i** --nt `"private|protected"` --pp `"/src/|keyword"` --xp `test,/unit,/bin/,demo` --np `"test|/unit|/bin/"`
+  - **find-def** `"\w*Keyword\w*"` **-i** --nx `private` --nt `"protected|internal"` --xp `test,/unit,/bin/,demo` --pp `"/src/|keyword"` -H 20 -J ...
+
+- If you know the language type, like `Python`/`C#`, you can accelerate searching:
+  - **find-py-def** `"\w*(get|set|update)\w*Method-Keyword-You-Heard\w*"` -ix `public` --nx ... --nt ... --xp ... --pp ... --np ...
+  - **find-cs-def** `"\w*(get|set|update)\w*Method-Keyword-You-Heard\w*"` -i
+  - **find-cpp-ref** `"(class|enum)\s+\w*Class-Keyword-You-Heard\w*"` -i
+  - **find-java-ref** `"(class|enum)\s+\w*Class-Keyword-You-Heard\w*"` -i
+  - **find-go-ref** `"\w*Class-Keyword-You-Heard\w*"` -i -x `class`
+  - **find-ui** -it `"regex-pattern"` -x `"and-plain-text"`
+  - **find-code** -it `"(class|enum)\s+\w*Class-Keyword-You-Heard\w*"`
+  - **find-all** -i -t `"(class|enum)\s+\w*Class-Keyword-You-Heard\w*"`
+- Others like: (run command `alias find-xxx` to see the command template like `alias find-all`)
+  - **find-doc** -it `"regex-pattern"` -x `"and-plain-text"` --nx ... --nt ... --xp ... --pp ... --np ...
+  - **find-config** -it `"regex-pattern"` -x `"and-plain-text"`
+  - **find-small** -it `"regex-pattern"` -x `"and-plain-text"`
+  - **find-nd** -it `"regex-pattern"` -x `"and-plain-text"`
+  - **find-ndp** path1,path2,pathN -it `"regex-pattern"` -x `"and-plain-text"`
+- With other optional args like:
+  - **find-all** -it `"regex-pattern"` -x `"and-plain-text"` -l  just list matched file paths.
+  - **find-all** -x `"and-plain-text"` -it `"regex-pattern"` -o `"replace-regex-to-this"` -R replace files
+  - **find-all** -it `"regex-pattern"` -x `"and-plain-text"` -o `"replace-plain-text-to-this"` -R replace files
+  - **find-all** -it `"regex-pattern"` -x `"and-plain-text"` -U 5 -D 3 -H 100 -c Output `100 lines` with `5-rows-up` + `3-rows-down` for each match.
+  - **find-all** -it `"regex-pattern"` -x `"and-plain-text"` --nx `"not-contain-text"` --nt `"not-match-regex"` --xp `/bin/,debug/,test` --pp `expected-path-regex` --np `skip-path-regex` -U 3 -D 2 -H 100 -T 100 ...
+
+Once you found the results:
+- You can filter results by [appending filters](#search-files-with-rich-filters).
+- Click + open the search results in vscode and go-on.
+- [Search code together](#get-the-best-combined-power) with official vscode extensions (like: `vscode-python` / `vscode-go`) + official IDEs (like: `Visual Studio` / `PyCharm`).
 
 ### Additional Settings in [Your Personal Settings file](https://code.visualstudio.com/docs/getstarted/settings#_settings-file-locations)
 

@@ -1,16 +1,16 @@
-
 import { exec, ExecException, ExecOptions } from 'child_process';
 import * as vscode from 'vscode';
 import { setSearchDepthInCommandLine, setTimeoutInCommandLine, ToolChecker } from './checkTool';
 import { runFindingCommandByCurrentWord } from './commands';
 import { getConfigValueByRoot, getSubConfigValue } from './configUtils';
-import { IsWindows, SearchTextHolderReplaceRegex, SkipJumpOutForHeadResultsRegex } from './constants';
+import { IsDebugMode, IsWindows, RemoveJumpRegex, SearchTextHolderReplaceRegex } from './constants';
 import { FileExtensionToMappedExtensionMap, getConfig, getRootFolder, getRootFolderExtraOptions, getRootFolderName, getSearchPathOptions, GitIgnoreInfo, MyConfig } from './dynamicConfig';
-import { FindCommandType, FindType, TerminalType } from './enums';
+import { FindCommandType, FindType, ForceFindType, TerminalType } from './enums';
 import { outputDebug, outputDebugOrInfo, outputError, outputInfo, outputResult, outputWarn, runCommandInTerminal } from './outputUtils';
-import { ForceSetting, Ranker } from './ranker';
+import { Ranker } from './ranker';
 import { escapeRegExp } from './regexUtils';
 import { ResultType, ScoreTypeResult } from './ScoreTypeResult';
+import { SearchChecker } from './searchChecker';
 import { changeFindingCommandForLinuxTerminalOnWindows, DefaultTerminalType, getCurrentWordAndText, getExtensionNoHeadDot, IsLinuxTerminalOnWindows, isNullOrEmpty, nowText, quotePaths, toPath } from './utils';
 import ChildProcess = require('child_process');
 import path = require('path');
@@ -29,6 +29,32 @@ let SearchToCostSumMap = new Map<FindType, Number>();
 let SearchTimesMap = new Map<FindType, Number>();
 
 let RootConfig = MyConfig.RootConfig || vscode.workspace.getConfiguration('msr');
+let HasAlreadyReRunSearch: boolean = false;
+let CurrentSearchPidSet = new Set<number>();
+
+export function setReRunMark(hasAlreadyReRun: boolean) {
+  HasAlreadyReRunSearch = hasAlreadyReRun;
+}
+
+export function stopAllSearchers() {
+  if (CurrentSearchPidSet.size < 1) {
+    return;
+  }
+
+  const command = IsWindows
+    ? 'taskkill /F /T ' + Array.from(CurrentSearchPidSet).map(a => '/PID ' + a).join(' ')
+    : 'kill -9 ' + Array.from(CurrentSearchPidSet).join(' ');
+
+  const message = CurrentSearchPidSet.size + ' processes by command: ' + command;
+  outputDebugOrInfo(!IsDebugMode, nowText() + 'Will kill ' + message);
+  try {
+    ChildProcess.execSync(command);
+  } catch (err) {
+    outputDebug(nowText() + 'Failed to kill ' + message + ', error = ' + err.toString());
+  }
+
+  CurrentSearchPidSet.clear();
+}
 
 const LinuxToolChecker = new ToolChecker(DefaultTerminalType, false);
 if (IsLinuxTerminalOnWindows && TerminalType.CygwinBash === DefaultTerminalType) {
@@ -41,19 +67,16 @@ PlatformToolChecker.checkAndDownloadTool('nin');
 
 const RunCommandChecker = TerminalType.CygwinBash === DefaultTerminalType ? LinuxToolChecker : PlatformToolChecker;
 
-// outputDebug(nowText() + 'Finished to load extension and initialize. Cost ' + getTimeCostToNow(trackBeginLoadTime) + ' seconds.');
-
-// Cannot avoid too frequent searching by mouse hover + click, because `Visual Studio Code` will not effect. So let VSCode solve this bug.
-
 export class Searcher {
-  private FindType: FindType;
   public Name: string;
-  private SourcePath: string = '';
-  private MaxSearchDepth: number;
+  public SourcePath: string = '';
   public CommandLine: string;
   public Ranker: Ranker;
   public Process: ChildProcess.ChildProcess | null = null;
   public IsCompleted: boolean = false;
+
+  private MaxSearchDepth: number;
+  private FindType: FindType;
 
   constructor(findType: FindType, name: string, sourcePath: string, maxSearchDepth: number, commandLine: string, ranker: Ranker, timeoutSeconds: number) {
     this.FindType = findType;
@@ -92,31 +115,33 @@ export class Searcher {
   }
 }
 
-export function createSearcher(name: string, sourcePath: string, recursive: boolean,
-  findType: FindType, document: vscode.TextDocument, position: vscode.Position,
-  timeout: number = MyConfig.MaxWaitSecondsForSearchDefinition, maxSearchDepth: number = MyConfig.MaxSearchDepth,
-  forceSetting = new ForceSetting())
+export function createSearcher(searchChecker: SearchChecker, name: string, sourcePath: string, recursive: boolean,
+  forceFindType: ForceFindType = ForceFindType.None,
+  maxSearchDepth: number = MyConfig.MaxSearchDepth,
+  timeout: number = MyConfig.MaxWaitSecondsForSearchDefinition)
   : Searcher | null {
   outputDebug(nowText() + 'Will create ranker + command line for searcher: ' + name);
-  const [commandLine, ranker] = getSearchCommandLineAndRanker(findType, document, position, recursive, sourcePath, forceSetting);
+  const [commandLine, ranker] = getSearchCommandLineAndRanker(searchChecker, FindType.Definition, recursive, sourcePath, forceFindType);
   if (isNullOrEmpty(commandLine) || ranker === null) {
     return null;
   }
 
-  return new Searcher(findType, name, sourcePath, maxSearchDepth, commandLine, ranker, timeout);
+  return new Searcher(FindType.Definition, name, sourcePath, maxSearchDepth, commandLine, ranker, timeout);
 }
 
 export function createCommandSearcher(name: string, sourcePath: string, commandLine: string, ranker: Ranker,
-  timeout: number = MyConfig.MaxWaitSecondsForSearchDefinition, maxSearchDepth: number = MyConfig.MaxSearchDepth)
+  maxSearchDepth: number = MyConfig.MaxSearchDepth,
+  timeout: number = MyConfig.MaxWaitSecondsForSearchDefinition)
   : Searcher {
   return new Searcher(FindType.Definition, name, sourcePath, maxSearchDepth, commandLine, ranker, timeout);
 }
 
-function getSearchCommandLineAndRanker(findType: FindType,
-  document: vscode.TextDocument, position: vscode.Position, isRecursive: boolean,
-  forceSetSearchPath: string = '', forceSetting = new ForceSetting()):
-  [string, Ranker | null] {
-  const [parsedFile, extension, currentWord, currentWordRange, currentText] = getCurrentFileSearchInfo(document, position);
+function getSearchCommandLineAndRanker(searchChecker: SearchChecker, findType: FindType, isRecursive: boolean,
+  forceSetSearchPath: string = '', forceFindType: ForceFindType = ForceFindType.None)
+  : [string, Ranker | null] {
+  const document = searchChecker.Document;
+  const position = searchChecker.Position;
+  const [parsedFile, extension, currentWord, currentWordRange] = getCurrentFileSearchInfo(document, position);
   if (!PlatformToolChecker.checkSearchToolExists() || currentWord.length < 2 || !currentWordRange) {
     return ['', null];
   }
@@ -131,7 +156,7 @@ function getSearchCommandLineAndRanker(findType: FindType,
   const currentFilePath = toPath(parsedFile);
   const isSearchOneFile = forceSetSearchPath === currentFilePath;
   const isSearchOneFileOrFolder = isSearchOneFile || forceSetSearchPath === parsedFile.dir;
-  let ranker = new Ranker(document, findType, position, currentWord, currentWordRange, currentText, parsedFile, mappedExt, isSearchOneFileOrFolder, forceSetting);
+  let ranker = new Ranker(searchChecker, isSearchOneFileOrFolder, forceFindType);
 
   const configKeyName = FindType.Definition === findType ? 'definition' : 'reference';
   const [filePattern, searchOptions] = ranker.getFileNamePatternAndSearchOption(extension, configKeyName, parsedFile);
@@ -160,7 +185,8 @@ function getSearchCommandLineAndRanker(findType: FindType,
   const recursiveArg = isRecursive || isNullOrEmpty(forceSetSearchPath) ? '-rp ' : '-p ';
   const searchPathOptions = document.uri.fsPath === forceSetSearchPath
     ? recursiveArg + quotePaths(forceSetSearchPath)
-    : getSearchPathOptions(false, true, document.uri.fsPath, mappedExt, isFindDefinition, useExtraPathsForReference, useExtraPathsForDefinition, useSkipFolders, usePathListFiles, forceSetSearchPath);
+    : getSearchPathOptions(false, true, document.uri.fsPath, mappedExt, isFindDefinition, useExtraPathsForReference, useExtraPathsForDefinition,
+      useSkipFolders, usePathListFiles, forceSetSearchPath, isRecursive);
 
   let commandLine = 'msr ' + searchPathOptions;
   if (!isSearchOneFile) {
@@ -201,8 +227,9 @@ export function getCurrentFileSearchInfo(document: vscode.TextDocument, position
 
 export function getMatchedLocationsAsync(findType: FindType, cmd: string, ranker: Ranker, token: vscode.CancellationToken, searcher: Searcher | null = null): Thenable<vscode.Location[]> {
   const options: ExecOptions = {
-    cwd: getRootFolder(toPath(ranker.currentFile), true) || ranker.currentFile.dir,
-    timeout: 60 * 1000,
+    cwd: getRootFolder(toPath(ranker.searchChecker.currentFile), true) || ranker.searchChecker.currentFile.dir,
+    env: process.env,
+    // timeout: 60 * 1000,
     maxBuffer: 10240000,
   };
 
@@ -243,12 +270,26 @@ export function getMatchedLocationsAsync(findType: FindType, cmd: string, ranker
       resolve(allResults);
     });
 
+    CurrentSearchPidSet.add(process.pid);
     if (searcher) {
       searcher.Process = process;
     }
 
     token.onCancellationRequested(() => killProcess(process, 'Canceled searcher ' + (searcher ? searcher.toString() : '')));
   });
+}
+
+function killProcess(process: ChildProcess.ChildProcess | null, extraInfo: string = '') {
+  if (null === process) {
+    return;
+  }
+
+  try {
+    outputDebugOrInfo(!IsDebugMode, nowText() + 'Kill process ' + process.pid + ' ' + extraInfo.trimLeft());
+    process.kill();
+  } catch (err) {
+    outputError(nowText() + 'Failed to kill process ' + process.pid + ' ' + extraInfo.trimLeft() + ', error = ' + err.toString());
+  }
 }
 
 function findAndProcessSummary(skipIfNotMatch: boolean, summaryText: string, findType: FindType, cmd: string, ranker: Ranker): boolean {
@@ -279,24 +320,29 @@ function findAndProcessSummary(skipIfNotMatch: boolean, summaryText: string, fin
   if (match) {
     const lineCount = parseInt(match[2]);
     const costSeconds = parseFloat(match[3]);
-    outputDebug(nowText() + 'Got matched count = ' + matchCount + ' and time cost = ' + costSeconds + ' from summary, search word = ' + ranker.currentWord);
+    outputDebug(nowText() + 'Got matched count = ' + matchCount + ' and time cost = ' + costSeconds + ' from summary, search word = ' + ranker.searchChecker.currentWord);
     sumTimeCost(findType, costSeconds, lineCount);
     if (matchCount < 1 && RootConfig.get('enable.useGeneralFindingWhenNoResults') as boolean) {
       const findCmd = findType === FindType.Definition ? FindCommandType.RegexFindAsClassOrMethodDefinitionInCodeFiles : FindCommandType.RegexFindAsClassOrMethodDefinitionInCodeFiles;
-      if (!ranker.isOneFileOrFolder && ranker.canRunCommandInTerminal) {
-        runFindingCommandByCurrentWord(findCmd, ranker.currentWord, ranker.currentFile);
+      if (!HasAlreadyReRunSearch && !ranker.isOneFileOrFolder && ranker.canRunCommandInTerminal) {
+        HasAlreadyReRunSearch = true;
+        runFindingCommandByCurrentWord(findCmd, ranker.searchChecker.currentWord, ranker.searchChecker.currentFile, '', true);
         outputInfo(nowText() + 'Will run general search, please check results in `MSR-RUN-CMD` in `TERMINAL` tab. Set `msr.quiet` to avoid switching tabs; Disable `msr.enable.useGeneralFindingWhenNoResults` to disable re-running.');
         outputInfo(nowText() + 'Try extensive search if still no results. Use context menu or: Click a word or select a text  --> Press `F12` --> Type `msr` + `find` and choose to search.');
       }
     }
-    else if (ranker.canRunCommandInTerminal && matchCount > MyConfig.ReRunSearchInTerminalIfResultsMoreThan && costSeconds <= MyConfig.ReRunCmdInTerminalIfCostLessThan) {
+    else if (!HasAlreadyReRunSearch && ranker.canRunCommandInTerminal && matchCount > MyConfig.ReRunSearchInTerminalIfResultsMoreThan && costSeconds <= MyConfig.ReRunCmdInTerminalIfCostLessThan) {
+      HasAlreadyReRunSearch = true;
       outputInfo(nowText() + 'Will re-run and show clickable + colorful results in `MSR-RUN-CMD` in `TERMINAL` tab. Set `msr.quiet` to avoid switching tabs; Decrease `msr.reRunSearchInTerminalIfCostLessThan` value for re-running.');
       cmd = changeFindingCommandForLinuxTerminalOnWindows(cmd);
       cmd = GitIgnoreInfo.replaceToSkipPathVariable(cmd);
-      runCommandInTerminal(RunCommandChecker.toRunnableToolPath(cmd).replace(SkipJumpOutForHeadResultsRegex, ' ').trim(), false, getConfig().ClearTerminalBeforeExecutingCommands);
+      cmd = RunCommandChecker.toRunnableToolPath(cmd);
+      // cmd = cmd.replace(SkipJumpOutForHeadResultsRegex, ' ').trim();
+      cmd = cmd.replace(RemoveJumpRegex, ' ').trim();
+      runCommandInTerminal(cmd, false, getConfig().ClearTerminalBeforeExecutingCommands);
     }
   } else if (!ranker.isOneFileOrFolder) {
-    outputDebug(nowText() + 'Failed to get time cost in summary. Search word = ' + ranker.currentWord);
+    outputDebug(nowText() + 'Failed to get time cost in summary. Search word = ' + ranker.searchChecker.currentWord);
   }
 
   return true;
@@ -352,9 +398,9 @@ function parseCommandOutput(stdout: string, findType: FindType, cmd: string, ran
     return allResults;
   }
 
-  const rootFolderName = getRootFolderName(toPath(ranker.currentFile));
-  const removeLowScoreResultsFactor = Number(getConfigValueByRoot(rootFolderName, ranker.extension, ranker.mappedExt, 'removeLowScoreResultsFactor') || 0.8);
-  const keepHighScoreResultCount = Number(getConfigValueByRoot(rootFolderName, ranker.extension, ranker.mappedExt, 'keepHighScoreResultCount') || -1);
+  const rootFolderName = getRootFolderName(toPath(ranker.searchChecker.currentFile));
+  const removeLowScoreResultsFactor = Number(getConfigValueByRoot(rootFolderName, ranker.searchChecker.extension, ranker.searchChecker.mappedExt, 'removeLowScoreResultsFactor') || 0.8);
+  const keepHighScoreResultCount = Number(getConfigValueByRoot(rootFolderName, ranker.searchChecker.extension, ranker.searchChecker.mappedExt, 'keepHighScoreResultCount') || -1);
 
   let scoreSum = 0;
   let scoreList: Number[] = [];
@@ -375,12 +421,11 @@ function parseCommandOutput(stdout: string, findType: FindType, cmd: string, ran
   });
 
   typeToResultsMap.forEach((v, type) => {
-    outputDebug(nowText() + ResultType[type] + ' count = ' + v.length + ', search word = ' + ranker.currentWord);
+    outputDebug(nowText() + ResultType[type] + ' count = ' + v.length + ', search word = ' + ranker.searchChecker.currentWord);
   });
 
   let highValueResults = [...typeToResultsMap.get(ResultType.Class) || [], ...typeToResultsMap.get(ResultType.Enum) || []];
-
-  [ResultType.Interface, ResultType.Method, ResultType.Other].forEach((type) => {
+  [ResultType.Interface, ResultType.Method, ResultType.ConstantValue, ResultType.Member, ResultType.LocalVariable, ResultType.None].forEach((type) => {
     if (highValueResults.length < 1) {
       highValueResults = typeToResultsMap.get(type) || [];
     }
@@ -472,13 +517,13 @@ function parseMatchedText(text: string, ranker: Ranker): ScoreTypeResult | null 
   let m;
   if ((m = GetFileLineTextRegex.exec(text)) !== null) {
     const uri = vscode.Uri.file(m[1]);
-    const wm = ranker.currentWordRegex.exec(m[3]);
+    const wm = ranker.searchChecker.currentWordRegex.exec(m[3]);
     if (wm !== null) {
       const row = parseInt(m[2]);
       const begin = new vscode.Position(row - 1, Math.max(0, wm.index - 1));
       // some official extension may return whole function block.
       // const end = new vscode.Position(row - 1, wm.index - 1 + ranker.currentWord.length - 1);
-      const [type, score] = MyConfig.NeedSortResults ? ranker.getTypeAndScore(begin, m[1], m[3]) : [ResultType.Other, 1];
+      const [type, score] = MyConfig.NeedSortResults ? ranker.getTypeAndScore(begin, m[1], m[3]) : [ResultType.None, 1];
       if (!MyConfig.NeedSortResults) {
         console.log('Score = ' + score + ': ' + text);
       }
@@ -486,7 +531,7 @@ function parseMatchedText(text: string, ranker: Ranker): ScoreTypeResult | null 
       return 0 === score ? null : new ScoreTypeResult(score, type, text, new vscode.Location(uri, begin));
     }
     else {
-      outputError(nowText() + 'Failed to match words by Regex = "' + ranker.currentWordRegex + '" from matched result: ' + m[3]);
+      outputError(nowText() + 'Failed to match words by Regex = "' + ranker.searchChecker.currentWordRegex + '" from matched result: ' + m[3]);
     }
   }
   else {
@@ -495,18 +540,3 @@ function parseMatchedText(text: string, ranker: Ranker): ScoreTypeResult | null 
 
   return null;
 }
-
-function killProcess(process: ChildProcess.ChildProcess | null, extraInfo: string = '') {
-  if (null === process) {
-    return;
-  }
-  try {
-    outputDebug(nowText() + 'Kill process ' + process.pid + ' ' + extraInfo.trimLeft());
-    process.kill();
-  } catch (err) {
-    const message = nowText() + 'Failed to kill process ' + process.pid + ' ' + extraInfo.trimLeft() + ', error = ' + err.toString();
-    outputError(message);
-    console.log(message);
-  }
-}
-

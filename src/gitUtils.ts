@@ -74,14 +74,14 @@ export class GitIgnore {
     return this.IsCmdTerminal ? '"%' + SkipPathVariableName + '%"' : '"$' + SkipPathVariableName + '"';
   }
 
-  private exportSkipPathVariable() {
+  private exportSkipPathVariable(): boolean {
     const pattern = this.SkipPathPattern;
     if (isNullOrEmpty(pattern)) {
-      return;
+      return false;
     }
 
     if (pattern.length <= this.ExportLongSkipGitPathsLength) {
-      return;
+      return false;
     }
 
     if (pattern !== this.LastExportedSkipPaths) {
@@ -89,6 +89,8 @@ export class GitIgnore {
       const command = (this.IsCmdTerminal ? 'call ' : 'source ') + quotePaths(toOsPath(this.SetSkipPathEnvFile, this.Terminal));
       runCommandInTerminal(command, true, false, IsLinuxTerminalOnWindows);
     }
+
+    return true;
   }
 
   private getExportCommand(pattern: string): string {
@@ -99,8 +101,9 @@ export class GitIgnore {
   }
 
   public replaceToSkipPathVariable(command: string): string {
-    this.exportSkipPathVariable();
-    command = command.replace('"' + this.SkipPathPattern + '"', this.getSkipPathsVariable());
+    if (this.exportSkipPathVariable()) {
+      command = command.replace('"' + this.SkipPathPattern + '"', this.getSkipPathsVariable());
+    }
     return command;
   }
 
@@ -246,10 +249,10 @@ export class GitIgnore {
           + ' which is max command length of ' + TerminalType[this.Terminal] + ' terminal.';
         outputError(nowText() + warning);
         warning = IsLinuxTerminalOnWindows ? warning.replace(this.IgnoreFilePath, this.IgnoreFilePath.replace(/\\/g, '/')) : warning;
-        runRawCommandInTerminal(tipHead + warning + ' | msr -aPA -t "(not use \\S+)|\\d+ e\\w+" -e "\\d+" -x ' + this.MaxCommandLength);
+        runRawCommandInTerminal(tipHead + warning + ' | msr -aPA -t "(not use \\S+)|[1-9]\\d* e\\w+" -e "\\d+" -x ' + this.MaxCommandLength);
       } else if (errorList.length > 0 || this.ExemptionCount > 0) {
         parsedInfo = IsLinuxTerminalOnWindows ? parsedInfo.replace(this.IgnoreFilePath, this.IgnoreFilePath.replace(/\\/g, '/')) : parsedInfo;
-        runRawCommandInTerminal(tipHead + parsedInfo + ' | msr -aPA -e "\\d+" -t "\\d+ e\\w+"');
+        runRawCommandInTerminal(tipHead + parsedInfo + ' | msr -aPA -e "\\d+" -t "[1-9]\\d* e\\w+" -x ignored');
       }
     });
   }

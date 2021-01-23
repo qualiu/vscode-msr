@@ -2,6 +2,11 @@
 
 All notable changes to this "vscode-msr" extension will be documented in this file.
 
+## [2.1.9]
+- Improved searching precision + Added more specific settings for languages.
+- Stopped current searchers if found + stop previous running searchers before new searching.
+- Used `git-ignore` as default path filter by setting `msr.useGitIgnoreFile` = true.
+
 ## [2.1.8]
 - Updated `git-ignore` patterns: Added trailing slash `/` to some word patterns.
 - Added a menu: `msr.compareFileListsWithGitIgnore` to compare file lists if enabled `msr.useGitIgnoreFile`.
@@ -48,7 +53,7 @@ All notable changes to this "vscode-msr" extension will be documented in this fi
 - Check and support `--timeout` option when searching.
 - Accelerated searching + improved result precision.
 - Improved finding class from script/doc/config files.
-- Added `msr.default.isFindClassWithWordCheck` + `msr.useDefaultFindingClass.extensions`.
+- Added `msr.default.isFindClassByWordCheck` + `msr.useDefaultFindingClass.extensions`.
 - Reduced duplicate search caused by `Peek` + `Go-To` definition from mouse-click.
 - Support timeout for searching or running commands:
   - Added `msr.searchDefinition.timeoutSeconds` + `msr.autoRunSearchDefinition.timeoutSeconds`.

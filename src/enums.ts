@@ -1,10 +1,12 @@
 
 export enum FindType {
+    None = 0,
     Definition = 1,
     Reference = 2,
 }
 
 export enum TerminalType {
+    None = 0,
     CMD = 1,
     PowerShell = 2,
     LinuxBash = 3,
@@ -13,7 +15,16 @@ export enum TerminalType {
     WslBash = 6
 }
 
+export enum ForceFindType {
+    None = 0,
+    FindClass = 1 << 1,
+    FindMethod = 1 << 2,
+    FindMember = 1 << 3,
+    FindLocalVariable = 1 << 4
+}
+
 export enum FindCommandType {
+    None = 0,
     RegexFindAsClassOrMethodDefinitionInCodeFiles,
     RegexFindDefinitionInCurrentFile,
     RegexFindReferencesInCurrentFile,

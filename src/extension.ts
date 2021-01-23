@@ -4,13 +4,14 @@ import * as vscode from 'vscode';
 import { IsForwardingSlashSupportedOnWindows, MsrExe } from './checkTool';
 import { getFindingCommandByCurrentWord, runFindingCommand } from './commands';
 import { getConfigValueByRoot } from './configUtils';
-import { IsWindows, SearchTextHolderReplaceRegex } from './constants';
+import { IsDebugMode, IsWindows, SearchTextHolderReplaceRegex } from './constants';
 import { cookCmdShortcutsOrFile } from './cookCommandAlias';
 import { FileExtensionToMappedExtensionMap, getConfig, getRootFolder, getRootFolderName, GitIgnoreInfo, MyConfig, printConfigInfo } from './dynamicConfig';
-import { FindCommandType, FindType, TerminalType } from './enums';
-import { clearOutputChannel, disposeTerminal, outputDebug, RunCmdTerminalName, runRawCommandInTerminal } from './outputUtils';
-import { ForceSetting, Ranker } from './ranker';
-import { createCommandSearcher, createSearcher, getCurrentFileSearchInfo, PlatformToolChecker, Searcher } from './searcher';
+import { FindCommandType, FindType, ForceFindType, TerminalType } from './enums';
+import { clearOutputChannel, disposeTerminal, outputDebug, outputDebugOrInfo, RunCmdTerminalName, runRawCommandInTerminal } from './outputUtils';
+import { Ranker } from './ranker';
+import { SearchChecker } from './searchChecker';
+import { createCommandSearcher, createSearcher, getCurrentFileSearchInfo, PlatformToolChecker, Searcher, setReRunMark, stopAllSearchers } from './searcher';
 import { DefaultTerminalType, getExtensionNoHeadDot, isNullOrEmpty, nowText, quotePaths, toPath } from './utils';
 import path = require('path');
 
@@ -256,6 +257,7 @@ runRawCommandInTerminal('echo TerminalType = ' + TerminalType[DefaultTerminalTyp
 
 export class DefinitionFinder implements vscode.DefinitionProvider {
 	public async provideDefinition(document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken): Promise<vscode.Location[] | null> {
+		setReRunMark(false);
 		if (MyConfig.shouldSkipFinding(FindType.Definition, document.fileName)) {
 			return Promise.resolve([]);
 		}
@@ -265,6 +267,7 @@ export class DefinitionFinder implements vscode.DefinitionProvider {
 			return LastSearchInfo.AsyncResult;
 		}
 
+		stopAllSearchers();
 		const [parsedFile, extension, currentWord, currentWordRange, currentText] = getCurrentFileSearchInfo(document, position);
 		if (!PlatformToolChecker.checkSearchToolExists() || currentWord.length < 2 || !currentWordRange) {
 			return Promise.resolve([]);
@@ -274,58 +277,96 @@ export class DefinitionFinder implements vscode.DefinitionProvider {
 		clearOutputChannel();
 
 		const mappedExt = FileExtensionToMappedExtensionMap.get(extension) || extension;
+
 		// rootFolder is empty for external file:
 		const rootFolder = getRootFolder(document.fileName);
 		const isExternalFile = isNullOrEmpty(rootFolder);
 		const sourceFileFolder = path.parse(document.fileName).dir;
 
 		const isScriptFile = MyConfig.isScriptFile(extension);
-		const currentFileDefinitionSearcher = getCommandToSearchDefinitionInCurrentFile(document, position);
-		const currentFileVariableDefinitionSearcher = getCommandToSearchLocalVariableOrConstant(document, position);
-		const currentFileVariableInitSearcher = getCommandToSearchLocalVariableOrConstant(document, position, true);
 
-		let currentFileSearchers = [
-			createSearcher("Search-Current-File-Class", document.fileName, false, FindType.Definition, document, position, -1, 1, new ForceSetting(true)),
-			createSearcher("Search-Current-File-Method", document.fileName, false, FindType.Definition, document, position, -1, 1, new ForceSetting(false, true)),
-			createSearcher("Search-Current-File", document.fileName, false, FindType.Definition, document, position, -1, 1)
-		];
+		const searchChecker = new SearchChecker(document, FindType.Definition, position, currentWord, currentWordRange, currentText, parsedFile, mappedExt);
+		const defaultForceSettings = searchChecker.getDefaultForceSettings();
+		const defaultForceFindClassMethod = defaultForceSettings.getAllFlagsExcept([ForceFindType.FindLocalVariable, ForceFindType.FindMember]);
+		const defaultForceFindClassMethodMember = defaultForceSettings.getAllFlagsExcept([ForceFindType.FindLocalVariable]);
+		const isFindClassOrMethod = searchChecker.isFindClass || searchChecker.isFindMethod || searchChecker.isFindClassOrMethod;
+		const currentFileDefinitionSearcher = getCommandToSearchDefinitionInCurrentFile(searchChecker);
+		const currentFileVariableDefinitionSearcher = getCommandToSearchLocalVariableOrConstant(searchChecker);
+		const currentFileVariableInitSearcher = getCommandToSearchLocalVariableOrConstant(searchChecker, true);
 
-		if (/^[_a-z]/.test(currentWord) && (isScriptFile || new RegExp(currentWord + '\\s*=').test(currentText))) {
-			currentFileSearchers.push(currentFileVariableDefinitionSearcher);
-			currentFileSearchers.push(currentFileVariableInitSearcher);
+		let commandLineSet = new Set<string>();
+		function canAddSearcher(searcher: Searcher | null): boolean {
+			return searcher !== null && !commandLineSet.has(searcher.CommandLine);
 		}
 
-		let currentFolderSearchers = [
-			createSearcher("Search-Current-Folder-Class-Method", sourceFileFolder, false, FindType.Definition, document, position, -1, 1, new ForceSetting(true, true)),
-			createSearcher("Search-Current-Folder", sourceFileFolder, false, FindType.Definition, document, position, -1, 1)
-		];
-
-		let slowSearchers: (Searcher | null)[] = [];
-		slowSearchers.push(createSearcher("Search-Current-Folder-Recursively", sourceFileFolder, true, FindType.Definition, document, position, 9, 7));
-
-		const parentFolder = path.dirname(sourceFileFolder);
-		const parentFolders = Array.from(new Set<string>([parentFolder, path.dirname(parentFolder)]));
-		const diskRegex = IsWindows ? /^[A-Z]:\\.+?\\\w+/i : new RegExp('^/[^/]+/[^/]+$');
-		for (let k = 0; k < parentFolders.length; k++) {
-			// avoid searching disk root for external files + avoid out of repo folder for internal files.
-			if (isExternalFile && parentFolders[k].match(diskRegex) || !isExternalFile && parentFolders[k].startsWith(rootFolder)) {
-				slowSearchers.push(createSearcher("Search-Parent-Up-" + (k + 1), parentFolders[k], true, FindType.Definition, document, position, 16, 9));
+		function addSearcher(searchers: (Searcher | null)[], searcher: Searcher | null) {
+			if (searcher && canAddSearcher(searcher)) {
+				searchers.push(searcher);
+				commandLineSet.add(searcher.CommandLine);
 			}
 		}
 
-		const testFolderMatch = document.fileName.match(new RegExp('[\\\\/]test[\\\\/]'));
-		if (testFolderMatch) {
-			const testParentFolder = document.fileName.substring(0, testFolderMatch.index);
-			slowSearchers.push(createSearcher('Search-Test-Parent-Folder', testParentFolder, true, FindType.Definition, document, position));
+		let currentFileSearchers = [
+			createSearcher(searchChecker, "Search-Current-File", document.fileName, false, defaultForceFindClassMethod)
+		];
+
+		if (searchChecker.isFindMember && !isFindClassOrMethod) {
+			addSearcher(currentFileSearchers, createSearcher(searchChecker, "Search-Current-File-Member", document.fileName, false, ForceFindType.FindMember));
+		}
+		else if (searchChecker.maybeFindLocalVariable) {
+			addSearcher(currentFileSearchers, createSearcher(searchChecker, "Search-Current-File-LocalMember", document.fileName, false, ForceFindType.FindMember | ForceFindType.FindLocalVariable));
 		}
 
-		const repoSearcher = isNullOrEmpty(rootFolder) ? null : createSearcher("Search-This-Repo", rootFolder, true, FindType.Definition, document, position);
-		slowSearchers.push(repoSearcher);
+		const shouldFindLocalVariable = /^_?[a-z]\w+/.test(currentWord) && (isScriptFile || new RegExp('\\b' + currentWord + '\\b\\S*\\s*=').test(currentText));
+		if (shouldFindLocalVariable) {
+			addSearcher(currentFileSearchers, currentFileVariableDefinitionSearcher);
+			addSearcher(currentFileSearchers, currentFileVariableInitSearcher);
+		}
 
-		const fullSearcher = createSearcher("Search-Repo-With-Extra-Paths", '', true, FindType.Definition, document, position);
+		if (searchChecker.isProbablyFindLocalVariable) {
+			addSearcher(currentFileSearchers, getCommandToSearchLocalVariableOrConstant(searchChecker, false, true));
+		}
+
+		let currentFolderSearchers: (Searcher | null)[] = [];
+		addSearcher(currentFolderSearchers, createSearcher(searchChecker, "Search-Current-Folder", sourceFileFolder, false, defaultForceFindClassMethodMember, 1));
+
+		addSearcher(currentFolderSearchers, createSearcher(searchChecker, "Search-Current-Folder-Member", sourceFileFolder, false, defaultForceFindClassMethodMember, 1));
+
+		if (!isExternalFile) {
+			addSearcher(currentFolderSearchers, createSearcher(searchChecker, "Search-Current-Folder-Recursively", sourceFileFolder, true, defaultForceFindClassMethodMember, 9, 7));
+		}
+
+		let slowSearchers: (Searcher | null)[] = [];
+		let parentFolder = path.dirname(sourceFileFolder);
+		const diskRegex = IsWindows ? /^[A-Z]:\\.+?\\\w+/i : new RegExp('^/[^/]+/[^/]+$');
+		for (let k = 0; k < 3; k++) {
+			// avoid searching disk root for external files + avoid out of repo folder for internal files.
+			if (!parentFolder.startsWith(rootFolder) || !parentFolder.match(diskRegex)) {
+				break;
+			}
+			commandLineSet.add(parentFolder);
+			addSearcher(slowSearchers, createSearcher(searchChecker, "Search-Parent-Up-" + (k + 1), parentFolder, true, defaultForceFindClassMethodMember, 16, 9));
+			parentFolder = path.dirname(parentFolder);
+		}
+
+		// speed up for languages like: Java/Scala
+		const testFolderMatch = document.fileName.match(new RegExp('[\\\\/]test[\\\\/]'));
+		if (!isExternalFile && testFolderMatch) {
+			const testParentFolder = document.fileName.substring(0, testFolderMatch.index);
+			if (!commandLineSet.has(testParentFolder)) {
+				addSearcher(slowSearchers, createSearcher(searchChecker, 'Search-Parent-Test-Folder', testParentFolder, true));
+				commandLineSet.add(testParentFolder);
+			}
+		}
+
+		const repoSearcher = isNullOrEmpty(rootFolder) || commandLineSet.has(rootFolder) ? null : createSearcher(searchChecker, "Search-This-Repo", rootFolder, true);
+		addSearcher(slowSearchers, repoSearcher);
+		commandLineSet.add(rootFolder);
+
+		const fullSearcher = createSearcher(searchChecker, "Search-Repo-With-Extra-Paths", '', true);
 		if (fullSearcher && (!repoSearcher || fullSearcher.CommandLine !== repoSearcher.CommandLine)) {
 			fullSearcher.CommandLine = fullSearcher.CommandLine.replace(rootFolder + ',', '');
-			slowSearchers.push(fullSearcher);
+			addSearcher(slowSearchers, fullSearcher);
 		}
 
 		async function runSearchers(searchers: (Searcher | null)[]): Promise<vscode.Location[]> {
@@ -346,13 +387,14 @@ export class DefinitionFinder implements vscode.DefinitionProvider {
 					if (searchers) {
 						searchers.forEach(a => {
 							if (a && a === searchers[index]) {
-								outputDebug(nowText() + "Found by searcher: " + a.toString());
+								outputDebugOrInfo(!IsDebugMode, nowText() + "Found by searcher: " + a.toString());
 							}
 
 							if (a && a !== searchers[index]) {
 								a.stop();
 							}
 						});
+						stopAllSearchers();
 					}
 					return Promise.resolve(currentResults);
 				} else if (index + 1 < results.length) {
@@ -388,7 +430,7 @@ export class DefinitionFinder implements vscode.DefinitionProvider {
 		let group2 = isScriptFile ? [currentFileVariableDefinitionSearcher] : [];
 		let finalGroup = [currentFileDefinitionSearcher, currentFileVariableDefinitionSearcher, currentFileVariableInitSearcher];
 		if (/[^A-Z]/.test(currentWord) && new RegExp('[\\.:]' + currentWord + '\\b').test(currentText) && repoSearcher && repoSearcher.CommandLine) {
-			const ranker = new Ranker(document, FindType.Definition, position, currentWord, currentWordRange, currentText, parsedFile, mappedExt, true, new ForceSetting(false, false, true));
+			const ranker = new Ranker(searchChecker, true, ForceFindType.FindLocalVariable);
 			let command = repoSearcher.CommandLine;
 			let match = /\s+-t (\S+|"[^"]+")\s+/.exec(command);
 			if (match) {
@@ -427,7 +469,10 @@ export class ReferenceFinder implements vscode.ReferenceProvider {
 			return Promise.resolve([]);
 		}
 
-		const searcher = createSearcher('Search-Reference', '', true, FindType.Definition, document, position);
+		const [parsedFile, extension, currentWord, currentWordRange, currentText] = getCurrentFileSearchInfo(document, position);
+		const mappedExt = FileExtensionToMappedExtensionMap.get(extension) || extension;
+		const searchChecker = new SearchChecker(document, FindType.Definition, position, currentWord, currentWordRange, currentText, parsedFile, mappedExt);
+		const searcher = createSearcher(searchChecker, 'Search-Reference', '', true);
 		if (!searcher) {
 			return Promise.resolve([]);
 		}
@@ -436,10 +481,9 @@ export class ReferenceFinder implements vscode.ReferenceProvider {
 	}
 }
 
-function getCommandToSearchDefinitionInCurrentFile(document: vscode.TextDocument, position: vscode.Position): Searcher {
-	const [parsedFile, extension, currentWord, currentWordRange, currentText] = getCurrentFileSearchInfo(document, position);
-	const mappedExt = FileExtensionToMappedExtensionMap.get(extension) || extension;
-	let ranker = new Ranker(document, FindType.Definition, position, currentWord, currentWordRange, currentText, parsedFile, mappedExt, true);
+function getCommandToSearchDefinitionInCurrentFile(searchChecker: SearchChecker): Searcher {
+	const [parsedFile, , currentWord,] = getCurrentFileSearchInfo(searchChecker.Document, searchChecker.Position);
+	let ranker = new Ranker(searchChecker, true);
 
 	let command = getFindingCommandByCurrentWord(false, FindCommandType.RegexFindDefinitionInCurrentFile, currentWord, parsedFile, '', ranker);
 	if (/\s+-[A-Zc]*?I[A-Zc]*(\s+|$)/.test(command) === false) {
@@ -457,20 +501,32 @@ function getCommandToSearchDefinitionInCurrentFile(document: vscode.TextDocument
 	return createCommandSearcher('Search-Definition-In-Current-File', toPath(parsedFile), command, ranker);
 }
 
-function getSearchPatternForLocalVairableOrConstant(currentWord: string) {
-	return '^\\s*' + currentWord + '\\s*=\\s*\\S+' + '|' + '\\w+\\s+(' + currentWord + ')\\s*=' + '|' + '\\([\\w\\s]*?' + currentWord + '\\s*(in|:)\\s*\\w+';
+function getSearchPatternForLocalVairableOrConstant(currentWord: string, isSimpleDefineAndInit = false) {
+	return isSimpleDefineAndInit
+		? "^\\s*\\w+\\s+" + currentWord + "\\s*=\\s*\\S+"
+		: '^\\s*' + currentWord + '\\s*=\\s*\\S+'
+		+ '|' + '\\w+\\s+' + currentWord + '\\s*='
+		+ '|' + '\\([\\w\\s]*?' + currentWord + '\\s*(in|:)\\s*\\w+';
 }
 
-function getCommandToSearchLocalVariableOrConstant(document: vscode.TextDocument, position: vscode.Position, isVariableInit = false): Searcher {
-	const [parsedFile, extension, currentWord, currentWordRange, currentText] = getCurrentFileSearchInfo(document, position);
+function getCommandToSearchLocalVariableOrConstant(searchChecker: SearchChecker, isVariableInit = false, isSimpleDefineAndInit = false): Searcher {
+	const [parsedFile, extension, currentWord,] = getCurrentFileSearchInfo(searchChecker.Document, searchChecker.Position);
 	const mappedExt = FileExtensionToMappedExtensionMap.get(extension) || extension;
-	let ranker = new Ranker(document, FindType.Definition, position, currentWord, currentWordRange, currentText, parsedFile, mappedExt, true, new ForceSetting(false, false, true));
-	const pattern = isVariableInit
-		? getSearchPatternForLocalVairableOrConstant(currentWord)
-		: getConfigValueByRoot(getRootFolderName(document.fileName), extension, mappedExt, 'definition') + '|^\\w*[^;]{0,120}\\s+' + currentWord + '\\s*;\\s*$';
+	let ranker = new Ranker(searchChecker, true, ForceFindType.FindLocalVariable);
+	const pattern = isVariableInit || isSimpleDefineAndInit
+		? getSearchPatternForLocalVairableOrConstant(currentWord, isSimpleDefineAndInit)
+		: getConfigValueByRoot(getRootFolderName(searchChecker.Document.fileName), extension, mappedExt, 'definition') + '|^\\w*[^;]{0,120}\\s+' + currentWord + '\\s*;\\s*$';
 
-	const filePath = quotePaths(document.fileName);
-	let command = MsrExe + ' -p ' + filePath + ' -t "' + pattern + '"' + ' -N ' + position.line + ' -T 1 -I -C';
+	const filePath = quotePaths(searchChecker.Document.fileName);
+	let command = MsrExe + ' -p ' + filePath + ' -t "' + pattern + '"' + ' -N ' + searchChecker.Position.line + ' -T 1 -I -C';
 	command = command.replace(SearchTextHolderReplaceRegex, currentWord).trim();
-	return createCommandSearcher('Search-Local-Variable-Definition-In-Current-File', toPath(parsedFile), command, ranker);
+
+	const name = isSimpleDefineAndInit
+		? "Search-Local-Tmp-Variable-Definition-Init-In-CurrentFile"
+		: (isVariableInit
+			? "Search-Local-Variable-Definition-In-Current-File"
+			: "Search-Local-Variable-Init-In-Current-File"
+		);
+
+	return createCommandSearcher(name, toPath(parsedFile), command, ranker);
 }

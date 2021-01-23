@@ -8,7 +8,7 @@ import { GitIgnore } from './gitUtils';
 import { clearTerminal, getTerminal, outputDebug, outputInfo } from './outputUtils';
 import { createRegex, escapeRegExp } from './regexUtils';
 import { SearchConfig } from './searchConfig';
-import { DefaultTerminalType, getExtensionNoHeadDot, getUniqueStringSetNoCase, IsLinuxTerminalOnWindows, isLinuxTerminalOnWindows, isNullOrEmpty, nowText, quotePaths, replaceTextByRegex, toOsPath, toOsPaths, toOsPathsForText, toWSLPaths } from './utils';
+import { DefaultTerminalType, getExtensionNoHeadDot, getUniqueStringSetNoCase, IsLinuxTerminalOnWindows, isLinuxTerminalOnWindows, isNullOrEmpty, nowText, quotePaths, toOsPath, toOsPaths, toOsPathsForText, toWSLPaths } from './utils';
 
 const SplitPathsRegex = /\s*[,;]\s*/;
 const SplitPathGroupsRegex = /\s*;\s*/;
@@ -263,12 +263,12 @@ export class DynamicConfig {
             return textSet;
         }
 
-        const trimRegex = /^[\s\*/]+|[\s\*/]+$/;
+        const trimRegex = /^[\s\*/]+|[\s\*/]+$/g;
         try {
             let map = new Map(Object.entries(config.exclude));
             map.forEach((value, key, _m) => {
                 if (value) {
-                    let text = replaceTextByRegex(key, trimRegex, '');
+                    let text = key.replace(trimRegex, '');
                     if (/^[\w-]+$/.test(text)) {
                         textSet.add(text);
                     }
@@ -379,14 +379,17 @@ export function getSearchPathOptions(
     useExtraSearchPathsForDefinition: boolean = true,
     useSkipFolders: boolean = true,
     usePathListFiles: boolean = true,
-    forceSetSearchPath: string = ''): string {
+    forceSetSearchPath: string = '',
+    isRecursive: boolean = true): string {
     const rootFolder = getRootFolder(codeFilePath);
+
     const rootFolderName = getRootFolderName(codeFilePath, true);
     const findAllFolders = isFindingDefinition ? MyConfig.FindDefinitionInAllFolders : MyConfig.FindReferencesInAllRootFolders;
     const rootPaths = !isNullOrEmpty(forceSetSearchPath)
         ? forceSetSearchPath
         : (findAllFolders ? getRootFolders(codeFilePath) : getRootFolder(codeFilePath));
 
+    const recursiveOption = isRecursive || isNullOrEmpty(rootPaths) ? '-rp ' : '-p ';
     const folderKey = useProjectSpecific ? rootFolderName : '';
     const folderKeyDefault = isNullOrEmpty(folderKey) ? 'default' : folderKey;
     const extension = getExtensionNoHeadDot(path.parse(codeFilePath).ext, '');
@@ -395,7 +398,7 @@ export function getSearchPathOptions(
     skipFoldersPattern = mergeSkipFolderPattern(skipFoldersPattern);
 
     const terminalType = !toRunInTerminal && isLinuxTerminalOnWindows() ? TerminalType.CMD : DefaultTerminalType;
-    const skipFolderOptions = GitIgnoreInfo.Valid
+    const skipFolderOptions = useProjectSpecific && GitIgnoreInfo.Valid
         ? GitIgnoreInfo.getSkipPathRegexPattern(toRunInTerminal)
         : (useSkipFolders && skipFoldersPattern.length > 1 ? ' --nd "' + skipFoldersPattern + '"' : '');
 
@@ -405,7 +408,7 @@ export function getSearchPathOptions(
             return '-p ' + searchPaths;
         } else {
             const searchPaths = quotePaths(toOsPathsForText(replaceToRelativeSearchPath(toRunInTerminal, rootPaths, rootFolder), terminalType));
-            return '-rp ' + searchPaths + skipFolderOptions;
+            return recursiveOption + searchPaths + skipFolderOptions;
         }
     }
 
@@ -440,7 +443,6 @@ export function getSearchPathOptions(
 
     const readPathListOptions = usePathListFiles && pathListFileSet.size > 0 ? ' -w "' + pathFilesText + '"' : '';
     const searchPaths = replaceToRelativeSearchPath(toRunInTerminal, pathsText, rootFolder);
-    const recursiveOption = isNullOrEmpty(rootPaths) ? '-p' : '-rp';
     const otherOptions = isNullOrEmpty(rootPaths) ? '' : readPathListOptions + skipFolderOptions;
     return recursiveOption + ' ' + quotePaths(searchPaths) + otherOptions;
 }

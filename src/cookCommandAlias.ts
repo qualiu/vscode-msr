@@ -138,8 +138,8 @@ export function cookCmdShortcutsOrFile(
     const existingOpenDoskey = cmdAliasMap.get('open-doskeys') as string || '';
     const matchTool = /=(\w+\S+|"\w+.*?")/.exec(existingOpenDoskey);
     const toolToOpen = isNullOrEmpty(existingOpenDoskey) || !matchTool ? 'code' : matchTool[1];
+    cmdAliasMap.set('alias', getCommandAliasText('alias', aliasBody, false, true, writeToEachFile));
     if (!newTerminal) {
-      cmdAliasMap.set('alias', getCommandAliasText('alias', aliasBody, false, true, writeToEachFile));
       const updateDoskeyText = (writeToEachFile ? '' : 'update-doskeys=') + 'doskey /MACROFILE=' + quotedDefaultCmdAliasFile;
       cmdAliasMap.set('update-doskeys', updateDoskeyText);
       cmdAliasMap.set('open-doskeys', 'open-doskeys=' + toolToOpen + ' ' + quotedDefaultCmdAliasFile);
@@ -159,15 +159,15 @@ export function cookCmdShortcutsOrFile(
 
   [FindCommandType.FindTopFolder, FindCommandType.FindTopType, FindCommandType.FindTopSourceFolder, FindCommandType.FindTopSourceType, FindCommandType.FindTopCodeFolder, FindCommandType.FindTopCodeType].forEach(findTopCmd => {
     const findTopBody = getFindTopDistributionCommand(false, useProjectSpecific, true, findTopCmd, rootFolder);
-    let aliasName = replaceTextByRegex(FindCommandType[findTopCmd], /([a-z])([A-Z])/, '$1-$2');
-    aliasName = replaceTextByRegex(aliasName, /^-|-$/, '').toLowerCase();
+    let aliasName = replaceTextByRegex(FindCommandType[findTopCmd], /([a-z])([A-Z])/g, '$1-$2');
+    aliasName = replaceTextByRegex(aliasName, /^-|-$/g, '').toLowerCase();
     cmdAliasMap.set(aliasName, getCommandAliasText(aliasName, findTopBody, false, isWindowsTerminal, writeToEachFile, false, false));
   });
 
   [FindCommandType.SortBySize, FindCommandType.SortByTime, FindCommandType.SortSourceBySize, FindCommandType.SortSourceByTime, FindCommandType.SortCodeBySize, FindCommandType.SortCodeByTime].forEach(sortCmd => {
     const sortBody = getSortCommandText(false, useProjectSpecific, true, sortCmd, rootFolder, true);
-    let aliasName = replaceTextByRegex(FindCommandType[sortCmd], /([a-z])([A-Z])/, '$1-$2');
-    aliasName = replaceTextByRegex(aliasName, /^-|-$/, '').toLowerCase();
+    let aliasName = replaceTextByRegex(FindCommandType[sortCmd], /([a-z])([A-Z])/g, '$1-$2');
+    aliasName = replaceTextByRegex(aliasName, /^-|-$/g, '').toLowerCase();
     cmdAliasMap.set(aliasName, getCommandAliasText(aliasName, sortBody, false, isWindowsTerminal, writeToEachFile, false, false));
   });
 
@@ -282,7 +282,7 @@ export function cookCmdShortcutsOrFile(
     const linuxDefaultSaveFolderForDisplay = getCmdAliasSaveFolder(true, terminalType, true);
     const rawLinuxDisplayPath = toOsPath(defaultCmdAliasFile.replace(linuxDefaultSaveFolderForDisplay, '~').replace('\\', '/'), terminalType);
     const createCmdAliasTip = ' You can also create shortcuts in ' + (isWindowsTerminal ? '' : 'other files like ');
-    let finalGuide = ' You can disable msr.initProjectCmdAliasForNewTerminals in user settings. Add/Remove menus + Use git-ignore + More functions + details see doc like: ' + CookCmdDocUrl;
+    let finalGuide = ' You can disable msr.initProjectCmdAliasForNewTerminals in user settings. Fuzzy-Dig + Add/Remove menus + Use git-ignore + More functions + details see doc like: ' + CookCmdDocUrl;
     let canRunShowDef = true;
     if (newTerminal && isWindowsTerminal) {
       let cmd = '';
@@ -295,7 +295,7 @@ export function cookCmdShortcutsOrFile(
         cmd = setEnvCmd + 'cmd /k ' + '"doskey /MACROFILE=' + quotedFileForPS // + ' && doskey /macros | msr -t find-def -x msr --nx use- --nt out- -e \\s+-+\\w+\\S* -PM'
           + ' & echo. & echo Type exit if you want to back to PowerShell without ' + commands.length + shortcutsExample
           + finalGuide
-          + ' | msr -aPA -e .+ -ix powershell -t m*alias^|find-\\S+^|sort-\\S+^|out-\\S+^|use-\\S+^|msr.init\\S+^|\\S*msr-cmd-alias\\S*^|git-ignore^|menus^|functions^|details'
+          + ' | msr -aPA -e .+ -ix powershell -t m*alias^|find-\\S+^|sort-\\S+^|out-\\S+^|use-\\S+^|msr.init\\S+^|\\S*msr-cmd-alias\\S*^|Fuzzy-Dig^|git-ignore^|menus^|functions^|details'
           + '"';
         if (!onlyReCookAliasFile) {
           runCmdInTerminal(cmd, true);
@@ -344,7 +344,7 @@ export function cookCmdShortcutsOrFile(
 
     if (canRunShowDef || !newTerminal) {
       runCmdInTerminal('echo Now you can use ' + commands.length + shortcutsExample
-        + finalGuide + ' | msr -aPA -e .+ -x ' + commands.length + ' -it "find-\\S+|sort-\\S+|out-\\S+|use-\\S+|msr.init\\S+|other|git-ignore|menus|functions|details|\\S*msr-cmd-alias\\S*|(m*alias \\w+\\S*)"', true);
+        + finalGuide + ' | msr -aPA -e .+ -x ' + commands.length + ' -it "find-\\S+|sort-\\S+|out-\\S+|use-\\S+|msr.init\\S+|other|Fuzzy-Dig|git-ignore|menus|functions|details|\\S*msr-cmd-alias\\S*|(m*alias \\w+\\S*)"', true);
     }
 
     function prepareEnvForBashOnWindows(terminalType: TerminalType) {
@@ -726,7 +726,6 @@ function getCommandAliasText(
   if (hideCmdAddColor) {
     cmdBody = enableColorAndHideCommandLine(cmdBody);
   }
-  // body = replaceTextByRegex(body, /\s+%~?1(\s+|$)/g, '').trimRight();
 
   const hasSearchTextHolder = isWindowsTerminal ? /%~?1/.test(cmdBody) : /\$1|%~?1/.test(cmdBody);
   if (hasSearchTextHolder) {
@@ -873,9 +872,9 @@ function getCmdAliasMapFromText(output: string, map: Map<string, string>, forMul
 }
 
 function replaceArgForWindowsCmdAlias(body: string): string {
-  body = replaceTextByRegex(body, /([\"'])\$1/, '$1%~1');
-  body = replaceTextByRegex(body, /\$(\d+)/, '%$1');
-  body = body.replace(/\$\*/g, '%*');
+  body = replaceTextByRegex(body, /([\"'])\$1/g, '$1%~1');
+  body = replaceTextByRegex(body, /\$(\d+)/g, '%$1');
+  body = replaceTextByRegex(body, /\$\*/g, '%*');
   return body;
 }
 

@@ -1,8 +1,9 @@
 import * as assert from 'assert';
+import * as fs from 'fs';
+import * as os from 'os';
 import * as path from 'path';
 import { getConfig } from '../../dynamicConfig';
-
-import fs = require('fs');
+import { isNullOrEmpty, nowText } from '../../utils';
 
 const GitRootPath = path.resolve(__dirname, '../../../');
 const ConfigFilePath = path.join(GitRootPath, 'package.json');
@@ -13,11 +14,23 @@ const ExemptDuplicateKeyRegex = /^(msr\.)?\w*(find|sort|make)\w+$|^msr.cookCmdAl
 const ExemptNoValueKeyRegex = /extra|skip.definition|extensionPattern|projectRootFolderNamePattern|cmdAlias\w*|^\w*(find|sort)\w+$/i;
 const NonStringValueRegex = /^(\d+|bool\w*$)/;
 
-export function readAllKeys(printInfo: boolean = false): Set<string> {
+const [AllConfigKeys, AllKeyToNameMap] = readAllKeysAndRegexPatterns();
+
+function readAllKeysAndRegexPatterns(): [Set<string>, Map<string, string>] {
   assert.ok(fs.existsSync(ConfigFilePath), 'Should exist config file: ' + ConfigFilePath);
   const lines = fs.readFileSync(ConfigFilePath).toString();
   const rootConfig = getConfig().RootConfig;
 
+  // Roughly get all possible Regex blocks + Compare and check
+  // msr -p package.json -b "^\s*.msr.\w+" -Q "^^\s*\}" -t "^\s*.default.:.*?\\\\[sbwS]|^\s*.description.:.*?Regex" -aPI > %tmp%\all-possible-Regex-blocks.txt
+  // npm run test > %tmp%\npm-test-block-name-Regex.txt
+  // nin %tmp%\all-possible-Regex-blocks.txt %tmp%\npm-test-block-name-Regex.txt "(msr\.\w+[\.\w]+)" "Validated Regex of (\S+)"
+  // nin %tmp%\all-possible-Regex-blocks.txt %tmp%\npm-test-block-name-Regex.txt "(msr\.\w+[\.\w]+)" "Validated Regex of (\S+)" -S -w
+
+  // const matchRegexKeyRegex = /\.(definition|isFind\w+|is\w+Result|\w*reference|codeAndConfig\w*|skipFolders|allFiles)$/i;
+  const matchRegexValueRegex = new RegExp(String.raw`\\[sbwS\$]` + String.raw`|^\^` + String.raw`|\)[\$\|]` + String.raw`|[\w\*\+]\?\|` + String.raw`|\[\\` + String.raw`|\S+\|\S+\|/`);
+
+  let keyToRegexMap = new Map<string, string>();
   let allKeys: string[] = [];
   let m;
   do {
@@ -28,9 +41,7 @@ export function readAllKeys(printInfo: boolean = false): Set<string> {
       const key = fullKey.replace(/^msr\./, '');
       const value = rootConfig.get(key);
       const valueText = !value || NonStringValueRegex.test(value as string || '') ? value : '"' + value + '"';
-      if (printInfo) {
-        console.info('Found config key = ' + fullKey + ' , value = ' + valueText);
-      }
+      console.info('Found config key = ' + fullKey + ' , value = ' + valueText);
 
       if (ExemptDuplicateKeyRegex.test(key) === false && !key.endsWith('.')) {
         assert.notStrictEqual(value, undefined, 'Value should not be undefined for key = ' + fullKey);
@@ -48,6 +59,10 @@ export function readAllKeys(printInfo: boolean = false): Set<string> {
           });
         }
       }
+
+      if (!isNullOrEmpty(textValue) && matchRegexValueRegex.test(textValue)) {
+        keyToRegexMap.set(key, textValue);
+      }
     }
   } while (m);
 
@@ -62,17 +77,36 @@ export function readAllKeys(printInfo: boolean = false): Set<string> {
     }
   });
 
-  if (printInfo) {
-    console.log('Total key count = ' + allKeys.length + ' in ' + ConfigFilePath);
-  }
-
+  console.log('Total key count = ' + allKeys.length + ' in ' + ConfigFilePath);
   assert.ok(allKeys.length > 1, 'Error key count = ' + allKeys.length + ' in ' + ConfigFilePath);
-  return keySet;
+  console.info(os.EOL);
+  return [keySet, keyToRegexMap];
+}
+
+export function validateRegexPatterns() {
+  const getErrorRegex = /(?!<\\)\|\|/;
+  let validatedRegexCount = 0;
+  AllKeyToNameMap.forEach((pattern, key, _map) => {
+    const keyName = 'msr.' + key;
+    try {
+      new RegExp(pattern);
+      validatedRegexCount++;
+      console.info('Validated Regex of ' + keyName + ' = "' + pattern + '"');
+    } catch (err) {
+      assert.fail('Failed to validate Regex of ' + keyName + ' = "' + pattern + '" , error: ' + err.toString());
+    }
+
+    const matched = pattern.match(getErrorRegex);
+    if (matched && matched.index) {
+      assert.fail('Probably wrong Regex of ' + key + ' = "' + pattern + '"  at "' + pattern.substring(matched.index) + '"');
+    }
+  });
+
+  console.info(nowText() + 'Validated ' + String(validatedRegexCount) + ' Regex patterns in ' + ConfigFilePath);
+  console.info(os.EOL);
 }
 
 export function checkConfigKeysInDoc() {
-  const allKeys = readAllKeys();
-
   assert.ok(fs.existsSync(DocFilePath), 'Should exist doc file: ' + DocFilePath);
   const lines = fs.readFileSync(DocFilePath).toString();
   let errorMessages = [];
@@ -86,7 +120,7 @@ export function checkConfigKeysInDoc() {
       keyCount++;
       const fullKey = m[1];
       console.log('Found doc key = ' + fullKey + ' in ' + DocFilePath);
-      if (!allKeys.has(fullKey) && !SkipKeysRegex.test(fullKey)) {
+      if (!AllConfigKeys.has(fullKey) && !SkipKeysRegex.test(fullKey)) {
         const shortKey = fullKey.replace(/^msr\./, '');
         const configValue = rootConfig.get(shortKey);
         if (configValue === undefined) {

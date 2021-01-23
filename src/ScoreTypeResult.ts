@@ -1,11 +1,14 @@
 import * as vscode from 'vscode';
 
 export enum ResultType {
-  Class,
-  Enum,
-  Interface,
+  None = 0,
+  LocalVariable,
+  ConstantValue,
+  Member,
   Method,
-  Other
+  Interface,
+  Enum,
+  Class
 }
 
 export const InvalidLocation = new vscode.Location(vscode.Uri.file('Invalid-Location-Cost'), new vscode.Position(0, 0));

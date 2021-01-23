@@ -3,7 +3,7 @@
     "displayName": "Search code + Replace files + Find definition and references for all types.",
     "description": "Search code + Replace files + Find definition and references in multiple repository paths by msr for all coding languages + configuration + doc files.",
     "author": "qualiu@microsoft.com",
-    "version": "2.1.8",
+    "version": "2.1.9",
     "icon": "images/vscode-msr-icon.png",
     "license": "completely free",
     "publisher": "qualiu",
@@ -1114,7 +1114,7 @@
                 },
                 "msr.useGitIgnoreFile": {
                     "type": "boolean",
-                    "default": false,
+                    "default": true,
                     "description": "Use top folder '.gitignore' file if exists in local git repository root folder."
                 },
                 "msr.omitGitIgnoreExemptions": {
@@ -1177,14 +1177,24 @@
                     "default": "\\.(config|json|ya?ml|xml|ini|md|ipynb|rst|rst)$|^readme",
                     "description": "Default Regex pattern for configuration + document files."
                 },
-                "msr.default.skip.definition": {
+                "msr.default.class.skip.definition": {
                     "type": "string",
                     "default": ";\\s*$|^\\s*(return|await|throw|except|raise|new|(el)?if|for|from|val)\\s+|new\\s+%1\\s*\\(|=\\s*%1\\s*\\(|^\\s*p\\w+\\s+%1\\s*\\(",
                     "description": "Default Regex pattern to filter non-definitions."
                 },
+                "msr.default.method.skip.definition": {
+                    "type": "string",
+                    "default": ";\\s*$|^\\s*(return|await|throw|except|raise|new|(el)?if|for|from|val)\\s+|new\\s+%1\\s*\\(|=\\s*%1\\s*\\(|^\\s*p\\w+\\s+%1\\s*\\(",
+                    "description": "Default Regex pattern to filter non-definitions."
+                },
+                "msr.default.skip.definition": {
+                    "type": "string",
+                    "default": "^\\s*(return|await|throw|except|raise|new|(el)?if|for|from|val)\\s+|new\\s+%1\\s*\\(|=\\s*%1\\s*\\(|^\\s*p\\w+\\s+%1\\s*\\(",
+                    "description": "Default Regex pattern to filter non-definitions."
+                },
                 "msr.default.definition": {
                     "type": "string",
-                    "default": "^\\s*(#\\s*define\\s+|(p\\w+|internal|readonly|const|static|type)\\s+[\\w\\s]*?)\\b(%1)\\b|^\\s*\\w+.{0,80}\\b(%1)\\s*(?:[\\(\\{:<]|extends|implements|$)",
+                    "default": "^\\s*(#\\s*define\\s+|(p\\w+|internal|readonly|const|static|volatile|final|type)\\s+.{0,100})\\b(%1)\\b|^\\s*\\w+[\\w\\s<,>]{0,80}\\b(%1)\\s*(?:[\\(\\{:<]|extends|implements|$)",
                     "description": "Default Regex pattern to find definitions of a word (class, method, etc.). Must use `%1` to be replaced by word to search."
                 },
                 "msr.default.reference": {
@@ -1239,18 +1249,33 @@
                 },
                 "msr.definition.extraOptions": {
                     "type": "string",
-                    "default": "--s1 1B --s2 1.6MB -H 60 -J -I -C -c",
+                    "default": "--s1 1B --s2 1.6MB -H 10 -J -I -C -c",
                     "description": "Default extra searching options for finding definitions: Get top {N} results and jump out. Will merge `msr.{root-folder-name}.extraOptions` if you set in your personal settings file like `%APPDATA%\\Code\\User\\settings.json` on Windows (See doc: https://github.com/qualiu/vscode-msr/blob/master/README.md#specific-extra-search-paths-settings)."
                 },
                 "msr.reference.extraOptions": {
                     "type": "string",
-                    "default": "--s1 1B --s2 3.6MB -H 360 -J -I -C -c",
+                    "default": "--s1 1B --s2 3.6MB -H 30 -J -I -C -c",
                     "description": "Default extra searching options for finding references: Get top {N} results and jump out. Will merge `msr.{root-folder-name}.extraOptions` if you set in your personal settings file like `%APPDATA%\\Code\\User\\settings.json` on Windows (See doc: https://github.com/qualiu/vscode-msr/blob/master/README.md#specific-extra-search-paths-settings)."
                 },
                 "msr.default.isClassResult": {
                     "description": "Regex pattern to check if result is a class.",
                     "type": "string",
-                    "default": "^\\s*[\\w\\s]{0,30}@?\\b([Cc]lass|[Ii]nterface)\\s+(%1)\\b"
+                    "default": "^\\s*[\\w\\s]{0,30}@?\\b([Cc]lass|[Ii]nterface|trait)\\s+(%1)\\b"
+                },
+                "msr.go.isClassResult": {
+                    "description": "Regex pattern to check if result is a class.",
+                    "type": "string",
+                    "default": "^\\s*type\\s+(%1)\\s+|^\\s*[\\w\\s]{0,30}@?\\b([Cc]lass|[Ii]nterface|trait)\\s+(%1)\\b"
+                },
+                "msr.java.isClassResult": {
+                    "description": "Regex pattern to check if result is a class.",
+                    "type": "string",
+                    "default": "^\\s*[\\w\\s]{0,30}@?\\b([Cc]lass|[Ii]nterface|trait)\\s+(%1)\\b"
+                },
+                "msr.default.isConstantResult": {
+                    "description": "Regex to check if a result is a constant.",
+                    "type": "string",
+                    "default": "^\\s*%1\\s*=\\s*([0-9A-Z]|[^\\w\\s])|^\\s*define\\s+%1\\s+\\S+|^\\s*((p\\w+|internal|static|readonly|const|final)\\s+)+.{0,100}\\b(%1)\\s*="
                 },
                 "msr.default.isEnumResult": {
                     "description": "Regex pattern to check if result is an enum.",
@@ -1265,14 +1290,29 @@
                 "msr.default.isMethodResult": {
                     "description": "Regex pattern to check if result is an method/function.",
                     "type": "string",
-                    "default": "^\\s*[\\w\\s]{0,30}\\b(function|def)\\s+(%1)\\b|(?:::\\s*|\\s)\\b(%1)\\s*(?:[\\[<].*?[\\]>]\\s*)?\\("
+                    "default": "^\\s*[\\w\\s]{0,30}\\b(function|def)\\s+(%1)\\b|(?:::\\s*|\\s)\\b(%1)\\s*(?:[\\[<].*?[\\]>]\\s*)?\\(|^\\s*(\\w+\\s+)*?(async|Task|void)\\s+(%1)[\\(<]"
+                },
+                "msr.default.isFindMemberOrLocalVariable": {
+                    "description": "Default Regex to check if what-to-find is a member or local variable.",
+                    "type": "string",
+                    "default": "\\b%1\\s*=|\\b(self\\.|this(->|\\.))\\w*?\\S*?\\b%1\\b"
+                },
+                "msr.default.isMemberResult": {
+                    "description": "Regex pattern to check if result is a local variable.",
+                    "type": "string",
+                    "default": "^\\s*((p\\w+|internal|static|readonly|const|virtual|volatile|final|val)\\s+)+\\w+[\\w\\.<,>\\s]*?[\\*\\?]?\\s+\\b(%1)\\b"
+                },
+                "msr.default.isLocalVariableResult": {
+                    "description": "Regex pattern to check if result is a local variable.",
+                    "type": "string",
+                    "default": "^\\s*\\w+(\\s*\\W.{0,100})?\\s+%1\\s*="
                 },
                 "msr.default.isFindClass": {
                     "type": "string",
-                    "default": "\\b[a-zA-Z]\\w+\\.%1\\b([^\\.\\w]|$)|\\b%1\\b\\s+\\w+|\\(\\s*%1\\s*\\)\\s*\\w+|\\b%1\\s*<|\\b(class|struct|object)\\s+\\w+|\\b(new|is|as)\\s+%1\\b|=\\s*%1\\s*\\(|\\s+%1\\.\\w+\\s*\\(|\\b%1\\s*[<>]|[<\\[]\\s*%1\\b|\\b%1\\s*[\\[>]",
+                    "default": "\\b(extends|implements)\\s+(%1)\\b|[<\\(]\\s*\\S*?\\b%1\\s*[\\)>][\\s\\*\\&]*?\\w+|\\b(public|protected|private|internal|static|readonly|const|volatile|final)\\s+(%1)\\s*[\\?\\*&]{0,2}\\s*\\w+|\\b[a-zA-Z]\\w+\\.%1\\b([^\\.\\w]|$)|\\b%1\\b\\s+\\w+|\\(\\s*%1\\s*\\)\\s*\\w+|\\b(new|is|as)\\s+%1\\b|=\\s*%1\\s*\\(|\\s+%1\\.\\w+\\s*\\(|\\b%1\\s*[<>]|[<\\[]\\s*%1\\b|\\b%1\\s*[\\[>]",
                     "description": "Default Regex pattern to check if what-to-find is a `class`."
                 },
-                "msr.default.isFindClassWithWordCheck": {
+                "msr.default.isFindClassByWordCheck": {
                     "type": "string",
                     "default": "^[A-Z]\\w+$",
                     "description": "Default Regex pattern to check the class name %1 which is usually a capitalized word. If set to empty will skip checking."
@@ -1284,12 +1324,17 @@
                 },
                 "msr.default.isFindMethod": {
                     "type": "string",
-                    "default": "(\\.|->|::|\\s+)\\b%1\\s*\\(|\\b%1\\s*<\\s*\\w+",
+                    "default": "(\\.|->|::|\\s+)\\b%1\\s*(<.*?>\\s*)?\\(",
                     "description": "Default Regex pattern to check if what-to-find is a `method`."
+                },
+                "msr.default.isFindClassOrMethod": {
+                    "type": "string",
+                    "default": "\\(\\s*(\\S*?(::|\\.|->))?%1\\s*\\)|<\\s*(\\S*?(::|\\.|->))?%1\\s*(,[\\w\\s,]+)?>",
+                    "description": "Default Regex to check if what-to-find is a `class` or `method`."
                 },
                 "msr.default.isFindMember": {
                     "type": "string",
-                    "default": "\\b[a-z]\\w+\\.%1\\b|\\b[a-z]\\w+(\\.|->|::)\\S*?%1|(\\.|->|::)%1\\b",
+                    "default": "(\\b_?[a-z]\\w+\\.%1|\\b_?[a-z]\\w+(\\.|->|::)[\\w\\.:>-]*?\\b%1|(\\.|->|::)%1)(\\s|$|\\.|::|->|,|;|\\))",
                     "description": "Default Regex to check if what-to-find is a class `member`."
                 },
                 "msr.default.isFindEnum": {
@@ -1324,22 +1369,42 @@
                 },
                 "msr.default.member.definition": {
                     "type": "string",
-                    "default": "^\\s*(p\\w+|internal|static)\\s+[\\w\\.<,>\\s]*?\\b(%1)\\b",
+                    "default": "^\\s*(p\\w+|internal|static|readonly|const|virtual|volatile|final)\\s+[\\w\\.<,>\\s]*?\\b(%1)\\b",
                     "description": "Default Regex pattern to search member definitions."
+                },
+                "msr.default.member.skip.definition": {
+                    "type": "string",
+                    "default": "[\\(\\)]",
+                    "description": "Default Regex pattern to skip `member` definition."
+                },
+                "msr.cs.member.skip.definition": {
+                    "type": "string",
+                    "default": "",
+                    "description": "Regex pattern to skip C# `member` definition. Overwrite default to avoid cases like: member = new xxx()."
                 },
                 "msr.default.constant.definition": {
                     "type": "string",
-                    "default": "^\\s*(%1)\\s*(=|,|$)",
+                    "default": "^\\s*(%1)\\s*(=|,|$)|^\\s*((p\\w+|const|readonly|static|final|val)\\s+)*?.{0,100}\\b(%1)\\s*=",
                     "description": "Default Regex pattern to search constants definition."
+                },
+                "msr.default.method.definition": {
+                    "type": "string",
+                    "default": "^\\s*(p\\w+|internal|static|const|virtual|override|async|Task|void|int|string|double|float)\\s+[\\w\\.<,>\\s]*?\\b(%1)\\s*[<\\(]|^\\s*(\\w+\\s+)*?(async|Task|void)\\s+(%1)[\\(<]",
+                    "description": "Default Regex pattern to search method definition."
                 },
                 "msr.default.enum.definition": {
                     "type": "string",
-                    "default": "^\\s*(\\[.*?\\]\\s*)?(%1)\\b(\\s*=\\s*\\w+)?\\s*,?",
+                    "default": "^\\s*(\\[.*?\\]\\s*)?(%1)\\b(\\s*=\\s*\\w+)?\\s*,?|^\\s*((p\\w+|const|readonly|static|final|val)\\s+)*?.{0,100}\\b(%1)\\s*=",
                     "description": "Default Regex pattern to search `enum` definition."
+                },
+                "msr.java.isFindClass": {
+                    "type": "string",
+                    "default": "\\b(extends|implements)\\s+(%1)\\b|[<\\(]\\s*\\S*?\\b%1\\s*[\\)>][\\s\\*\\&]*?\\w+|\\b(public|protected|private|internal|static|readonly|const|volatile|final)\\s+(%1)\\s*[\\?\\*&]{0,2}\\s*\\w+|\\b[a-zA-Z]\\w+\\.%1\\b([^\\.\\w]|$)|\\b%1\\b\\s+\\w+|\\(\\s*%1\\s*\\)\\s*\\w+|\\b(new|is|as)\\s+%1\\b|=\\s*%1\\s*\\(|\\s+%1\\.\\w+\\s*\\(|\\b%1\\s*[<>]|[<\\[]\\s*%1\\b|\\b%1\\s*[\\[>]",
+                    "description": "Default Regex pattern to check if what-to-find is a `class`."
                 },
                 "msr.java.class.definition": {
                     "type": "string",
-                    "default": "^\\s*[\\w\\s]*?@?\\s*@?\\b(class|struct|enum|interface|object)\\s+(%1)\\b",
+                    "default": "^\\s*[\\w\\s]*?@?\\s*@?\\b(class|struct|enum|interface|object|trait)\\s+(%1)\\b",
                     "description": "Scala Regex pattern to search class definitions."
                 },
                 "msr.java.method.definition": {
@@ -1354,7 +1419,7 @@
                 },
                 "msr.cs.isFindClass": {
                     "type": "string",
-                    "default": "\\(\\s*%1\\s*\\)\\s*\\w+|\\b%1\\s*<|\\b(class|struct)\\s+\\w+|\\b(new|is|as)\\s+%1\\b|\\s+%1\\.\\w+\\s*\\(|%1\\s*>|\\[\\s*%1\\s*\\(|\\b%1\\s*[\\?\\*]?\\s+\\w+\\S*\\s*[^:]+(,|;|$)",
+                    "default": "[<\\(]\\s*\\S*?\\b%1\\s*[\\)>]\\s*\\w+|\\b(public|protected|private|internal|static|readonly|const|volatile|final)\\s+(%1)\\s*[\\?]{0,1}\\s+\\w+|\\b(class|struct|interface)\\s+\\w+|\\b(new|is|as)\\s+%1\\b|\\s+%1\\.\\w+|<.{0,120}\\s*\\b%1\\b.{0,100}>\\s*\\w+|\\[\\s*%1\\s*\\(|\\b%1\\s*[\\?\\*]?\\s+\\w+\\S*\\s*[^:]+(,|;|$)",
                     "description": "Regex pattern to check if what-to-find is a C# `class`."
                 },
                 "msr.cs.class.definition": {
@@ -1364,17 +1429,17 @@
                 },
                 "msr.cs.method.definition": {
                     "type": "string",
-                    "default": "^\\s*\\w+[\\w\\[\\]\\.\\(\\)<>,\\s]*?\\s+(%1)\\s*(?:<.+?>)?\\s*\\([^;]*$",
+                    "default": "^\\s*\\w+[\\w\\[\\]\\.\\(\\)<>,\\s]*?\\s+(%1)\\s*(?:<.+?>)?\\s*\\([^;]*$|^\\s*(\\w+\\s+)*?(async|Task|void)\\s+(%1)[\\(<]",
                     "description": "Regex pattern to search C# method definitions."
                 },
                 "msr.cs.enum.definition": {
                     "type": "string",
-                    "default": "^\\s*(\\[.*?\\]\\s*)?(%1)\\b(\\s*=\\s*\\w+)?\\s*,?\\s*$",
+                    "default": "^\\s*(\\[.*?\\]\\s*)?(%1)\\b(\\s*=\\s*\\w+)?\\s*,?\\s*$|^\\s*((p\\w+|const|readonly|static)\\s+)*?.{0,100}\\b(%1)\\s*=",
                     "description": "Regex pattern to search C# enum definitions."
                 },
                 "msr.cs.member.definition": {
                     "type": "string",
-                    "default": "^\\s*(p\\w+|internal|static)\\s+[\\w\\.<,>\\s]*?\\b(%1)\\b",
+                    "default": "^\\s*(p\\w+|internal|static|readonly|const|virtual|volatile)\\s+[\\w\\.<,>\\s]*?\\??\\s*\\b(%1)\\b",
                     "description": "Regex pattern to search C# field or property definitions."
                 },
                 "msr.cpp.codeAndConfigDocs": {
@@ -1384,7 +1449,7 @@
                 },
                 "msr.cpp.isFindClass": {
                     "type": "string",
-                    "default": "\\b(class|struct)\\s+\\w+|\\b(new|is|as)\\s+%1\\b|=\\s*%1\\s*\\(|\\s+%1\\.\\w+\\s*\\(|\\b%1\\s*[<>]|\\[\\s*%1\\s*\\(|\\b%1\\s*[\\*\\&]?\\s+\\w+",
+                    "default": "\\(\\s*\\S*?\\b%1\\s*\\)[\\s\\*\\&]*?\\w+|\\b(%1)\\s*[\\*&]{1,2}\\s*\\w+|\\b(class|struct)\\s+\\w+|\\b(new|is|as)\\s+%1\\b|=\\s*%1\\s*\\(|\\s+%1\\.\\w+\\s*\\(|\\b%1\\s*[<>]|\\[\\s*%1\\s*\\(|\\b%1\\s*[\\*\\&]?\\s+\\w+",
                     "description": "Regex pattern to check if what-to-find is a C++ `class`."
                 },
                 "msr.cpp.constant.definition": {
@@ -1434,7 +1499,7 @@
                 },
                 "msr.py.isFindMember": {
                     "type": "string",
-                    "default": "\\bself\\.%1\\s*(?!\\()|\\b[a-z]\\w+(\\.|->|::)\\S*?%1|(\\.|->|::)%1\\b",
+                    "default": "\\bself\\.%1\\s*(?!\\()|\\b_?[a-z]\\w+(\\.|->|::)[\\w\\.]*?\\b%1\\b|(\\.|->|::)%1\\b",
                     "description": "Regex pattern for Python to check if what-to-find is a `member`."
                 },
                 "msr.py.isFindClass": {
@@ -1474,10 +1539,10 @@
                 },
                 "msr.ui.definition": {
                     "type": "string",
-                    "default": "^\\s*((p\\w+|internal|readonly|const|static|function)\\s+[\\w\\s]*?)\\b(%1)\\b|^\\s*\\w+.{0,80}\\b(%1)\\s*(?:[\\(\\{:<]|extends|implements|$)",
+                    "default": "^\\s*((p\\w+|internal|readonly|const|static|function|volatile)\\s+.{0,100})\\b(%1)\\b|^\\s*\\w+[\\w\\s<,>]{0,100}\\b(%1)\\s*(?:[\\(\\{:<]|extends|implements|$)",
                     "description": "Default Regex pattern to find UI definitions of a word (class, method, etc.). Must use `%1` to be replaced by word to search."
                 },
-                "msr.ui.skip.definition": {
+                "msr.ui.class.skip.definition": {
                     "type": "string",
                     "default": ";\\s*$|^\\s*(return|await|throw|except|raise|new|(el)?if|for|from|val)\\s+|new\\s+%1\\s*\\(|=\\s*%1\\s*\\(",
                     "description": "Default Regex pattern to filter non-definitions."
@@ -1513,7 +1578,7 @@
                 },
                 "msr.sh.definition": {
                     "type": "string",
-                    "default": "(^\\s*function|\\[\\w+\\]\\s*)\\s*(%1)\\b|\\s*(%1)\\s*=",
+                    "default": "(^\\s*(function\\s+)?)(%1)\\s*\\(|\\s*(%1)\\s*=",
                     "description": "Regex pattern to search bash/sh file definitions of a function or parameter."
                 },
                 "msr.fileExtensionMap.batch": {
@@ -1525,6 +1590,11 @@
                     "description": "Regex pattern to search batch file definitions of a function or variable.",
                     "type": "string",
                     "default": "^\\s*:\\s*(%1)\\b|(^|\\s)[Ss][Ee][Tt]\\s+(/[aApP]\\s+)?\\\"?(%1)="
+                },
+                "msr.batch.isMethodResult": {
+                    "description": "Regex pattern to check if a result is a method.",
+                    "type": "string",
+                    "default": "^\\s*:\\s*(%1)\\s*$"
                 },
                 "msr.batch.skip.definition": {
                     "type": "string",

@@ -170,7 +170,7 @@ export function clearOutputChannel() {
 export function enableColorAndHideCommandLine(cmd: string, removeSearchWordHint: boolean = true): string {
 	let text = replaceTextByRegex(cmd, ShowColorHideCmdRegex, '$1');
 	if (removeSearchWordHint) {
-		text = replaceTextByRegex(text, /\s+Search\s+%~?1[\s\w]*/, ' ');
+		text = text.replace(/\s+Search\s+%~?1[\s\w]*/, ' ');
 	}
 
 	return text.replace(/\s+Search\s*$/, '');

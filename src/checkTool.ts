@@ -114,10 +114,10 @@ export function getSetToolEnvCommand(terminalType: TerminalType, addTailTextIfNo
 }
 
 export class ToolChecker {
+	public MsrExePath: string = '';
 	private terminalType: TerminalType;
 	private autoDownload: boolean;
 	private MatchExeMd5Regex: RegExp = /to-load/;
-	private MsrExePath: string = '';
 	private isMsrToolExists = false;
 	private isTerminalOfWindows: boolean;
 

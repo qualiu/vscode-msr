@@ -1,165 +1,66 @@
 import { ParsedPath } from 'path';
 import * as vscode from 'vscode';
-import { GetConfigPriorityPrefixes, getConfigValueByRoot, getOverrideConfigByPriority, getOverrideOrDefaultConfig } from './configUtils';
-import { SearchTextHolder, SearchTextHolderReplaceRegex } from './constants';
+import { GetConfigPriorityPrefixes, getConfigValueByRoot, getOverrideConfigByPriority } from './configUtils';
+import { SearchTextHolder } from './constants';
 import { getConfig, getRootFolderName, MappedExtToCodeFilePatternMap, MyConfig } from './dynamicConfig';
-import { FindType } from './enums';
+import { FindType, ForceFindType } from './enums';
+import { ForceSetting } from './forceSettings';
 import { outputDebug, outputError } from './outputUtils';
-import { createRegex, EmptyRegex, getAllSingleWords } from './regexUtils';
+import { EmptyRegex, getAllSingleWords } from './regexUtils';
 import { ResultType } from './ScoreTypeResult';
-import { getExtensionNoHeadDot, isNullOrEmpty, nowText, toPath } from './utils';
+import { SearchChecker } from './searchChecker';
+import { isNullOrEmpty, nowText } from './utils';
 import path = require('path');
 
-let RootConfig = getConfig().RootConfig || vscode.workspace.getConfiguration('msr');
-
-export class ForceSetting {
-	public FindClass: boolean = false;
-	public FindMethod: boolean = false;
-	public FindLocalVariableDefinition = false;
-
-	constructor(findClass = false, findMethod = false, findLocalVariableDefinition = false) {
-		this.FindClass = findClass;
-		this.FindMethod = findMethod;
-		this.FindLocalVariableDefinition = findLocalVariableDefinition;
-	}
-
-	public isFindClassOrMethod(): boolean {
-		return this.FindClass || this.FindMethod;
-	}
-}
-
 export class Ranker {
+	public searchChecker: SearchChecker;
 	public isOneFileOrFolder: boolean;
 	public canRunCommandInTerminal: boolean = false;
-	public currentFile: ParsedPath;
-	public currentFilePath: string;
-	public extension: string;
-	public mappedExt: string;
 	public rootFolderName: string;
 
-	private Document: vscode.TextDocument;
-	public currentWord: string;
-	public currentWordRegex: RegExp;
 	public scoreWordsText: string;
-
-	public findType: FindType;
-
 	private scoreWordSet: Set<string>;
-	private currentText: string;
-	private currentWordRange: vscode.Range;
-
-	private isClassResultRegex: RegExp;
-	private isEnumResultRegex: RegExp;
-	private isMethodResultRegex: RegExp;
-	private isInterfaceResultRegex: RegExp;
-	private isConstantResultRegex: RegExp;
-
-	private isFindClassRegex: RegExp;
-	private isFindMethodRegex: RegExp;
-	private isFindMemberRegex: RegExp;
-	private isFindConstantRegex: RegExp;
-	private isFindEnumRegex: RegExp;
-	private isFindClassOrEnumRegex: RegExp;
-	private isFindClassWithWordCheckRegex: RegExp;
-
 	private isFindClass: boolean;
 	private isFindMethod: boolean;
 	private isFindMember: boolean;
 	private isFindConstant: boolean = false;
 	private isFindEnum: boolean;
 	private isFindClassOrEnum: boolean;
+	private isFindClassOrMethod: boolean;
 
-	private methodQuoteRegex: RegExp;
-	private enumOrConstantValueRegex: RegExp;
-
-	private classDefinitionRegex: RegExp;
-	private memberDefinitionRegex: RegExp;
-	private enumDefinitionRegex: RegExp;
-	private methodDefinitionRegex: RegExp;
-
-	private currentPosition: vscode.Position;
 	private currentWordSet: Set<string>;
 	private currentFileNameWordSet: Set<string>;
 	private currentFilePathWordSet: Set<string>;
 	private highScoreWordSet: Set<string> = new Set<string>();
-
-	private promoteFolderRegex: RegExp;
-	private promoteFolderScore: number;
-	private promotePathRegex: RegExp;
-	private promotePathScore: number;
-
-	private demoteFolderRegex: RegExp;
-	private demoteFolderScore: number;
-	private demotePathRegex: RegExp;
-	private demotePathScore: number;
-	private promoteSelfFileMatchScore: number = 200;
 	private ForceSetting: ForceSetting;
-	private ForceUseDefaultFindingDefinition: boolean = true;
+	private currentWord: string;
+	private promoteSelfFileMatchScore: number = 200;
 
-	constructor(document: vscode.TextDocument, findType: FindType, currentPosition: vscode.Position, currentWord: string, currentWordRange: vscode.Range, currentText: string, currentFile: ParsedPath,
-		mappedExt: string, isOneFileOrFolder = false, forceSetting = new ForceSetting()) {
+	constructor(searchChecker: SearchChecker, isOneFileOrFolder = false, forceFindType: ForceFindType = ForceFindType.None) {
+		this.searchChecker = searchChecker;
+		this.currentWord = searchChecker.currentWord;
 		this.isOneFileOrFolder = isOneFileOrFolder;
-		this.ForceSetting = forceSetting;
+		this.ForceSetting = new ForceSetting(forceFindType);
 		const MyConfig = getConfig();
-		this.Document = document;
-		this.findType = findType;
-		this.currentPosition = currentPosition;
-		this.currentWord = currentWord;
-		this.currentText = currentText;
-		this.currentWordRange = currentWordRange;
-		this.currentFile = currentFile;
-		this.currentFilePath = toPath(currentFile);
-		this.mappedExt = mappedExt;
-		this.extension = getExtensionNoHeadDot(currentFile.ext, '');
-		this.rootFolderName = getRootFolderName(this.currentFilePath);
-		// for doc + config
-		this.ForceUseDefaultFindingDefinition = FindType.Definition === this.findType && MyConfig.UseDefaultFindingClassCheckExtensionRegex.test(this.currentFile.ext);
+		this.rootFolderName = getRootFolderName(searchChecker.currentFilePath);
 
-		this.isClassResultRegex = this.getCheckingRegex('isClassResult', true);
-		this.isEnumResultRegex = this.getCheckingRegex('isEnumResult', true);
-		this.isMethodResultRegex = this.getCheckingRegex('isMethodResult', true);
-		this.isInterfaceResultRegex = this.getCheckingRegex('isInterfaceResult', true);
-
-		this.isFindClassRegex = this.getCheckingRegex('isFindClass', false);
-		this.isFindMethodRegex = this.getCheckingRegex('isFindMethod', false);
-		this.isFindMemberRegex = this.getCheckingRegex('isFindMember', false);
-		this.isFindEnumRegex = this.getCheckingRegex('isFindEnum', false);
-		this.isFindClassOrEnumRegex = this.getCheckingRegex('isFindClassOrEnum', false);
-		this.methodQuoteRegex = new RegExp('\\b' + currentWord + '\\b\\s*\\(');
-
-		this.isFindClassWithWordCheckRegex = this.getCheckingRegex('isFindClassWithWordCheck', false, true);
-
-		this.isFindClass = this.ForceSetting.FindClass || (this.isFindClassRegex.test(currentText) && this.isFindClassWithWordCheckRegex.test(currentWord));
-		this.isFindMethod = this.ForceSetting.FindMethod || this.isFindMethodRegex.test(currentText);
-		this.isFindMember = !this.ForceSetting.isFindClassOrMethod() && this.isFindMemberRegex.test(currentText) && !this.methodQuoteRegex.test(currentText);
-		this.isFindEnum = !this.ForceSetting.isFindClassOrMethod() && this.isFindEnumRegex.test(this.currentText);
-		this.isFindClassOrEnum = !this.ForceSetting.isFindClassOrMethod() && this.isFindClassOrEnumRegex.test(this.currentText);
-		this.isFindConstantRegex = this.getCheckingRegex('isFindConstant', false);
-		if (/^[A-Z]/.test(this.currentWord)) {
-			this.isFindConstant = (this.isFindConstantRegex.source === EmptyRegex.source
-				? MyConfig.DefaultConstantsRegex.test(this.currentWord)
-				: this.isFindConstantRegex.test(this.currentText)
-			) && !this.methodQuoteRegex.test(this.currentText);
-		}
-
-		this.isConstantResultRegex = this.getCheckingRegex('isConstantResult', true);
-		if (this.isConstantResultRegex.source === EmptyRegex.source) {
-			this.isConstantResultRegex = new RegExp('\\b' + this.currentWord + '\\s*=');
-		}
-
-		this.currentWordRegex = new RegExp((/^\W/.exec(this.currentWord) ? '' : '\\b') + currentWord + '\\b');
-
-		this.enumOrConstantValueRegex = new RegExp('^\\s*' + this.currentWord + '\\s*=');
+		this.isFindClass = this.ForceSetting.hasFlag(ForceFindType.FindClass) && searchChecker.isFindClass;
+		this.isFindMethod = this.ForceSetting.hasFlag(ForceFindType.FindMethod) && searchChecker.isFindMethod;
+		this.isFindMember = this.ForceSetting.hasFlag(ForceFindType.FindMember) && searchChecker.isFindMember;
+		this.isFindEnum = !this.ForceSetting.isFindClassOrMethod() && searchChecker.isFindEnum;
+		this.isFindClassOrEnum = !this.ForceSetting.isFindClassOrMethod() && searchChecker.isFindClassOrEnum;
+		this.isFindClassOrMethod = this.ForceSetting.hasAnyFlag([ForceFindType.FindClass, ForceFindType.FindMethod]) && searchChecker.isFindClassOrMethod;
+		this.isFindConstant = this.searchChecker.isFindConstant;
 
 		this.scoreWordsText = this.getScoreText();
 		this.scoreWordSet = getAllSingleWords(this.scoreWordsText);
 		this.currentWordSet = getAllSingleWords(this.currentWord);
-		this.currentFileNameWordSet = getAllSingleWords(this.currentFile.name);
+		this.currentFileNameWordSet = getAllSingleWords(searchChecker.currentFile.name);
 		this.scoreWordSet = getAllSingleWords(this.scoreWordsText);
 
-		this.currentFilePathWordSet = getAllSingleWords(this.currentFilePath);
+		this.currentFilePathWordSet = getAllSingleWords(searchChecker.currentFilePath);
 		const highScoreRegex = new RegExp('(\\w+)(?:\\.|::|->)' + this.currentWord + '\\b' + '|' + '\\b(' + this.currentWord + ')(?:\\.|::|->)\\w+');
-		const highScoreMatch = highScoreRegex.exec(this.currentText);
+		const highScoreMatch = highScoreRegex.exec(searchChecker.currentText);
 		if (highScoreMatch) {
 			if (highScoreMatch[1]) {
 				getAllSingleWords(highScoreMatch[1]).forEach(a => this.highScoreWordSet.add(a));
@@ -170,96 +71,32 @@ export class Ranker {
 			}
 		}
 
-		const rootFolderName = getRootFolderName(this.currentFilePath);
-		const promoteFolderPattern = (RootConfig.get(rootFolderName + '.promoteFolderPattern') as string || '').trim();
-		const promotePathPattern = (RootConfig.get(rootFolderName + '.promotePathPattern') as string || '').trim();
-		this.promoteFolderRegex = createRegex(promoteFolderPattern, 'i');
-		this.promotePathRegex = createRegex(promotePathPattern, 'i');
-		this.promoteFolderScore = parseInt(getOverrideOrDefaultConfig(rootFolderName, 'promoteFolderScore') || '200');
-		this.promotePathScore = parseInt(getOverrideOrDefaultConfig(rootFolderName, 'promotePathScore') || '200');
-
-		const demoteFolderPattern = (RootConfig.get(rootFolderName + '.demoteFolderPattern') as string || '').trim();
-		const demotePathPattern = (RootConfig.get(rootFolderName + '.demotePathPattern') as string || '').trim();
-		this.demoteFolderRegex = createRegex(demoteFolderPattern, 'i');
-		this.demotePathRegex = createRegex(demotePathPattern, 'i');
-		this.demoteFolderScore = parseInt(getOverrideOrDefaultConfig(rootFolderName, 'demoteFolderScore') || '200');
-		this.demotePathScore = parseInt(getOverrideOrDefaultConfig(rootFolderName, 'demotePathScore') || '200');
-
-		const isUpperCaseWord = /^[A-Z]\w+$/.test(this.currentWord);
-		if (!this.isFindClass && !this.isFindMember && !this.isFindMethod && !this.isFindEnum) {
-			if (isUpperCaseWord && new RegExp('^\\s*' + this.currentWord + '\\s*=').test(this.currentText)) {
-				this.isFindMember = true;
-			}
-
-			if (isUpperCaseWord && new RegExp('[^\.\w]' + this.currentWord + '(\\.|::|->)\\w+').test(this.currentText)) {
-				this.isFindClass = true;
-			}
-		} else if (!this.isFindClass && isUpperCaseWord && /^(py|cpp)$/.test(mappedExt) && /^[A-Z]\w+/.test(this.currentWord) && this.methodQuoteRegex.test(currentText)) {
-			this.isFindClass = true;
-		}
-
-		const classPattern = this.getSpecificConfigValue('class.definition', false).replace(SearchTextHolderReplaceRegex, currentWord);
-		this.classDefinitionRegex = classPattern.length < 1 ? EmptyRegex : new RegExp(classPattern);
-
-		const methodPattern = this.getSpecificConfigValue('method.definition', false).replace(SearchTextHolderReplaceRegex, currentWord);
-		this.methodDefinitionRegex = methodPattern.length < 1 ? EmptyRegex : new RegExp(methodPattern);
-
-		const memberPattern = this.getSpecificConfigValue('member.definition', false).replace(SearchTextHolderReplaceRegex, currentWord);
-		this.memberDefinitionRegex = memberPattern.length < 1 ? EmptyRegex : new RegExp(memberPattern);
-
-		const enumPattern = this.getSpecificConfigValue('enum.definition', false).replace(SearchTextHolderReplaceRegex, currentWord);
-		this.enumDefinitionRegex = enumPattern.length < 1 ? EmptyRegex : new RegExp(enumPattern);
-
 		outputDebug('IsJustFindingClassOrMethod = ' + this.ForceSetting.isFindClassOrMethod());
-		outputDebug('ForceUseDefaultFindingDefinition = ' + this.ForceUseDefaultFindingDefinition);
 		if (!this.ForceSetting.isFindClassOrMethod()) {
-			outputDebug('promoteFolderScore = ' + this.promoteFolderScore + ' , promoteFolderPattern = "' + this.promoteFolderRegex.source + '"');
-			outputDebug('promotePathScore = ' + this.promotePathScore + ' , promotePathPattern = "' + this.promotePathRegex.source + '"');
-			outputDebug('demoteFolderScore = ' + this.demoteFolderScore + ' , demoteFolderPattern = "' + this.demoteFolderRegex.source + '"');
-			outputDebug('demotePathScore = ' + this.demotePathScore + ' , demotePathPattern = "' + this.demotePathRegex.source + '"');
-
-			outputDebug('isFindConstant = ' + this.isFindConstant + ' , isConstantPattern = "' + MyConfig.DefaultConstantsRegex.source + '" , nonConstRegex = "' + this.methodQuoteRegex.source + '"');
-			outputDebug('isFindClass = ' + this.isFindClass + ' , isClassPattern = "' + this.isFindClassRegex.source + '"');
-			outputDebug('word = "' + this.currentWord + '" , isFindClassWithWordCheckRegex = "' + this.isFindClassWithWordCheckRegex.source + '"');
-			outputDebug('isFindEnum = ' + this.isFindEnum + ' , isEnumPattern = "' + this.isFindEnumRegex.source + '"');
-			outputDebug('isFindMethod = ' + this.isFindMethod + ' , isMethodPattern = "' + this.isFindMethodRegex.source + '"');
-			outputDebug('isFindMember = ' + this.isFindMember + ' , isMemberPattern = "' + this.isFindMemberRegex.source + '"');
-			outputDebug('isFindClassOrEnum = ' + this.isFindClassOrEnum + ' , isClassOrEnumPattern = "' + this.isFindClassOrEnumRegex.source + '"');
-
-			outputDebug('isClassResultRegex = "' + this.isClassResultRegex.source + '"');
-			outputDebug('isEnumResultRegex = "' + this.isEnumResultRegex.source + '"');
-			outputDebug('isMethodResultRegex = "' + this.isMethodResultRegex.source + '"');
-
-			outputDebug('classDefinitionRegex = "' + this.classDefinitionRegex.source + '"');
-			outputDebug('methodDefinitionRegex = "' + this.methodDefinitionRegex.source + '"');
-			outputDebug('memberDefinitionRegex = "' + this.memberDefinitionRegex.source + '"');
-			outputDebug('enumDefinitionRegex = "' + this.enumDefinitionRegex.source + '"');
+			outputDebug('isFindConstant = ' + this.isFindConstant + ' , isConstantPattern = "' + MyConfig.DefaultConstantsRegex.source
+				+ '" , nonConstRegex = "' + searchChecker.methodQuoteRegex.source + '"');
+			outputDebug('isFindClass = ' + this.isFindClass + ' , isClassPattern = "' + searchChecker.isFindClassRegex.source + '"');
+			outputDebug('isFindEnum = ' + this.isFindEnum + ' , isEnumPattern = "' + searchChecker.isFindEnumRegex.source + '"');
+			outputDebug('isFindMethod = ' + this.isFindMethod + ' , isMethodPattern = "' + searchChecker.isFindMethodRegex.source + '"');
+			outputDebug('isFindMember = ' + this.isFindMember + ' , isMemberPattern = "' + searchChecker.isFindMemberRegex.source + '"');
+			outputDebug('isFindClassOrEnum = ' + this.isFindClassOrEnum + ' , isClassOrEnumPattern = "' + searchChecker.isFindClassOrEnumRegex.source + '"');
+			outputDebug('isFindClassOrMethod = ' + this.isFindClassOrMethod + ' , isFindClassOrMethodPattern = "' + searchChecker.isFindClassOrMethodRegex.source + '"');
 			outputDebug('scoreWordsText = ' + this.scoreWordsText);
-			outputDebug('promoteSelfFileMatchScore = ' + this.promoteSelfFileMatchScore);
 		}
 
 		outputDebug(nowText() + 'scoreWordSet[' + this.scoreWordSet.size + '] = ' + Array.from(this.scoreWordSet).join(' '));
 		outputDebug(nowText() + 'Final-Check: isFindMember = ' + this.isFindMember + ', isFindClass = ' + this.isFindClass + ' , isFindMethod = ' + this.isFindMethod + ' , isFindEnum = ' + this.isFindEnum);
 	}
 
-	private getCheckingRegex(configKeyTail: string, allowEmpty: boolean, matchAnyIfEmpty: boolean = false): RegExp {
-		const useDefault = configKeyTail === 'isFindClass' && MyConfig.UseDefaultFindingClassCheckExtensionRegex.test(this.currentFile.ext);
-		const rawPattern = useDefault
-			? getConfigValueByRoot(this.rootFolderName, 'default', '', configKeyTail, allowEmpty)
-			: getConfigValueByRoot(this.rootFolderName, this.extension, this.mappedExt, configKeyTail, allowEmpty);
-		const pattern = rawPattern.replace(SearchTextHolderReplaceRegex, this.currentWord);
-		return matchAnyIfEmpty && isNullOrEmpty(pattern) ? new RegExp(".?") : createRegex(pattern);
-	}
-
 	private getScoreText(): string {
-		const leftPart = this.currentText.substring(0, this.currentWordRange.start.character);
+		const leftPart = this.searchChecker.currentText.substring(0, this.searchChecker.currentWordRange.start.character);
 		const expandLeftRegex = this.isFindMethod ? /[=\s\w\.:<>-]+$/ : /[\w\.:<>-]+$/;
-		const expandMethodLeftRegex = this.isFindMethod && this.findType === FindType.Definition
+		const expandMethodLeftRegex = this.isFindMethod && this.searchChecker.findType === FindType.Definition
 			? new RegExp('[\\w\\.:<>-]*\\w+\\s*\\(.*?\\)\\s*(->|\\.)\\s*$')
 			: EmptyRegex;
 
 		const leftMethodMatch = expandMethodLeftRegex.exec(leftPart);
-		if (this.isFindMethod && this.findType === FindType.Definition) {
+		if (this.isFindMethod && this.searchChecker.findType === FindType.Definition) {
 			if (new RegExp("\\b(this|self)(->|\\.)$").test(leftPart)) {
 				this.promoteSelfFileMatchScore = 200;
 			} else if (new RegExp("\\s+$").test(leftPart)) {
@@ -275,7 +112,7 @@ export class Ranker {
 
 		const leftMatchedText = leftMatch ? leftMatch[0] : '';
 
-		const rightPart = this.currentText.substring(this.currentWordRange.end.character);
+		const rightPart = this.searchChecker.currentText.substring(this.searchChecker.currentWordRange.end.character);
 		const expandRightRegex = /^[\w\.:<>-]+/;
 		const rightMatch = expandRightRegex.exec(rightPart);
 		const rightMatchedText = rightMatch ? rightMatch[0] : '';
@@ -290,10 +127,10 @@ export class Ranker {
 		return scoreText.trim();
 	}
 
-	private getSpecificConfigValue(configKeyTail: string, addDefault: boolean = true, allowEmpty: boolean = true): string {
-		let prefixes = this.ForceUseDefaultFindingDefinition
+	public getSpecificConfigValue(configKeyTail: string, addDefault: boolean = true, allowEmpty: boolean = true): string {
+		let prefixes = this.searchChecker.ForceUseDefaultFindingDefinition
 			? GetConfigPriorityPrefixes(this.rootFolderName, '', '', true)
-			: GetConfigPriorityPrefixes(this.rootFolderName, this.extension, this.mappedExt, addDefault);
+			: GetConfigPriorityPrefixes(this.rootFolderName, this.searchChecker.extension, this.searchChecker.mappedExt, addDefault);
 		const pattern = getOverrideConfigByPriority(prefixes, configKeyTail, allowEmpty) as string || '';
 		if (!isNullOrEmpty(pattern) && configKeyTail.includes('definition') && !configKeyTail.includes('skip') && pattern.indexOf(SearchTextHolder) < 0) {
 			const keys = prefixes.join('.' + configKeyTail + ' or ');
@@ -311,60 +148,56 @@ export class Ranker {
 		const config = getConfig();
 		let specificPatterns = new Set<string>();
 		if (configKeyName === 'definition') {
-			if (this.isFindClass || this.isFindClassOrEnum) {
-				specificPatterns.add(this.getSpecificConfigValue('class.definition'));
-			}
-
 			if (this.isFindConstant) {
 				specificPatterns.add(this.getSpecificConfigValue('constant.definition'));
-				if (this.currentText.indexOf(this.currentWord + '.') >= 0) {
+				if (this.searchChecker.currentText.indexOf(this.currentWord + '.') >= 0) {
 					specificPatterns.add(this.getSpecificConfigValue('class.definition'));
 				}
-			}
+			} else {
+				if (this.isFindClass || this.isFindClassOrEnum) {
+					specificPatterns.add(this.getSpecificConfigValue('class.definition'));
+				}
 
-			if (this.isFindEnum) {
-				specificPatterns.add(this.getSpecificConfigValue('enum.definition'));
-			}
+				if (this.isFindEnum || this.searchChecker.maybeEnum) {
+					specificPatterns.add(this.getSpecificConfigValue('enum.definition'));
+				}
 
-			if (this.isFindMember) {
-				specificPatterns.add(this.getSpecificConfigValue('member.definition'));
+				if (this.isFindMember) {
+					specificPatterns.add(this.getSpecificConfigValue('member.definition'));
 
-				// For languages that can omit quotes for methods:
-				if (this.extension.match(/py|scala/)) {
+					// For languages that can omit quotes for methods:
+					if (this.searchChecker.extension.match(/py|scala/)) {
+						specificPatterns.add(this.getSpecificConfigValue('method.definition'));
+					}
+				}
+
+				if (this.isFindMethod) {
 					specificPatterns.add(this.getSpecificConfigValue('method.definition'));
 				}
-			}
-
-			if (this.isFindMethod) {
-				specificPatterns.add(this.getSpecificConfigValue('method.definition'));
 			}
 
 			specificPatterns.delete('');
 			if (specificPatterns.size < 1) {
 				specificPatterns.add(this.getSpecificConfigValue('definition', false, false));
-				specificPatterns.delete('');
-			}
 
-			// Default: Will be slower if more items.
-			if (specificPatterns.size < 1) { // if (this.isEnumOrMember) {
-				specificPatterns.add(this.getSpecificConfigValue('class.definition'));
-				specificPatterns.add(this.getSpecificConfigValue('member.definition'));
-				specificPatterns.add(this.getSpecificConfigValue('method.definition'));
+				// Default: Will be slower if more items.
+				// specificPatterns.add(this.getSpecificConfigValue('class.definition'));
+				// specificPatterns.add(this.getSpecificConfigValue('method.definition'));
 			}
-			else if (this.isFindMember && !this.isFindClass) {
-				if (this.currentWord.match(/^[A-Z][a-z]+\w+/) && new RegExp('\\w+\.' + this.currentWord + '\\b').test(this.currentText)) {
-					specificPatterns.add(this.getSpecificConfigValue('class.definition'));
-				}
-			}
+			// else if (this.isFindMember && !this.isFindClass) {
+			// 	if (this.currentWord.match(/^[A-Z][a-z]+\w+/) && new RegExp('\\w+\.' + this.currentWord + '\\b').test(this.searchChecker.currentText)) {
+			// 		specificPatterns.add(this.getSpecificConfigValue('class.definition'));
+			// 	}
+			// }
 
 			specificPatterns.delete('');
 		}
 
-		let searchPattern = this.getSpecificConfigValue(configKeyName, this.findType !== FindType.Definition, false);
+		let searchPattern = this.getSpecificConfigValue(configKeyName, this.searchChecker.findType !== FindType.Definition, false);
 
 		const RootConfig = vscode.workspace.getConfiguration('msr');
-		const codeFilesKey = this.mappedExt === 'ui' ? 'default.codeFilesPlusUI' : 'default.codeFiles';
-		let filePattern = MappedExtToCodeFilePatternMap.get(this.mappedExt) || '\\.' + extension + '$';
+		const codeFilesKey = this.searchChecker.mappedExt === 'ui' ? 'default.codeFilesPlusUI' : 'default.codeFiles';
+		let filePattern = MappedExtToCodeFilePatternMap.get(this.searchChecker.mappedExt) || '\\.' + extension + '$';
 		if (config.SearchAllFilesWhenFindingReferences && configKeyName === 'reference') {
 			filePattern = RootConfig.get('default.allFiles') as string;
 			const defaultFindRef = RootConfig.get('default.reference') as string;
@@ -417,15 +250,15 @@ export class Ranker {
 			searchPattern = '-t "' + searchPattern + '"';
 		}
 
-		const skipPattern = this.findType === FindType.Definition ? this.getSkipPatternForDefinition() : '';
+		const skipPattern = this.searchChecker.findType === FindType.Definition ? this.getSkipPatternForDefinition() : '';
 		if (skipPattern.length > 1) {
 			searchPattern += ' --nt "' + skipPattern + '"';
 		}
 
-		if (this.ForceUseDefaultFindingDefinition) {
+		if (this.searchChecker.ForceUseDefaultFindingDefinition) {
 			filePattern = getConfigValueByRoot(this.rootFolderName, '', '', 'codeFiles', false, true)
 				|| getConfigValueByRoot(this.rootFolderName, '', '', 'allFiles', false, true);
-		} else if (MyConfig.isUnknownFileType(this.currentFile.ext)) {
+		} else if (MyConfig.isUnknownFileType(this.searchChecker.currentFile.ext)) {
 			let patternSet = new Set<string>([
 				getConfigValueByRoot(this.rootFolderName, 'default', '', 'codeFiles', false),
 				'\\.' + extension + '$'
@@ -440,20 +273,22 @@ export class Ranker {
 
 	public getSkipPatternForDefinition() {
 		let skipPatternSet = new Set<string>();
-		if (this.isFindClass) {
-			skipPatternSet.add(this.getSpecificConfigValue('class.skip.definition'));
-		}
+		if (!this.isFindConstant) {
+			if (this.isFindClass) {
+				skipPatternSet.add(this.getSpecificConfigValue('class.skip.definition'));
+			}
 
-		if (this.isFindMember && !this.isFindEnum) {
-			skipPatternSet.add(this.getSpecificConfigValue('member.skip.definition'));
-		}
+			if (this.isFindMember && !this.isFindEnum && !this.isFindClass) {
+				skipPatternSet.add(this.getSpecificConfigValue('member.skip.definition'));
+			}
 
-		if (this.isFindEnum) {
-			skipPatternSet.add(this.getSpecificConfigValue('enum.skip.definition'));
-		}
+			if (this.isFindEnum) {
+				skipPatternSet.add(this.getSpecificConfigValue('enum.skip.definition'));
+			}
 
-		if (this.isFindMethod) {
-			skipPatternSet.add(this.getSpecificConfigValue('method.skip.definition'));
+			if (this.isFindMethod) {
+				skipPatternSet.add(this.getSpecificConfigValue('method.skip.definition'));
+			}
 		}
 
 		skipPatternSet.delete('');
@@ -467,62 +302,62 @@ export class Ranker {
 	}
 
 	public getTypeAndScore(position: vscode.Position, resultFilePath: string, resultText: string): [ResultType, Number] {
-		if (this.findType !== FindType.Definition) {
-			return [ResultType.Other, 1];
+		if (this.searchChecker.findType !== FindType.Definition) {
+			return [ResultType.None, 1];
 		}
 
-		const rowSub = position.line - this.currentPosition.line;
-		if (resultFilePath === this.currentFilePath) {
+		const rowSub = position.line - this.searchChecker.Position.line;
+		if (resultFilePath === this.searchChecker.currentFilePath) {
 			if (rowSub === 0) {
-				return [ResultType.Other, 0];
+				return [ResultType.None, 0];
 			}
 
-			if (!MyConfig.isScriptFile(this.extension)) {
+			if (!MyConfig.isScriptFile(this.searchChecker.extension) && this.searchChecker.isMethodResultRegex.test(resultText)) {
 				if (rowSub < 0 && rowSub >= -5) {
-					return [ResultType.Other, 0];
+					return [ResultType.None, 0];
 				}
 
 				if (rowSub < 0 && rowSub >= -16 && !this.ForceSetting.FindLocalVariableDefinition) {
 					let brackets = 0;
-					for (let r = position.line + 1; brackets < 2 && r < this.currentPosition.line; r++) {
-						const line = this.Document.lineAt(r);
+					for (let r = position.line + 1; brackets < 2 && r < this.searchChecker.Position.line; r++) {
+						const line = this.searchChecker.Document.lineAt(r);
 						if (line.text.match(/^\s*\{/)) {
 							brackets += 1;
 						}
 					}
 
 					if (brackets < 2) {
-						return [ResultType.Other, 0];
+						return [ResultType.None, 0];
 					}
 				}
 			}
 		}
 
 		// Skip c++ function definition:
-		if (this.mappedExt === 'cpp') {
+		if (this.searchChecker.mappedExt === 'cpp') {
 			if (resultText.match(/;\s*$/)) {
 				return [ResultType.Interface, 0];
 			}
 		}
 
 		let score = 1;
-		const isSameFile = resultFilePath === this.currentFilePath;
-		const isInSameFolder = path.dirname(resultFilePath) === this.currentFile.dir;
+		const isSameFile = resultFilePath === this.searchChecker.currentFilePath;
+		const isInSameFolder = path.dirname(resultFilePath) === this.searchChecker.currentFile.dir;
 		const boostFactor = isSameFile ? 2 : (isInSameFolder ? 1.5 : 1);
 
 		if (this.isFindConstant) {
-			if (this.isConstantResultRegex.test(resultText)) {
+			if (this.searchChecker.isConstantResultRegex.test(resultText)) {
 				score += 100 * boostFactor;
 			}
 		}
 
 		if (this.isFindEnum || this.isFindMember || this.isFindClass) {
-			if (this.enumOrConstantValueRegex.test(resultText)) {
+			if (this.searchChecker.enumOrConstantValueRegex.test(resultText)) {
 				score += 100 * boostFactor;
 			}
 		}
 
-		const hasMatchedClass = resultText.match(this.classDefinitionRegex);
+		const hasMatchedClass = resultText.match(this.searchChecker.classDefinitionRegex);
 		if (this.isFindMember) {
 			if (!hasMatchedClass && !resultText.match(/[\(\)]/)) {
 				score += 500 * boostFactor;
@@ -589,7 +424,7 @@ export class Ranker {
 			score += 30 * boostFactor;
 		}
 
-		if (resultText.match(/^\s*(\w+\s+)?(readonly|const)\s+/)) {
+		if (resultText.match(/^\s*(\w+\s+)?(readonly|const|final)\s+/)) {
 			score += 50 * boostFactor;
 		}
 
@@ -658,61 +493,108 @@ export class Ranker {
 			score -= headSpaces[0].length * 3;
 		}
 
-		if (parsedResultPath.dir === this.currentFile.dir) {
+		if (parsedResultPath.dir === this.searchChecker.currentFile.dir) {
 			score += this.promoteSelfFileMatchScore / 5;
 		}
 
-		if (parsedResultPath.base === this.currentFile.base) {
-			score += parsedResultPath.dir === this.currentFile.dir
+		if (parsedResultPath.base === this.searchChecker.currentFile.base) {
+			score += parsedResultPath.dir === this.searchChecker.currentFile.dir
 				? this.promoteSelfFileMatchScore
 				: this.promoteSelfFileMatchScore / 5;
 		}
 
-		if (this.promoteFolderRegex.source !== EmptyRegex.source || this.demoteFolderRegex.source !== EmptyRegex.source) {
+		if (this.searchChecker.promoteFolderRegex.source !== EmptyRegex.source || this.searchChecker.demoteFolderRegex.source !== EmptyRegex.source) {
 			parsedResultPath.dir.split(/[\\/]/).forEach(a => {
-				if (this.promoteFolderRegex.test(a)) {
-					score += this.promoteFolderScore;
+				if (this.searchChecker.promoteFolderRegex.test(a)) {
+					score += this.searchChecker.promoteFolderScore;
 				}
 
-				if (this.demoteFolderRegex.test(a)) {
-					score -= this.demoteFolderScore;
+				if (this.searchChecker.demoteFolderRegex.test(a)) {
+					score -= this.searchChecker.demoteFolderScore;
 				}
 			});
 		}
 
-		if (this.promotePathRegex.source !== EmptyRegex.source || this.demotePathRegex.source !== EmptyRegex.source) {
-			if (this.promotePathRegex.test(resultFilePath)) {
-				score += this.promotePathScore;
+		if (this.searchChecker.promotePathRegex.source !== EmptyRegex.source || this.searchChecker.demotePathRegex.source !== EmptyRegex.source) {
+			if (this.searchChecker.promotePathRegex.test(resultFilePath)) {
+				score += this.searchChecker.promotePathScore;
 			}
 
-			if (this.demotePathRegex.test(resultFilePath)) {
-				score -= this.demotePathScore;
+			if (this.searchChecker.demotePathRegex.test(resultFilePath)) {
+				score -= this.searchChecker.demotePathScore;
 			}
 		}
 
-		score -= resultFilePath.length;
-
-		let type = ResultType.Other;
-		if (this.isClassResultRegex.test(resultText)) {
+		let type = ResultType.None;
+		const isFindingMember = this.isFindMember || this.searchChecker.isFindMember;
+		if (this.searchChecker.isClassResultRegex.test(resultText)) {
 			score += (this.isFindClass ? 200 : 20) * boostFactor;
 			type = ResultType.Class;
-		} else if (this.isEnumResultRegex.test(resultText)) {
+		} else if (this.searchChecker.isEnumResultRegex.test(resultText)) {
 			score += (this.isFindEnum ? 200 : 20) * boostFactor;
 			type = ResultType.Enum;
-		} else if (this.isMethodResultRegex.test(resultText)) {
+		} else if (this.searchChecker.isMethodResultRegex.test(resultText)) {
 			type = ResultType.Method;
-			if (this.mappedExt === 'cpp' && FindType.Definition === this.findType && !/;\s*$/.test(resultText)) {
+			if (this.searchChecker.mappedExt === 'cpp' && FindType.Definition === this.searchChecker.findType && !/;\s*$/.test(resultText)) {
 				score *= 100;
 			}
-		} else if (this.isInterfaceResultRegex.test(resultText)) {
+		} else if (this.searchChecker.isInterfaceResultRegex.test(resultText)) {
 			type = ResultType.Interface;
 			score *= 10;
+		} else if (this.searchChecker.isConstantResultRegex.test(resultText)) {
+			type = ResultType.ConstantValue
+			score *= 100;
 		}
 
-		if (this.isFindClass && ResultType.Other === type && !this.ForceSetting.FindLocalVariableDefinition) {
+		if (ResultType.None === type) {
+			if (this.searchChecker.isLocalVariableResultRegex.test(resultText)) {
+				type = ResultType.LocalVariable;
+				score += 10;
+				if (this.searchChecker.isFindMemberOrLocalVariable || this.searchChecker.isProbablyFindLocalVariable) {
+					return [type, score];
+				}
+			}
+		}
+
+		if (ResultType.None === type) {
+			const isMemberResult = this.searchChecker.isMemberResultRegex.test(resultText);
+			if (isMemberResult) {
+				type = ResultType.Member;
+			}
+
+			if (isFindingMember && !isMemberResult) {
+				if (this.searchChecker.maybeEnum && this.searchChecker.maybeEnumResultRegex.test(resultText)) {
+					// may be enum result.
+					type = ResultType.ConstantValue;
+				} else {
+					return [type, 0];
+				}
+			}
+
+			if (!isFindingMember && isMemberResult && this.ForceSetting.ForceFind !== ForceFindType.None) {
+				if (!this.searchChecker.maybeFindLocalVariable && !this.searchChecker.isFindMemberOrLocalVariable) {
+					return [type, 0];
+				}
+			}
+
+			if (ResultType.None !== type) {
+				score += 10;
+			}
+		}
+
+		if (ResultType.None === type) {
 			return [type, 0];
 		}
 
+		if (this.isFindClassOrMethod
+			&& ![ResultType.Class, ResultType.Enum, ResultType.Method, ResultType.ConstantValue].includes(type)
+			&& !this.ForceSetting.FindLocalVariableDefinition) {
+			if (ResultType.Member !== type && !this.searchChecker.maybeEnum) {
+				return [type, 0];
+			}
+		}
+
+		// score -= resultFilePath.length;
 		return [type, score];
 	}
 }

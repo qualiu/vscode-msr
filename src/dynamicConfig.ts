@@ -444,7 +444,7 @@ export function getSearchPathOptions(
     const readPathListOptions = usePathListFiles && pathListFileSet.size > 0 ? ' -w "' + pathFilesText + '"' : '';
     const searchPaths = replaceToRelativeSearchPath(toRunInTerminal, pathsText, rootFolder);
     const otherOptions = isNullOrEmpty(rootPaths) ? '' : readPathListOptions + skipFolderOptions;
-    return recursiveOption + ' ' + quotePaths(searchPaths) + otherOptions;
+    return recursiveOption + quotePaths(searchPaths) + otherOptions;
 }
 
 export function getExtraSearchPathsOrFileLists(configKey: string, folderName: string): Set<string> {

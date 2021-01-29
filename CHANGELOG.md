@@ -2,12 +2,19 @@
 
 All notable changes to this "vscode-msr" extension will be documented in this file.
 
+## [2.1.10]
+
+- Reduced 1 searching command line.
+- Tried to avoid occasionally prompting 'cmd.exe exit' on Windows machine.
+
 ## [2.1.9]
+
 - Improved searching precision + Added more specific settings for languages.
 - Stopped current searchers if found + stop previous running searchers before new searching.
 - Used `git-ignore` as default path filter by setting `msr.useGitIgnoreFile` = true.
 
 ## [2.1.8]
+
 - Updated `git-ignore` patterns: Added trailing slash `/` to some word patterns.
 - Added a menu: `msr.compareFileListsWithGitIgnore` to compare file lists if enabled `msr.useGitIgnoreFile`.
 - Added `msr.autoCompareFileListsIfUsedGitIgnore` to help auto compare file lists (need change to `true`).

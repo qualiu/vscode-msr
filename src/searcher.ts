@@ -1,12 +1,12 @@
 import { exec, ExecException, ExecOptions } from 'child_process';
 import * as vscode from 'vscode';
-import { setSearchDepthInCommandLine, setTimeoutInCommandLine, ToolChecker } from './checkTool';
+import { IsForwardingSlashSupportedOnWindows, setSearchDepthInCommandLine, setTimeoutInCommandLine, ToolChecker } from './checkTool';
 import { runFindingCommandByCurrentWord } from './commands';
 import { getConfigValueByRoot, getSubConfigValue } from './configUtils';
 import { IsDebugMode, IsWindows, RemoveJumpRegex, SearchTextHolderReplaceRegex } from './constants';
 import { FileExtensionToMappedExtensionMap, getConfig, getRootFolder, getRootFolderExtraOptions, getRootFolderName, getSearchPathOptions, GitIgnoreInfo, MyConfig } from './dynamicConfig';
 import { FindCommandType, FindType, ForceFindType, TerminalType } from './enums';
-import { outputDebug, outputDebugOrInfo, outputError, outputInfo, outputResult, outputWarn, runCommandInTerminal } from './outputUtils';
+import { outputDebug, outputDebugOrInfo, outputError, outputInfo, outputResult, outputWarn, runCommandInTerminal, runRawCommandInTerminal } from './outputUtils';
 import { Ranker } from './ranker';
 import { escapeRegExp } from './regexUtils';
 import { ResultType, ScoreTypeResult } from './ScoreTypeResult';
@@ -62,7 +62,14 @@ if (IsLinuxTerminalOnWindows && TerminalType.CygwinBash === DefaultTerminalType)
 }
 
 export const PlatformToolChecker = new ToolChecker(IsWindows ? TerminalType.CMD : TerminalType.LinuxBash);
-PlatformToolChecker.checkSearchToolExists();
+if (PlatformToolChecker.checkSearchToolExists()) {
+  // avoid prompting 'cmd.exe exit error'
+  if (!MyConfig.UseGitIgnoreFile || !GitIgnoreInfo.Valid) {
+    // to ease running command later (like: using git-ignore to export/set variables)
+    runRawCommandInTerminal('echo TerminalType = ' + TerminalType[DefaultTerminalType] + ', Universal slash = ' + IsForwardingSlashSupportedOnWindows);
+  }
+}
+
 PlatformToolChecker.checkAndDownloadTool('nin');
 
 const RunCommandChecker = TerminalType.CygwinBash === DefaultTerminalType ? LinuxToolChecker : PlatformToolChecker;

@@ -32,7 +32,8 @@ Then it's the **light** and **right** tool for you(just **2~3 MB** storage + **3
 
 - Only support: **64-bit** + **32-bit** : **Windows** + **WSL** + **Linux** (`Ubuntu`+`CentOS`+`Fedora`: `gcc/g++` >= `4.8`).
 - [**Workaround**](#workaround-to-long-existing-vscode-bug-impact-to-finding-definition-and-reference) to [long existing VsCode bug](https://github.com/microsoft/vscode/issues/96754) impact to `Go To Definition` and `Find All Reference`.
-- See [**here**](#adjust-your-color-theme-if-result-file-path-folder-color-is-not-clear) if `folder color` of output result file paths is not clear: add/change one color theme.
+- See [**here**](#adjust-your-color-theme-if-result-file-path-folder-color-is-not-clear) if **`folder color`** of output result file paths is not clear: add/change one color theme.
+- [**Set exclusions**](#avoid-security-software-downgrade-search-performance-on-windows) if you cannot get search results **in 1~2 seconds** for just **10000 code files** on Windows.
 
 ## Features
 
@@ -42,7 +43,7 @@ Then it's the **light** and **right** tool for you(just **2~3 MB** storage + **3
 
 - Also can find **definitions** + **references** from **any type of files** + **any type** (like text `in comments` or `just typed`).
 
-- **Self-reliance**: Learn/Ramp-up faster **by yourself** -- [**Code Digging without or with Little Knowledge**](#digging-code-without-or-with-little-knowledge).
+- **Self-reliance**: Learn/Ramp-up faster **by yourself** -- [**Code Mining without or with Little Knowledge**](#code-mining-without-or-with-little-knowledge).
 
 - [**Normal** + **Extensive Search**](#normal-and-extensive-search): Search by hot-keys/menus or typing text, in or out of VSCODE.
 
@@ -135,7 +136,7 @@ To adjust the colors, for example, if it's default `dark-blue` color theme:
 
 More details or other color settings follow [official vscode doc](https://code.visualstudio.com/docs/getstarted/themes#_customizing-a-color-theme).
 
-## Avoid Security Software Downgrade Search Performance
+## Avoid Security Software Downgrade Search Performance on Windows
 
 If you cannot get search results **in 1~2 seconds** for just **10000 code files** (auto skip `packages`, `build` and `junk files`):
 
@@ -166,7 +167,7 @@ You can generate the command shortcuts (alias/doskey) to directly use for search
 ### Command Shortcuts
 
 - After you cooked command alias/doskeys, you'll see messages below: (You can **write**/**update** doskeys in file)
-- Automated command shortcuts on **Linux** + **WSL** + [**4 types of terminals** on Windows](#supported-4-terminal-types-on-windows) to search or [**digging**](#digging-code-without-or-with-little-knowledge) or replace files.
+- Automated command shortcuts on **Linux** + **WSL** + [**4 types of terminals** on Windows](#supported-4-terminal-types-on-windows) to search or [**mining-code**](#code-mining-without-or-with-little-knowledge) or replace files.
 
 ```bash
 Now you can directly use the command shortcuts in/out-of vscode to search + replace like:
@@ -198,7 +199,7 @@ See + Use command alias(shortcut) in `MSR-RUN-CMD` on `TERMINAL` tab, or start u
 (if running `find-xxx` in vscode terminals, you can `click` the search results to open in vscode.)
 ```
 
-You can search **in vscode terminal** like: `find-def MyClass` or `find-ref "class\s+MyClass"` then **click** the results to **open and locate** them.
+You can search **in vscode terminal** then **click** the results to **open and locate** them, or start [**code-mining**](#code-mining-without-or-with-little-knowledge).
 
 Each time it will write 1 or multiple script files to the folder of `msr.cmdAlias.saveFolder`, if not set:
 
@@ -211,6 +212,7 @@ When you open a new terminal, will [**auto set project specific command shortcut
 ## Use git-ignore
 
 Open user settings, set `msr.useGitIgnoreFile` = `true` (or `msr.{project-folder-name}.useGitIgnoreFile` = `true`)
+
 - This use the `.gitignore` file only in top folder of the project, without other kinds/folders of git-ignore files.
 - Omit file/folder exemptions (like `!not-exclude.txt`) as default.
   - Set `msr.omitGitIgnoreExemptions` = `false` to not use git-ignore if found exemptions.
@@ -218,14 +220,17 @@ Open user settings, set `msr.useGitIgnoreFile` = `true` (or `msr.{project-folder
 Parsing result of `gitignore` file: see `MSR-Def-Ref` output channel (with `msr.debug` = `true` or launched in debug mode).
 
 ### Compare file lists to help checking if a project can use git-ignore
+
 - Method-1: Set `msr.autoCompareFileListsIfUsedGitIgnore` = `true` to auto compare file list at starting (opening projects).
 - Method-2: Use menu/command-palette of `msr.compareFileListsWithGitIgnore` to compare file lists if enabled `msr.useGitIgnoreFile`.
 
 ### Enable or disable git-ignore for all projects or one project
+
 - For all projects: Set `msr.useGitIgnoreFile` to `true` or `false`.
 - For one project: Add `msr.{project-folder-name}.useGitIgnoreFile` = `true` or `false` in [user settings](https://code.visualstudio.com/docs/getstarted/settings#_creating-user-and-workspace-settings).
 
 ### A better solution to support `git-ignore` in future
+
 - Use `git ls-files` command output all file list to `/tmp/{project}-git-files.txt`.
 - Use `msr -w /tmp/{project}-git-files.txt` instead of current `msr -rp .` or `msr -rp {project}-full-path`.
 - Create a file watcher to auto update `/tmp/{project}-git-files.txt` when captured file `deletion` or `creation` events.
@@ -365,6 +370,7 @@ There're another 2 ways to toggle besides the hot key (`Alt+F2`):
 - `msr.enable.reference`: Set to `false` or un-check it to **disable** `find references` function for all types of files.
 
 ### Output Relative Paths or Full Paths
+
 - For cooking command alias/shortcuts and using it:
   - `msr.cookCmdAlias.outputFullPath`
   - `msr.cookCmdAlias.outputRelativePathForLinuxTerminalsOnWindows`:
@@ -456,19 +462,22 @@ root = /
 options = "metadata"
 ```
 
-### Digging Code without or with Little Knowledge
+### Code Mining without or with Little Knowledge
 
 You may need fuzzy code searching for cases like below:
+
 - Only got piece of words from others, just human language not the exact name of code (`class`/`method`).
 - Take over a project, or already ramp-up for several days, not easy to get help.
 
-Then you can try code/knowledge digging by yourself with vscode-msr: (after [**cooking doskey/alias**](#command-shortcuts) if **out of vscode**)
+Then you can try code/knowledge mining by yourself with vscode-msr: (after [**cooking doskey/alias**](#command-shortcuts) if **out of vscode**)
 
 Examples (run in vscode terminals: like `MSR-RUN-CMD` or add/open new terminals):
+
 - Fuzzy search a class/method:
   - **find-def** `"\w*Keyword\w*You-Heard-or-Knew\w*"`
+
 - Fuzzy search a class/method, **ignore case**:
-	- **find-def** `"\w*Keyword\w*"` **-i**
+  - **find-def** `"\w*Keyword\w*"` **-i**
   - **find-def** `"\w*Keyword\w*"` **-i** -x `class`
   - **find-ref** `"class\s+\w*Keyword\w*"` **-i**
   - **find-all** -i -t `"class\s+\w*keyword\w*"`
@@ -500,6 +509,7 @@ Examples (run in vscode terminals: like `MSR-RUN-CMD` or add/open new terminals)
   - **find-all** -it `"regex-pattern"` -x `"and-plain-text"` --nx `"not-contain-text"` --nt `"not-match-regex"` --xp `/bin/,debug/,test` --pp `expected-path-regex` --np `skip-path-regex` -U 3 -D 2 -H 100 -T 100 ...
 
 Once you found the results:
+
 - You can filter results by [appending filters](#search-files-with-rich-filters).
 - Click + open the search results in vscode and go-on.
 - [Search code together](#get-the-best-combined-power) with official vscode extensions (like: `vscode-python` / `vscode-go`) + official IDEs (like: `Visual Studio` / `PyCharm`).

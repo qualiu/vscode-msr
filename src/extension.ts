@@ -1,18 +1,18 @@
 // The module 'vscode' contains the VS Code extensibility API
 // Import the module and reference it with the alias vscode in your code below
 import * as vscode from 'vscode';
-import { IsForwardingSlashSupportedOnWindows, MsrExe } from './checkTool';
+import { MsrExe } from './checkTool';
 import { getFindingCommandByCurrentWord, runFindingCommand } from './commands';
 import { getConfigValueByRoot } from './configUtils';
 import { IsDebugMode, IsWindows, SearchTextHolderReplaceRegex } from './constants';
 import { cookCmdShortcutsOrFile } from './cookCommandAlias';
 import { FileExtensionToMappedExtensionMap, getConfig, getRootFolder, getRootFolderName, GitIgnoreInfo, MyConfig, printConfigInfo } from './dynamicConfig';
-import { FindCommandType, FindType, ForceFindType, TerminalType } from './enums';
-import { clearOutputChannel, disposeTerminal, outputDebug, outputDebugOrInfo, RunCmdTerminalName, runRawCommandInTerminal } from './outputUtils';
+import { FindCommandType, FindType, ForceFindType } from './enums';
+import { clearOutputChannel, disposeTerminal, outputDebug, outputDebugOrInfo, RunCmdTerminalName } from './outputUtils';
 import { Ranker } from './ranker';
 import { SearchChecker } from './searchChecker';
 import { createCommandSearcher, createSearcher, getCurrentFileSearchInfo, PlatformToolChecker, Searcher, setReRunMark, stopAllSearchers } from './searcher';
-import { DefaultTerminalType, getExtensionNoHeadDot, isNullOrEmpty, nowText, quotePaths, toPath } from './utils';
+import { getExtensionNoHeadDot, isNullOrEmpty, nowText, quotePaths, toPath } from './utils';
 import path = require('path');
 
 outputDebug(nowText() + 'Start loading extension and initialize ...');
@@ -252,9 +252,6 @@ class SearchTimeInfo {
 
 let LastSearchInfo: SearchTimeInfo | null = null;
 
-// to ease running command later (like: using git-ignore to export/set variables)
-runRawCommandInTerminal('echo TerminalType = ' + TerminalType[DefaultTerminalType] + ', Universal slash = ' + IsForwardingSlashSupportedOnWindows);
-
 export class DefinitionFinder implements vscode.DefinitionProvider {
 	public async provideDefinition(document: vscode.TextDocument, position: vscode.Position, token: vscode.CancellationToken): Promise<vscode.Location[] | null> {
 		setReRunMark(false);
@@ -336,6 +333,7 @@ export class DefinitionFinder implements vscode.DefinitionProvider {
 			addSearcher(currentFolderSearchers, createSearcher(searchChecker, "Search-Current-Folder-Recursively", sourceFileFolder, true, defaultForceFindClassMethodMember, 9, 7));
 		}
 
+		let pathSet = new Set<string>();
 		let slowSearchers: (Searcher | null)[] = [];
 		let parentFolder = path.dirname(sourceFileFolder);
 		const diskRegex = IsWindows ? /^[A-Z]:\\.+?\\\w+/i : new RegExp('^/[^/]+/[^/]+$');
@@ -344,7 +342,7 @@ export class DefinitionFinder implements vscode.DefinitionProvider {
 			if (!parentFolder.startsWith(rootFolder) || !parentFolder.match(diskRegex)) {
 				break;
 			}
-			commandLineSet.add(parentFolder);
+			pathSet.add(parentFolder);
 			addSearcher(slowSearchers, createSearcher(searchChecker, "Search-Parent-Up-" + (k + 1), parentFolder, true, defaultForceFindClassMethodMember, 16, 9));
 			parentFolder = path.dirname(parentFolder);
 		}
@@ -353,15 +351,15 @@ export class DefinitionFinder implements vscode.DefinitionProvider {
 		const testFolderMatch = document.fileName.match(new RegExp('[\\\\/]test[\\\\/]'));
 		if (!isExternalFile && testFolderMatch) {
 			const testParentFolder = document.fileName.substring(0, testFolderMatch.index);
-			if (!commandLineSet.has(testParentFolder)) {
+			if (!pathSet.has(testParentFolder)) {
 				addSearcher(slowSearchers, createSearcher(searchChecker, 'Search-Parent-Test-Folder', testParentFolder, true));
-				commandLineSet.add(testParentFolder);
+				pathSet.add(testParentFolder);
 			}
 		}
 
-		const repoSearcher = isNullOrEmpty(rootFolder) || commandLineSet.has(rootFolder) ? null : createSearcher(searchChecker, "Search-This-Repo", rootFolder, true);
+		const repoSearcher = isNullOrEmpty(rootFolder) || pathSet.has(rootFolder) ? null : createSearcher(searchChecker, "Search-This-Repo", rootFolder, true);
 		addSearcher(slowSearchers, repoSearcher);
-		commandLineSet.add(rootFolder);
+		pathSet.add(rootFolder);
 
 		const fullSearcher = createSearcher(searchChecker, "Search-Repo-With-Extra-Paths", '', true);
 		if (fullSearcher && (!repoSearcher || fullSearcher.CommandLine !== repoSearcher.CommandLine)) {

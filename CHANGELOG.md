@@ -2,6 +2,10 @@
 
 All notable changes to this "vscode-msr" extension will be documented in this file.
 
+## [2.1.11]
+
+- Auto set command doskeys/alias for new terminals on vscode 1.53.0 which no terminal name.
+
 ## [2.1.10]
 
 - Reduced 1 searching command line.

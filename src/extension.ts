@@ -12,7 +12,7 @@ import { clearOutputChannel, disposeTerminal, outputDebug, outputDebugOrInfo, Ru
 import { Ranker } from './ranker';
 import { SearchChecker } from './searchChecker';
 import { createCommandSearcher, createSearcher, getCurrentFileSearchInfo, PlatformToolChecker, Searcher, setReRunMark, stopAllSearchers } from './searcher';
-import { getExtensionNoHeadDot, isNullOrEmpty, nowText, quotePaths, toPath } from './utils';
+import { getExtensionNoHeadDot, getTerminalShellExePath, isNullOrEmpty, nowText, quotePaths, toPath } from './utils';
 import path = require('path');
 
 outputDebug(nowText() + 'Start loading extension and initialize ...');
@@ -53,12 +53,13 @@ export function registerExtension(context: vscode.ExtensionContext) {
 	}
 
 	context.subscriptions.push(vscode.window.onDidOpenTerminal(terminal => {
-		if (MyConfig.SkipInitCmdAliasForNewTerminalTitleRegex.test(terminal.name) || terminal.name === 'MSR-RUN-CMD') {
+		const terminalName = isNullOrEmpty(terminal.name) ? path.basename(getTerminalShellExePath()) : terminal.name;
+		if (MyConfig.SkipInitCmdAliasForNewTerminalTitleRegex.test(terminalName) || terminalName === 'MSR-RUN-CMD') {
 			return;
 		}
 
 		const matchNameRegex = /^(Powershell|CMD|Command(\s+Prompt)?)$|bash/i;
-		if (MyConfig.InitProjectCmdAliasForNewTerminals && (!IsWindows || matchNameRegex.test(terminal.name))) {
+		if (MyConfig.InitProjectCmdAliasForNewTerminals && (!IsWindows || isNullOrEmpty(terminalName) || matchNameRegex.test(terminalName))) {
 			const folders = vscode.workspace.workspaceFolders;
 			const currentPath = folders && folders.length > 0 ? folders[0].uri.fsPath : '.';
 			cookCmdShortcutsOrFile(currentPath, true, false, terminal);

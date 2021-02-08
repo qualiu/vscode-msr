@@ -32,7 +32,7 @@ function getDefaultTerminalType(): TerminalType {
     } else if (/bash.exe$/.test(TerminalExePath)) {
         return TerminalType.WslBash;
     } else {
-        return TerminalType.CMD;
+        return TerminalType.PowerShell; // TerminalType.CMD;
     }
 }
 

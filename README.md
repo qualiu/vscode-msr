@@ -26,7 +26,7 @@ Have you suffered issues below in your daily work?
   - Build **Z GB outputs** to the disk.
   - Offer **N GB running memory** to the `official/professional` language extensions.
 
-Then it's the **light** and **right** tool for you(just **2~3 MB** storage + **3~10 MB** running memory) to search definition(near precise) + replace files.
+Then it's the **light** and **right** tool for you(just **2~3 MB** storage + **1~5 MB** running memory) to search definition(near precise) + replace files.
 
 **Note**: ([**Temp-toggle**](#get-the-best-combined-power) or [**change settings**](#disable-finding-definition-and-references-for-specific-file-types) for languages disabled by default settings.)
 
@@ -62,7 +62,7 @@ Then it's the **light** and **right** tool for you(just **2~3 MB** storage + **3
 - Simple + flexible configuration (`just general Regex` of `C++`,`Java`,`C#`,`Python`), overwrite default settings if need.
 
 - All just leverage one [tiny exe: msr-EXE](https://github.com/qualiu/msr/blob/master/README.md) **without** `storage`/`cache`, `server`/`service`, `network`, etc.
-  - This extension costs **2~3 MB** download/storage + **3~10 MB** running memory.
+  - This extension costs **2~3 MB** download/storage + **1~5 MB** running memory.
   - Much faster than professional language extensions in some cases (like results in same file or folder).
   - Auto search other language files + [extra repo folders](#extra-paths-settings) if not found definition results.
 
@@ -218,6 +218,8 @@ Open user settings, set `msr.useGitIgnoreFile` = `true` (or `msr.{project-folder
   - Set `msr.omitGitIgnoreExemptions` = `false` to not use git-ignore if found exemptions.
   
 Parsing result of `gitignore` file: see `MSR-Def-Ref` output channel (with `msr.debug` = `true` or launched in debug mode).
+
+Run command `npm run test` in vscode-msr folder if you want to see the translation rule of git-ignore on Windows/Linux.
 
 ### Compare file lists to help checking if a project can use git-ignore
 
@@ -430,9 +432,11 @@ Note: Check [**your personal settings**](https://code.visualstudio.com/docs/gets
 
 #### Supported 4 Terminal Types on Windows
 
-Supported various types of terminals: ([settings file](https://code.visualstudio.com/docs/getstarted/settings#_settings-file-locations) like: `%APPDATA%\Code\User\settings.json` on Windows)
+Supported various types of terminals: ([settings file](https://code.visualstudio.com/docs/getstarted/settings#_settings-file-locations) like: `%APPDATA%\Code\User\settings.json` on Windows).
 
-- [Official integrated terminals](https://code.visualstudio.com/docs/editor/integrated-terminal#_configuration) like:
+It's better to set one on Windows since vscode 1.53.0 which removed the terminal name/title in event of `vscode.window.onDidOpenTerminal`.
+
+- [VsCode Official supported terminals](https://code.visualstudio.com/docs/editor/integrated-terminal#_configuration) like below:
 
 ```cpp
 // Command Prompt
@@ -445,7 +449,7 @@ Supported various types of terminals: ([settings file](https://code.visualstudio
 "terminal.integrated.shell.windows": "C:\\Windows\\System32\\bash.exe"
 ```
 
-- `Cygwin` integration (on Windows), you can set in [your personal settings file](https://code.visualstudio.com/docs/getstarted/settings#_settings-file-locations) like:
+- Additionally supported by vscode-msr: **Cygwin** [(green install)](https://github.com/qualiu/msrTools/blob/master/system/install-cygwin.bat), you can set in [your personal settings file](https://code.visualstudio.com/docs/getstarted/settings#_settings-file-locations) like:
 
 ```cpp
 // Cygwin Bash. One command to install Cygwin (into a folder no pollution): https://github.com/qualiu/msrTools/blob/master/system/install-cygwin.bat
@@ -454,7 +458,7 @@ Supported various types of terminals: ([settings file](https://code.visualstudio
 
 #### Use Short Mount Paths for WSL Bash Terminal on Windows
 
-- Set **/etc/wsl.conf** like below to use short mount paths (like **`/c/`** instead of **`/mnt/c/`**):
+- Set **/etc/wsl.conf** like below to use short mount paths (like **`/c/`** instead of **`/mnt/c/`**), may need restart to take effect:
 
 ```bash
 [automount]

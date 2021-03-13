@@ -174,6 +174,11 @@ export class Ranker {
 				if (this.isFindMethod) {
 					specificPatterns.add(this.getSpecificConfigValue('method.definition'));
 				}
+
+				if (this.isFindClassOrMethod) {
+					specificPatterns.add(this.getSpecificConfigValue('class.definition'));
+					specificPatterns.add(this.getSpecificConfigValue('method.definition'));
+				}
 			}
 
 			specificPatterns.delete('');
@@ -198,7 +203,9 @@ export class Ranker {
 		const RootConfig = vscode.workspace.getConfiguration('msr');
 		const codeFilesKey = this.searchChecker.mappedExt === 'ui' ? 'default.codeFilesPlusUI' : 'default.codeFiles';
 		let filePattern = MappedExtToCodeFilePatternMap.get(this.searchChecker.mappedExt) || '\\.' + extension + '$';
-		if (config.SearchAllFilesWhenFindingReferences && configKeyName === 'reference') {
+		const searchAllFilesForReferences = getConfigValueByRoot(this.rootFolderName, extension, this.searchChecker.mappedExt, 'searchAllFilesForReferences') === 'true';
+		const searchAllFilesForDefinition = getConfigValueByRoot(this.rootFolderName, extension, this.searchChecker.mappedExt, 'searchAllFilesForDefinitions') === 'true';
+		if (searchAllFilesForReferences && configKeyName === 'reference') {
 			filePattern = RootConfig.get('default.allFiles') as string;
 			const defaultFindRef = RootConfig.get('default.reference') as string;
 			if (defaultFindRef.length > 1) {
@@ -212,7 +219,7 @@ export class Ranker {
 			if (/\W$/.test(this.currentWord) && searchPattern.endsWith('\\b')) {
 				searchPattern = searchPattern.substring(0, searchPattern.length - 2);
 			}
-		} else if (config.SearchAllFilesWhenFindingDefinitions && configKeyName === 'definition') {
+		} else if (searchAllFilesForDefinition && configKeyName === 'definition') {
 			filePattern = RootConfig.get(codeFilesKey) as string;
 			const defaultFindDef = RootConfig.get('default.definition') as string;
 			if (defaultFindDef.length > 1) {
@@ -220,7 +227,7 @@ export class Ranker {
 			}
 		}
 
-		if (!config.SearchAllFilesWhenFindingDefinitions && !config.SearchAllFilesWhenFindingReferences) {
+		if (!searchAllFilesForDefinition && !searchAllFilesForReferences) {
 			if (config.ConfigAndDocFilesRegex.test(parsedFile.base)) {
 				filePattern = configKeyName === 'definition'
 					? RootConfig.get(codeFilesKey) as string
@@ -274,19 +281,19 @@ export class Ranker {
 	public getSkipPatternForDefinition() {
 		let skipPatternSet = new Set<string>();
 		if (!this.isFindConstant) {
-			if (this.isFindClass) {
+			if (this.isFindClass && !this.isFindMember && !this.isFindMethod && !this.isFindClassOrMethod) {
 				skipPatternSet.add(this.getSpecificConfigValue('class.skip.definition'));
 			}
 
-			if (this.isFindMember && !this.isFindEnum && !this.isFindClass) {
+			if (this.isFindMember && !this.isFindEnum && !this.isFindMethod && !this.isFindClass && !this.isFindClassOrEnum && !this.isFindClassOrMethod) {
 				skipPatternSet.add(this.getSpecificConfigValue('member.skip.definition'));
 			}
 
-			if (this.isFindEnum) {
+			if (this.isFindEnum && !this.isFindClass && !this.isFindMethod && !this.isFindMember && !this.isFindClassOrMethod) {
 				skipPatternSet.add(this.getSpecificConfigValue('enum.skip.definition'));
 			}
 
-			if (this.isFindMethod) {
+			if (this.isFindMethod && !this.isFindClass && !this.isFindClassOrEnum && !this.isFindMember && !this.isFindEnum && !this.isFindClassOrMethod) {
 				skipPatternSet.add(this.getSpecificConfigValue('method.skip.definition'));
 			}
 		}

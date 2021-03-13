@@ -58,7 +58,7 @@ export function registerExtension(context: vscode.ExtensionContext) {
 			return;
 		}
 
-		const matchNameRegex = /^(Powershell|CMD|Command(\s+Prompt)?)$|bash/i;
+		const matchNameRegex = /^(Powershell|CMD|Command(\s+Prompt)?)$|bash|cmd.exe/i;
 		if (MyConfig.InitProjectCmdAliasForNewTerminals && (!IsWindows || isNullOrEmpty(terminalName) || matchNameRegex.test(terminalName))) {
 			const folders = vscode.workspace.workspaceFolders;
 			const currentPath = folders && folders.length > 0 ? folders[0].uri.fsPath : '.';
@@ -107,6 +107,10 @@ export function registerExtension(context: vscode.ExtensionContext) {
 	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.regexFindInAllSourceFiles',
 		(textEditor: vscode.TextEditor, _edit: vscode.TextEditorEdit, ..._args: any[]) =>
 			runFindingCommand(FindCommandType.RegexFindReferencesInAllSourceFiles, textEditor)));
+
+	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.regexFindInSameTypeFiles',
+		(textEditor: vscode.TextEditor, _edit: vscode.TextEditorEdit, ..._args: any[]) =>
+			runFindingCommand(FindCommandType.RegexFindReferencesInSameTypeFiles, textEditor)));
 
 	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.regexFindReferencesInCodeAndConfig',
 		(textEditor: vscode.TextEditor, _edit: vscode.TextEditorEdit, ..._args: any[]) =>
@@ -232,7 +236,6 @@ class SearchTimeInfo {
 	public Position: vscode.Position;
 	public Time: Date;
 	public AsyncResult: Promise<vscode.Location[] | null> = Promise.resolve(null);
-	public Result: vscode.Location[] | null = null;
 
 	constructor(document: vscode.TextDocument, position: vscode.Position, time = new Date()) {
 		this.Document = document;
@@ -304,6 +307,20 @@ export class DefinitionFinder implements vscode.DefinitionProvider {
 			}
 		}
 
+		function addClassSearchers(searcherGroup: (Searcher | null)[]): (Searcher | null)[] {
+			let classSearchers: (Searcher | null)[] = [];
+			searcherGroup.forEach(a => {
+				if (a) {
+					const searchCommand = a.CommandLine.replace(/\s+-t\s+".+?"/, ' -t "^\\s*[a-z\\s]{0,30}(class|enum|interface)\\s+' + currentWord + '\\b"')
+						.replace(/\s+--nt\s+".+?"/, ' ');
+					const classSearcher = createCommandSearcher(a.Name + '-Only-Class', a.SourcePath, searchCommand, a.Ranker, MyConfig.MaxSearchDepth, 10);
+					classSearchers.push(classSearcher);
+					classSearchers.push(a);
+				}
+			});
+			return classSearchers;
+		}
+
 		let currentFileSearchers = [
 			createSearcher(searchChecker, "Search-Current-File", document.fileName, false, defaultForceFindClassMethod)
 		];
@@ -356,6 +373,13 @@ export class DefinitionFinder implements vscode.DefinitionProvider {
 				addSearcher(slowSearchers, createSearcher(searchChecker, 'Search-Parent-Test-Folder', testParentFolder, true));
 				pathSet.add(testParentFolder);
 			}
+		}
+
+		const shouldAddClassSearcher = (searchChecker.isOnlyFindClass || searchChecker.isFindClassOrMethod || searchChecker.isFindClassOrEnum)
+			&& !searchChecker.isFindMethod && !searchChecker.isFindMember;
+		if (shouldAddClassSearcher) {
+			currentFolderSearchers = addClassSearchers(currentFolderSearchers);
+			slowSearchers = addClassSearchers(slowSearchers);
 		}
 
 		const repoSearcher = isNullOrEmpty(rootFolder) || pathSet.has(rootFolder) ? null : createSearcher(searchChecker, "Search-This-Repo", rootFolder, true);

@@ -282,7 +282,8 @@ export function cookCmdShortcutsOrFile(
     const linuxDefaultSaveFolderForDisplay = getCmdAliasSaveFolder(true, terminalType, true);
     const rawLinuxDisplayPath = toOsPath(defaultCmdAliasFile.replace(linuxDefaultSaveFolderForDisplay, '~').replace('\\', '/'), terminalType);
     const createCmdAliasTip = ' You can also create shortcuts in ' + (isWindowsTerminal ? '' : 'other files like ');
-    let finalGuide = ' You can disable msr.initProjectCmdAliasForNewTerminals in user settings. Fuzzy-Code-Mining + Add/Remove menus + Use git-ignore + More functions + details see doc like: ' + CookCmdDocUrl;
+    let finalGuide = ' You can disable msr.initProjectCmdAliasForNewTerminals in user settings. '
+      + 'Toggle-Enable + Output-Color + Fuzzy-Code-Mining + Hide/Show-Menus + Use git-ignore + More functions + details see doc like: ' + CookCmdDocUrl;
     let canRunShowDef = true;
     if (newTerminal && isWindowsTerminal) {
       let cmd = '';
@@ -295,7 +296,7 @@ export function cookCmdShortcutsOrFile(
         cmd = setEnvCmd + 'cmd /k ' + '"doskey /MACROFILE=' + quotedFileForPS // + ' && doskey /macros | msr -t find-def -x msr --nx use- --nt out- -e \\s+-+\\w+\\S* -PM'
           + ' & echo. & echo Type exit if you want to back to PowerShell without ' + commands.length + shortcutsExample
           + finalGuide
-          + ' | msr -aPA -e .+ -ix powershell -t m*alias^|find-\\S+^|sort-\\S+^|out-\\S+^|use-\\S+^|msr.init\\S+^|\\S*msr-cmd-alias\\S*^|Fuzzy-Code-Mining^|git-ignore^|menus^|functions^|details'
+          + ' | msr -aPA -e .+ -ix powershell -t m*alias^|find-\\S+^|sort-\\S+^|out-\\S+^|use-\\S+^|msr.init\\S+^|\\S*msr-cmd-alias\\S*^|Toggle-Enable^|Output-Color^|Code-Mining^|git-ignore^|Menus^|functions^|details'
           + '"';
         if (!onlyReCookAliasFile) {
           runCmdInTerminal(cmd, true);
@@ -344,7 +345,7 @@ export function cookCmdShortcutsOrFile(
 
     if (canRunShowDef || !newTerminal) {
       runCmdInTerminal('echo Now you can use ' + commands.length + shortcutsExample
-        + finalGuide + ' | msr -aPA -e .+ -x ' + commands.length + ' -it "find-\\S+|sort-\\S+|out-\\S+|use-\\S+|msr.init\\S+|other|Fuzzy-Code-Mining|git-ignore|menus|functions|details|\\S*msr-cmd-alias\\S*|(m*alias \\w+\\S*)"', true);
+        + finalGuide + ' | msr -aPA -e .+ -x ' + commands.length + ' -it "find-\\S+|sort-\\S+|out-\\S+|use-\\S+|msr.init\\S+|other|Toggle-Enable|Output-Color|Code-Mining|git-ignore|Menus|functions|details|\\S*msr-cmd-alias\\S*|(m*alias \\w+\\S*)"', true);
     }
 
     function prepareEnvForBashOnWindows(terminalType: TerminalType) {
@@ -403,8 +404,10 @@ export function cookCmdShortcutsOrFile(
     const copyCmd = (isWindowsTerminal ? `copy /y ` : `cp `) + quotePaths(sourceFilePath) + ` ` + tmpSaveFile;
     const loadCmdAliasCmd = (isWindowsTerminal ? "doskey /MACROFILE=" : "source ") + tmpSaveFile;
 
-    const findDefinitionPathOptions = getSearchPathOptions(false, useProjectSpecific, RootFolder, "all", true, MyConfig.UseExtraPathsToFindReferences, MyConfig.UseExtraPathsToFindDefinition, false, false);
-    const findReferencesPathOptions = getSearchPathOptions(false, useProjectSpecific, RootFolder, "all", false, MyConfig.UseExtraPathsToFindReferences, MyConfig.UseExtraPathsToFindDefinition, false, false);
+    const useExtraPathsToFindDefinition = getConfigValueByRoot(rootFolderName, '', '', 'findDefinition.useExtraPaths') === "true";
+    const useExtraPathsToFindReferences = getConfigValueByRoot(rootFolderName, '', '', 'findReference.useExtraPaths') === "true";
+    const findDefinitionPathOptions = getSearchPathOptions(false, useProjectSpecific, RootFolder, "all", true, useExtraPathsToFindReferences, useExtraPathsToFindDefinition, false, false);
+    const findReferencesPathOptions = getSearchPathOptions(false, useProjectSpecific, RootFolder, "all", false, useExtraPathsToFindReferences, useExtraPathsToFindDefinition, false, false);
     const pathsForDefinition = toOsPathsForText(findDefinitionPathOptions.replace(/\s*-r?p\s+(".+?"|\S+).*/, "$1"), terminalType);
     const pathsForOthers = toOsPathsForText(findReferencesPathOptions.replace(/\s*-r?p\s+(".+?"|\S+).*/, "$1"), terminalType);
     if (pathsForDefinition.includes(" ") || pathsForOthers.includes(" ")) {

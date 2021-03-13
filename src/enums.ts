@@ -34,6 +34,7 @@ export enum FindCommandType {
     RegexFindReferencesInConfigFiles,
     RegexFindReferencesInDocs,
     RegexFindReferencesInAllSourceFiles,
+    RegexFindReferencesInSameTypeFiles,
     RegexFindReferencesInAllSmallFiles,
     RegexFindReferencesInCodeAndConfig,
     FindPlainTextInCodeFiles,

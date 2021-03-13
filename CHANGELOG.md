@@ -2,6 +2,16 @@
 
 All notable changes to this "vscode-msr" extension will be documented in this file.
 
+## [2.1.12]
+
+- Improved finding definition speed + precision.
+- Supported finding class from code comments of Python.
+- Improved extra search paths overriding granularity.
+- Skipped searching notebook(*.ipynb) when searching docs.
+- Added a new menu: `msr.regexFindInSameTypeFiles`.
+- Added `msr.fileExtensionMap.rs` to support cooking `Rust` doskey/alias like `find-rs`.
+- Fixed latest vscode(1.54.1) issue: Enabled auto-initializing doskey if set cmd.exe as default terminal on Windows.
+
 ## [2.1.11]
 
 - Auto set command doskeys/alias for new terminals on vscode 1.53.0 which no terminal name.

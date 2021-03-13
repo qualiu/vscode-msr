@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import { MsrExe, setTimeoutInCommandLine, ToolChecker } from './checkTool';
 import { getConfigValueByRoot, getOverrideConfigByPriority, getSubConfigValue, RootFolder } from './configUtils';
 import { HomeFolder, RemoveJumpRegex, SearchTextHolderReplaceRegex, SkipJumpOutForHeadResultsRegex } from './constants';
-import { FileExtensionToMappedExtensionMap, getConfig, getRootFolder, getRootFolderExtraOptions, getRootFolderName, getSearchPathOptions, GitIgnoreInfo, MyConfig, removeSearchTextForCommandLine, replaceToRelativeSearchPath } from './dynamicConfig';
+import { FileExtensionToMappedExtensionMap, getConfig, getRootFolder, getRootFolderExtraOptions, getRootFolderName, getSearchPathOptions, GitIgnoreInfo, MappedExtToCodeFilePatternMap, MyConfig, removeSearchTextForCommandLine, replaceToRelativeSearchPath } from './dynamicConfig';
 import { FindCommandType, TerminalType } from './enums';
 import { enableColorAndHideCommandLine, outputDebug, outputInfo, runCommandInTerminal } from './outputUtils';
 import { Ranker } from './ranker';
@@ -252,6 +252,11 @@ export function getFindingCommandByCurrentWord(toRunInTerminal: boolean, findCmd
         case FindCommandType.RegexFindReferencesInCodeAndConfig:
         case FindCommandType.FindPlainTextInConfigAndConfigFiles:
             filePattern = getOverrideConfigByPriority([rootFolderName, 'default'], 'codeAndConfig') as string;
+            break;
+
+        case FindCommandType.RegexFindReferencesInSameTypeFiles:
+            // filePattern = getOverrideConfigByPriority([rootFolderName, mappedExt, extension], 'codeFiles') as string || "\\." + extension + "$";
+            filePattern = MappedExtToCodeFilePatternMap.get(mappedExt) || "\\." + extension + "$";
             break;
 
         case FindCommandType.RegexFindReferencesInAllSourceFiles:

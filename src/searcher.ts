@@ -184,8 +184,12 @@ function getSearchCommandLineAndRanker(searchChecker: SearchChecker, findType: F
     // }
   }
 
-  const useExtraPathsForReference = isNullOrEmpty(forceSetSearchPath) && MyConfig.UseExtraPathsToFindReferences;
-  const useExtraPathsForDefinition = isNullOrEmpty(forceSetSearchPath) && MyConfig.UseExtraPathsToFindDefinition;
+  const useExtraPathsForDefinition = isNullOrEmpty(forceSetSearchPath)
+    && getConfigValueByRoot(rootFolderName, extension, mappedExt, 'findDefinition.useExtraPaths') === "true";
+
+  const useExtraPathsForReference = isNullOrEmpty(forceSetSearchPath)
+    && getConfigValueByRoot(rootFolderName, extension, mappedExt, 'findReference.useExtraPaths') === "true";
+
   const useSkipFolders = forceSetSearchPath !== document.uri.fsPath;
   const usePathListFiles = isNullOrEmpty(forceSetSearchPath);
 

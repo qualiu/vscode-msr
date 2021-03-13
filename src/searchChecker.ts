@@ -26,6 +26,7 @@ export class SearchChecker {
 
 	public currentText: string;
 	public currentWordRange: vscode.Range;
+	public currentTextMaskCurrentWord: string;
 
 	public isClassResultRegex: RegExp;
 	public isEnumResultRegex: RegExp;
@@ -45,6 +46,7 @@ export class SearchChecker {
 	public isFindClassWithWordCheckRegex: RegExp;
 	public isFindMemberOrLocalVariableRegex: RegExp;
 
+	public isOnlyFindClass: boolean;
 	public isFindClass: boolean;
 	public isFindMethod: boolean;
 	public isFindMember: boolean;
@@ -93,13 +95,19 @@ export class SearchChecker {
 		this.currentWord = currentWord;
 		this.currentText = currentText;
 		this.currentWordRange = currentWordRange;
+
+		const isUpperCaseWord = /^[A-Z]\w+$/.test(this.currentWord);
+
+		// Avoid mis-checking due to multiple occurrences of current word.
+		const maskWorkRegex = new RegExp('\\b' + this.currentWord + '\\b', 'g');
+		this.currentTextMaskCurrentWord = currentText.substring(0, currentWordRange.start.character).replace(maskWorkRegex, currentWord.substring(0, currentWord.length - 1))
+			+ currentWord + currentText.substring(currentWordRange.end.character).replace(maskWorkRegex, currentWord.substring(0, currentWord.length - 1));
+
 		this.currentFile = currentFile;
 		this.currentFilePath = toPath(currentFile);
 		this.mappedExt = mappedExt;
 		this.extension = getExtensionNoHeadDot(currentFile.ext, '');
 		this.rootFolderName = getRootFolderName(this.currentFilePath);
-		this.maybeEnum = new RegExp("\\w+(\\.|::])" + this.currentWord + '\\b').test(this.currentText) && /^[A-Z]\w+$/.test(currentWord);
-		this.maybeEnumResultRegex = new RegExp("^\\s*" + this.currentWord + "\\s*,?\\s*$");
 
 		// for doc + config
 		this.ForceUseDefaultFindingDefinition = FindType.Definition === this.findType && MyConfig.UseDefaultFindingClassCheckExtensionRegex.test(this.currentFile.ext);
@@ -120,34 +128,42 @@ export class SearchChecker {
 		this.isFindClassOrMethodRegex = this.getCheckingRegex('isFindClassOrMethod', false);
 		this.isFindMemberOrLocalVariableRegex = this.getCheckingRegex('isFindMemberOrLocalVariable', false);
 		this.methodQuoteRegex = new RegExp('\\b' + currentWord + '\\b\\s*\\(');
+		const onlyFindClassRegex = new RegExp('((new|is|as)\\s+|typeof\\W*)\\S*\\b' + currentWord + "\\b"
+			+ '|' + '\\(\\S*\\b' + currentWord + '\\)\\s*\\w+'
+			// + '|' + '<\\S*\\b' + currentWord + '>'
+			+ '|' + '<\\S*\\b' + currentWord
+			+ '|' + '\\S*\\b' + currentWord + '>'
+		);
 
-		this.isFindClass = this.isFindClassRegex.test(currentText) && this.isFindClassWithWordCheckRegex.test(currentWord);
-		this.isFindMethod = this.isFindMethodRegex.test(currentText);
-		this.isFindMember = this.isFindMemberRegex.test(currentText) && !this.methodQuoteRegex.test(currentText);
-		this.isFindEnum = this.isFindEnumRegex.test(this.currentText);
-		this.isFindClassOrEnum = this.isFindClassOrEnumRegex.test(this.currentText);
-		this.isFindClassOrMethod = this.isFindClassOrMethodRegex.test(this.currentText);
-		this.isFindMemberOrLocalVariable = this.isFindMemberOrLocalVariableRegex.test(this.currentText);
+		this.isOnlyFindClass = onlyFindClassRegex.test(this.currentText);
+
+		this.isFindClass = this.isOnlyFindClass || this.isFindClassRegex.test(this.currentTextMaskCurrentWord) && this.isFindClassWithWordCheckRegex.test(currentWord);
+		this.isFindMethod = !this.isOnlyFindClass && this.isFindMethodRegex.test(this.currentTextMaskCurrentWord);
+		this.isFindMember = !this.isOnlyFindClass && this.isFindMemberRegex.test(this.currentTextMaskCurrentWord) && !this.methodQuoteRegex.test(this.currentTextMaskCurrentWord);
+		this.isFindEnum = !this.isOnlyFindClass && this.isFindEnumRegex.test(this.currentTextMaskCurrentWord);
+		this.isFindClassOrEnum = isUpperCaseWord && this.isFindClassOrEnumRegex.test(this.currentTextMaskCurrentWord);
+		this.isFindClassOrMethod = !this.isOnlyFindClass && this.isFindClassOrMethodRegex.test(this.currentTextMaskCurrentWord);
+		this.isFindMemberOrLocalVariable = !this.isOnlyFindClass && this.isFindMemberOrLocalVariableRegex.test(this.currentTextMaskCurrentWord);
 
 		if (!this.isFindClass && !this.isFindClassOrEnum && !this.isFindEnum
-			&& /^[A-Z]\w+$/.test(this.currentWord)
-			&& new RegExp("\\b" + this.currentWord + "\\s+\\w+").test(this.currentText)) {
+			&& isUpperCaseWord
+			&& new RegExp("\\b" + this.currentWord + "\\s+\\w+").test(this.currentTextMaskCurrentWord)) {
 			this.isFindClass = true;
 		}
 
 		this.maybeFindLocalVariable = /^_?[a-z_]\w+$/.test(this.currentWord)
-			&& !this.methodQuoteRegex.test(this.currentText)
-			&& new RegExp('\\b' + this.currentWord + '\\b\\S*\\s*=').test(this.currentText);
+			&& !this.methodQuoteRegex.test(this.currentTextMaskCurrentWord)
+			&& new RegExp('\\b' + this.currentWord + '\\b\\S*\\s*=').test(this.currentTextMaskCurrentWord);
 
-		this.isProbablyFindLocalVariable = /^[a-z]\w+$/.test(this.currentWord)
-			&& new RegExp('([^\\w\\.:>])' + this.currentWord + '(\\s*$|[^\\w:-]|\\.\\w+\\()').test(this.currentText);
+		this.isProbablyFindLocalVariable = !isUpperCaseWord
+			&& new RegExp('([^\\w\\.:>])' + this.currentWord + '(\\s*$|[^\\w:-]|\\.\\w+\\()').test(this.currentTextMaskCurrentWord);
 
 		this.isFindConstantRegex = this.getCheckingRegex('isFindConstant', false);
-		if (/^[A-Z]/.test(this.currentWord)) {
+		if (isUpperCaseWord) {
 			this.isFindConstant = (this.isFindConstantRegex.source === EmptyRegex.source
 				? MyConfig.DefaultConstantsRegex.test(this.currentWord)
 				: this.isFindConstantRegex.test(this.currentWord)
-			) && !this.methodQuoteRegex.test(this.currentText);
+			) && !this.methodQuoteRegex.test(this.currentTextMaskCurrentWord);
 		}
 
 		this.isConstantResultRegex = this.getCheckingRegex('isConstantResult', true);
@@ -188,13 +204,12 @@ export class SearchChecker {
 		this.demoteFolderScore = parseInt(getOverrideOrDefaultConfig(rootFolderName, 'demoteFolderScore') || '200');
 		this.demotePathScore = parseInt(getOverrideOrDefaultConfig(rootFolderName, 'demotePathScore') || '200');
 
-		const isUpperCaseWord = /^[A-Z]\w+$/.test(this.currentWord);
 		if (!this.isFindClass && !this.isFindMember && !this.isFindMethod && !this.isFindEnum) {
-			if (isUpperCaseWord && new RegExp('^\\s*' + this.currentWord + '\\s*=').test(this.currentText)) {
+			if (isUpperCaseWord && new RegExp('^\\s*' + this.currentWord + '\\s*=').test(this.currentTextMaskCurrentWord)) {
 				this.isFindMember = true;
 			}
 
-			if (isUpperCaseWord && new RegExp('[^\.\w]' + this.currentWord + '(\\.|::|->)\\w+').test(this.currentText)) {
+			if (isUpperCaseWord && new RegExp('[^\.\w]' + this.currentWord + '(\\.|::|->)\\w+').test(this.currentTextMaskCurrentWord)) {
 				this.isFindClass = true;
 			}
 		} else if (!this.isFindClass && isUpperCaseWord && /^(py|cpp)$/.test(mappedExt) && /^[A-Z]\w+/.test(this.currentWord) && this.methodQuoteRegex.test(currentText)) {
@@ -212,6 +227,19 @@ export class SearchChecker {
 
 		const enumPattern = this.getSpecificConfigValue('enum.definition', false).replace(SearchTextHolderReplaceRegex, currentWord);
 		this.enumDefinitionRegex = enumPattern.length < 1 ? EmptyRegex : new RegExp(enumPattern);
+
+		this.maybeEnum = false;
+		if (!this.isOnlyFindClass && isUpperCaseWord && !this.isFindClass && !this.isFindMember
+			&& !this.isFindClassOrEnum && !this.isFindEnum && !this.isFindMethod && !this.isFindConstant) {
+			this.maybeEnum = true;
+			this.isFindClassOrMethod = true;
+		}
+
+		if (!this.isOnlyFindClass && !this.maybeEnum) {
+			this.maybeEnum = isUpperCaseWord && new RegExp('(=|return|,)\\s*\\w+\\S*(\\.|->|::)' + currentWord + '\\s*(\\)|[,;]?\\s*$)').test(this.currentTextMaskCurrentWord);
+		}
+
+		this.maybeEnumResultRegex = new RegExp("^\\s*" + this.currentWord + "\\s*,?\\s*$");
 	}
 
 	public getDefaultForceSettings(): ForceSetting {

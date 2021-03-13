@@ -1,6 +1,6 @@
 import path = require('path');
 import * as vscode from 'vscode';
-import { getConfigValue, getSubConfigValue, RootFolder } from './configUtils';
+import { GetConfigPriorityPrefixes, getConfigValue, getConfigValueByRoot, getOverrideConfigByPriority, getSubConfigValue, RootFolder } from './configUtils';
 import { IsLinux, IsWindows, IsWSL } from './constants';
 import { cookCmdShortcutsOrFile, mergeSkipFolderPattern } from './cookCommandAlias';
 import { FindType, TerminalType } from './enums';
@@ -58,15 +58,12 @@ export class DynamicConfig {
     public ConfigAndDocFilesRegex: RegExp = new RegExp('to-load');
     public CodeAndConfigAndDocFilesRegex: RegExp = new RegExp('to-load');
     public DefaultConstantsRegex: RegExp = new RegExp('to-load');
-    public SearchAllFilesWhenFindingReferences: boolean = false;
-    public SearchAllFilesWhenFindingDefinitions: boolean = false;
+
     public GetSearchTextHolderInCommandLine: RegExp = /\s+-c\s+.*?%~?1/;
     public DisabledFileExtensionRegex: RegExp = new RegExp('to-load');
     public DisabledRootFolderNameRegex: RegExp = new RegExp('to-load');
     public DisableFindDefinitionFileExtensionRegex: RegExp = new RegExp('to-load');
     public DisableFindReferenceFileExtensionRegex: RegExp = new RegExp('to-load');
-    public FindDefinitionInAllFolders: boolean = true;
-    public FindReferencesInAllRootFolders: boolean = true;
 
     public ExcludeFoldersFromSettings: Set<string> = new Set<string>();
 
@@ -75,8 +72,7 @@ export class DynamicConfig {
     public OverwriteProjectCmdAliasForNewTerminals: boolean = true;
     public AutoMergeSkipFolders: boolean = true;
 
-    public UseExtraPathsToFindReferences: boolean = false;
-    public UseExtraPathsToFindDefinition: boolean = true;
+
     public HideWarningsAndExtraInfoWhenCookingCommandAlias: boolean = false;
     public OutputFullPathWhenCookingCommandAlias: boolean = true;
     public OutputRelativePathForLinuxTerminalsOnWindows: boolean = true;
@@ -151,11 +147,6 @@ export class DynamicConfig {
         }
 
         this.OnlyFindDefinitionForKnownLanguages = getConfigValue('enable.onlyFindDefinitionForKnownLanguages') === 'true';
-        this.UseExtraPathsToFindDefinition = getConfigValue('findDefinition.useExtraPaths') === "true";
-        this.UseExtraPathsToFindReferences = getConfigValue('findReference.useExtraPaths') === "true";
-        this.FindDefinitionInAllFolders = getConfigValue('definition.searchAllRootFolders') === "true";
-        this.FindReferencesInAllRootFolders = getConfigValue('reference.searchAllRootFolders') === "true";
-
         this.ClearTerminalBeforeExecutingCommands = getConfigValue('clearTerminalBeforeExecutingCommands') === 'true';
         this.InitProjectCmdAliasForNewTerminals = getConfigValue('initProjectCmdAliasForNewTerminals') === 'true';
         this.SkipInitCmdAliasForNewTerminalTitleRegex = createRegex(getConfigValue('skipInitCmdAliasForNewTerminalTitleRegex'), 'i');
@@ -173,8 +164,7 @@ export class DynamicConfig {
         this.ConfigAndDocFilesRegex = new RegExp(getConfigValue('configAndDocs') || '\\.(json|xml|ini|ya?ml|md)|readme', 'i');
         this.CodeAndConfigAndDocFilesRegex = new RegExp(getConfigValue('codeAndConfigDocs') || '\\.(cs\\w*|nuspec|config|c[px]*|h[px]*|java|scala|py|go|php|vue|tsx?|jsx?|json|ya?ml|xml|ini|md)$|readme', 'i');
         this.DefaultConstantsRegex = new RegExp(getConfigValue('isFindConstant'));
-        this.SearchAllFilesWhenFindingReferences = getConfigValue('searchAllFilesForReferences') === 'true';
-        this.SearchAllFilesWhenFindingDefinitions = getConfigValue('searchAllFilesForDefinitions') === 'true';
+
         this.DisabledRootFolderNameRegex = createRegex(getConfigValue('disable.projectRootFolderNamePattern'));
 
         this.DisabledFileExtensionRegex = createRegex(getConfigValue('disable.extensionPattern'), 'i', true);
@@ -375,24 +365,25 @@ export function getSearchPathOptions(
     codeFilePath: string,
     mappedExt: string,
     isFindingDefinition: boolean,
-    useExtraSearchPathsForReference: boolean = true,
+    useExtraSearchPathsForReference: boolean = false,
     useExtraSearchPathsForDefinition: boolean = true,
     useSkipFolders: boolean = true,
     usePathListFiles: boolean = true,
     forceSetSearchPath: string = '',
     isRecursive: boolean = true): string {
     const rootFolder = getRootFolder(codeFilePath);
-
+    const extension = getExtensionNoHeadDot(path.parse(codeFilePath).ext, '');
     const rootFolderName = getRootFolderName(codeFilePath, true);
-    const findAllFolders = isFindingDefinition ? MyConfig.FindDefinitionInAllFolders : MyConfig.FindReferencesInAllRootFolders;
+    const findDefinitionInAllFolders = getConfigValueByRoot(rootFolderName, extension, mappedExt, 'definition.searchAllRootFolders') === "true";
+    const findReferencesInAllRootFolders = getConfigValueByRoot(rootFolderName, extension, mappedExt, 'reference.searchAllRootFolders') === "true";
+    const findAllFolders = isFindingDefinition ? findDefinitionInAllFolders : findReferencesInAllRootFolders;
     const rootPaths = !isNullOrEmpty(forceSetSearchPath)
         ? forceSetSearchPath
         : (findAllFolders ? getRootFolders(codeFilePath) : getRootFolder(codeFilePath));
 
     const recursiveOption = isRecursive || isNullOrEmpty(rootPaths) ? '-rp ' : '-p ';
     const folderKey = useProjectSpecific ? rootFolderName : '';
-    const folderKeyDefault = isNullOrEmpty(folderKey) ? 'default' : folderKey;
-    const extension = getExtensionNoHeadDot(path.parse(codeFilePath).ext, '');
+
     const subName = isFindingDefinition ? 'definition' : 'reference';
     let skipFoldersPattern = getSubConfigValue(folderKey, extension, mappedExt, subName, 'skipFolders');
     skipFoldersPattern = mergeSkipFolderPattern(skipFoldersPattern);
@@ -402,7 +393,8 @@ export function getSearchPathOptions(
         ? GitIgnoreInfo.getSkipPathRegexPattern(toRunInTerminal)
         : (useSkipFolders && skipFoldersPattern.length > 1 ? ' --nd "' + skipFoldersPattern + '"' : '');
 
-    if ((isFindingDefinition && !useExtraSearchPathsForDefinition) || (!isFindingDefinition && !useExtraSearchPathsForReference)) {
+    const shouldSearchExtraPaths = isFindingDefinition && useExtraSearchPathsForDefinition || !isFindingDefinition && useExtraSearchPathsForReference;
+    if (!shouldSearchExtraPaths) {
         if (isNullOrEmpty(rootPaths)) { // files not in project
             const searchPaths = quotePaths(isFindingDefinition ? toOsPath(replaceToRelativeSearchPath(toRunInTerminal, path.dirname(codeFilePath), rootFolder), terminalType) : codeFilePath);
             return '-p ' + searchPaths;
@@ -412,20 +404,19 @@ export function getSearchPathOptions(
         }
     }
 
-    let extraSearchPathSet = getExtraSearchPathsOrFileLists('default.extraSearchPaths', folderKeyDefault);
-    getExtraSearchPathsOrFileLists('default.extraSearchPathGroups', folderKey).forEach(a => extraSearchPathSet.add(a));
-    getExtraSearchPathsOrFileLists(folderKeyDefault + '.extraSearchPaths', '').forEach(a => extraSearchPathSet.add(a));
+    let extraSearchPathSet = new Set<string>();
+    let extraSearchPathFileListSet = new Set<string>();
+    if (shouldSearchExtraPaths) {
+        extraSearchPathSet = getExtraSearchPathsOrFileLists('extraSearchPaths', folderKey, extension, mappedExt);
+        getExtraSearchPathsOrFileLists('extraSearchPathGroups', folderKey, extension, mappedExt)
+            .forEach(a => extraSearchPathSet.add(a));
 
-    let extraSearchPathFileListSet = getExtraSearchPathsOrFileLists('default.extraSearchPathListFiles', folderKeyDefault);
-    getExtraSearchPathsOrFileLists('default.extraSearchPathListFileGroups', folderKeyDefault).forEach(a => extraSearchPathFileListSet.add(a));
-    getExtraSearchPathsOrFileLists(folderKeyDefault + '.extraSearchPathListFiles', '').forEach(a => extraSearchPathFileListSet.add(a));
+        extraSearchPathFileListSet = getExtraSearchPathsOrFileLists('extraSearchPathListFiles', folderKey, extension, mappedExt);
+        getExtraSearchPathsOrFileLists('default.extraSearchPathListFileGroups', folderKey, extension, mappedExt)
+            .forEach(a => extraSearchPathFileListSet.add(a));
+    }
 
-    const thisTypeExtraSearchPaths = !isFindingDefinition ? new Set<string>() : getExtraSearchPathsOrFileLists(mappedExt + '.extraSearchPaths', rootFolderName);
-    const thisTypeExtraSearchPathListFiles = !isFindingDefinition ? new Set<string>() : getExtraSearchPathsOrFileLists(mappedExt + '.extraSearchPathListFiles', rootFolderName);
-
-    let searchPathSet = new Set<string>();
-    (rootPaths || (isFindingDefinition ? path.dirname(codeFilePath) : codeFilePath)).split(',').forEach(a => searchPathSet.add(a));
-    thisTypeExtraSearchPaths.forEach(a => searchPathSet.add(a));
+    let searchPathSet = new Set<string>((rootPaths || (isFindingDefinition ? path.dirname(codeFilePath) : codeFilePath)).split(','));
     extraSearchPathSet.forEach(a => searchPathSet.add(a));
     searchPathSet = toOsPaths(getUniqueStringSetNoCase(searchPathSet), terminalType);
 
@@ -435,9 +426,7 @@ export function getSearchPathOptions(
         pathsText = '.';
     }
 
-    let pathListFileSet = new Set<string>(thisTypeExtraSearchPathListFiles);
-    extraSearchPathFileListSet.forEach(a => pathListFileSet.add(a));
-    pathListFileSet = toOsPaths(getUniqueStringSetNoCase(extraSearchPathFileListSet), terminalType);
+    const pathListFileSet = toOsPaths(getUniqueStringSetNoCase(extraSearchPathFileListSet), terminalType);
     let pathFilesText = Array.from(pathListFileSet).join(',').replace(/"/g, '');
     pathFilesText = quotePaths(pathFilesText);
 
@@ -447,27 +436,33 @@ export function getSearchPathOptions(
     return recursiveOption + quotePaths(searchPaths) + otherOptions;
 }
 
-export function getExtraSearchPathsOrFileLists(configKey: string, folderName: string): Set<string> {
+export function getExtraSearchPathsOrFileLists(configKeyTailName: string, rootFolderName: string, extension: string, mappedExt: string): Set<string> {
     let extraSearchPaths = new Set<string>();
-    const RootConfig = getConfig().RootConfig || vscode.workspace.getConfiguration('msr');
-    const extraPathObject = RootConfig.get(configKey);
-    if (!extraPathObject) {
-        return extraSearchPaths;
-    }
-
-    const valueType = typeof extraPathObject;
     let extraSearchPathGroups: string[] = [];
-    if (valueType === 'string') {
-        extraSearchPathGroups = (extraPathObject as string || '').trim().split(SplitPathGroupsRegex).filter(a => a.length > 0);
-    } else {
-        const pathArray = extraPathObject as string[];
-        if (pathArray) {
-            pathArray.forEach(a => {
-                a.trim().split(SplitPathGroupsRegex)
-                    .filter(a => a.length > 0)
-                    .forEach(g => extraSearchPathGroups.push(g));
-            });
+    const prefixSet = GetConfigPriorityPrefixes(rootFolderName, extension, mappedExt);
+    for (let k = 0; k < prefixSet.length; k++) {
+        const configKey = prefixSet[k] + '.' + configKeyTailName;
+        const extraPathObject = MyConfig.RootConfig.get(configKey);
+        if (extraPathObject === undefined || extraPathObject === null) {
+            continue;
         }
+
+        const valueType = typeof extraPathObject;
+
+        if (valueType === 'string') {
+            extraSearchPathGroups = (extraPathObject as string || '').trim().split(SplitPathGroupsRegex).filter(a => a.length > 0);
+        } else {
+            const pathArray = extraPathObject as string[];
+            if (pathArray) {
+                pathArray.forEach(a => {
+                    a.trim().split(SplitPathGroupsRegex)
+                        .filter(a => a.length > 0)
+                        .forEach(g => extraSearchPathGroups.push(g));
+                });
+            }
+        }
+
+        break;
     }
 
     let folderNameToPathMap = new Map<string, string>();
@@ -482,7 +477,7 @@ export function getExtraSearchPathsOrFileLists(configKey: string, folderName: st
         }
     });
 
-    const specificPaths = folderNameToPathMap.get(folderName) || '';
+    const specificPaths = folderNameToPathMap.get(rootFolderName) || '';
     splitPathList(specificPaths).forEach(a => extraSearchPaths.add(a));
     return toWSLPaths(getUniqueStringSetNoCase(extraSearchPaths));
 }

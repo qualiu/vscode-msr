@@ -4,15 +4,15 @@ import * as vscode from 'vscode';
 import { MsrExe } from './checkTool';
 import { getFindingCommandByCurrentWord, runFindingCommand } from './commands';
 import { getConfigValueByRoot } from './configUtils';
-import { IsDebugMode, IsWindows, SearchTextHolderReplaceRegex } from './constants';
+import { IsWindows, SearchTextHolderReplaceRegex } from './constants';
 import { cookCmdShortcutsOrFile } from './cookCommandAlias';
-import { FileExtensionToMappedExtensionMap, getConfig, getRootFolder, getRootFolderName, GitIgnoreInfo, MyConfig, printConfigInfo } from './dynamicConfig';
+import { FileExtensionToMappedExtensionMap, getConfig, getExtraSearchPaths, getGitIgnore, MyConfig, printConfigInfo } from './dynamicConfig';
 import { FindCommandType, FindType, ForceFindType } from './enums';
-import { clearOutputChannel, disposeTerminal, outputDebug, outputDebugOrInfo, RunCmdTerminalName } from './outputUtils';
+import { clearOutputChannel, disposeTerminal, outputDebug, outputInfoByDebugMode, RunCmdTerminalName } from './outputUtils';
 import { Ranker } from './ranker';
 import { SearchChecker } from './searchChecker';
 import { createCommandSearcher, createSearcher, getCurrentFileSearchInfo, PlatformToolChecker, Searcher, setReRunMark, stopAllSearchers } from './searcher';
-import { getExtensionNoHeadDot, getTerminalShellExePath, isNullOrEmpty, nowText, quotePaths, toPath } from './utils';
+import { getDefaultRootFolderByActiveFile, getExtensionNoHeadDot, getRootFolder, getRootFolderName, getRootFolders, getTerminalInitialDirectory, getTerminalShellExePath, isNullOrEmpty, nowText, quotePaths, toPath } from './utils';
 import path = require('path');
 
 outputDebug(nowText() + 'Start loading extension and initialize ...');
@@ -53,7 +53,10 @@ export function registerExtension(context: vscode.ExtensionContext) {
 	}
 
 	context.subscriptions.push(vscode.window.onDidOpenTerminal(terminal => {
+		const initFolder = getTerminalInitialDirectory(terminal);
+		const workspaceFolder = getRootFolder(initFolder);
 		const terminalName = isNullOrEmpty(terminal.name) ? path.basename(getTerminalShellExePath()) : terminal.name;
+
 		if (MyConfig.SkipInitCmdAliasForNewTerminalTitleRegex.test(terminalName) || terminalName === 'MSR-RUN-CMD') {
 			return;
 		}
@@ -61,7 +64,7 @@ export function registerExtension(context: vscode.ExtensionContext) {
 		const matchNameRegex = /^(Powershell|CMD|Command(\s+Prompt)?)$|bash|cmd.exe/i;
 		if (MyConfig.InitProjectCmdAliasForNewTerminals && (!IsWindows || isNullOrEmpty(terminalName) || matchNameRegex.test(terminalName))) {
 			const folders = vscode.workspace.workspaceFolders;
-			const currentPath = folders && folders.length > 0 ? folders[0].uri.fsPath : '.';
+			const currentPath = folders && folders.length > 0 ? (workspaceFolder || folders[0].uri.fsPath) : '.';
 			cookCmdShortcutsOrFile(currentPath, true, false, terminal);
 		}
 	}));
@@ -223,8 +226,10 @@ export function registerExtension(context: vscode.ExtensionContext) {
 			runFindingCommand(FindCommandType.FindTopCodeType, textEditor)));
 
 	context.subscriptions.push(vscode.commands.registerCommand('msr.compareFileListsWithGitIgnore',
-		(..._args: any[]) =>
-			GitIgnoreInfo.compareFileList()));
+		(..._args: any[]) => {
+			const gitIgnore = getGitIgnore(getDefaultRootFolderByActiveFile());
+			gitIgnore.compareFileList();
+		}));
 }
 
 // this method is called when your extension is deactivated
@@ -281,7 +286,10 @@ export class DefinitionFinder implements vscode.DefinitionProvider {
 
 		// rootFolder is empty for external file:
 		const rootFolder = getRootFolder(document.fileName);
-		const isExternalFile = isNullOrEmpty(rootFolder);
+		const rootFolderName = isNullOrEmpty(rootFolder) ? path.basename(getDefaultRootFolderByActiveFile()) : path.basename(rootFolder);
+		const [extraSearchPaths] = getExtraSearchPaths(rootFolderName, extension, mappedExt);
+		const extraRootSearchPaths = Array.from(extraSearchPaths).filter(a => document.fileName.startsWith(a)).sort((a, b) => a.length - b.length);
+		const isExternalFile = isNullOrEmpty(rootFolder) && extraRootSearchPaths.length < 1;
 		const sourceFileFolder = path.parse(document.fileName).dir;
 
 		const isScriptFile = MyConfig.isScriptFile(extension);
@@ -325,6 +333,10 @@ export class DefinitionFinder implements vscode.DefinitionProvider {
 			createSearcher(searchChecker, "Search-Current-File", document.fileName, false, defaultForceFindClassMethod)
 		];
 
+		if (!searchChecker.isOnlyFindClass) {
+			addSearcher(currentFileSearchers, currentFileDefinitionSearcher);
+		}
+
 		if (searchChecker.isFindMember && !isFindClassOrMethod) {
 			addSearcher(currentFileSearchers, createSearcher(searchChecker, "Search-Current-File-Member", document.fileName, false, ForceFindType.FindMember));
 		}
@@ -335,6 +347,9 @@ export class DefinitionFinder implements vscode.DefinitionProvider {
 		const shouldFindLocalVariable = /^_?[a-z]\w+/.test(currentWord) && (isScriptFile || new RegExp('\\b' + currentWord + '\\b\\S*\\s*=').test(currentText));
 		if (shouldFindLocalVariable) {
 			addSearcher(currentFileSearchers, currentFileVariableDefinitionSearcher);
+		}
+
+		if (!searchChecker.isOnlyFindClass) {
 			addSearcher(currentFileSearchers, currentFileVariableInitSearcher);
 		}
 
@@ -344,7 +359,6 @@ export class DefinitionFinder implements vscode.DefinitionProvider {
 
 		let currentFolderSearchers: (Searcher | null)[] = [];
 		addSearcher(currentFolderSearchers, createSearcher(searchChecker, "Search-Current-Folder", sourceFileFolder, false, defaultForceFindClassMethodMember, 1));
-
 		addSearcher(currentFolderSearchers, createSearcher(searchChecker, "Search-Current-Folder-Member", sourceFileFolder, false, defaultForceFindClassMethodMember, 1));
 
 		if (!isExternalFile) {
@@ -355,9 +369,9 @@ export class DefinitionFinder implements vscode.DefinitionProvider {
 		let slowSearchers: (Searcher | null)[] = [];
 		let parentFolder = path.dirname(sourceFileFolder);
 		const diskRegex = IsWindows ? /^[A-Z]:\\.+?\\\w+/i : new RegExp('^/[^/]+/[^/]+$');
-		for (let k = 0; k < 3; k++) {
+		for (let k = 0; k < 4; k++) {
 			// avoid searching disk root for external files + avoid out of repo folder for internal files.
-			if (!parentFolder.startsWith(rootFolder) || !parentFolder.match(diskRegex)) {
+			if (isNullOrEmpty(rootFolder) || !parentFolder.startsWith(rootFolder) || !parentFolder.match(diskRegex)) {
 				break;
 			}
 			pathSet.add(parentFolder);
@@ -370,7 +384,7 @@ export class DefinitionFinder implements vscode.DefinitionProvider {
 		if (!isExternalFile && testFolderMatch) {
 			const testParentFolder = document.fileName.substring(0, testFolderMatch.index);
 			if (!pathSet.has(testParentFolder)) {
-				addSearcher(slowSearchers, createSearcher(searchChecker, 'Search-Parent-Test-Folder', testParentFolder, true));
+				addSearcher(slowSearchers, createSearcher(searchChecker, 'Search-Parent-Test-Folder', testParentFolder));
 				pathSet.add(testParentFolder);
 			}
 		}
@@ -382,14 +396,44 @@ export class DefinitionFinder implements vscode.DefinitionProvider {
 			slowSearchers = addClassSearchers(slowSearchers);
 		}
 
-		const repoSearcher = isNullOrEmpty(rootFolder) || pathSet.has(rootFolder) ? null : createSearcher(searchChecker, "Search-This-Repo", rootFolder, true);
+		const repoSearcher = isNullOrEmpty(rootFolder) || pathSet.has(rootFolder) ? null : createSearcher(searchChecker, "Search-This-Repo", rootFolder);
 		addSearcher(slowSearchers, repoSearcher);
 		pathSet.add(rootFolder);
 
-		const fullSearcher = createSearcher(searchChecker, "Search-Repo-With-Extra-Paths", '', true);
-		if (fullSearcher && (!repoSearcher || fullSearcher.CommandLine !== repoSearcher.CommandLine)) {
-			fullSearcher.CommandLine = fullSearcher.CommandLine.replace(rootFolder + ',', '');
-			addSearcher(slowSearchers, fullSearcher);
+		const forbidReRunSearchers = new Set<Searcher | null>();
+		const allRootFolders = getRootFolders(rootFolder);
+		const otherRootFolders = allRootFolders.filter(a => a !== rootFolder);
+
+		const extraRootSearchFolders = Array.from(extraSearchPaths).filter(a => !allRootFolders.includes(a));
+		extraRootSearchFolders.forEach(a => {
+			const extraSearcher = createSearcher(searchChecker, "Search-Extra-Path-" + path.basename(a), a);
+			addSearcher(slowSearchers, extraSearcher);
+			forbidReRunSearchers.add(extraSearcher);
+		});
+
+		otherRootFolders.forEach(a => {
+			const extraSearcher = createSearcher(searchChecker, "Search-Other-Root-" + path.basename(a), a);
+			addSearcher(slowSearchers, extraSearcher);
+			forbidReRunSearchers.add(extraSearcher);
+		});
+
+		if (!enableLastSearcherToRunCommand(slowSearchers)) {
+			enableLastSearcherToRunCommand(currentFileSearchers);
+		}
+
+		function enableLastSearcherToRunCommand(searchers: (Searcher | null)[]): boolean {
+			if (!searchers || searchers.length < 1) {
+				return false;
+			}
+
+			for (let k = searchers.length - 1; k >= 0; k--) {
+				let searcher = searchers[k];
+				if (searcher && !forbidReRunSearchers.has(searcher)) {
+					searcher.Ranker.canRunCommandInTerminalWhenNoResult = true;
+					return true;
+				}
+			}
+			return false;
 		}
 
 		async function runSearchers(searchers: (Searcher | null)[]): Promise<vscode.Location[]> {
@@ -407,18 +451,19 @@ export class DefinitionFinder implements vscode.DefinitionProvider {
 			async function returnSearcherResult(index: number): Promise<vscode.Location[]> {
 				const currentResults = await results[index];
 				if (currentResults && currentResults.length > 0) {
-					if (searchers) {
+					const resultSearcher = searchers[index];
+					outputInfoByDebugMode(nowText() + "Found by searcher: " + resultSearcher);
+					const beginStopTime = new Date();
+					if (searchers && resultSearcher) {
 						searchers.forEach(a => {
-							if (a && a === searchers[index]) {
-								outputDebugOrInfo(!IsDebugMode, nowText() + "Found by searcher: " + a.toString());
-							}
-
-							if (a && a !== searchers[index]) {
+							if (a && a.CommandLine !== resultSearcher.CommandLine) {
 								a.stop();
 							}
 						});
 						stopAllSearchers();
 					}
+					const stopCost = (new Date()).valueOf() - beginStopTime.valueOf();
+					outputInfoByDebugMode(nowText() + 'Cost ' + stopCost + ' ms to stop all searchers.');
 					return Promise.resolve(currentResults);
 				} else if (index + 1 < results.length) {
 					return Promise.resolve(returnSearcherResult(index + 1));
@@ -428,25 +473,6 @@ export class DefinitionFinder implements vscode.DefinitionProvider {
 			}
 
 			return returnSearcherResult(0);
-		}
-
-		function enableLastSearcherToRunCommand(searchers: (Searcher | null)[]): boolean {
-			if (!searchers || searchers.length < 1) {
-				return false;
-			}
-
-			for (let k = searchers.length - 1; k >= 0; k--) {
-				let searcher = searchers[k];
-				if (searcher) {
-					searcher.Ranker.canRunCommandInTerminal = true;
-					return true;
-				}
-			}
-			return false;
-		}
-
-		if (!enableLastSearcherToRunCommand(slowSearchers)) {
-			enableLastSearcherToRunCommand(currentFileSearchers);
 		}
 
 		let group1 = isScriptFile ? [currentFileDefinitionSearcher] : [];
@@ -495,7 +521,7 @@ export class ReferenceFinder implements vscode.ReferenceProvider {
 		const [parsedFile, extension, currentWord, currentWordRange, currentText] = getCurrentFileSearchInfo(document, position);
 		const mappedExt = FileExtensionToMappedExtensionMap.get(extension) || extension;
 		const searchChecker = new SearchChecker(document, FindType.Definition, position, currentWord, currentWordRange, currentText, parsedFile, mappedExt);
-		const searcher = createSearcher(searchChecker, 'Search-Reference', '', true);
+		const searcher = createSearcher(searchChecker, 'Search-Reference', '');
 		if (!searcher) {
 			return Promise.resolve([]);
 		}

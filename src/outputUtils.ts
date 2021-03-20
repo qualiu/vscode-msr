@@ -1,11 +1,11 @@
 import { execSync } from 'child_process';
 import * as vscode from 'vscode';
-import { RootFolder } from './configUtils';
-import { IsWindows } from './constants';
+import { IsDebugMode, IsWindows } from './constants';
 import { cookCmdShortcutsOrFile } from './cookCommandAlias';
 import { getConfig } from './dynamicConfig';
-import { IsLinuxTerminalOnWindows, nowText, replaceTextByRegex } from './utils';
+import { getDefaultRootFolder, getDefaultRootFolderByActiveFile, IsLinuxTerminalOnWindows, nowText, replaceTextByRegex } from './utils';
 
+export let RunCmdTerminalRootFolder = '';
 export const RunCmdTerminalName = 'MSR-RUN-CMD';
 const OutputChannelName = 'MSR-Def-Ref';
 
@@ -40,7 +40,6 @@ export function runCommandGetInfo(command: string, showCmdLevel: MessageLevel = 
 	}
 }
 
-
 export function outputMessage(level: MessageLevel, message: string, showWindow: boolean = true) {
 	switch (level) {
 		case MessageLevel.DEBUG:
@@ -60,33 +59,36 @@ export function outputMessage(level: MessageLevel, message: string, showWindow: 
 	}
 }
 
-let _channel: vscode.OutputChannel;
-let _terminal: vscode.Terminal | undefined;
+// MSR-Def-Ref output channel
+let _messageChannel: vscode.OutputChannel;
 
-export function getTerminal(): vscode.Terminal {
-	if (!_terminal) {
-		_terminal = vscode.window.createTerminal(RunCmdTerminalName, ShellPath);
+// MSR-RUN-CMD terminal
+let _runCmdTerminal: vscode.Terminal | undefined;
+
+export function getRunCmdTerminal(): vscode.Terminal {
+	if (!_runCmdTerminal) {
+		_runCmdTerminal = vscode.window.createTerminal(RunCmdTerminalName, ShellPath);
 		if (vscode.workspace.getConfiguration('msr').get('initProjectCmdAliasForNewTerminals') as boolean) {
-			// const folders = vscode.workspace.workspaceFolders;
-			// const currentPath = folders && folders.length > 0 ? folders[0].uri.fsPath : '.';
-			cookCmdShortcutsOrFile(RootFolder, true, false, _terminal);
+			const rootFolder = getDefaultRootFolderByActiveFile() || getDefaultRootFolder();
+			RunCmdTerminalRootFolder = rootFolder;
+			cookCmdShortcutsOrFile(rootFolder, true, false, _runCmdTerminal);
 		}
 	}
 
-	return _terminal;
+	return _runCmdTerminal;
 }
 
 export function disposeTerminal() {
-	_terminal = undefined;
+	_runCmdTerminal = undefined;
 }
 
 export function runCommandInTerminal(cmd: string, showTerminal = false, clearAtFirst = true, isLinuxOnWindows = IsLinuxTerminalOnWindows) {
 	cmd = enableColorAndHideCommandLine(cmd);
-	sendCmdToTerminal(cmd, getTerminal(), showTerminal, clearAtFirst, isLinuxOnWindows);
+	sendCmdToTerminal(cmd, getRunCmdTerminal(), showTerminal, clearAtFirst, isLinuxOnWindows);
 }
 
 export function runRawCommandInTerminal(cmd: string, showTerminal = true, clearAtFirst = false, isLinuxOnWindows = IsLinuxTerminalOnWindows) {
-	sendCmdToTerminal(cmd, getTerminal(), showTerminal, clearAtFirst, isLinuxOnWindows);
+	sendCmdToTerminal(cmd, getRunCmdTerminal(), showTerminal, clearAtFirst, isLinuxOnWindows);
 }
 
 export function sendCmdToTerminal(cmd: string, terminal: vscode.Terminal, showTerminal = false, clearAtFirst = true, isLinuxOnWindows = IsLinuxTerminalOnWindows) {
@@ -156,6 +158,10 @@ export function outputDebugOrInfo(isDebug: boolean, message: string, showWindow:
 	}
 }
 
+export function outputInfoByDebugMode(message: string, showWindow: boolean = true) {
+	outputDebugOrInfo(!IsDebugMode, message, showWindow);
+}
+
 export function outputDebug(message: string, showWindow: boolean = false) {
 	if (getConfig().IsDebug) {
 		getOutputChannel().appendLine(message);
@@ -183,9 +189,9 @@ export function showOutputChannel(showWindow: boolean = true, ignoreQuiet: boole
 }
 
 function getOutputChannel(): vscode.OutputChannel {
-	if (!_channel) {
-		_channel = vscode.window.createOutputChannel(OutputChannelName);
+	if (!_messageChannel) {
+		_messageChannel = vscode.window.createOutputChannel(OutputChannelName);
 	}
 
-	return _channel;
+	return _messageChannel;
 }

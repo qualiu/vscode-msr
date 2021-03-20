@@ -2,11 +2,11 @@ import path = require('path');
 import fs = require('fs');
 import { IsForwardingSlashSupportedOnWindows } from './checkTool';
 import { getConfigValue } from './configUtils';
-import { IsDebugMode, IsWSL } from './constants';
+import { IsWSL } from './constants';
 import { getGeneralCmdAliasFilePath } from './cookCommandAlias';
 import { TerminalType } from './enums';
 import { saveTextToFile } from './otherUtils';
-import { outputDebugOrInfo, outputError, outputInfo, outputWarn, runCommandInTerminal, runRawCommandInTerminal } from './outputUtils';
+import { outputError, outputInfo, outputInfoByDebugMode, outputWarn, RunCmdTerminalName, RunCmdTerminalRootFolder, runCommandInTerminal, runRawCommandInTerminal } from './outputUtils';
 import { DefaultTerminalType, IsLinuxTerminalOnWindows, isNullOrEmpty, isWindowsTerminalOnWindows, nowText, quotePaths, toOsPath, toWSLPath } from './utils';
 
 // Another solution: (1) git ls-files > project-file-list.txt ; (2) msr -w project-file-list.txt  (3) file watcher + update list.
@@ -51,7 +51,7 @@ export class GitIgnore {
       this.RootFolder = toWSLPath(this.RootFolder, true);
     }
 
-    this.RootFolder = path.dirname(ignoreFilePath).replace(/\\/g, '/').replace(/\\$/, '');
+    this.RootFolder = this.changeToForwardSlash(path.dirname(ignoreFilePath));
   }
 
   public getSkipPathRegexPattern(toRunInTerminal: boolean, canUseVariable = true): string {
@@ -70,11 +70,21 @@ export class GitIgnore {
       : ' --np "' + pattern + '"';
   }
 
+  private changeToForwardSlash(pathString: string): string {
+    return pathString.replace(/\\/g, '/').replace(/\\$/, '');
+  }
+
   private getSkipPathsVariable() {
     return this.IsCmdTerminal ? '"%' + SkipPathVariableName + '%"' : '"$' + SkipPathVariableName + '"';
   }
 
   private exportSkipPathVariable(): boolean {
+    const runCmdTerminalFolder = this.changeToForwardSlash(RunCmdTerminalRootFolder);
+    if (runCmdTerminalFolder !== this.RootFolder) {
+      outputInfo(`Skip exporting ${SkipPathVariableName} due to workspace = ${this.RootFolder} != ${runCmdTerminalFolder} of ${RunCmdTerminalName} terminal.`);
+      return false;
+    }
+
     const pattern = this.SkipPathPattern;
     if (isNullOrEmpty(pattern)) {
       return false;
@@ -301,15 +311,15 @@ export class GitIgnore {
       return '';
     }
 
-    outputDebugOrInfo(!IsDebugMode, 'Input_Git_Ignore = ' + line);
+    outputInfoByDebugMode('Input_Git_Ignore = ' + line);
 
     if (line.match(/(?<![\\])\!/)) {
-      outputDebugOrInfo(!IsDebugMode, 'Skip exemption path: ' + line + '\n');
+      outputInfoByDebugMode('Skip exemption path: ' + line + '\n');
       return '';
     }
 
     if (this.SkipDotFolders && line.match(/^\.\w+|^\$|^\.\*$/)) {
-      outputDebugOrInfo(!IsDebugMode, 'Skip redundant dot/dollar-ignore-path: ' + line + '\n');
+      outputInfoByDebugMode('Skip redundant dot/dollar-ignore-path: ' + line + '\n');
       return '';
     }
 
@@ -321,7 +331,7 @@ export class GitIgnore {
 
     if (pattern === '*~' || pattern === '*~$') {
       pattern = '~$';
-      outputDebugOrInfo(!IsDebugMode, 'Skip_Paths_Regex = ' + pattern);
+      outputInfoByDebugMode('Skip_Paths_Regex = ' + pattern);
       return pattern;
     }
 
@@ -381,7 +391,7 @@ export class GitIgnore {
     }
 
     if (line === '.*') {
-      pattern = "/\\."
+      pattern = "/\\.";
     }
 
     if (!pattern.endsWith('$') && line.match(/\[[\._]{0,2}\]\*?\.?(\[?[a-z]?-?[a-z]\]?){3}$/i)) {
@@ -389,7 +399,7 @@ export class GitIgnore {
     }
 
     pattern = this.replaceSlashForSkipPattern(pattern);
-    outputDebugOrInfo(!IsDebugMode, 'Skip_Paths_Regex = ' + pattern);
+    outputInfoByDebugMode('Skip_Paths_Regex = ' + pattern);
     return pattern;
   }
 }

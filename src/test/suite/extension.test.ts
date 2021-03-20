@@ -2,7 +2,7 @@ import { before } from 'mocha';
 // You can import and use all API from the 'vscode' module
 // as well as import your extension to test it
 import * as vscode from 'vscode';
-import { checkConfigKeysInDoc, validateRegexPatterns } from './configAndDocTest';
+import { checkConfigKeysInDoc, checkDuplicateDescription, validateRegexPatterns } from './configAndDocTest';
 import { testCmdTerminalWithBackSlash, testCmdTerminalWithForwardSlash, testLinuxTerminal, testNotSkipDotPaths, testOmitExemptions } from './gitIgnoreTest';
 
 
@@ -11,13 +11,11 @@ suite('Test-1: Configuration and doc test suite', () => {
         vscode.window.showInformationMessage('Start testing configuration keys + keys in readme doc.');
     });
 
-    test('Configuration keys can be read and Regex patterns are correct.', () => {
-        validateRegexPatterns();
-    });
+    test('Configuration keys can be read and Regex patterns are correct.', validateRegexPatterns);
 
-    test('Keys referenced in readme doc must be defined in configuration.', () => {
-        checkConfigKeysInDoc();
-    });
+    test('Keys referenced in readme doc must be defined in configuration.', checkConfigKeysInDoc);
+
+    test('Check duplicate descriptions in config file.', checkDuplicateDescription);
 });
 
 suite('Test-2: Parsing .gitignore test', () => {

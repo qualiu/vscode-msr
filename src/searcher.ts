@@ -3,15 +3,15 @@ import * as vscode from 'vscode';
 import { IsForwardingSlashSupportedOnWindows, setSearchDepthInCommandLine, setTimeoutInCommandLine, ToolChecker } from './checkTool';
 import { runFindingCommandByCurrentWord } from './commands';
 import { getConfigValueByRoot, getSubConfigValue } from './configUtils';
-import { IsDebugMode, IsWindows, RemoveJumpRegex, SearchTextHolderReplaceRegex } from './constants';
-import { FileExtensionToMappedExtensionMap, getConfig, getRootFolder, getRootFolderExtraOptions, getRootFolderName, getSearchPathOptions, GitIgnoreInfo, MyConfig } from './dynamicConfig';
+import { IsWindows, RemoveJumpRegex, SearchTextHolderReplaceRegex } from './constants';
+import { FileExtensionToMappedExtensionMap, getConfig, getGitIgnore, getRootFolderExtraOptions, getSearchPathOptions, MyConfig } from './dynamicConfig';
 import { FindCommandType, FindType, ForceFindType, TerminalType } from './enums';
-import { outputDebug, outputDebugOrInfo, outputError, outputInfo, outputResult, outputWarn, runCommandInTerminal, runRawCommandInTerminal } from './outputUtils';
+import { outputDebug, outputDebugOrInfo, outputError, outputInfo, outputInfoByDebugMode, outputResult, outputWarn, runCommandInTerminal, runRawCommandInTerminal } from './outputUtils';
 import { Ranker } from './ranker';
 import { escapeRegExp } from './regexUtils';
 import { ResultType, ScoreTypeResult } from './ScoreTypeResult';
 import { SearchChecker } from './searchChecker';
-import { changeFindingCommandForLinuxTerminalOnWindows, DefaultTerminalType, getCurrentWordAndText, getExtensionNoHeadDot, IsLinuxTerminalOnWindows, isNullOrEmpty, nowText, quotePaths, toPath } from './utils';
+import { changeFindingCommandForLinuxTerminalOnWindows, DefaultTerminalType, getCurrentWordAndText, getDefaultRootFolder, getExtensionNoHeadDot, getRootFolder, getRootFolderName, getSearchPathInCommand, IsLinuxTerminalOnWindows, isNullOrEmpty, nowText, quotePaths, toPath } from './utils';
 import ChildProcess = require('child_process');
 import path = require('path');
 
@@ -28,7 +28,6 @@ const ExpectedMaxTimeCostSecond = 3.0;
 let SearchToCostSumMap = new Map<FindType, Number>();
 let SearchTimesMap = new Map<FindType, Number>();
 
-let RootConfig = MyConfig.RootConfig || vscode.workspace.getConfiguration('msr');
 let HasAlreadyReRunSearch: boolean = false;
 let CurrentSearchPidSet = new Set<number>();
 
@@ -37,6 +36,7 @@ export function setReRunMark(hasAlreadyReRun: boolean) {
 }
 
 export function stopAllSearchers() {
+  outputInfoByDebugMode(nowText() + 'Will stop all ' + CurrentSearchPidSet.size + ' searchers with PID: ' + Array.from(CurrentSearchPidSet).join(' '));
   if (CurrentSearchPidSet.size < 1) {
     return;
   }
@@ -46,7 +46,7 @@ export function stopAllSearchers() {
     : 'kill -9 ' + Array.from(CurrentSearchPidSet).join(' ');
 
   const message = CurrentSearchPidSet.size + ' processes by command: ' + command;
-  outputDebugOrInfo(!IsDebugMode, nowText() + 'Will kill ' + message);
+  outputInfoByDebugMode(nowText() + 'Will kill ' + message);
   try {
     ChildProcess.execSync(command);
   } catch (err) {
@@ -64,7 +64,7 @@ if (IsLinuxTerminalOnWindows && TerminalType.CygwinBash === DefaultTerminalType)
 export const PlatformToolChecker = new ToolChecker(IsWindows ? TerminalType.CMD : TerminalType.LinuxBash);
 if (PlatformToolChecker.checkSearchToolExists()) {
   // avoid prompting 'cmd.exe exit error'
-  if (!MyConfig.UseGitIgnoreFile || !GitIgnoreInfo.Valid) {
+  if (!MyConfig.UseGitIgnoreFile || !(getGitIgnore(getDefaultRootFolder()).Valid)) {
     // to ease running command later (like: using git-ignore to export/set variables)
     runRawCommandInTerminal('echo TerminalType = ' + TerminalType[DefaultTerminalType] + ', Universal slash = ' + IsForwardingSlashSupportedOnWindows);
   }
@@ -122,7 +122,7 @@ export class Searcher {
   }
 }
 
-export function createSearcher(searchChecker: SearchChecker, name: string, sourcePath: string, recursive: boolean,
+export function createSearcher(searchChecker: SearchChecker, name: string, sourcePath: string, recursive: boolean = true,
   forceFindType: ForceFindType = ForceFindType.None,
   maxSearchDepth: number = MyConfig.MaxSearchDepth,
   timeout: number = MyConfig.MaxWaitSecondsForSearchDefinition)
@@ -271,7 +271,7 @@ export function getMatchedLocationsAsync(findType: FindType, cmd: string, ranker
       const allResults: vscode.Location[] = isNullOrEmpty(stdout) ? [] : parseCommandOutput(stdout, findType, cmd, ranker);
 
       if (stderr) {
-        if (!findAndProcessSummary(false, stderr, findType, cmd, ranker)) {
+        if (!findAndProcessSummary(allResults.length, false, stderr, findType, cmd, ranker)) {
           if (/\bmsr\b.*?\s+not\s+/.test(stderr)) {
             PlatformToolChecker.checkSearchToolExists(true, false);
           }
@@ -296,14 +296,14 @@ function killProcess(process: ChildProcess.ChildProcess | null, extraInfo: strin
   }
 
   try {
-    outputDebugOrInfo(!IsDebugMode, nowText() + 'Kill process ' + process.pid + ' ' + extraInfo.trimLeft());
+    outputInfoByDebugMode(nowText() + 'Kill process ' + process.pid + ' ' + extraInfo.trimLeft());
     process.kill();
   } catch (err) {
     outputError(nowText() + 'Failed to kill process ' + process.pid + ' ' + extraInfo.trimLeft() + ', error = ' + err.toString());
   }
 }
 
-function findAndProcessSummary(skipIfNotMatch: boolean, summaryText: string, findType: FindType, cmd: string, ranker: Ranker): boolean {
+function findAndProcessSummary(filteredResultCount: number, skipIfNotMatch: boolean, summaryText: string, findType: FindType, cmd: string, ranker: Ranker): boolean {
   const summaryMatch = GetSummaryRegex.exec(summaryText);
   if (!summaryMatch && skipIfNotMatch) {
     return false;
@@ -325,7 +325,7 @@ function findAndProcessSummary(skipIfNotMatch: boolean, summaryText: string, fin
 
   const match = /^Matched (\d+) lines.*?read (\d+) lines.*?Used (\d+\.\d*) s/.exec(summaryText);
   const matchCount = match ? parseInt(match[1]) : 0;
-  const outputSummary = '\n' + (MyConfig.IsDebug ? summaryText : summaryText.replace(RemoveCommandLineInfoRegex, ''));
+  const outputSummary = '\n' + nowText() + (MyConfig.IsDebug ? summaryText : summaryText.replace(RemoveCommandLineInfoRegex, ''));
   outputDebugOrInfo(matchCount < 1, matchCount > 0 ? outputSummary : outputSummary.trim());
 
   if (match) {
@@ -333,20 +333,22 @@ function findAndProcessSummary(skipIfNotMatch: boolean, summaryText: string, fin
     const costSeconds = parseFloat(match[3]);
     outputDebug(nowText() + 'Got matched count = ' + matchCount + ' and time cost = ' + costSeconds + ' from summary, search word = ' + ranker.searchChecker.currentWord);
     sumTimeCost(findType, costSeconds, lineCount);
-    if (matchCount < 1 && RootConfig.get('enable.useGeneralFindingWhenNoResults') as boolean) {
+    if (matchCount < 1 && MyConfig.RootConfig.get('enable.useGeneralFindingWhenNoResults') as boolean) {
       const findCmd = findType === FindType.Definition ? FindCommandType.RegexFindAsClassOrMethodDefinitionInCodeFiles : FindCommandType.RegexFindAsClassOrMethodDefinitionInCodeFiles;
-      if (!HasAlreadyReRunSearch && !ranker.isOneFileOrFolder && ranker.canRunCommandInTerminal) {
+      if (!HasAlreadyReRunSearch && !ranker.isOneFileOrFolder && ranker.canRunCommandInTerminalWhenNoResult) {
         HasAlreadyReRunSearch = true;
-        runFindingCommandByCurrentWord(findCmd, ranker.searchChecker.currentWord, ranker.searchChecker.currentFile, '', true);
+        const forceSearchPaths = getSearchPathInCommand(cmd);
+        runFindingCommandByCurrentWord(findCmd, ranker.searchChecker.currentWord, ranker.searchChecker.currentFile, '', true, forceSearchPaths);
         outputInfo(nowText() + 'Will run general search, please check results in `MSR-RUN-CMD` in `TERMINAL` tab. Set `msr.quiet` to avoid switching tabs; Disable `msr.enable.useGeneralFindingWhenNoResults` to disable re-running.');
         outputInfo(nowText() + 'Try extensive search if still no results. Use context menu or: Click a word or select a text  --> Press `F12` --> Type `msr` + `find` and choose to search.');
       }
     }
-    else if (!HasAlreadyReRunSearch && ranker.canRunCommandInTerminal && matchCount > MyConfig.ReRunSearchInTerminalIfResultsMoreThan && costSeconds <= MyConfig.ReRunCmdInTerminalIfCostLessThan) {
+    else if (!HasAlreadyReRunSearch && filteredResultCount > 1 && ranker.canRunCommandInTerminalWhenManyResults && matchCount > MyConfig.ReRunSearchInTerminalIfResultsMoreThan && costSeconds <= MyConfig.ReRunCmdInTerminalIfCostLessThan) {
       HasAlreadyReRunSearch = true;
       outputInfo(nowText() + 'Will re-run and show clickable + colorful results in `MSR-RUN-CMD` in `TERMINAL` tab. Set `msr.quiet` to avoid switching tabs; Decrease `msr.reRunSearchInTerminalIfCostLessThan` value for re-running.');
       cmd = changeFindingCommandForLinuxTerminalOnWindows(cmd);
-      cmd = GitIgnoreInfo.replaceToSkipPathVariable(cmd);
+      const gitIgnore = getGitIgnore(ranker.searchChecker.currentFilePath);
+      cmd = gitIgnore.replaceToSkipPathVariable(cmd);
       cmd = RunCommandChecker.toRunnableToolPath(cmd);
       // cmd = cmd.replace(SkipJumpOutForHeadResultsRegex, ' ').trim();
       cmd = cmd.replace(RemoveJumpRegex, ' ').trim();
@@ -403,7 +405,11 @@ function parseCommandOutput(stdout: string, findType: FindType, cmd: string, ran
     });
 
     if (summaryText.length > 0) {
-      findAndProcessSummary(true, summaryText, findType, cmd, ranker);
+      findAndProcessSummary(allResults.length, true, summaryText, findType, cmd, ranker);
+    }
+
+    if (allResults.length > 0) {
+      stopAllSearchers();
     }
 
     return allResults;
@@ -511,14 +517,18 @@ function parseCommandOutput(stdout: string, findType: FindType, cmd: string, ran
 
   const maxScore = scoreList.length < 1 ? -1 : scoreList[scoreList.length - 1];
   const minScore = scoreList.length < 1 ? -1 : scoreList[0];
-  console.log('Count = ' + scoreList.length + ' , averageScore = ' + averageScore.toFixed(1)
+  console.log(nowText() + 'Result-Count = ' + scoreList.length + ' , averageScore = ' + averageScore.toFixed(1)
     + ' , max = ' + maxScore.toFixed(1) + ' , min = ' + minScore.toFixed(1)
     + (maxScore.valueOf() === 0 ? '' : ' , min/max = ' + (minScore.valueOf() / maxScore.valueOf()).toFixed(2))
     + ' , removeFactor = ' + removeLowScoreResultsFactor + ' , threshold = ' + removeThreshold.toFixed(1)
     + ' , removedCount = ' + removedCount + ' , scoreWordsText = ' + ranker.scoreWordsText);
 
   if (summaryText.length > 0) {
-    findAndProcessSummary(true, summaryText, findType, cmd, ranker);
+    findAndProcessSummary(scoreList.length, true, summaryText, findType, cmd, ranker);
+  }
+
+  if (scoreList.length > 0) {
+    stopAllSearchers();
   }
 
   return allResults;

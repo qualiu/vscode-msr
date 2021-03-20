@@ -2,6 +2,20 @@
 
 All notable changes to this "vscode-msr" extension will be documented in this file.
 
+## [2.1.13]
+
+- Empowered people to coding in multiple workspaces with 2 methods and improvements:
+  - Improved native multiple workspaces support:
+    - Auto detect and initialize terminal with the active workspace for `MSR-RUN-CMD` terminal.
+    - Auto detect the corresponding workspaces of newly opened terminals:
+      - Initialize terminal with right `gitignore` file.
+      - Initialize terminal with right command shortcuts.
+  - Simplified `extraSearchPaths` logic and supported fine-grained granularity:
+    - People can set `msr.{project}.extraSearchPaths` without opening multiple workspaces.
+- Improved searching precision + speed from several perspectives.
+- Reduced re-running in `MSR-RUN-CMD` terminal.
+- Corrected `bashrc-path` style for Linux terminals on Windows.
+
 ## [2.1.12]
 
 - Improved finding definition speed + precision.

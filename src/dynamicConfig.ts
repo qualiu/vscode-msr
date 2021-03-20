@@ -1,14 +1,14 @@
 import path = require('path');
 import * as vscode from 'vscode';
-import { GetConfigPriorityPrefixes, getConfigValue, getConfigValueByRoot, getOverrideConfigByPriority, getSubConfigValue, RootFolder } from './configUtils';
+import { GetConfigPriorityPrefixes, getConfigValue, getConfigValueByRoot, getSubConfigValue } from './configUtils';
 import { IsLinux, IsWindows, IsWSL } from './constants';
 import { cookCmdShortcutsOrFile, mergeSkipFolderPattern } from './cookCommandAlias';
 import { FindType, TerminalType } from './enums';
 import { GitIgnore } from './gitUtils';
-import { clearTerminal, getTerminal, outputDebug, outputInfo } from './outputUtils';
+import { getRunCmdTerminal, outputDebug, outputInfo } from './outputUtils';
 import { createRegex, escapeRegExp } from './regexUtils';
 import { SearchConfig } from './searchConfig';
-import { DefaultTerminalType, getExtensionNoHeadDot, getUniqueStringSetNoCase, IsLinuxTerminalOnWindows, isLinuxTerminalOnWindows, isNullOrEmpty, nowText, quotePaths, toOsPath, toOsPaths, toOsPathsForText, toWSLPaths } from './utils';
+import { DefaultTerminalType, getDefaultRootFolderByActiveFile, getExtensionNoHeadDot, getRootFolder, getRootFolderName, getRootFolders, getUniqueStringSetNoCase, isLinuxTerminalOnWindows, isNullOrEmpty, nowText, quotePaths, toOsPath, toOsPaths, toOsPathsForText, toWSLPaths } from './utils';
 
 const SplitPathsRegex = /\s*[,;]\s*/;
 const SplitPathGroupsRegex = /\s*;\s*/;
@@ -16,7 +16,7 @@ const FolderToPathPairRegex = /(\w+\S+?)\s*=\s*(\S+.+)$/;
 
 export let MyConfig: DynamicConfig;
 
-export let GitIgnoreInfo: GitIgnore;
+export let WorkspaceToGitIgnoreMap = new Map<string, GitIgnore>();
 
 export let FileExtensionToMappedExtensionMap = new Map<string, string>();
 // 	.set('cxx', 'cpp')
@@ -33,6 +33,43 @@ export let MappedExtToCodeFilePatternMap = new Map<string, string>()
 
 export function removeSearchTextForCommandLine(cmd: string): string {
     return cmd.replace(/(\s+-c)\s+Search\s+%~?1/, '$1');
+}
+
+export function getGitIgnore(currentPath: string): GitIgnore {
+    const rootFolder = getRootFolder(currentPath);
+    const gitIgnore = WorkspaceToGitIgnoreMap.get(rootFolder);
+    return gitIgnore || new GitIgnore('');
+}
+
+export function updateGitIgnoreMap() {
+    WorkspaceToGitIgnoreMap.clear();
+
+    if (!vscode.workspace.workspaceFolders || vscode.workspace.workspaceFolders.length < 1) {
+        return;
+    }
+
+    const defaultRootFolder = getDefaultRootFolderByActiveFile();
+
+    vscode.workspace.workspaceFolders.forEach(a => {
+        const rootFolder = getRootFolder(a.uri.fsPath);
+        const gitIgnore = new GitIgnore(path.join(rootFolder, '.gitignore'), MyConfig.UseGitIgnoreFile, MyConfig.OmitGitIgnoreExemptions, MyConfig.SkipDotFolders);
+        WorkspaceToGitIgnoreMap.set(rootFolder, gitIgnore);
+        const canInitGitIgnore = a.uri.fsPath === defaultRootFolder;
+
+        gitIgnore.parse(() => {
+            if (!canInitGitIgnore) {
+                return;
+            }
+
+            const terminal = getRunCmdTerminal();
+            // clearTerminal(terminal, IsLinuxTerminalOnWindows);
+            cookCmdShortcutsOrFile(rootFolder, true, false, terminal, false, true);
+            const autoCompare = getConfigValue('autoCompareFileListsIfUsedGitIgnore') === 'true';
+            if (autoCompare) {
+                gitIgnore.compareFileList();
+            }
+        });
+    });
 }
 
 export class DynamicConfig {
@@ -287,47 +324,9 @@ export function getConfig(reload: boolean = false): DynamicConfig {
     outputDebug('----- vscode-msr configuration loaded: ' + nowText() + ' -----');
     printConfigInfo(MyConfig.RootConfig);
 
-    GitIgnoreInfo = new GitIgnore(path.join(RootFolder, '.gitignore'), MyConfig.UseGitIgnoreFile, MyConfig.OmitGitIgnoreExemptions, MyConfig.SkipDotFolders);
-
-    GitIgnoreInfo.parse(() => {
-        const terminal = getTerminal();
-        clearTerminal(terminal, IsLinuxTerminalOnWindows);
-        cookCmdShortcutsOrFile(RootFolder, true, false, terminal, false, true);
-        const autoCompare = getConfigValue('autoCompareFileListsIfUsedGitIgnore') === 'true';
-        if (autoCompare) {
-            GitIgnoreInfo.compareFileList();
-        }
-    });
+    updateGitIgnoreMap();
 
     return MyConfig;
-}
-
-export function getRootFolder(filePath: string, useFirstFolderIfNotFound = false): string {
-    const folderUri = vscode.workspace.getWorkspaceFolder(vscode.Uri.file(filePath));
-    if (!folderUri || !folderUri.uri || !folderUri.uri.fsPath) {
-        if (useFirstFolderIfNotFound && vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders.length > 0) {
-            return vscode.workspace.workspaceFolders[0].uri.fsPath;
-        }
-        return '';
-    }
-
-    return folderUri.uri.fsPath;
-}
-
-export function getRootFolderName(filePath: string, useFirstFolderIfNotFound = false): string {
-    const folder = getRootFolder(filePath, useFirstFolderIfNotFound);
-    return isNullOrEmpty(folder) ? '' : path.parse(folder).base;
-}
-
-export function getRootFolders(currentFilePath: string): string {
-    if (!vscode.workspace.workspaceFolders || vscode.workspace.workspaceFolders.length < 1) {
-        return '';
-    }
-
-    let rootFolderSet = new Set<string>().add(getRootFolder(currentFilePath));
-    vscode.workspace.workspaceFolders.forEach(a => rootFolderSet.add(a.uri.fsPath));
-    rootFolderSet.delete('');
-    return Array.from(rootFolderSet).join(',');
 }
 
 export function getRootFolderExtraOptions(rootFolderName: string): string {
@@ -371,7 +370,8 @@ export function getSearchPathOptions(
     usePathListFiles: boolean = true,
     forceSetSearchPath: string = '',
     isRecursive: boolean = true): string {
-    const rootFolder = getRootFolder(codeFilePath);
+    const allRootFolders = getRootFolders(codeFilePath);
+    const rootFolder = allRootFolders.includes(forceSetSearchPath) ? getRootFolder(forceSetSearchPath) : getRootFolder(codeFilePath);
     const extension = getExtensionNoHeadDot(path.parse(codeFilePath).ext, '');
     const rootFolderName = getRootFolderName(codeFilePath, true);
     const findDefinitionInAllFolders = getConfigValueByRoot(rootFolderName, extension, mappedExt, 'definition.searchAllRootFolders') === "true";
@@ -379,7 +379,7 @@ export function getSearchPathOptions(
     const findAllFolders = isFindingDefinition ? findDefinitionInAllFolders : findReferencesInAllRootFolders;
     const rootPaths = !isNullOrEmpty(forceSetSearchPath)
         ? forceSetSearchPath
-        : (findAllFolders ? getRootFolders(codeFilePath) : getRootFolder(codeFilePath));
+        : (findAllFolders ? getRootFolders(codeFilePath).join(',') : getRootFolder(codeFilePath));
 
     const recursiveOption = isRecursive || isNullOrEmpty(rootPaths) ? '-rp ' : '-p ';
     const folderKey = useProjectSpecific ? rootFolderName : '';
@@ -389,8 +389,9 @@ export function getSearchPathOptions(
     skipFoldersPattern = mergeSkipFolderPattern(skipFoldersPattern);
 
     const terminalType = !toRunInTerminal && isLinuxTerminalOnWindows() ? TerminalType.CMD : DefaultTerminalType;
-    const skipFolderOptions = useProjectSpecific && GitIgnoreInfo.Valid
-        ? GitIgnoreInfo.getSkipPathRegexPattern(toRunInTerminal)
+    const gitIgnoreInfo = getGitIgnore(rootFolder);
+    const skipFolderOptions = useProjectSpecific && gitIgnoreInfo.Valid && (!toRunInTerminal || allRootFolders.length < 2)
+        ? gitIgnoreInfo.getSkipPathRegexPattern(toRunInTerminal)
         : (useSkipFolders && skipFoldersPattern.length > 1 ? ' --nd "' + skipFoldersPattern + '"' : '');
 
     const shouldSearchExtraPaths = isFindingDefinition && useExtraSearchPathsForDefinition || !isFindingDefinition && useExtraSearchPathsForReference;
@@ -404,17 +405,9 @@ export function getSearchPathOptions(
         }
     }
 
-    let extraSearchPathSet = new Set<string>();
-    let extraSearchPathFileListSet = new Set<string>();
-    if (shouldSearchExtraPaths) {
-        extraSearchPathSet = getExtraSearchPathsOrFileLists('extraSearchPaths', folderKey, extension, mappedExt);
-        getExtraSearchPathsOrFileLists('extraSearchPathGroups', folderKey, extension, mappedExt)
-            .forEach(a => extraSearchPathSet.add(a));
-
-        extraSearchPathFileListSet = getExtraSearchPathsOrFileLists('extraSearchPathListFiles', folderKey, extension, mappedExt);
-        getExtraSearchPathsOrFileLists('default.extraSearchPathListFileGroups', folderKey, extension, mappedExt)
-            .forEach(a => extraSearchPathFileListSet.add(a));
-    }
+    const [extraSearchPathSet, extraSearchPathFileListSet] = shouldSearchExtraPaths
+        ? getExtraSearchPaths(folderKey, extension, mappedExt)
+        : [new Set<string>(), new Set<string>()];
 
     let searchPathSet = new Set<string>((rootPaths || (isFindingDefinition ? path.dirname(codeFilePath) : codeFilePath)).split(','));
     extraSearchPathSet.forEach(a => searchPathSet.add(a));
@@ -434,6 +427,18 @@ export function getSearchPathOptions(
     const searchPaths = replaceToRelativeSearchPath(toRunInTerminal, pathsText, rootFolder);
     const otherOptions = isNullOrEmpty(rootPaths) ? '' : readPathListOptions + skipFolderOptions;
     return recursiveOption + quotePaths(searchPaths) + otherOptions;
+}
+
+export function getExtraSearchPaths(folderKey: string, extension: string, mappedExt: string): [Set<string>, Set<string>] {
+    let extraSearchPathSet = getExtraSearchPathsOrFileLists('extraSearchPaths', folderKey, extension, mappedExt);
+    getExtraSearchPathsOrFileLists('extraSearchPathGroups', folderKey, extension, mappedExt)
+        .forEach(a => extraSearchPathSet.add(a));
+
+    let extraSearchPathFileListSet = getExtraSearchPathsOrFileLists('extraSearchPathListFiles', folderKey, extension, mappedExt);
+    getExtraSearchPathsOrFileLists('extraSearchPathListFileGroups', folderKey, extension, mappedExt)
+        .forEach(a => extraSearchPathFileListSet.add(a));
+
+    return [extraSearchPathSet, extraSearchPathFileListSet];
 }
 
 export function getExtraSearchPathsOrFileLists(configKeyTailName: string, rootFolderName: string, extension: string, mappedExt: string): Set<string> {

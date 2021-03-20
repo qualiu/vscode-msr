@@ -2,20 +2,21 @@ import { ParsedPath } from 'path';
 import * as vscode from 'vscode';
 import { GetConfigPriorityPrefixes, getConfigValueByRoot, getOverrideConfigByPriority } from './configUtils';
 import { SearchTextHolder } from './constants';
-import { getConfig, getRootFolderName, MappedExtToCodeFilePatternMap, MyConfig } from './dynamicConfig';
+import { getConfig, MappedExtToCodeFilePatternMap, MyConfig } from './dynamicConfig';
 import { FindType, ForceFindType } from './enums';
 import { ForceSetting } from './forceSettings';
 import { outputDebug, outputError } from './outputUtils';
 import { EmptyRegex, getAllSingleWords } from './regexUtils';
 import { ResultType } from './ScoreTypeResult';
 import { SearchChecker } from './searchChecker';
-import { isNullOrEmpty, nowText } from './utils';
+import { getRootFolderName, isNullOrEmpty, nowText } from './utils';
 import path = require('path');
 
 export class Ranker {
 	public searchChecker: SearchChecker;
 	public isOneFileOrFolder: boolean;
-	public canRunCommandInTerminal: boolean = false;
+	public canRunCommandInTerminalWhenNoResult: boolean = false;
+	public canRunCommandInTerminalWhenManyResults: boolean = true;
 	public rootFolderName: string;
 
 	public scoreWordsText: string;
@@ -81,6 +82,7 @@ export class Ranker {
 			outputDebug('isFindMember = ' + this.isFindMember + ' , isMemberPattern = "' + searchChecker.isFindMemberRegex.source + '"');
 			outputDebug('isFindClassOrEnum = ' + this.isFindClassOrEnum + ' , isClassOrEnumPattern = "' + searchChecker.isFindClassOrEnumRegex.source + '"');
 			outputDebug('isFindClassOrMethod = ' + this.isFindClassOrMethod + ' , isFindClassOrMethodPattern = "' + searchChecker.isFindClassOrMethodRegex.source + '"');
+			outputDebug('isOnlyFindClass = ' + searchChecker.isOnlyFindClass + ' , isOnlyFindMember = ' + searchChecker.isOnlyFindMember);
 			outputDebug('scoreWordsText = ' + this.scoreWordsText);
 		}
 
@@ -200,14 +202,14 @@ export class Ranker {
 
 		let searchPattern = this.getSpecificConfigValue(configKeyName, this.searchChecker.findType !== FindType.Definition, false);
 
-		const RootConfig = vscode.workspace.getConfiguration('msr');
+		const rootConfig = vscode.workspace.getConfiguration('msr');
 		const codeFilesKey = this.searchChecker.mappedExt === 'ui' ? 'default.codeFilesPlusUI' : 'default.codeFiles';
 		let filePattern = MappedExtToCodeFilePatternMap.get(this.searchChecker.mappedExt) || '\\.' + extension + '$';
 		const searchAllFilesForReferences = getConfigValueByRoot(this.rootFolderName, extension, this.searchChecker.mappedExt, 'searchAllFilesForReferences') === 'true';
 		const searchAllFilesForDefinition = getConfigValueByRoot(this.rootFolderName, extension, this.searchChecker.mappedExt, 'searchAllFilesForDefinitions') === 'true';
 		if (searchAllFilesForReferences && configKeyName === 'reference') {
-			filePattern = RootConfig.get('default.allFiles') as string;
-			const defaultFindRef = RootConfig.get('default.reference') as string;
+			filePattern = rootConfig.get('default.allFiles') as string;
+			const defaultFindRef = rootConfig.get('default.reference') as string;
 			if (defaultFindRef.length > 1) {
 				searchPattern = defaultFindRef;
 			}
@@ -220,8 +222,8 @@ export class Ranker {
 				searchPattern = searchPattern.substring(0, searchPattern.length - 2);
 			}
 		} else if (searchAllFilesForDefinition && configKeyName === 'definition') {
-			filePattern = RootConfig.get(codeFilesKey) as string;
-			const defaultFindDef = RootConfig.get('default.definition') as string;
+			filePattern = rootConfig.get(codeFilesKey) as string;
+			const defaultFindDef = rootConfig.get('default.definition') as string;
 			if (defaultFindDef.length > 1) {
 				searchPattern = defaultFindDef;
 			}
@@ -230,7 +232,7 @@ export class Ranker {
 		if (!searchAllFilesForDefinition && !searchAllFilesForReferences) {
 			if (config.ConfigAndDocFilesRegex.test(parsedFile.base)) {
 				filePattern = configKeyName === 'definition'
-					? RootConfig.get(codeFilesKey) as string
+					? rootConfig.get(codeFilesKey) as string
 					: config.CodeAndConfigAndDocFilesRegex.source;
 			}
 
@@ -258,7 +260,7 @@ export class Ranker {
 		}
 
 		const skipPattern = this.searchChecker.findType === FindType.Definition ? this.getSkipPatternForDefinition() : '';
-		if (skipPattern.length > 1) {
+		if (skipPattern.length > 1 && !this.searchChecker.isOnlyFindClass) {
 			searchPattern += ' --nt "' + skipPattern + '"';
 		}
 
@@ -366,7 +368,7 @@ export class Ranker {
 
 		const hasMatchedClass = resultText.match(this.searchChecker.classDefinitionRegex);
 		if (this.isFindMember) {
-			if (!hasMatchedClass && !resultText.match(/[\(\)]/)) {
+			if (!hasMatchedClass && !resultText.match(new RegExp('\\b' + this.currentWord + '\\s*\\('))) {
 				score += 500 * boostFactor;
 			}
 		}
@@ -431,8 +433,18 @@ export class Ranker {
 			score += 30 * boostFactor;
 		}
 
-		if (resultText.match(/^\s*(\w+\s+)?(readonly|const|final)\s+/)) {
+		if (resultText.match(/^\s*([a-z]+\s+)?(readonly|const|final|val)\s+/)) {
+			score += 200 * boostFactor;
+		}
+		else if (resultText.match(new RegExp('^\\s*' + this.currentWord + '\\s*,?\\s*$'))) {
 			score += 50 * boostFactor;
+		}
+		else if (resultText.match(new RegExp('^\\s*' + this.currentWord + '\\s*='))) {
+			if (this.searchChecker.enumOrConstantValueRegex.test(resultText)) {
+				score += 200 * boostFactor;
+			} else {
+				score -= 500 * boostFactor;
+			}
 		}
 
 		if (!parsedResultPath.ext.match(/\.(json|xml|ya?ml|ini|config|md|txt)$|readme/i)) {
@@ -549,8 +561,8 @@ export class Ranker {
 			type = ResultType.Interface;
 			score *= 10;
 		} else if (this.searchChecker.isConstantResultRegex.test(resultText)) {
-			type = ResultType.ConstantValue
-			score *= 100;
+			type = ResultType.ConstantValue;
+			score += 100 * boostFactor;
 		}
 
 		if (ResultType.None === type) {
@@ -561,6 +573,14 @@ export class Ranker {
 					return [type, score];
 				}
 			}
+		}
+
+		if (this.searchChecker.isOnlyFindMember && (ResultType.Class === type || ResultType.Method === type)) {
+			return [type, 0];
+		}
+
+		if (this.searchChecker.isOnlyFindClass && (ResultType.Class !== type && ResultType.Enum !== type && ResultType.ConstantValue !== type)) {
+			return [type, 0];
 		}
 
 		if (ResultType.None === type) {

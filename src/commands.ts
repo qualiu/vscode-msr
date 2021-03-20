@@ -1,14 +1,14 @@
 import * as vscode from 'vscode';
 import { MsrExe, setTimeoutInCommandLine, ToolChecker } from './checkTool';
-import { getConfigValueByRoot, getOverrideConfigByPriority, getSubConfigValue, RootFolder } from './configUtils';
+import { getConfigValueByRoot, getOverrideConfigByPriority, getSubConfigValue } from './configUtils';
 import { HomeFolder, RemoveJumpRegex, SearchTextHolderReplaceRegex, SkipJumpOutForHeadResultsRegex } from './constants';
-import { FileExtensionToMappedExtensionMap, getConfig, getRootFolder, getRootFolderExtraOptions, getRootFolderName, getSearchPathOptions, GitIgnoreInfo, MappedExtToCodeFilePatternMap, MyConfig, removeSearchTextForCommandLine, replaceToRelativeSearchPath } from './dynamicConfig';
+import { FileExtensionToMappedExtensionMap, getConfig, getGitIgnore, getRootFolderExtraOptions, getSearchPathOptions, MappedExtToCodeFilePatternMap, MyConfig, removeSearchTextForCommandLine, replaceToRelativeSearchPath } from './dynamicConfig';
 import { FindCommandType, TerminalType } from './enums';
 import { enableColorAndHideCommandLine, outputDebug, outputInfo, runCommandInTerminal } from './outputUtils';
 import { Ranker } from './ranker';
 import { escapeRegExp, NormalTextRegex } from './regexUtils';
 import { SearchConfig } from './searchConfig';
-import { changeFindingCommandForLinuxTerminalOnWindows, DefaultTerminalType, getCurrentWordAndText, getExtensionNoHeadDot, IsLinuxTerminalOnWindows, isLinuxTerminalOnWindows, isNullOrEmpty, nowText, quotePaths, replaceTextByRegex, toOsPath, toPath } from './utils';
+import { changeFindingCommandForLinuxTerminalOnWindows, DefaultTerminalType, getCurrentWordAndText, getDefaultRootFolderByActiveFile, getExtensionNoHeadDot, getRootFolder, getRootFolderName, IsLinuxTerminalOnWindows, isLinuxTerminalOnWindows, isNullOrEmpty, nowText, quotePaths, replaceTextByRegex, setSearchPathInCommand, toOsPath, toPath } from './utils';
 import path = require('path');
 
 const ReplaceSearchPathRegex = /-r?p\s+\S+|-r?p\s+\".+?\"/g;
@@ -18,8 +18,8 @@ function replaceSearchPathToDot(searchPathsOptions: string): string {
 }
 
 export function runFindingCommand(findCmd: FindCommandType, textEditor: vscode.TextEditor) {
-    const RootConfig = vscode.workspace.getConfiguration('msr');
-    if (RootConfig.get('enable.findingCommands') as boolean !== true) {
+    const rootConfig = vscode.workspace.getConfiguration('msr');
+    if (rootConfig.get('enable.findingCommands') as boolean !== true) {
         outputDebug(nowText() + 'Your extension "vscode-msr": finding-commands is disabled by setting of `msr.enable.findingCommands`.');
     }
 
@@ -47,11 +47,16 @@ export function runFindingCommand(findCmd: FindCommandType, textEditor: vscode.T
 }
 
 export function runFindingCommandByCurrentWord(findCmd: FindCommandType, searchText: string, parsedFile: path.ParsedPath,
-    rawSearchText: string = '', onlyRemoveJump: boolean = false) {
+    rawSearchText: string = '', onlyRemoveJump: boolean = false, forceSearchPaths: string = '') {
     let command = getFindingCommandByCurrentWord(false, findCmd, searchText, parsedFile, rawSearchText, undefined, onlyRemoveJump);
     command = changeFindingCommandForLinuxTerminalOnWindows(command);
     command = setTimeoutInCommandLine(command, MyConfig.MaxWaitSecondsForAutoReSearchDefinition);
-    command = GitIgnoreInfo.replaceToSkipPathVariable(command);
+    const gitIgnore = getGitIgnore(parsedFile.dir);
+    command = gitIgnore.replaceToSkipPathVariable(command);
+    if (!isNullOrEmpty(forceSearchPaths)) {
+        command = setSearchPathInCommand(command, forceSearchPaths);
+    }
+
     const myConfig = getConfig();
     runCommandInTerminal(command, !myConfig.IsQuiet, myConfig.ClearTerminalBeforeExecutingCommands);
 }
@@ -59,7 +64,7 @@ export function runFindingCommandByCurrentWord(findCmd: FindCommandType, searchT
 export function getSortCommandText(toRunInTerminal: boolean, useProjectSpecific: boolean, addOptionalArgs: boolean, findCmd: FindCommandType, rootFolder = '', isCookingCmdAlias = false): string {
     const findCmdText = FindCommandType[findCmd];
     if (isNullOrEmpty(rootFolder) && useProjectSpecific) {
-        rootFolder = RootFolder;
+        rootFolder = getDefaultRootFolderByActiveFile() || '.';
     }
 
     const rootFolderName = getRootFolderName(rootFolder, useProjectSpecific);
@@ -96,7 +101,7 @@ export function getSortCommandText(toRunInTerminal: boolean, useProjectSpecific:
 export function getFindTopDistributionCommand(toRunInTerminal: boolean, useProjectSpecific: boolean, addOptionalArgs: boolean, findCmd: FindCommandType, rootFolder = ''): string {
     const findCmdText = FindCommandType[findCmd];
     if (isNullOrEmpty(rootFolder) && useProjectSpecific) {
-        rootFolder = RootFolder;
+        rootFolder = getDefaultRootFolderByActiveFile() || '.';
     }
 
     const rootFolderName = getRootFolderName(rootFolder, useProjectSpecific);
@@ -323,7 +328,7 @@ export function getFindingCommandByCurrentWord(toRunInTerminal: boolean, findCmd
     }
 
     if (!isNullOrEmpty(extraOptions)) {
-        extraOptions = ' ' + extraOptions;
+        extraOptions = ' ' + extraOptions.trimLeft();
     }
 
     let command = '';
@@ -332,12 +337,12 @@ export function getFindingCommandByCurrentWord(toRunInTerminal: boolean, findCmd
             searchPattern = searchPattern.replace('const|', 'const|let|');
         }
 
-        command = MsrExe + ' -p ' + replaceToRelativeSearchPath(toRunInTerminal, filePath, rootFolder) + skipTextPattern + extraOptions + ' ' + searchPattern;
+        command = MsrExe + ' -p ' + replaceToRelativeSearchPath(toRunInTerminal, filePath, rootFolder) + skipTextPattern + extraOptions + ' ' + searchPattern.trimLeft();
     }
     else if (findCmd === FindCommandType.RegexFindReferencesInCurrentFile) {
         command = MsrExe + ' -p ' + replaceToRelativeSearchPath(toRunInTerminal, filePath, rootFolder) + ' -e "\\b((public)|protected|private|internal|(static)|(readonly|const|let))\\b"' + skipTextPattern + extraOptions + ' ' + searchPattern;
     } else {
-        command = MsrExe + ' ' + searchPathsOptions + filePattern + skipTextPattern + extraOptions + ' ' + searchPattern;
+        command = MsrExe + ' ' + searchPathsOptions + filePattern + skipTextPattern + extraOptions + ' ' + searchPattern.trimLeft();
     }
 
     if (!NormalTextRegex.test(rawSearchText)) {

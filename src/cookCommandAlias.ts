@@ -1,14 +1,14 @@
 import * as vscode from 'vscode';
 import { getSetToolEnvCommand, ToolChecker } from "./checkTool";
 import { getFindTopDistributionCommand, getSortCommandText } from "./commands";
-import { getConfigValueByRoot, getOverrideConfigByPriority, RootFolder } from "./configUtils";
+import { getConfigValueByRoot, getOverrideConfigByPriority } from "./configUtils";
 import { HomeFolder, IsLinux, IsWindows, IsWSL, SearchTextHolderReplaceRegex } from "./constants";
-import { getConfig, getRootFolder, getRootFolderName, getSearchPathOptions, GitIgnoreInfo, MappedExtToCodeFilePatternMap, MyConfig } from "./dynamicConfig";
+import { getConfig, getGitIgnore, getSearchPathOptions, MappedExtToCodeFilePatternMap, MyConfig } from "./dynamicConfig";
 import { FindCommandType, TerminalType } from "./enums";
 import { saveTextToFile } from './otherUtils';
 import { clearOutputChannel, enableColorAndHideCommandLine, MessageLevel, outputDebug, outputError, outputInfoQuiet, RunCmdTerminalName, runCommandGetInfo, runCommandInTerminal, sendCmdToTerminal } from "./outputUtils";
 import { escapeRegExp } from "./regexUtils";
-import { DefaultTerminalType, getTerminalShellExePath, getTimeCostToNow, getUniqueStringSetNoCase, IsLinuxTerminalOnWindows, isLinuxTerminalOnWindows, isNullOrEmpty, isWindowsTerminalType, nowText, quotePaths, replaceTextByRegex, toOsPath, toOsPathsForText, toWSLPath } from "./utils";
+import { DefaultTerminalType, getRootFolder, getRootFolderName, getTerminalShellExePath, getTimeCostToNow, getUniqueStringSetNoCase, IsLinuxTerminalOnWindows, isLinuxTerminalOnWindows, isNullOrEmpty, isWindowsTerminalType, nowText, quotePaths, replaceTextByRegex, toOsPath, toOsPathsForText, toWSLPath } from "./utils";
 import fs = require('fs');
 import os = require('os');
 import path = require('path');
@@ -127,7 +127,7 @@ export function cookCmdShortcutsOrFile(
     useProjectSpecific = false;
   }
 
-  const [cmdAliasMap, oldCmdCount, commands] = getCommandAliasMap(terminalType, rootFolderName, useProjectSpecific, writeToEachFile, dumpOtherCmdAlias);
+  const [cmdAliasMap, oldCmdCount, commands] = getCommandAliasMap(terminalType, rootFolder, useProjectSpecific, writeToEachFile, dumpOtherCmdAlias);
   const fileName = (useProjectSpecific ? rootFolderName + '.' : '') + 'msr-cmd-alias' + (isWindowsTerminal ? '.doskeys' : '.bashrc');
   const cmdAliasFile = toWSLPath(path.join(saveFolder, fileName));
   const quotedCmdAliasFile = quotePaths(cmdAliasFile);
@@ -146,9 +146,9 @@ export function cookCmdShortcutsOrFile(
     }
 
     if (useProjectSpecific) {
-      const tmpName = path.basename(RootFolder).replace(/[^\w\.-]/g, '-');
+      const tmpName = path.basename(rootFolder).replace(/[^\w\.-]/g, '-');
       const updateProjectDoskeyText = (writeToEachFile ? '' : 'update-' + tmpName + '-doskeys=') + 'doskey /MACROFILE=' + quotedCmdAliasFile;
-      cmdAliasMap.set('update-' + tmpName + '-doskeys', updateProjectDoskeyText)
+      cmdAliasMap.set('update-' + tmpName + '-doskeys', updateProjectDoskeyText);
       cmdAliasMap.set('open-' + tmpName + '-doskeys', 'open-' + tmpName + '-doskeys=' + toolToOpen + ' ' + quotedCmdAliasFile);
     }
 
@@ -317,11 +317,11 @@ export function cookCmdShortcutsOrFile(
         runCmdInTerminal(regCmd, true);
       }
       if (!onlyReCookAliasFile) {
-        runCmdInTerminal('alias "update-doskeys^|open-doskeys" -e "(.:.+)"', true);
+        runCmdInTerminal('alias "update-\\S*doskeys^|open-\\S*doskeys" -e "(.:.+)"', true);
       }
     } else {
       if (onlyReCookAliasFile) {
-        checkSetPathBeforeRunDoskeyAlias('source ' + quotePaths(toOsPath(cmdAliasFile)), false);
+        checkSetPathBeforeRunDoskeyAlias('source ' + quotePaths(toOsPath(cmdAliasFile, terminalType)), false);
       } else {
         if (IsWindows && !isWindowsTerminal) {
           if (isCreatingRunCmdTerminal) {
@@ -386,7 +386,7 @@ export function cookCmdShortcutsOrFile(
         setEnvCmd += 'export MINGW_ROOT=' + quotePaths(envRootFolder);
       }
 
-      checkSetPathBeforeRunDoskeyAlias('source ' + quotePaths(toOsPath(cmdAliasFile)), false, setEnvCmd);
+      checkSetPathBeforeRunDoskeyAlias('source ' + quotePaths(toOsPath(cmdAliasFile, terminalType)), false, setEnvCmd);
     }
 
     outputDebug(nowText() + 'Finished to cook command shortcuts. Cost ' + getTimeCostToNow(trackBeginTime) + ' seconds.');
@@ -406,8 +406,8 @@ export function cookCmdShortcutsOrFile(
 
     const useExtraPathsToFindDefinition = getConfigValueByRoot(rootFolderName, '', '', 'findDefinition.useExtraPaths') === "true";
     const useExtraPathsToFindReferences = getConfigValueByRoot(rootFolderName, '', '', 'findReference.useExtraPaths') === "true";
-    const findDefinitionPathOptions = getSearchPathOptions(false, useProjectSpecific, RootFolder, "all", true, useExtraPathsToFindReferences, useExtraPathsToFindDefinition, false, false);
-    const findReferencesPathOptions = getSearchPathOptions(false, useProjectSpecific, RootFolder, "all", false, useExtraPathsToFindReferences, useExtraPathsToFindDefinition, false, false);
+    const findDefinitionPathOptions = getSearchPathOptions(false, useProjectSpecific, rootFolder, "all", true, useExtraPathsToFindReferences, useExtraPathsToFindDefinition, false, false);
+    const findReferencesPathOptions = getSearchPathOptions(false, useProjectSpecific, rootFolder, "all", false, useExtraPathsToFindReferences, useExtraPathsToFindDefinition, false, false);
     const pathsForDefinition = toOsPathsForText(findDefinitionPathOptions.replace(/\s*-r?p\s+(".+?"|\S+).*/, "$1"), terminalType);
     const pathsForOthers = toOsPathsForText(findReferencesPathOptions.replace(/\s*-r?p\s+(".+?"|\S+).*/, "$1"), terminalType);
     if (pathsForDefinition.includes(" ") || pathsForOthers.includes(" ")) {
@@ -563,12 +563,13 @@ export function cookCmdShortcutsOrFile(
 
 function getCommandAliasMap(
   terminalType: TerminalType,
-  rootFolderName: string,
+  rootFolder: string,
   useProjectSpecific: boolean,
   writeToEachFile: boolean,
   dumpOtherCmdAlias: boolean = false)
   : [Map<string, string>, number, string[]] {
 
+  const rootFolderName = path.basename(rootFolder);
   const isWindowsTerminal = isWindowsTerminalType(terminalType);
   const projectKey = useProjectSpecific ? (rootFolderName || '') : 'notUseProject';
   let skipFoldersPattern = getOverrideConfigByPriority([projectKey, 'default'], 'skipFolders');
@@ -589,9 +590,10 @@ function getCommandAliasMap(
 
   const oldCmdCount = cmdAliasMap.size;
 
+  const gitIgnoreInfo = getGitIgnore(rootFolder);
   function getSkipFolderPatternForCmdAlias() {
-    if (GitIgnoreInfo.Valid && useProjectSpecific) {
-      return GitIgnoreInfo.getSkipPathRegexPattern(true, false);
+    if (gitIgnoreInfo.Valid && useProjectSpecific) {
+      return gitIgnoreInfo.getSkipPathRegexPattern(true, false);
     } else {
       return ' --nd "' + skipFoldersPattern + '"';
     }

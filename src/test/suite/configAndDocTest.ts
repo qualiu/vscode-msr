@@ -89,6 +89,7 @@ export function validateRegexPatterns() {
   AllKeyToNameMap.forEach((pattern, key, _map) => {
     const keyName = 'msr.' + key;
     try {
+      // tslint:disable-next-line: no-unused-expression
       new RegExp(pattern);
       validatedRegexCount++;
       console.info('Validated Regex of ' + keyName + ' = "' + pattern + '"');
@@ -133,4 +134,42 @@ export function checkConfigKeysInDoc() {
   console.log('Found ' + keyCount + ' in ' + DocFilePath);
   assert.ok(keyCount > 0, 'Just found ' + keyCount + ' keys in ' + DocFilePath);
   assert.ok(errorMessages.length < 1, 'Caught ' + errorMessages.length + ' errors as below:\n' + errorMessages.join('\n'));
+}
+
+export function checkDuplicateDescription() {
+  const allText = fs.readFileSync(ConfigFilePath).toString();
+  const lines = allText.split('\n');
+  const descriptionRegex = /^\s*"description"\s*:\s*(.+?)\s*,?\s*$/;
+  let descriptionCountMap = new Map<string, number>();
+  let total = 0;
+  let row = 0;
+  let duplicateLines: string[] = [];
+  lines.forEach(a => {
+    row += 1;
+    const match = descriptionRegex.exec(a.trim());
+    if (match) {
+      const description = match[1];
+      total += 1;
+      let count = descriptionCountMap.get(description) || 0;
+      descriptionCountMap.set(description, count + 1);
+      if (count > 0) {
+        const message = `Found duplicate description at ${ConfigFilePath}:${row} : ${description}`;
+        console.error(`${message}${os.EOL}`);
+        duplicateLines.push(message);
+      }
+    }
+  });
+
+  let duplicates: string[] = [];
+  descriptionCountMap.forEach((count, description, _) => {
+    if (count > 1) {
+      const message = `Found ${count} times of duplicate description: ${description}`;
+      duplicates.push(message);
+      console.error(message);
+    }
+  });
+
+  // nin package.json nul "(description.:.+)" -pdw -k2
+  const errorHead = `Please solve ${duplicates} duplicate descriptions (total = ${total}) in file: ${ConfigFilePath}`;
+  assert.strictEqual(duplicates.length, 0, `${errorHead}${os.EOL}${duplicates.join(os.EOL)}${os.EOL}${duplicateLines.join(os.EOL)}`);
 }

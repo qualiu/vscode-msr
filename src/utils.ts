@@ -82,6 +82,20 @@ export function changeFindingCommandForLinuxTerminalOnWindows(command: string): 
     return match[1] + ' ' + quotePaths(newPaths.join(',')) + command.substring(match[0].length);
 }
 
+export function getSearchPathInCommand(commandLine: string, matchRegex: RegExp = /\s+(-r?p)\s+(".+?"|\S+)/): string {
+    const match = matchRegex.exec(commandLine);
+    return match ? match[2] : '';
+}
+
+export function setSearchPathInCommand(commandLine: string, newSearchPaths: string, matchRegex: RegExp = /\s+(-r?p)\s+(".+?"|\S+)/): string {
+    const match = matchRegex.exec(commandLine);
+    if (!match) {
+        return commandLine;
+    }
+
+    return commandLine.substr(0, match.index) + ' ' + match[1] + ' ' + quotePaths(newSearchPaths) + commandLine.substring(match.index + match[0].length);
+}
+
 export function getPathEnvSeparator(terminalType: TerminalType) {
     return isWindowsTerminalOnWindows(terminalType) ? ";" : ":";
 }
@@ -106,6 +120,18 @@ export function checkAddFolderToPath(exeFolder: string, terminalType: TerminalTy
     process.env['PATH'] = newValue;
 
     return true;
+}
+
+export function getTerminalInitialDirectory(terminal: vscode.Terminal): string {
+    try {
+        const creationOptions = Reflect.get(terminal, 'creationOptions');
+        const terminalCwd = Reflect.get(creationOptions, 'cwd');
+        const terminalCurrentFolder = Reflect.get(terminalCwd, 'fsPath');
+        return terminalCurrentFolder;
+    } catch (err) {
+        console.error('Cannot get creationOptions.cwd.fsPath from terminal: ' + terminal.name);
+        return '';
+    }
 }
 
 export function getTerminalShellExePath(): string {
@@ -333,3 +359,55 @@ export function getExtensionNoHeadDot(extension: string | undefined, defaultValu
 
     return extension.replace(/^\./, '').toLowerCase();
 }
+
+export function getRootFolder(filePath: string, useFirstFolderIfNotFound = false): string {
+    const folderUri = vscode.workspace.getWorkspaceFolder(vscode.Uri.file(filePath));
+    if (!folderUri || !folderUri.uri || !folderUri.uri.fsPath) {
+        if (useFirstFolderIfNotFound && vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders.length > 0) {
+            return vscode.workspace.workspaceFolders[0].uri.fsPath;
+        }
+        return '';
+    }
+
+    return folderUri.uri.fsPath;
+}
+
+export function getDefaultRootFolder(): string {
+    if (vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders.length > 0) {
+        return vscode.workspace.workspaceFolders[0].uri.fsPath;
+    } else {
+        return '';
+    }
+}
+
+export function getActiveFilePath() {
+    if (vscode.window.activeTextEditor
+        && vscode.window.activeTextEditor.document
+        && !isNullOrEmpty(vscode.window.activeTextEditor.document.fileName)) {
+        return vscode.window.activeTextEditor.document.fileName;
+    } else {
+        return '';
+    }
+}
+
+export function getDefaultRootFolderByActiveFile() {
+    const activePath = getActiveFilePath();
+    return isNullOrEmpty(activePath) ? getDefaultRootFolder() : getRootFolder(activePath);
+}
+
+export function getRootFolderName(filePath: string, useFirstFolderIfNotFound = false): string {
+    const folder = getRootFolder(filePath, useFirstFolderIfNotFound);
+    return isNullOrEmpty(folder) ? '' : path.parse(folder).base;
+}
+
+export function getRootFolders(currentFilePath: string): string[] {
+    if (!vscode.workspace.workspaceFolders || vscode.workspace.workspaceFolders.length < 1) {
+        return [''];
+    }
+
+    let rootFolderSet = new Set<string>().add(getRootFolder(currentFilePath));
+    vscode.workspace.workspaceFolders.forEach(a => rootFolderSet.add(a.uri.fsPath));
+    rootFolderSet.delete('');
+    return Array.from(rootFolderSet);
+}
+

@@ -3,7 +3,7 @@
     "displayName": "Search code + Replace files + Find definition and references for all types.",
     "description": "Search code + Replace files + Find definition and references in multiple repository paths by msr for all coding languages + configuration + doc files.",
     "author": "qualiu@microsoft.com",
-    "version": "2.1.12",
+    "version": "2.1.13",
     "icon": "images/vscode-msr-icon.png",
     "license": "completely free",
     "publisher": "qualiu",
@@ -1181,7 +1181,7 @@
                 },
                 "msr.default.docFiles": {
                     "type": "string",
-                    "default": "\\.(md|rst|rst)$|^readme",
+                    "default": "\\.(md|rst)$|^readme",
                     "description": "Default Regex pattern for document files."
                 },
                 "msr.default.codeAndConfig": {
@@ -1191,23 +1191,23 @@
                 },
                 "msr.default.codeAndConfigDocs": {
                     "type": "string",
-                    "default": "\\.(cs(html)?|cpp|cxx|h|hpp|cc?|c\\+{2}|vcx?proj|sln|nuspec|config|props|java|scala|py|go|rs|php|vue|tsx?|jsx?|json|ya?ml|xml|ini|md|ipynb|rst|rst)$|^readme|^make\\w+$",
+                    "default": "\\.(cs(html)?|cpp|cxx|h|hpp|cc?|c\\+{2}|vcx?proj|sln|nuspec|config|props|java|scala|py|go|rs|php|vue|tsx?|jsx?|json|ya?ml|xml|ini|md|ipynb|rst)$|^readme|^make\\w+$",
                     "description": "Default Regex pattern for code + configuration + document files."
                 },
                 "msr.default.configAndDocs": {
                     "type": "string",
-                    "default": "\\.(config|json|ya?ml|xml|ini|md|ipynb|rst|rst)$|^readme",
+                    "default": "\\.(config|json|ya?ml|xml|ini|md|ipynb|rst)$|^readme",
                     "description": "Default Regex pattern for configuration + document files."
                 },
                 "msr.default.class.skip.definition": {
                     "type": "string",
                     "default": ";\\s*$|^\\s*(return|await|throw|except|raise|new|(el)?if|for|from|val)\\s+|new\\s+%1\\s*\\(|=\\s*%1\\s*\\(|^\\s*p[a-z]+\\s+%1\\s*\\(",
-                    "description": "Default Regex pattern to filter non-definitions."
+                    "description": "Default Regex pattern to filter non-definitions for class."
                 },
                 "msr.default.method.skip.definition": {
                     "type": "string",
                     "default": ";\\s*$|^\\s*(return|await|throw|except|raise|new|(el)?if|for|from|val)\\s+|new\\s+%1\\s*\\(|=\\s*%1\\s*\\(|^\\s*p[a-z]+\\s+%1\\s*\\(",
-                    "description": "Default Regex pattern to filter non-definitions."
+                    "description": "Default Regex pattern to filter non-definitions for method."
                 },
                 "msr.default.skip.definition": {
                     "type": "string",
@@ -1233,6 +1233,21 @@
                     "type": "string",
                     "default": "\\.(bat|cmd|psm?1|sh|bash|[kzct]sh)$",
                     "description": "Default Regex pattern for script files."
+                },
+                "msr.batch.isLocalVariableResult": {
+                    "type": "string",
+                    "default": "\\b[setSET]{3}\\s+(/[paPA]\\s+%1\\s*=|\"?%1=)",
+                    "description": "Regex pattern to check if result is a local variable of batch script."
+                },
+                "msr.sh.isLocalVariableResult": {
+                    "type": "string",
+                    "default": "^\\s*(export\\s+)?%1\\s*=",
+                    "description": "Regex pattern to check if result is a local variable of shell script."
+                },
+                "msr.ps.isLocalVariableResult": {
+                    "type": "string",
+                    "default": "^\\s*\\$?%1\\s*=",
+                    "description": "Regex pattern to check if result is a local variable of PowerShell script."
                 },
                 "msr.cmdAlias.saveFolder": {
                     "type": "string",
@@ -1282,37 +1297,37 @@
                 "msr.default.isClassResult": {
                     "description": "Regex pattern to check if result is a class.",
                     "type": "string",
-                    "default": "^\\s*[\\w\\s]{0,30}@?\\b([Cc]lass|[Ii]nterface|trait)\\s+(%1)\\b"
+                    "default": "^\\s*[a-z\\s]{0,30}@?\\b([Cc]lass|[Ii]nterface|trait|struct)\\s+(%1)\\b"
                 },
                 "msr.go.isClassResult": {
-                    "description": "Regex pattern to check if result is a class.",
+                    "description": "Regex pattern to check if result is a GoLang class.",
                     "type": "string",
-                    "default": "^\\s*type\\s+(%1)\\s+|^\\s*[\\w\\s]{0,30}@?\\b([Cc]lass|[Ii]nterface|trait)\\s+(%1)\\b"
+                    "default": "^\\s*type\\s+(%1)\\s+|^\\s*[a-z\\s]{0,30}@?\\b([Cc]lass|[Ii]nterface|trait)\\s+(%1)\\b"
                 },
                 "msr.java.isClassResult": {
-                    "description": "Regex pattern to check if result is a class.",
+                    "description": "Regex pattern to check if result is a Java class.",
                     "type": "string",
-                    "default": "^\\s*[\\w\\s]{0,30}@?\\b([Cc]lass|[Ii]nterface|trait)\\s+(%1)\\b"
+                    "default": "^\\s*[a-z\\s]{0,30}@?\\b([Cc]lass|[Ii]nterface|trait)\\s+(%1)\\b"
                 },
                 "msr.default.isConstantResult": {
                     "description": "Regex to check if a result is a constant.",
                     "type": "string",
-                    "default": "^\\s*%1\\s*=\\s*([0-9A-Z]|[^\\w\\s])|^\\s*define\\s+%1\\s+\\S+|^\\s*((p[a-z]+|internal|static|readonly|const|final)\\s+)+.{0,100}\\b(%1)\\s*="
+                    "default": "^\\s*%1\\s*=\\s*(-?\\d+|[\"']\\w+.*?[\"']\\s*[,;]?\\s*$)|^\\s*define\\s+%1\\s+\\S+|^\\s*([a-z]+\\s+)*?(const|readonly|final|val)\\s+.{0,100}\\b(%1)\\s*="
                 },
                 "msr.default.isEnumResult": {
                     "description": "Regex pattern to check if result is an enum.",
                     "type": "string",
-                    "default": "^\\s*[\\w\\s]{0,30}\\b[Ee]num\\s+(%1)\\b"
+                    "default": "^\\s*[a-z\\s]{0,30}\\b[Ee]num\\s+(%1)\\b"
                 },
                 "msr.default.isInterfaceResult": {
                     "description": "Regex pattern to check if result is an interface.",
                     "type": "string",
-                    "default": "^\\s*[\\w\\s]{0,30}\\b(interface|Interface)\\s+(%1)\\b"
+                    "default": "^\\s*[a-z\\s]{0,30}\\b(interface|Interface)\\s+(%1)\\b"
                 },
                 "msr.default.isMethodResult": {
                     "description": "Regex pattern to check if result is an method/function.",
                     "type": "string",
-                    "default": "^\\s*[\\w\\s]{0,30}\\b(function|def)\\s+(%1)\\b|(?:::\\s*|\\s)\\b(%1)\\s*(?:[\\[<].*?[\\]>]\\s*)?\\(|^\\s*(\\w+\\s+)*?(async|Task|void)\\s+(%1)[\\(<]"
+                    "default": "^\\s*[a-z\\s]{0,30}\\b(function|def)\\s+(%1)\\b|(?:::\\s*|\\s)\\b(%1)\\s*(?:[\\[<].*?[\\]>]\\s*)?\\(|^\\s*(\\w+\\s+)*?(async|Task|void)\\s+(%1)[\\(<]"
                 },
                 "msr.default.isFindMemberOrLocalVariable": {
                     "description": "Default Regex to check if what-to-find is a member or local variable.",
@@ -1320,9 +1335,14 @@
                     "default": "\\b%1\\s*=|\\b(self\\.|this(->|\\.))\\w*?\\S*?\\b%1\\b"
                 },
                 "msr.default.isMemberResult": {
-                    "description": "Regex pattern to check if result is a local variable.",
+                    "description": "Regex pattern to check if result is a member.",
                     "type": "string",
-                    "default": "^\\s*((p[a-z]+|internal|static|readonly|const|virtual|volatile|final|val)\\s+)+\\w+[\\w\\.<,>\\s]*?[\\*\\?]?\\s+\\b(%1)\\b"
+                    "default": "^\\s*((p[a-z]+|internal|static|readonly|const|virtual|volatile|final|val)\\s+)+\\w+[\\w\\.<,>\\[\\]\\s]*?[\\*\\?]?\\s+\\b(%1)\\b"
+                },
+                "msr.java.isMemberResult": {
+                    "description": "Regex pattern to check if result is a Java member.",
+                    "type": "string",
+                    "default": "^\\s*(@\\w+\\s+)?((p[a-z]+|internal|static|readonly|const|virtual|volatile|final|val)\\s+)+\\w+[\\w\\.<,>\\[\\]\\s]*?[\\*\\?]?\\s+\\b(%1)\\b"
                 },
                 "msr.default.isLocalVariableResult": {
                     "description": "Regex pattern to check if result is a local variable.",
@@ -1391,7 +1411,7 @@
                 },
                 "msr.default.member.definition": {
                     "type": "string",
-                    "default": "^\\s*(p[a-z]+|internal|static|readonly|const|virtual|volatile|final)\\s+[\\w\\.<,>\\s]*?\\b(%1)\\b",
+                    "default": "^\\s*(p[a-z]+|internal|static|readonly|const|virtual|volatile|final)\\s+[\\w\\.<,>\\[\\]\\s]*?\\b(%1)\\b",
                     "description": "Default Regex pattern to search member definitions."
                 },
                 "msr.default.member.skip.definition": {
@@ -1411,7 +1431,7 @@
                 },
                 "msr.default.method.definition": {
                     "type": "string",
-                    "default": "^\\s*(p[a-z]+|internal|static|const|virtual|override|async|Task|void|int|string|double|float)\\s+[\\w\\.<,>\\s]*?\\b(%1)\\s*[<\\(]|^\\s*(\\w+\\s+)*?(async|Task|void)\\s+(%1)[\\(<]",
+                    "default": "^\\s*(p[a-z]+|internal|static|const|virtual|override|async|Task|void|int|string|double|float)\\s+[\\w\\.<,>\\[\\]\\s]*?\\b(%1)\\s*[<\\(]|^\\s*(\\w+\\s+)*?(async|Task|void)\\s+(%1)[\\(<]",
                     "description": "Default Regex pattern to search method definition."
                 },
                 "msr.default.enum.definition": {
@@ -1422,17 +1442,17 @@
                 "msr.java.isFindClass": {
                     "type": "string",
                     "default": "\\b(extends|implements)\\s+(%1)\\b|[<\\(]\\s*\\S*?\\b%1\\s*[\\)>][\\s\\*\\&]*?\\w+|\\b(public|protected|private|internal|static|readonly|const|volatile|final)\\s+(%1)\\s*[\\?\\*&]{0,2}\\s*\\w+|\\b[a-zA-Z]\\w+\\.%1\\b([^\\.\\w]|$)|\\b%1\\b\\s+\\w+|\\(\\s*%1\\s*\\)\\s*\\w+|\\b(new|is|as)\\s+\\S*\\b%1\\b|=\\s*%1\\s*\\(|\\s+%1\\.\\w+\\s*\\(|\\b%1\\s*[<>]|[<\\[]\\s*%1\\b|\\b%1\\s*[\\[>]",
-                    "description": "Default Regex pattern to check if what-to-find is a `class`."
+                    "description": "Default Regex pattern to check if what-to-find is a Java `class`."
                 },
                 "msr.java.class.definition": {
                     "type": "string",
-                    "default": "^\\s*[\\w\\s]*?@?\\s*@?\\b(class|struct|enum|interface|object|trait)\\s+(%1)\\b",
+                    "default": "^\\s*[a-z\\s]*?@?\\s*@?\\b(class|struct|enum|interface|object|trait)\\s+(%1)\\b",
                     "description": "Scala Regex pattern to search class definitions."
                 },
                 "msr.java.method.definition": {
                     "type": "string",
                     "default": "^\\s*\\w+.*?\\s+(%1)\\s*\\(.*?\\).*?\\{?\\s*$",
-                    "description": "Scala Regex pattern to search class definitions."
+                    "description": "Scala Regex pattern to search method definitions."
                 },
                 "msr.cs.codeAndConfigDocs": {
                     "type": "string",
@@ -1461,7 +1481,7 @@
                 },
                 "msr.cs.member.definition": {
                     "type": "string",
-                    "default": "^\\s*(p[a-z]+|internal|static|readonly|const|virtual|volatile)\\s+[\\w\\.<,>\\s]*?\\??\\s*\\b(%1)\\b",
+                    "default": "^\\s*(p[a-z]+|internal|static|readonly|const|virtual|volatile)\\s+[\\w\\.<,>\\[\\]\\s]*?\\??\\s*\\b(%1)\\b",
                     "description": "Regex pattern to search C# field or property definitions."
                 },
                 "msr.cpp.codeAndConfigDocs": {
@@ -1562,7 +1582,7 @@
                 "msr.ui.class.skip.definition": {
                     "type": "string",
                     "default": ";\\s*$|^\\s*(return|await|throw|except|raise|new|(el)?if|for|from|val)\\s+|new\\s+%1\\s*\\(|=\\s*%1\\s*\\(",
-                    "description": "Default Regex pattern to filter non-definitions."
+                    "description": "Regex pattern to filter non-definitions for UI code."
                 },
                 "msr.ui.class.definition": {
                     "type": "string",
@@ -1576,7 +1596,7 @@
                 },
                 "msr.ui.method.definition": {
                     "type": "string",
-                    "default": "^[\\w\\s]*?(function|public|private|protected|internal)\\s+\\b(%1)\\b",
+                    "default": "^[a-z\\s]*?(function|public|private|protected|internal)\\s+\\b(%1)\\b",
                     "description": "Regex pattern to search UI `method` definition."
                 },
                 "msr.ui.method.skip.definition": {
@@ -1658,12 +1678,12 @@
                     "default": "go"
                 },
                 "msr.go.method.definition": {
-                    "description": "Regex pattern to search Golang function/class definition.",
+                    "description": "Regex pattern to search Golang method definition.",
                     "type": "string",
                     "default": "^\\s*func\\s+(\\(.*?\\)\\s+)?(%1)\\b"
                 },
                 "msr.go.class.definition": {
-                    "description": "Regex pattern to search Golang function/class definition.",
+                    "description": "Regex pattern to search Golang class definition.",
                     "type": "string",
                     "default": "^\\s*type\\s+(%1)\\s+(struct|interface|class)\\b"
                 },
@@ -1683,7 +1703,7 @@
                     "default": "\\b\\w+\\.(%1)\\b"
                 },
                 "msr.go.skipFolders": {
-                    "description": "Default Regex pattern to skip folders. You can set each project's additional skip patterns: `msr.{root-folder-name}.definition.skipFolders` or `msr.{root-folder-name}.reference.skipFolders` in your personal settings file like `%APPDATA%\\Code\\User\\settings.json` on Windows (See doc: https://github.com/qualiu/vscode-msr/blob/master/README.md#specific-extra-search-paths-settings).",
+                    "description": "Regex pattern to skip folders for GoLang. You can set each project's additional skip patterns: `msr.{root-folder-name}.definition.skipFolders` or `msr.{root-folder-name}.reference.skipFolders` in your personal settings file like `%APPDATA%\\Code\\User\\settings.json` on Windows (See doc: https://github.com/qualiu/vscode-msr/blob/master/README.md#specific-extra-search-paths-settings).",
                     "type": "string",
                     "default": "^([\\.\\$]|(github.com|golang.com|golang.org|pkg|Release|Debug|objd?|bin|node_modules|static|dist|target|(Js)?Packages|\\w+-packages?)$|__pycache__)"
                 }

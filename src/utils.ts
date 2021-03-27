@@ -4,7 +4,6 @@ import { IsLinux, IsWindows, IsWSL, ShouldQuotePathRegex, TrimSearchTextRegex } 
 import { TerminalType } from './enums';
 import path = require('path');
 import fs = require('fs');
-import os = require('os');
 import ChildProcess = require('child_process');
 
 export const PathEnvName = IsWindows ? '%PATH%' : '$PATH';
@@ -120,38 +119,6 @@ export function checkAddFolderToPath(exeFolder: string, terminalType: TerminalTy
     process.env['PATH'] = newValue;
 
     return true;
-}
-
-export function getTerminalInitialDirectory(terminal: vscode.Terminal): string {
-    try {
-        const creationOptions = Reflect.get(terminal, 'creationOptions');
-        const terminalCwd = Reflect.get(creationOptions, 'cwd');
-        const terminalCurrentFolder = Reflect.get(terminalCwd, 'fsPath');
-        return terminalCurrentFolder;
-    } catch (err) {
-        console.error('Cannot get creationOptions.cwd.fsPath from terminal: ' + terminal.name);
-        return '';
-    }
-}
-
-export function getTerminalShellExePath(): string {
-    // https://code.visualstudio.com/docs/editor/integrated-terminal#_configuration
-    const shellConfig = vscode.workspace.getConfiguration('terminal.integrated.shell');
-    const shellExePath = !shellConfig ? '' : shellConfig.get(IsWindows ? 'windows' : 'linux') as string || '';
-    if (isNullOrEmpty(shellExePath)) {
-        if (IsWSL || IsLinux) {
-            return 'bash';
-        }
-    }
-
-    return shellExePath;
-}
-
-export function getHomeFolderForLinuxTerminalOnWindows(): string {
-    const shellExePath = getTerminalShellExePath();
-    const folder = path.dirname(shellExePath);
-    const home = path.join(path.dirname(folder), 'home', os.userInfo().username);
-    return home;
 }
 
 export function removeQuotesForPath(paths: string) {
@@ -410,4 +377,3 @@ export function getRootFolders(currentFilePath: string): string[] {
     rootFolderSet.delete('');
     return Array.from(rootFolderSet);
 }
-

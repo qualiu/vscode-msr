@@ -1,13 +1,10 @@
 import { execSync } from 'child_process';
 import * as vscode from 'vscode';
-import { IsDebugMode, IsWindows } from './constants';
-import { cookCmdShortcutsOrFile } from './cookCommandAlias';
+import { IsDebugMode, IsWindows, OutputChannelName, RunCmdTerminalName } from './constants';
 import { getConfig } from './dynamicConfig';
 import { getDefaultRootFolder, getDefaultRootFolderByActiveFile, IsLinuxTerminalOnWindows, nowText, replaceTextByRegex } from './utils';
 
 export let RunCmdTerminalRootFolder = '';
-export const RunCmdTerminalName = 'MSR-RUN-CMD';
-const OutputChannelName = 'MSR-Def-Ref';
 
 // When searching plain text, powershell requires extra escaping (like '$').
 const UsePowershell = false;
@@ -70,8 +67,8 @@ export function getRunCmdTerminal(): vscode.Terminal {
 		_runCmdTerminal = vscode.window.createTerminal(RunCmdTerminalName, ShellPath);
 		if (vscode.workspace.getConfiguration('msr').get('initProjectCmdAliasForNewTerminals') as boolean) {
 			const rootFolder = getDefaultRootFolderByActiveFile() || getDefaultRootFolder();
-			RunCmdTerminalRootFolder = rootFolder;
-			cookCmdShortcutsOrFile(rootFolder, true, false, _runCmdTerminal);
+			RunCmdTerminalRootFolder = rootFolder.includes('/') ? rootFolder + '/' : rootFolder + '\\';
+			// cookCmdShortcutsOrFile(rootFolder, true, false, _runCmdTerminal);
 		}
 	}
 

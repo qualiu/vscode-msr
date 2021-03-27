@@ -2,6 +2,13 @@
 
 All notable changes to this "vscode-msr" extension will be documented in this file.
 
+## [2.1.14]
+
+- Improved searching speed + result precision.
+- Corrected path of `find-xxx-in-current-file` for `multiple workspaces` scenario.
+- Added shortcuts for Linux or Cygwin/MinGW/WSL on Window, like: `update-alias` + `update-{project-name}-alias` + `open-alias` etc.
+- Improved terminal initialization with dynamic changes: `git-ignore` settings + `terminal.integrated.shell.windows`.
+
 ## [2.1.13]
 
 - Empowered people to coding in multiple workspaces with 2 methods and improvements:
@@ -101,7 +108,7 @@ All notable changes to this "vscode-msr" extension will be documented in this fi
 
 ## [2.1.0]
 
-- Improved Cygwin/MinGW terminals on Windows: 
+- Improved Cygwin/MinGW terminals on Windows:
   - Searching paths using Windows style + Running commands using Linux style.
   - Output relative paths for command alias: Added `msr.cookCmdAlias.outputRelativePathForLinuxTerminalsOnWindows` = `true`.
   - Supported checking 2 versions of tools used (Windows EXE for searching + Linux EXE for running commands).

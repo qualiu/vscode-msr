@@ -1,6 +1,6 @@
 import { ParsedPath } from 'path';
 import * as vscode from 'vscode';
-import { GetConfigPriorityPrefixes, getConfigValueByRoot, getOverrideConfigByPriority } from './configUtils';
+import { GetConfigPriorityPrefixes, getConfigValueByRoot, getOverrideConfigByPriority, getSubConfigValue } from './configUtils';
 import { SearchTextHolder } from './constants';
 import { getConfig, MappedExtToCodeFilePatternMap, MyConfig } from './dynamicConfig';
 import { FindType, ForceFindType } from './enums';
@@ -129,13 +129,26 @@ export class Ranker {
 		return scoreText.trim();
 	}
 
-	public getSpecificConfigValue(configKeyTail: string, addDefault: boolean = true, allowEmpty: boolean = true): string {
+	public getConfigValue(configKeyTail: string, addDefault: boolean = true, allowEmpty: boolean = true): string {
 		let prefixes = this.searchChecker.ForceUseDefaultFindingDefinition
 			? GetConfigPriorityPrefixes(this.rootFolderName, '', '', true)
 			: GetConfigPriorityPrefixes(this.rootFolderName, this.searchChecker.extension, this.searchChecker.mappedExt, addDefault);
 		const pattern = getOverrideConfigByPriority(prefixes, configKeyTail, allowEmpty) as string || '';
 		if (!isNullOrEmpty(pattern) && configKeyTail.includes('definition') && !configKeyTail.includes('skip') && pattern.indexOf(SearchTextHolder) < 0) {
 			const keys = prefixes.join('.' + configKeyTail + ' or ');
+			outputError(nowText() + 'Not found word-holder: "' + SearchTextHolder + '" in search option, please check configuration of ' + keys + ', searchPattern = ' + pattern);
+			return '';
+		}
+
+		return pattern;
+	}
+
+	public getSubConfigValue(subKey: string, configKeyTail: string, _addDefault: boolean = true, allowEmpty: boolean = true): string {
+		const pattern = this.searchChecker.ForceUseDefaultFindingDefinition
+			? getSubConfigValue(this.rootFolderName, '', '', subKey, configKeyTail, allowEmpty)
+			: getSubConfigValue(this.rootFolderName, this.searchChecker.extension, this.searchChecker.mappedExt, subKey, configKeyTail, allowEmpty);
+		if (!isNullOrEmpty(pattern) && configKeyTail.includes('definition') && !configKeyTail.includes('skip') && pattern.indexOf(SearchTextHolder) < 0) {
+			const keys = subKey + '.' + configKeyTail;
 			outputError(nowText() + 'Not found word-holder: "' + SearchTextHolder + '" in search option, please check configuration of ' + keys + ', searchPattern = ' + pattern);
 			return '';
 		}
@@ -150,42 +163,46 @@ export class Ranker {
 		const config = getConfig();
 		let specificPatterns = new Set<string>();
 		if (configKeyName === 'definition') {
+			if (this.searchChecker.isUpperCaseWord) {
+				specificPatterns.add('^\\s*[a-z\\s]{0,30}\\b' + this.currentWord + '\\s*=\\s*\\S+');
+			}
+
 			if (this.isFindConstant) {
-				specificPatterns.add(this.getSpecificConfigValue('constant.definition'));
+				specificPatterns.add(this.getSubConfigValue('constant', 'definition'));
 				if (this.searchChecker.currentText.indexOf(this.currentWord + '.') >= 0) {
-					specificPatterns.add(this.getSpecificConfigValue('class.definition'));
+					specificPatterns.add(this.getSubConfigValue('class', 'definition'));
 				}
 			} else {
 				if (this.isFindClass || this.isFindClassOrEnum) {
-					specificPatterns.add(this.getSpecificConfigValue('class.definition'));
+					specificPatterns.add(this.getSubConfigValue('class', 'definition'));
 				}
 
 				if (this.isFindEnum || this.searchChecker.maybeEnum) {
-					specificPatterns.add(this.getSpecificConfigValue('enum.definition'));
+					specificPatterns.add(this.getSubConfigValue('enum', 'definition'));
 				}
 
 				if (this.isFindMember) {
-					specificPatterns.add(this.getSpecificConfigValue('member.definition'));
+					specificPatterns.add(this.getSubConfigValue('member', 'definition'));
 
 					// For languages that can omit quotes for methods:
 					if (this.searchChecker.extension.match(/py|scala/)) {
-						specificPatterns.add(this.getSpecificConfigValue('method.definition'));
+						specificPatterns.add(this.getSubConfigValue('method', 'definition'));
 					}
 				}
 
 				if (this.isFindMethod) {
-					specificPatterns.add(this.getSpecificConfigValue('method.definition'));
+					specificPatterns.add(this.getSubConfigValue('method', 'definition'));
 				}
 
 				if (this.isFindClassOrMethod) {
-					specificPatterns.add(this.getSpecificConfigValue('class.definition'));
-					specificPatterns.add(this.getSpecificConfigValue('method.definition'));
+					specificPatterns.add(this.getSubConfigValue('class', 'definition'));
+					specificPatterns.add(this.getSubConfigValue('method', 'definition'));
 				}
 			}
 
 			specificPatterns.delete('');
 			if (specificPatterns.size < 1) {
-				specificPatterns.add(this.getSpecificConfigValue('definition', false, false));
+				specificPatterns.add(this.getConfigValue('definition', false, false));
 
 				// Default: Will be slower if more items.
 				// specificPatterns.add(this.getSpecificConfigValue('class.definition'));
@@ -200,7 +217,7 @@ export class Ranker {
 			specificPatterns.delete('');
 		}
 
-		let searchPattern = this.getSpecificConfigValue(configKeyName, this.searchChecker.findType !== FindType.Definition, false);
+		let searchPattern = this.getConfigValue(configKeyName, this.searchChecker.findType !== FindType.Definition, false);
 
 		const rootConfig = vscode.workspace.getConfiguration('msr');
 		const codeFilesKey = this.searchChecker.mappedExt === 'ui' ? 'default.codeFilesPlusUI' : 'default.codeFiles';
@@ -223,9 +240,9 @@ export class Ranker {
 			}
 		} else if (searchAllFilesForDefinition && configKeyName === 'definition') {
 			filePattern = rootConfig.get(codeFilesKey) as string;
-			const defaultFindDef = rootConfig.get('default.definition') as string;
-			if (defaultFindDef.length > 1) {
-				searchPattern = defaultFindDef;
+			const defaultFindDefinitionPattern = rootConfig.get('default.definition') as string;
+			if (defaultFindDefinitionPattern.length > 1) {
+				searchPattern = defaultFindDefinitionPattern;
 			}
 		}
 
@@ -284,26 +301,26 @@ export class Ranker {
 		let skipPatternSet = new Set<string>();
 		if (!this.isFindConstant) {
 			if (this.isFindClass && !this.isFindMember && !this.isFindMethod && !this.isFindClassOrMethod) {
-				skipPatternSet.add(this.getSpecificConfigValue('class.skip.definition'));
+				skipPatternSet.add(this.getSubConfigValue('class', 'skip.definition'));
 			}
 
 			if (this.isFindMember && !this.isFindEnum && !this.isFindMethod && !this.isFindClass && !this.isFindClassOrEnum && !this.isFindClassOrMethod) {
-				skipPatternSet.add(this.getSpecificConfigValue('member.skip.definition'));
+				skipPatternSet.add(this.getSubConfigValue('member', 'skip.definition'));
 			}
 
 			if (this.isFindEnum && !this.isFindClass && !this.isFindMethod && !this.isFindMember && !this.isFindClassOrMethod) {
-				skipPatternSet.add(this.getSpecificConfigValue('enum.skip.definition'));
+				skipPatternSet.add(this.getSubConfigValue('enum', 'skip.definition'));
 			}
 
 			if (this.isFindMethod && !this.isFindClass && !this.isFindClassOrEnum && !this.isFindMember && !this.isFindEnum && !this.isFindClassOrMethod) {
-				skipPatternSet.add(this.getSpecificConfigValue('method.skip.definition'));
+				skipPatternSet.add(this.getSubConfigValue('method', 'skip.definition'));
 			}
 		}
 
 		skipPatternSet.delete('');
 
 		if (skipPatternSet.size < 1) {
-			skipPatternSet.add(this.getSpecificConfigValue('skip.definition'));
+			skipPatternSet.add(this.getConfigValue('skip.definition'));
 		}
 
 		skipPatternSet.delete('');
@@ -507,6 +524,13 @@ export class Ranker {
 			}
 		});
 
+		if (parsedResultPath.name.toLowerCase().includes(this.searchChecker.fileNameHighScoreWord.toLowerCase())) {
+			score += 300 * boostFactor;
+			if (this.searchChecker.classFileNameScoreRegex.test(parsedResultPath.name)) {
+				score += 300 * boostFactor;
+			}
+		}
+
 		const headSpaces = /^\s+/.exec(resultText);
 		if (headSpaces) {
 			score -= headSpaces[0].length * 3;
@@ -563,6 +587,11 @@ export class Ranker {
 		} else if (this.searchChecker.isConstantResultRegex.test(resultText)) {
 			type = ResultType.ConstantValue;
 			score += 100 * boostFactor;
+		}
+
+		if (!this.searchChecker.currentFilePath.match(/test/i) && resultFilePath.match(/test/i)) {
+			score -= 200 * boostFactor;
+			// return [type, 0]; // avoid no results for test folder/repo.
 		}
 
 		if (ResultType.None === type) {

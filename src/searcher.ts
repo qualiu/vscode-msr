@@ -36,7 +36,6 @@ export function setReRunMark(hasAlreadyReRun: boolean) {
 }
 
 export function stopAllSearchers() {
-  outputInfoByDebugMode(nowText() + 'Will stop all ' + CurrentSearchPidSet.size + ' searchers with PID: ' + Array.from(CurrentSearchPidSet).join(' '));
   if (CurrentSearchPidSet.size < 1) {
     return;
   }
@@ -64,7 +63,8 @@ if (IsLinuxTerminalOnWindows && TerminalType.CygwinBash === DefaultTerminalType)
 export const PlatformToolChecker = new ToolChecker(IsWindows ? TerminalType.CMD : TerminalType.LinuxBash);
 if (PlatformToolChecker.checkSearchToolExists()) {
   // avoid prompting 'cmd.exe exit error'
-  if (!MyConfig.UseGitIgnoreFile || !(getGitIgnore(getDefaultRootFolder()).Valid)) {
+  const shouldActivate = !MyConfig.UseGitIgnoreFile || isNullOrEmpty(getDefaultRootFolder());// || !getGitIgnore(getDefaultRootFolder()).Valid;
+  if (shouldActivate) {
     // to ease running command later (like: using git-ignore to export/set variables)
     runRawCommandInTerminal('echo TerminalType = ' + TerminalType[DefaultTerminalType] + ', Universal slash = ' + IsForwardingSlashSupportedOnWindows);
   }
@@ -257,7 +257,7 @@ export function getMatchedLocationsAsync(findType: FindType, cmd: string, ranker
           outputError(nowText() + error.message);
         }
         if (hasSummary) {
-          console.info('False error message: ' + error.message);
+          // console.info('False error message: ' + error.message);
         } else if (error.message.startsWith('Command fail')) {
           if (!error.message.trimRight().endsWith(cmd)) {
             // Check if previous searching not completed. Try again or wait.
@@ -276,6 +276,10 @@ export function getMatchedLocationsAsync(findType: FindType, cmd: string, ranker
             PlatformToolChecker.checkSearchToolExists(true, false);
           }
         }
+      }
+
+      if (allResults.length > 0) {
+        stopAllSearchers();
       }
 
       resolve(allResults);
@@ -408,10 +412,6 @@ function parseCommandOutput(stdout: string, findType: FindType, cmd: string, ran
       findAndProcessSummary(allResults.length, true, summaryText, findType, cmd, ranker);
     }
 
-    if (allResults.length > 0) {
-      stopAllSearchers();
-    }
-
     return allResults;
   }
 
@@ -525,10 +525,6 @@ function parseCommandOutput(stdout: string, findType: FindType, cmd: string, ran
 
   if (summaryText.length > 0) {
     findAndProcessSummary(scoreList.length, true, summaryText, findType, cmd, ranker);
-  }
-
-  if (scoreList.length > 0) {
-    stopAllSearchers();
   }
 
   return allResults;

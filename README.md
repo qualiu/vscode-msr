@@ -34,6 +34,7 @@ Then it's the **light** and **right** tool for you(just **2~3 MB** storage + **1
 - [**Workaround**](#workaround-to-long-existing-vscode-bug-impact-to-finding-definition-and-reference) to [long existing VsCode bug](https://github.com/microsoft/vscode/issues/96754) impact to `Go To Definition` and `Find All Reference`.
 - See [**here**](#adjust-your-color-theme-if-result-file-path-folder-color-is-not-clear) if **`folder color`** of output result file paths is not clear: add/change one color theme.
 - [**Set exclusions**](#avoid-security-software-downgrade-search-performance-on-windows) if you cannot get search results **in 1~2 seconds** for just **10000 code files** on Windows.
+- You can start [**search**](#search-files-with-rich-filters) + [**replace**](#replace-files-with-preview-and-backup) + [**code mining**](#code-mining-without-or-with-little-knowledge) via [**mouse**/**menus**](#hide-or-show-more-context-menus) + [**keys**](#get-the-best-combined-power) + [**terminals** in/out vscode](#make-command-shortcuts-to-search-or-replace-in-or-out-of-vscode) **without reading/doing anything**.
 
 ## Features
 
@@ -66,7 +67,7 @@ Then it's the **light** and **right** tool for you(just **2~3 MB** storage + **1
   - Much faster than professional language extensions in some cases (like results in same file or folder).
   - Auto search other language files + [extra repo folders](#extra-paths-settings) if not found definition results.
 
-[Screenshot GIF](https://raw.githubusercontent.com/qualiu/vscode-msr/master/images/find-def-ref.gif): Search **Definitions** + **References** for **C++** / **Python** / **Java** in `Visual Studio Code`:
+[Screenshot GIF](https://raw.githubusercontent.com/qualiu/vscode-msr/master/images/find-def-ref.gif): Search **Definitions** + **References** for **C++** / **Python** / **Java** in `vscode`:
 
 <img src='https://raw.githubusercontent.com/qualiu/vscode-msr/master/images/find-def-ref.gif' width=956 height=480>
 
@@ -144,25 +145,39 @@ Follow [official Windows doc](https://support.microsoft.com/en-us/help/4028485/w
 
 - Add "**Folder exclusions**" for your `source code paths` (usually the save folders of `git clone` repositories).
 - If still slow and no obvious improvement:
-  - Add "**Process** type": like `msr.exe` (`msr.cygwin`/`msr.gcc48`) and/or `msr` to exclusions. 
-  - Add "**File** type": like `D:\tools\msr.exe` (or `/usr/bin/msr` etc.)  to exclusions.
+  - Add "**Process** type": like `msr.exe` + `msr` to `"Process exclusions"`.
+  - Add "**File**": like `D:\tools\msr.exe` to `"File exclusions"`.
 
 (You probably have done for others tools like `golang`, npm `node.exe` , `pip.exe` and `python.exe` etc.)
 
 ## Make Command Shortcuts to Search or Replace In or Out of VSCODE
 
-You can generate the command shortcuts (alias/doskey) to directly use for searching or replacing in or out of IDE.
+You can generate the command shortcuts (alias/doskey) to directly use for searching or replacing in or out of vscode.
 
-- One single shortcuts file: (Press `F1` if not shown in right-pop menu, then search `Cook xxx` as below)
-  - Click/Choose `"Cook alias/doskey: Only general finding commands to 1 file"` to make general command shortcuts.
-  - Choose `"Cook alias/doskey by project: Only finding commands to 1 file"` to make shortcuts based on current project setting.
+<img align='center' src='https://raw.githubusercontent.com/qualiu/vscode-msr/master/images/cook-command-menu.png'>
+
+- One single shortcuts file: (Press `F1` if not shown in right-pop menu, then search `msr Cook xxx` as below)
+  - **General command shortcuts**
+    - Click/Choose **`"Cook alias/doskey: Only general finding commands to 1 file"`** to make **general command shortcuts**.
+    - **This is recommended**.
+    - Please **re-cook** this if [**added new languages support**](#easy-to-support-new-languages) including [**fastest adding**](#fastest-and-easiest-way-to-support-new-language).
+      - Will not **auto update** if once cooked + nothing changed (like `msr.xxx.definition` settings).
+  - **Project specific shortcuts**
+    - Choose `"Cook alias/doskey by project: Only finding commands to 1 file"` to make shortcuts based on current project setting.
+    - Not recommended unless you only work with 1 project.
+  - Notes for both **general + specific** shortcuts in **single** file:
+    - **Auto initialized and effect in vscode** when opening new terminals (including `MSR-RUN-CMD`) with path/folder skip patterns:
+      - Skip paths Regex: `--np "skip-by-git-ignore"` (if enabled [git-ignore](#use-git-ignore)).
+      - Skip folders Regex: `--nd "default-and-project-exclude"`
+    - If not cooked general nor specific shortcuts (`doskey/alias`):
+      - You can only use them in vscode but **not outside**, since they're auto-initialized only in vscode terminals.
+    - If cooked command shortcuts (`doskey/alias`):
+      - System console (`CMD/bash`) will auto load these `doskey/alias` when opening new consoles.
 - Multiple **script files** choose menus below: More freely to use (**in other script files** or **nested command lines** like pipe)
   - `"Cook script files: Only general finding command alias/doskey."`
   - `"Cook script files by project: Only finding command alias/doskey."`
   - `"Cook general finding + Dump with other command alias/doskey to script files."`
   - `"Cook finding by project + Dump with other command alias/doskey to script files."`
-
-<img align='center' src='https://raw.githubusercontent.com/qualiu/vscode-msr/master/images/cook-command-menu.png'>
 
 ### Command Shortcuts
 
@@ -194,7 +209,7 @@ out-rp  - Output relative path. This will not effect if use-fp which input full 
 out-fp  - Output full path.
 Add -W to output full path; -I to suppress warnings; -o to replace text, -j to preview changes, -R to replace files.
 You can also create your own command shortcuts in the file: {msr.cmdAlias.saveFolder}\msr-cmd-alias.doskeys
-Every time after changes, auto effect for new console/terminal. For current, run `update-doskeys` on Windows.
+Every time after changes, auto effect for new console/terminal. Run `update-alias` to update current terminal immediately.
 See + Use command alias(shortcut) in `MSR-RUN-CMD` on `TERMINAL` tab, or start using in a new command window outside.
 (if running `find-xxx` in vscode terminals, you can `click` the search results to open in vscode.)
 ```
@@ -207,7 +222,31 @@ Each time it will write 1 or multiple script files to the folder of `msr.cmdAlia
 
 - Multiple script files: Save to `%USERPROFILE%\cmdAlias\` on Windows or `~/cmdAlias/` on Linux.
 
-When you open a new terminal, will [**auto set project specific command shortcuts**](#auto-set-command-shortcuts-for-new-terminals) which most helpful to get a temporary command shortcuts of each project's specific settings plus `.vscode/settings.json` in it's root folder.
+When you open a new terminal, will [**auto set project specific command shortcuts**](#auto-set-command-shortcuts-for-new-terminals) to use temporary command shortcuts of each project's specific settings plus `.vscode/settings.json` in it's root folder.
+
+### Switch between General and Project Specific Command Shortcuts
+
+- Terminals in vscode:
+  - For `MSR-RUN-CMD` + other existing terminals in vscode:
+    - Run **update-alias** to temporarily use/switch to `default/general` filters.
+    - Run **update-{project-folder-name}-alias** to **recover**/use `git-ignore` filters.
+      - Run **`malias "update-\S*alias"`** to get the exact `update-xxx-alias` **names** + **paths**.
+  - Only for `MSR-RUN-CMD` terminals in vscode:
+    - Open user settings (press `F1`) -> search `msr.useGitIgnoreFile` and un-check it to use `default/general` filters.
+      - Change `msr.{project-folder-name}.useGitIgnoreFile` if you had set for a project in [user settings.json](https://code.visualstudio.com/docs/getstarted/settings#_settings-file-locations).
+- System console (`CMD/Bash`) **out of vscode** (after [cooking doskeys/alias](#make-command-shortcuts-to-search-or-replace-in-or-out-of-vscode)).
+  - If you always work with only one project/repository:
+    - [Cook project specific doskeys/alias](#make-command-shortcuts-to-search-or-replace-in-or-out-of-vscode) like `find-xxx` with project specific [git-ignore](#use-git-ignore).
+  - If you work with many projects/repositories, run 1 command to switch to project specific [git-ignore](#use-git-ignore):
+    - Windows CMD console:
+      - **doskey** /MACROFILE=`%TMP%\{project-folder-name}.msr-cmd-alias.doskeys`
+    - Linux console or [Cygwin/MinGW/WSL console on Windows](#supported-4-terminal-types-on-windows):
+      - **source** `/tmp/{project-folder-name}.msr-cmd-alias.bashrc`
+    - Notes:
+      - The above `"temp alias file paths"` are already displayed in `MSR-RUN-CMD` or other terminals.
+      - Please check the **name** + **paths** by command: **`malias "update-\S*alias"`** in `MSR-RUN-CMD` or other terminals.
+      - Only effective to current console, no impact to other/latter consoles.
+- You can verify switching by command like: **`alias find-ref`**, should see different **find-ref** definitions after switched.
 
 ## Use git-ignore
 
@@ -216,7 +255,7 @@ Open user settings, set `msr.useGitIgnoreFile` = `true` (or `msr.{project-folder
 - This use the `.gitignore` file only in top folder of the project, without other kinds/folders of git-ignore files.
 - Omit file/folder exemptions (like `!not-exclude.txt`) as default.
   - Set `msr.omitGitIgnoreExemptions` = `false` to not use git-ignore if found exemptions.
-  
+
 Parsing result of `gitignore` file: see `MSR-Def-Ref` output channel (with `msr.debug` = `true` or launched in debug mode).
 
 Run command `npm run test` in vscode-msr folder if you want to see the translation rule of git-ignore on Windows/Linux.
@@ -236,6 +275,13 @@ Run command `npm run test` in vscode-msr folder if you want to see the translati
 - Use `git ls-files` command output all file list to `/tmp/{project}-git-files.txt`.
 - Use `msr -w /tmp/{project}-git-files.txt` instead of current `msr -rp .` or `msr -rp {project}-full-path`.
 - Create a file watcher to auto update `/tmp/{project}-git-files.txt` when captured file `deletion` or `creation` events.
+
+### Current workarounds if non-precise `git-ignore` not works well
+
+- Precise method:
+  - As mentioned above, leverage **git ls-files** to output file list to a temp file + **msr -w** to read (instead of `msr -rp`).
+- Non-precise method: 
+  - See [switch between general/specific shortcuts](#switch-between-general-and-project-specific-command-shortcuts).
 
 ## Enable Finding Definition and References for Unknown Languages
 
@@ -272,7 +318,7 @@ If you only want to support finding definition for `*.bat` files other than all 
 Add **lower case** `extension name`: "**msr.{extension}.definition**" (here `{extension}` = **bat** ) into the file:
 
 ```json
-  "msr.bat.definition": "^\\s*:\\s*(%1)\\b|(^|\\s)set\\s+(/a\\s+)?\\\"?(%1)="
+  "msr.batch.definition": "^\\s*:\\s*(%1)\\b|(^|\\s)set\\s+(/a\\s+)?\\\"?(%1)="
 ```
 
 See [**here**](https://github.com/qualiu/vscode-msr/blob/master/Add-New-Language-Support-For-Developers.md#additional-explanation-for-the-regex-pattern-used-above-when-support-batch-scripts) if you're interested about the explanation of the `definition` Regex used above and below.
@@ -290,6 +336,14 @@ See [**here**](https://github.com/qualiu/vscode-msr/blob/master/Add-New-Language
 ```json
   "msr.batch.definition": "^\\s*:\\s*(%1)\\b|(^|\\s)set\\s+(/a\\s+)?\\\"?(%1)="
 ```
+
+### Fastest and Easiest Way to Support New Language
+
+For example of `Rust` language, adding `msr.fileExtensionMap.rs` = `"rs"` (like `"bat cmd"` for `msr.fileExtensionMap.batch`):
+
+- You'll get new command shortcuts like: `find-rs` + `find-s-ref` + `find-rs-def` to help [search/replace](#search-files-with-rich-filters) or [code mining](#code-mining-without-or-with-little-knowledge).
+- This will use the default finding Regex patterns unless you added `Rust` patterns (see `msr.batch.definition` / `msr.cs.class.definition`).
+- Please **re-cook** [default/general shortcuts](#make-command-shortcuts-to-search-or-replace-in-or-out-of-vscode) to avoid missing `default` shortcuts when [**switching**](#switch-between-general-and-project-specific-command-shortcuts) from `project-specific` shortcuts.
 
 Set `msr.quiet` = `false`, `msr.debug` = `true` will help you tune and debug the config values (Regex patterns).
 
@@ -309,9 +363,14 @@ To show or hide more menus, [open user settings](https://code.visualstudio.com/d
 
 Set `msr.menu.visible` = `false` to hide all context menus of `Regex find xxx` + `Find xxx` etc.
 
-### Get the Best Combined Power
+## Get the Best Combined Power
 
-Just press `Alt+F2` to **temporarily toggle** `Enable`/`Disable` of **`Finding Definition`**. [Change `Alt+F2`](https://code.visualstudio.com/docs/getstarted/keybindings#_keyboard-shortcuts-editor) if hot-keys conflict.
+For 2 cases when **`"Go To Definition"`** by menu or key(**`F12`**) or **`"Ctrl + Mouse Left Click"`**:
+
+- Got duplicate results (from both `vscode-msr` + official extension like `vscode-python`).
+- No results found if you disabled `vscode-msr` via menu or hot-key of `"Toggle enable/disable msr"`.
+
+Then just press `Alt+F2` to **temporarily toggle** `Enable`/`Disable` of **`Finding Definition`**. [Change `Alt+F2`](https://code.visualstudio.com/docs/getstarted/keybindings#_keyboard-shortcuts-editor) if hot-keys conflict.
 
 It's useful when the official/professional plugins got problems:
 
@@ -475,12 +534,16 @@ You may need fuzzy code searching for cases like below:
 
 Then you can try code/knowledge mining by yourself with vscode-msr: (after [**cooking doskey/alias**](#command-shortcuts) if **out of vscode**)
 
-Examples (run in vscode terminals: like `MSR-RUN-CMD` or add/open new terminals):
+Besides the normal **`"Go To Definition"`** by menu or key(`F12`), you can take flexible code mining in vscode terminals/console.
+
+The 40+ [shortcuts](#command-shortcuts) like `find-xxx` are convenient wrappers of [**msr/nin**](https://github.com/qualiu/msr#almost-no-learning-cost) with **70/30** composable [optional-args](https://github.com/qualiu/msr#brief-summary-of-msr-exe) (brief **Quick-Start** at bottom of running `msr -h` or `nin -h`).
+
+Code mining examples (run in vscode terminals: like `MSR-RUN-CMD` or add/open **new** terminals):
 
 - Fuzzy search a class/method:
   - **find-def** `"\w*Keyword\w*You-Heard-or-Knew\w*"`
 
-- Fuzzy search a class/method, **ignore case**:
+- Fuzzy search a class/method, with [**optional args**](https://github.com/qualiu/msr#brief-summary-of-msr-exe) like **ignore case**(**-i**) :
   - **find-def** `"\w*Keyword\w*"` **-i**
   - **find-def** `"\w*Keyword\w*"` **-i** -x `class`
   - **find-ref** `"class\s+\w*Keyword\w*"` **-i**
@@ -490,7 +553,7 @@ Examples (run in vscode terminals: like `MSR-RUN-CMD` or add/open new terminals)
   - **find-def** `"\w*Keyword\w*"` **-i** --nt `"private|protected"` --pp `"/src/|keyword"` --xp `test,/unit,/bin/,demo` --np `"test|/unit|/bin/"`
   - **find-def** `"\w*Keyword\w*"` **-i** --nx `private` --nt `"protected|internal"` --xp `test,/unit,/bin/,demo` --pp `"/src/|keyword"` -H 20 -J ...
 
-- If you know the language type, like `Python`/`C#`, you can accelerate searching:
+- **Accelerate searching** if you know the language type (like `Python`/`C#`), the **more** filters the **faster**:
   - **find-py-def** `"\w*(get|set|update)\w*Method-Keyword-You-Heard\w*"` -ix `public` --nx ... --nt ... --xp ... --pp ... --np ...
   - **find-cs-def** `"\w*(get|set|update)\w*Method-Keyword-You-Heard\w*"` -i
   - **find-cpp-ref** `"(class|enum)\s+\w*Class-Keyword-You-Heard\w*"` -i
@@ -512,10 +575,20 @@ Examples (run in vscode terminals: like `MSR-RUN-CMD` or add/open new terminals)
   - **find-all** -it `"regex-pattern"` -x `"and-plain-text"` -U 5 -D 3 -H 100 -c Output `100 lines` with `5-rows-up` + `3-rows-down` for each match.
   - **find-all** -it `"regex-pattern"` -x `"and-plain-text"` --nx `"not-contain-text"` --nt `"not-match-regex"` --xp `/bin/,debug/,test` --pp `expected-path-regex` --np `skip-path-regex` -U 3 -D 2 -H 100 -T 100 ...
 
+- Other functions:
+  - **find-top-source-type** `-H 9` : Gee `top 9` language types by file count/percentage in current workspace/repository.
+  - **find-top-source-type** `-k 100` : Get top languages which file `count >= 100`.
+  - **find-top-source-type** `-K 2.5` : Gee top languages which file count `percentage >= 2.5%`.
+  - **find-top-type** -H 9 `-w` : Gee top 9 file types and show one example file path (`whole/full` path) of each type.
+  - **sort-source-by-time** `-T 9` : Get `newest 9 source files` sorting `source files` by file write/modify time.
+  - **sort-by-time** `-T 9` : Get `newest 9 files` sorting `all files` by file write/modify time.
+  - **sort-by-size** `-T 9` : Get `newest 9 files` sorting `all files` by file size.
+  - **sort-by-size** -T 9 `-W` : Get `newest 9 files` sorting `all files` by file size + Show `full paths` (absolute paths).
+
 Once you found the results:
 
-- You can filter results by [appending filters](#search-files-with-rich-filters).
-- Click + open the search results in vscode and go-on.
+- You can filter results by [appending filters](#search-files-with-rich-filters). (Add `-c` to see full command line or debug).
+- Click + open the search results in vscode and continue your code mining.
 - [Search code together](#get-the-best-combined-power) with official vscode extensions (like: `vscode-python` / `vscode-go`) + official IDEs (like: `Visual Studio` / `PyCharm`).
 
 ### Additional Settings in [Your Personal Settings file](https://code.visualstudio.com/docs/getstarted/settings#_settings-file-locations)
@@ -546,16 +619,16 @@ Once you found the results:
 - `msr.default.extraSearchPaths`: **Extra search paths** of external repositories, dependency sources, or libraries, etc.
 - `msr.default.extraSearchPathListFiles`: **Read extra search path list files** of external repositories, dependency sources, or libraries, etc.
 
-These global **extra search paths** settings enable searching related files **without loading** them into `Visual Studio Code`.
+These global **extra search paths** settings enable searching related files **without loading** them into `vscode`.
 
 More details see [Extra Path Settings](https://github.com/qualiu/vscode-msr/blob/master/Extra-Path-Settings.md).
 
 ### Specific Coding Language Settings Examples
 
-- `msr.cs.codeFiles`: Regex pattern of `C#` source code file names (extensions).
+- `msr.fileExtensionMap.batch`: Set file extension of batch script (`*.bat` + `*.cmd`), value = `"bat cmd"`.
+- `msr.fileExtensionMap.rs`: [Support new language](#easy-to-support-new-languages) (`Rust`), value = `"rs"`.
 - `msr.cpp.codeAndConfigDocs`: Regex pattern of `C++` / `C` code + configuration + document files.
 - `msr.py.extraSearchPaths`: **Extra search paths** for `Python` code's external repositories, dependency sources, or libraries, etc.
-- `msr.ui.codeFiles`: Regex pattern of `UI` (front-end) code files: `*.vue`, `*.js`, `*.ts`, `*.jsx`, `*.tsx`.
 
 ## Normal and Extensive Search
 
@@ -563,18 +636,24 @@ Normal Search (`default context menu`) + Extensive Search (`context menu` + `com
 
 - Normal search:
   - Find definition (`Go to Definition` menu): Precise search **project root** + **extra paths** if set.
-  - Find references (`Find All References` menu): **Only** search **project root**, **skip** extra paths even if set.
+  - Find references (`Find All References` menu): Disabled by default (Use menus like `"Regex find xxx"` menus or use shortcuts like [code-mining](#code-mining-without-or-with-little-knowledge)).
 - Extensive search:
   - **Plain-text** and **Regex** searching groups in **command palette** and partially in **editor context menu** (`Find plain text in xxx` or `Regex find xxx`)
   - Provide specific searching in **project root** + **extra paths** if set. For example, `Regex find pure references in code files` will skip comments and long text in code.
 
 ## Reuse the Command to Search Further or Replace Files
 
-You can **reuse** [msr](https://github.com/qualiu/msr#brief-summary-of-msr-exe) `original search command line` in `Visual Studio Code` output channel `MSR-Def-Ref` or terminal `MSR-RUN-CMD` to **search** + **replace** files. More details see: [**Scenario Glance**](https://github.com/qualiu/msr#scenario-glance).
+You can **reuse** [msr](https://github.com/qualiu/msr#almost-no-learning-cost) `original search command line` in `vscode` output channel `MSR-Def-Ref` or terminal `MSR-RUN-CMD` to **search** + **replace** files. More details see: [**Scenario Glance**](https://github.com/qualiu/msr#scenario-glance).
 
 ### Search Files with Rich Filters
 
-Filter results or further search on results based on `original search command line`.
+You can use any 1 of **3 methods** below to filter results or take further searches:
+
+- Leverage `original search command line` in `MSR-Def-Ref` or `MSR-RUN-CMD`, and change/tune.
+- Use [command shortcuts](#command-shortcuts) to write brief searching/replacing commands in/out-of vscode:
+  - `MSR-RUN-CMD` + other terminals in vscode after auto-initialized `doskey/alias`.
+  - System console (like CMD/Bash) **out of vscode**: See [switch general/specific shortcuts](#switch-between-general-and-project-specific-command-shortcuts).
+- Write raw [**msr/nin**](https://github.com/qualiu/msr#almost-no-learning-cost) commands with **70/30** composable [optional-args](https://github.com/qualiu/msr#brief-summary-of-msr-exe) (brief **Quick-Start** at bottom of running `msr -h` or `nin -h`).
 
 Change the value of **-t** / **--np** / **--nd** if already used in command line.
 
@@ -658,7 +737,7 @@ Please help to set the `Regex` patterns for them if you want. You can:
 
 - Reference the `.definition` and `.reference` Regex patterns of **default** or a specific language type in [configuration file](https://github.com/qualiu/vscode-msr/blob/master/package.json).
 - Debug this extension:
-  - Use `Visual Studio Code` to open [this project](https://github.com/qualiu/vscode-msr) start (press `F5`) to debug, if you've cloned it.
+  - Use `vscode` to open [this project](https://github.com/qualiu/vscode-msr) start (press `F5`) to debug, if you've cloned it.
   - Set/Check `msr.debug` to enable output debugging info, if you just installed this extension.
 - See the docs [here](#brief-usage-summary-for-search-or-configuration) or on [msr](https://github.com/qualiu/msr/blob/master/README.md).
 
@@ -666,9 +745,9 @@ Please help to set the `Regex` patterns for them if you want. You can:
 
 Easy to check consistency of [configurations](https://github.com/qualiu/vscode-msr/blob/master/package.json) with `this document` by command lines below (you can also run command `npm run test` if you're a developer):
 
-**[nin](https://github.com/qualiu/msr#liberate--digitize-daily-works-by-2-exe-file-processing-data-mining-map-reduce)** `README.md` [package.json](https://github.com/qualiu/vscode-msr/blob/master/package.json) **"(msr\\.[\w\\.]+)"** --nt `"msr\.(exe|gcc\w+|cygwin)|project\d+|\.(My|xxx|extra\w+Group)"` --nx msr.py.extra -i -c Should no result
+**[nin](https://github.com/qualiu/msr#liberate--digitize-daily-works-by-2-exe-file-processing-data-mining-map-reduce)** `README.md` [package.json](https://github.com/qualiu/vscode-msr/blob/master/package.json) **"(msr\\.[\w\\.]+)"** --nt `"msr\.(exe|gcc\w+|cygwin)|project\d+|\.(My|xxx|extra\w+Group)|msr.py.extra"` --nx "fileExtensionMap*" -i -c Should no result
 
-**[nin](https://github.com/qualiu/msr#liberate--digitize-daily-works-by-2-exe-file-processing-data-mining-map-reduce)** `README.md` [package.json](https://github.com/qualiu/vscode-msr/blob/master/package.json) **"(msr\\.[\w\\.]+)"** --nt `"msr\.(exe|gcc\w+|cygwin)|project\d+|\.(My|xxx|extra\w+Group)"` --nx msr.py.extra -i **-m** -c Should have results
+**[nin](https://github.com/qualiu/msr#liberate--digitize-daily-works-by-2-exe-file-processing-data-mining-map-reduce)** `README.md` [package.json](https://github.com/qualiu/vscode-msr/blob/master/package.json) **"(msr\\.[\w\\.]+)"** --nt `"msr\.(exe|gcc\w+|cygwin)|project\d+|\.(My|xxx|extra\w+Group)|msr.py.extra"` --nx "fileExtensionMap*" -i **-m** -c Should have results
 
 **[nin](https://github.com/qualiu/msr#liberate--digitize-daily-works-by-2-exe-file-processing-data-mining-map-reduce)** [package.json](https://github.com/qualiu/vscode-msr/blob/master/package.json) nul -p -d -k 2 -x description -c Should no unreasonable duplicate descriptions.
 

@@ -1,6 +1,6 @@
 import path = require('path');
 import * as vscode from 'vscode';
-import { GetConfigPriorityPrefixes, getConfigValue, getConfigValueByRoot, getSubConfigValue } from './configUtils';
+import { GetConfigPriorityPrefixes, getConfigValue, getConfigValueByRoot, getOverrideOrDefaultConfig, getSubConfigValue } from './configUtils';
 import { IsLinux, IsWindows, IsWSL } from './constants';
 import { cookCmdShortcutsOrFile, mergeSkipFolderPattern } from './cookCommandAlias';
 import { FindType, TerminalType } from './enums';
@@ -13,6 +13,8 @@ import { DefaultTerminalType, getDefaultRootFolderByActiveFile, getExtensionNoHe
 const SplitPathsRegex = /\s*[,;]\s*/;
 const SplitPathGroupsRegex = /\s*;\s*/;
 const FolderToPathPairRegex = /(\w+\S+?)\s*=\s*(\S+.+)$/;
+
+export const DefaultRootFolder = getDefaultRootFolderByActiveFile();
 
 export let MyConfig: DynamicConfig;
 
@@ -41,35 +43,49 @@ export function getGitIgnore(currentPath: string): GitIgnore {
     return gitIgnore || new GitIgnore('');
 }
 
-export function updateGitIgnoreMap() {
+export function updateGitIgnoreUsage() {
     WorkspaceToGitIgnoreMap.clear();
 
     if (!vscode.workspace.workspaceFolders || vscode.workspace.workspaceFolders.length < 1) {
         return;
     }
 
-    const defaultRootFolder = getDefaultRootFolderByActiveFile();
 
-    vscode.workspace.workspaceFolders.forEach(a => {
-        const rootFolder = getRootFolder(a.uri.fsPath);
-        const gitIgnore = new GitIgnore(path.join(rootFolder, '.gitignore'), MyConfig.UseGitIgnoreFile, MyConfig.OmitGitIgnoreExemptions, MyConfig.SkipDotFolders);
+    const useGitIgnoreFile = getOverrideOrDefaultConfig(DefaultRootFolder, 'useGitIgnoreFile') === 'true';
+    const omitGitIgnoreExemptions = getOverrideOrDefaultConfig(DefaultRootFolder, 'omitGitIgnoreExemptions') === 'true';
+    const skipDotFolders = getOverrideOrDefaultConfig(DefaultRootFolder, 'skipDotFoldersIfUseGitIgnoreFile') === 'true';
+
+    if (!useGitIgnoreFile) {
+        cookCmdShortcutsOrFile(DefaultRootFolder, true, false, getRunCmdTerminal(), false);
+        return;
+    }
+
+    for (let k = 0; k < vscode.workspace.workspaceFolders.length; k++) {
+        const workspaceFolder = vscode.workspace.workspaceFolders[k].uri.fsPath;
+        const rootFolder = getRootFolder(workspaceFolder);
+        const gitIgnore = new GitIgnore(path.join(rootFolder, '.gitignore'), useGitIgnoreFile, omitGitIgnoreExemptions, skipDotFolders);
         WorkspaceToGitIgnoreMap.set(rootFolder, gitIgnore);
-        const canInitGitIgnore = a.uri.fsPath === defaultRootFolder;
-
-        gitIgnore.parse(() => {
+        const canInitGitIgnore = workspaceFolder === DefaultRootFolder;
+        function actionWhenSuccessfullyParsed() {
             if (!canInitGitIgnore) {
                 return;
             }
 
             const terminal = getRunCmdTerminal();
             // clearTerminal(terminal, IsLinuxTerminalOnWindows);
-            cookCmdShortcutsOrFile(rootFolder, true, false, terminal, false, true);
+            cookCmdShortcutsOrFile(DefaultRootFolder, true, false, terminal, false);
             const autoCompare = getConfigValue('autoCompareFileListsIfUsedGitIgnore') === 'true';
             if (autoCompare) {
                 gitIgnore.compareFileList();
             }
-        });
-    });
+        }
+
+        function actionWhenFailedToParse() {
+            cookCmdShortcutsOrFile(DefaultRootFolder, true, false, getRunCmdTerminal(), false);
+        }
+
+        gitIgnore.parse(actionWhenSuccessfullyParsed, actionWhenFailedToParse);
+    }
 }
 
 export class DynamicConfig {
@@ -119,6 +135,7 @@ export class DynamicConfig {
     public MaxWaitSecondsForSearchDefinition: number = 36.0;
     public MaxWaitSecondsForAutoReSearchDefinition: number = 60.0;
     private ScriptFileExtensionRegex: RegExp = new RegExp('to-load');
+    private CodeFileExtensionRegex: RegExp = new RegExp('to-load');
     public UseGitIgnoreFile: boolean = true;
     public OmitGitIgnoreExemptions: boolean = false;
     public SkipDotFolders: boolean = true;
@@ -213,11 +230,12 @@ export class DynamicConfig {
         this.OutputRelativePathForLinuxTerminalsOnWindows = getConfigValue('cookCmdAlias.outputRelativePathForLinuxTerminalsOnWindows') === 'true';
 
         this.UseDefaultFindingClassCheckExtensionRegex = createRegex(getConfigValue('useDefaultFindingClass.extensions'));
-        this.AllSourceFileExtensionRegex = createRegex(getConfigValue('allFiles'));
+        this.AllSourceFileExtensionRegex = createRegex(getConfigValue('allFiles'), 'i');
 
         this.MaxWaitSecondsForSearchDefinition = Number(getConfigValue('searchDefinition.timeoutSeconds'));
         this.MaxWaitSecondsForAutoReSearchDefinition = Number(getConfigValue('autoRunSearchDefinition.timeoutSeconds'));
-        this.ScriptFileExtensionRegex = createRegex(getConfigValue('scriptFiles'));
+        this.ScriptFileExtensionRegex = createRegex(this.RootConfig.get('default.scriptFiles') || '\\.(bat|cmd|psm?1|sh|bash|[kzct]sh)$', 'i');
+        this.CodeFileExtensionRegex = createRegex(this.RootConfig.get('default.codeFiles') || '\\.(cs(html)?|cpp|cxx|h|hpp|cc?|c\\+{2}|java|scala|py|go|rs|php)$', 'i');
         this.UseGitIgnoreFile = getConfigValue('useGitIgnoreFile') === 'true';
         this.OmitGitIgnoreExemptions = getConfigValue('omitGitIgnoreExemptions') === 'true';
         this.SkipDotFolders = getConfigValue('skipDotFoldersIfUseGitIgnoreFile') === 'true';
@@ -233,6 +251,10 @@ export class DynamicConfig {
 
     public isScriptFile(extension: string): boolean {
         return this.ScriptFileExtensionRegex.test(extension.startsWith('.') ? extension : '.' + extension);
+    }
+
+    public isCodeFiles(extension: string): boolean {
+        return this.CodeFileExtensionRegex.test(extension.startsWith('.') ? extension : '.' + extension) && !this.isScriptFile(extension);
     }
 
     public shouldSkipFinding(findType: FindType, currentFilePath: string): boolean {
@@ -324,7 +346,7 @@ export function getConfig(reload: boolean = false): DynamicConfig {
     outputDebug('----- vscode-msr configuration loaded: ' + nowText() + ' -----');
     printConfigInfo(MyConfig.RootConfig);
 
-    updateGitIgnoreMap();
+    updateGitIgnoreUsage();
 
     return MyConfig;
 }

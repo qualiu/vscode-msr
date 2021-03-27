@@ -4,7 +4,7 @@ import { getConfigValueByRoot, getOverrideConfigByPriority, getSubConfigValue } 
 import { HomeFolder, RemoveJumpRegex, SearchTextHolderReplaceRegex, SkipJumpOutForHeadResultsRegex } from './constants';
 import { FileExtensionToMappedExtensionMap, getConfig, getGitIgnore, getRootFolderExtraOptions, getSearchPathOptions, MappedExtToCodeFilePatternMap, MyConfig, removeSearchTextForCommandLine, replaceToRelativeSearchPath } from './dynamicConfig';
 import { FindCommandType, TerminalType } from './enums';
-import { enableColorAndHideCommandLine, outputDebug, outputInfo, runCommandInTerminal } from './outputUtils';
+import { enableColorAndHideCommandLine, outputDebug, outputInfo, RunCmdTerminalRootFolder, runCommandInTerminal } from './outputUtils';
 import { Ranker } from './ranker';
 import { escapeRegExp, NormalTextRegex } from './regexUtils';
 import { SearchConfig } from './searchConfig';
@@ -322,6 +322,7 @@ export function getFindingCommandByCurrentWord(toRunInTerminal: boolean, findCmd
     }
 
     const filePath = quotePaths(osFilePath);
+    const oneFilePath = osFilePath.startsWith(RunCmdTerminalRootFolder) ? replaceToRelativeSearchPath(toRunInTerminal, filePath, rootFolder) : filePath;
 
     if (skipTextPattern && skipTextPattern.length > 1) {
         skipTextPattern = ' --nt "' + skipTextPattern + '"';
@@ -337,10 +338,10 @@ export function getFindingCommandByCurrentWord(toRunInTerminal: boolean, findCmd
             searchPattern = searchPattern.replace('const|', 'const|let|');
         }
 
-        command = MsrExe + ' -p ' + replaceToRelativeSearchPath(toRunInTerminal, filePath, rootFolder) + skipTextPattern + extraOptions + ' ' + searchPattern.trimLeft();
+        command = MsrExe + ' -p ' + oneFilePath + skipTextPattern + extraOptions + ' ' + searchPattern.trimLeft();
     }
     else if (findCmd === FindCommandType.RegexFindReferencesInCurrentFile) {
-        command = MsrExe + ' -p ' + replaceToRelativeSearchPath(toRunInTerminal, filePath, rootFolder) + ' -e "\\b((public)|protected|private|internal|(static)|(readonly|const|let))\\b"' + skipTextPattern + extraOptions + ' ' + searchPattern;
+        command = MsrExe + ' -p ' + oneFilePath + ' -e "\\b((public)|protected|private|internal|(static)|(readonly|const|let))\\b"' + skipTextPattern + extraOptions + ' ' + searchPattern;
     } else {
         command = MsrExe + ' ' + searchPathsOptions + filePattern + skipTextPattern + extraOptions + ' ' + searchPattern.trimLeft();
     }

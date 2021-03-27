@@ -1,14 +1,14 @@
 import path = require('path');
 import fs = require('fs');
-import os = require('os');
 import https = require('https');
 import crypto = require('crypto');
 import ChildProcess = require('child_process');
 import { HomeFolder, IsDebugMode, IsSupportedSystem, IsWindows } from './constants';
 import { MyConfig } from './dynamicConfig';
 import { TerminalType } from './enums';
+import { getHomeFolderForLinuxTerminalOnWindows, getTerminalShellExePath, isToolExistsInPath } from './otherUtils';
 import { clearOutputChannel, outputDebug, outputError, outputInfo, outputKeyInfo } from './outputUtils';
-import { checkAddFolderToPath, DefaultTerminalType, getHomeFolderForLinuxTerminalOnWindows, getTerminalShellExePath, getTimeCostToNow, isLinuxTerminalOnWindows, isNullOrEmpty, isWindowsTerminalOnWindows, nowText, PathEnvName, quotePaths, runCommandGetOutput, toCygwinPath, toOsPath, toOsPaths } from './utils';
+import { checkAddFolderToPath, DefaultTerminalType, getTimeCostToNow, isLinuxTerminalOnWindows, isNullOrEmpty, isWindowsTerminalOnWindows, nowText, PathEnvName, quotePaths, runCommandGetOutput, toCygwinPath, toOsPath, toOsPaths } from './utils';
 
 export const MsrExe = 'msr';
 const SourceMd5FileUrl = 'https://raw.githubusercontent.com/qualiu/msr/master/tools/md5.txt';
@@ -130,7 +130,7 @@ export class ToolChecker {
 	}
 
 	public checkAndDownloadTool(exeName64bit: string): [boolean, string] {
-		const [isExisted, exePath] = this.isToolExistsInPath(exeName64bit);
+		const [isExisted, exePath] = isToolExistsInPath(exeName64bit, this.terminalType);
 		const exeName = this.getSourceExeName(exeName64bit);
 		outputDebug(nowText() + (isExisted ? 'Found ' + exeName + ' = ' + exePath : 'Not found ' + exeName + ', will download it.'));
 		if (isExisted) {
@@ -194,7 +194,7 @@ export class ToolChecker {
 	private getDownloadCommand(exeName64bit: string, saveExePath: string = ''): string {
 		const sourceExeName = this.getSourceExeName(exeName64bit);
 		const sourceUrl = this.getDownloadUrl(sourceExeName);
-		const [IsExistIcacls] = this.isTerminalOfWindows ? this.isToolExistsInPath('icacls') : [false, ''];
+		const [IsExistIcacls] = this.isTerminalOfWindows ? isToolExistsInPath('icacls', this.terminalType) : [false, ''];
 		if (isNullOrEmpty(saveExePath)) {
 			saveExePath = this.getTempSaveExePath(exeName64bit);
 		}
@@ -202,7 +202,7 @@ export class ToolChecker {
 		const tmpSaveExePath = quotePaths(saveExePath + '.tmp');
 		saveExePath = saveExePath.startsWith('"') ? saveExePath : quotePaths(saveExePath);
 
-		const [isWgetExistsOnWindows] = this.isTerminalOfWindows ? this.isToolExistsInPath('wget.exe') : [false, ''];
+		const [isWgetExistsOnWindows] = this.isTerminalOfWindows ? isToolExistsInPath('wget.exe', this.terminalType) : [false, ''];
 
 		const downloadCommand = this.isTerminalOfWindows && !isWgetExistsOnWindows
 			? 'Powershell -Command "$ProgressPreference = \'SilentlyContinue\'; [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; '
@@ -241,7 +241,7 @@ export class ToolChecker {
 			return false;
 		}
 
-		[this.isMsrToolExists, this.MsrExePath] = this.isToolExistsInPath('msr');
+		[this.isMsrToolExists, this.MsrExePath] = isToolExistsInPath('msr', this.terminalType);
 
 		if (!this.isMsrToolExists) {
 			if (clearOutputBeforeWarning) {
@@ -264,45 +264,6 @@ export class ToolChecker {
 		}
 
 		return this.isMsrToolExists;
-	}
-
-	private isToolExistsInPath(exeToolName: string): [boolean, string] {
-		const whereCmd = (IsWindows ? 'where' : 'whereis') + ' ' + exeToolName;
-		try {
-			let output = ChildProcess.execSync(whereCmd).toString();
-			if (IsWindows) {
-				if (TerminalType.CygwinBash === this.terminalType) {
-					const exeTitle = exeToolName.replace(/^(msr|nin).*/, '$1');
-					const folder = path.dirname(getTerminalShellExePath());
-					const binExe = path.join(folder, exeTitle);
-					if (fs.existsSync(binExe)) {
-						return [true, binExe];
-					}
-					const homeExe = path.join(path.dirname(folder), 'home', os.userInfo().username, exeTitle);
-					if (fs.existsSync(homeExe)) {
-						return [true, homeExe];
-					}
-					outputError(nowText() + 'Not found any of: ' + binExe + ' + ' + homeExe + ' for ' + TerminalType[this.terminalType] + ' terminal.');
-				} else {
-					const exePaths = /\.exe$/i.test(exeToolName)
-						? output.split(/[\r\n]+/)
-						: output.split(/[\r\n]+/).filter(a => !/cygwin/i.test(a) && new RegExp('\\b' + exeToolName + '\\.\\w+$', 'i').test(a));
-
-					if (exePaths.length > 0) {
-						return [true, exePaths[0]];
-					}
-				}
-			} else {
-				const exeMatch = new RegExp('(\\S+/' + exeToolName + ')(\\s+|$)').exec(output);
-				if (exeMatch) {
-					return [true, exeMatch[1]];
-				}
-			}
-		} catch (err) {
-			outputDebug(nowText() + err.toString());
-		}
-
-		return [false, ''];
 	}
 
 	private autoDownloadTool(exeName64bit: string): [boolean, string] {
@@ -416,7 +377,7 @@ export class ToolChecker {
 	}
 
 	private compareToolVersions(allMd5Text: string, trackCheckBeginTime: Date) {
-		const [hasNin, ninExePath] = this.isToolExistsInPath('nin');
+		const [hasNin, ninExePath] = isToolExistsInPath('nin', this.terminalType);
 		const currentMsrMd5 = getFileMd5(this.MsrExePath);
 		let currentExeNameToMd5Map = new Map<string, string>().set('msr', currentMsrMd5);
 		let exeName64bitToPathMap = new Map<string, string>().set('msr', this.MsrExePath);

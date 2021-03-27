@@ -2,11 +2,11 @@ import path = require('path');
 import fs = require('fs');
 import { IsForwardingSlashSupportedOnWindows } from './checkTool';
 import { getConfigValue } from './configUtils';
-import { IsWSL } from './constants';
+import { IsWSL, OutputChannelName, RunCmdTerminalName } from './constants';
 import { getGeneralCmdAliasFilePath } from './cookCommandAlias';
 import { TerminalType } from './enums';
 import { saveTextToFile } from './otherUtils';
-import { outputError, outputInfo, outputInfoByDebugMode, outputWarn, RunCmdTerminalName, RunCmdTerminalRootFolder, runCommandInTerminal, runRawCommandInTerminal } from './outputUtils';
+import { outputError, outputInfo, outputInfoByDebugMode, outputWarn, RunCmdTerminalRootFolder, runCommandInTerminal, runRawCommandInTerminal } from './outputUtils';
 import { DefaultTerminalType, IsLinuxTerminalOnWindows, isNullOrEmpty, isWindowsTerminalOnWindows, nowText, quotePaths, toOsPath, toWSLPath } from './utils';
 
 // Another solution: (1) git ls-files > project-file-list.txt ; (2) msr -w project-file-list.txt  (3) file watcher + update list.
@@ -70,8 +70,12 @@ export class GitIgnore {
       : ' --np "' + pattern + '"';
   }
 
-  private changeToForwardSlash(pathString: string): string {
-    return pathString.replace(/\\/g, '/').replace(/\\$/, '');
+  private changeToForwardSlash(pathString: string, addTailSlash: boolean = true): string {
+    let newPath = pathString.replace(/\\/g, '/').replace(/\\$/, '');
+    if (addTailSlash && !newPath.endsWith('/')) {
+      newPath += '/';
+    }
+    return newPath;
   }
 
   private getSkipPathsVariable() {
@@ -81,7 +85,7 @@ export class GitIgnore {
   private exportSkipPathVariable(): boolean {
     const runCmdTerminalFolder = this.changeToForwardSlash(RunCmdTerminalRootFolder);
     if (runCmdTerminalFolder !== this.RootFolder) {
-      outputInfo(`Skip exporting ${SkipPathVariableName} due to workspace = ${this.RootFolder} != ${runCmdTerminalFolder} of ${RunCmdTerminalName} terminal.`);
+      outputInfoByDebugMode(nowText() + `Skip exporting ${SkipPathVariableName} due to workspace = ${this.RootFolder} != ${runCmdTerminalFolder} of ${RunCmdTerminalName} terminal.`);
       return false;
     }
 
@@ -157,28 +161,35 @@ export class GitIgnore {
     });
   }
 
-  public parse(callback: (...args: any[]) => void) {
+  public parse(callbackWhenSucceeded: (...args: any[]) => void, callbackWhenFailed: (...args: any[]) => void) {
     this.Valid = false;
     this.ExemptionCount = 0;
     if (!this.UseGitIgnoreFile || isNullOrEmpty(this.IgnoreFilePath)) {
+      callbackWhenFailed();
       return;
     }
 
     if (!fs.existsSync(this.IgnoreFilePath)) {
       outputWarn(nowText() + 'Not exist git ignore file: ' + this.IgnoreFilePath);
+      callbackWhenFailed();
       return;
     }
 
     const beginTime = new Date();
     fs.readFile(this.IgnoreFilePath, 'utf8', (err, text) => {
       if (err) {
-        outputError(nowText() + 'Failed to read file: ' + this.IgnoreFilePath + ' , error: ' + err.toString());
-        console.error(err);
+        const message = 'Failed to read file: ' + this.IgnoreFilePath + ' , error: ' + err.toString();
+        outputError(nowText() + message);
+        this.showErrorInRunCmdTerminal(message);
+        callbackWhenFailed();
         return;
       }
 
       if (isNullOrEmpty(text)) {
-        outputError(nowText() + 'Read empty content from file: ' + this.IgnoreFilePath);
+        const message = 'Read empty content from file: ' + this.IgnoreFilePath;
+        outputError(nowText() + message);
+        this.showErrorInRunCmdTerminal(message);
+        callbackWhenFailed();
         return;
       }
 
@@ -210,7 +221,10 @@ export class GitIgnore {
             outputWarn(nowText() + 'Ignore exemption: "' + line + '" at ' + this.IgnoreFilePath + ':' + (row + 1) + ' while msr.omitGitIgnoreExemptions = true.');
             continue;
           } else {
-            outputError(nowText() + 'Skip using git-ignore due to found exemption: "' + line + '" at ' + this.IgnoreFilePath + ':' + (row + 1) + ' while msr.omitGitIgnoreExemptions = false.');
+            const message = 'Skip using git-ignore due to found exemption: "' + line + '" at ' + this.IgnoreFilePath + ':' + (row + 1) + ' while msr.omitGitIgnoreExemptions = false.';
+            outputError(nowText() + message);
+            this.showErrorInRunCmdTerminal(message);
+            callbackWhenFailed();
             return;
           }
         }
@@ -218,6 +232,7 @@ export class GitIgnore {
         const pattern = this.getPattern(line);
 
         try {
+          // tslint:disable-next-line: no-unused-expression
           new RegExp(pattern);
           skipPatterns.add(pattern);
         } catch (err) {
@@ -238,8 +253,14 @@ export class GitIgnore {
         outputError(errorList.join('\n'));
       }
 
-      let parsedInfo = 'Parsed ' + skipPatterns.size + ' patterns, omitted ' + errorList.length + ' errors, ignored ' + this.ExemptionCount
-        + ' exemptions from: ' + this.IgnoreFilePath + ' , ' + SkipPathVariableName + '.length = ' + this.SkipPathPattern.length + '.';
+      let parsedInfo = 'Parsed ' + skipPatterns.size + ' patterns, omitted ' + errorList.length + ' errors, ignored '
+        + this.ExemptionCount + ' exemptions from: ' + this.IgnoreFilePath;
+
+      if (this.ExemptionCount > 0) {
+        parsedInfo += ` , see ${OutputChannelName} in OUTPUT`;
+      }
+
+      parsedInfo += ' , ' + SkipPathVariableName + ' length = ' + this.SkipPathPattern.length + '.';
 
       const message = 'Cost ' + (cost / 1000).toFixed(3) + ' s: ' + parsedInfo;
 
@@ -249,9 +270,7 @@ export class GitIgnore {
       this.SetSkipPathEnvFile = path.join(saveFolder, tmpScriptName + (this.IsCmdTerminal ? '.cmd' : '.sh'));
       const setEnvCommands = this.getExportCommand(this.SkipPathPattern);
       saveTextToFile(this.SetSkipPathEnvFile, setEnvCommands);
-      if (callback) {
-        callback();
-      }
+      callbackWhenSucceeded();
 
       const tipHead = 'echo TerminalType = ' + TerminalType[DefaultTerminalType] + ', Universal slash = ' + IsForwardingSlashSupportedOnWindows + '. ';
       if (!isInMaxLength) {
@@ -260,11 +279,18 @@ export class GitIgnore {
         outputError(nowText() + warning);
         warning = IsLinuxTerminalOnWindows ? warning.replace(this.IgnoreFilePath, this.IgnoreFilePath.replace(/\\/g, '/')) : warning;
         runRawCommandInTerminal(tipHead + warning + ' | msr -aPA -t "(not use \\S+)|[1-9]\\d* e\\w+" -e "\\d+" -x ' + this.MaxCommandLength);
-      } else if (errorList.length > 0 || this.ExemptionCount > 0) {
+      } else { // if (errorList.length > 0 || this.ExemptionCount > 0) {
         parsedInfo = IsLinuxTerminalOnWindows ? parsedInfo.replace(this.IgnoreFilePath, this.IgnoreFilePath.replace(/\\/g, '/')) : parsedInfo;
         runRawCommandInTerminal(tipHead + parsedInfo + ' | msr -aPA -e "\\d+" -t "[1-9]\\d* e\\w+" -x ignored');
       }
     });
+  }
+
+  private showErrorInRunCmdTerminal(message: string) {
+    if (IsLinuxTerminalOnWindows) {
+      message = message.replace(/"/g, "'");
+    }
+    runRawCommandInTerminal(`echo ${message.replace(this.IgnoreFilePath, this.IgnoreFilePath.replace(/\\/g, '/'))} | msr -aPA -ix exemption -t "\\S+:\\d+" -e "\\w+ = \\w+"`);
   }
 
   private mergeToTerminalSkipPattern(patterns: Set<string>): string {

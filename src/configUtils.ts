@@ -14,7 +14,7 @@ export function getConfigValueByRoot(rootFolderName: string, extension: string, 
 }
 
 export function getOverrideOrDefaultConfig(mappedExtOrFolderName: string, suffix: string, allowEmpty: boolean = true): string {
-  const prefixes = [mappedExtOrFolderName, 'default'];
+  const prefixes = [mappedExtOrFolderName, 'default', ''];
   return getOverrideConfigByPriority(prefixes, suffix, allowEmpty);
 }
 

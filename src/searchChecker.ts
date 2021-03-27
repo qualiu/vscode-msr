@@ -16,6 +16,9 @@ export class SearchChecker {
 	public mappedExt: string;
 	public rootFolderName: string;
 
+	public isCodeFile: boolean;
+	public isScriptFile: boolean;
+
 	public Document: vscode.TextDocument;
 	public currentWord: string;
 	public currentWordRegex: RegExp;
@@ -25,6 +28,9 @@ export class SearchChecker {
 	public currentText: string;
 	public currentWordRange: vscode.Range;
 	public currentTextMaskCurrentWord: string;
+
+	public isCapitalizedWord: boolean;
+	public isUpperCaseWord: boolean;
 
 	public isClassResultRegex: RegExp;
 	public isEnumResultRegex: RegExp;
@@ -45,6 +51,7 @@ export class SearchChecker {
 	public isFindMemberOrLocalVariableRegex: RegExp;
 
 	public isOnlyFindClass: boolean;
+	public isProbablyFindClass: boolean;
 	public isOnlyFindMember: boolean;
 	public isFindClass: boolean;
 	public isFindMethod: boolean;
@@ -59,6 +66,11 @@ export class SearchChecker {
 
 	public maybeEnum: boolean;
 	public maybeEnumResultRegex: RegExp;
+
+	public shouldAddClassSearcher: boolean;
+	public classFileNamePattern: string = '';
+	public fileNameHighScoreWord: string = '';
+	public classFileNameScoreRegex: RegExp;
 
 	public enumOrConstantValueRegex: RegExp;
 
@@ -95,7 +107,8 @@ export class SearchChecker {
 		this.currentText = currentText;
 		this.currentWordRange = currentWordRange;
 
-		const isCapitalizedWord = /^[A-Z]\w+$/.test(this.currentWord);
+		this.isCapitalizedWord = /^[A-Z]\w+$/.test(this.currentWord);
+		this.isUpperCaseWord = /^[A-Z_0-9]+$/.test(this.currentWord);
 
 		// Avoid mis-checking due to multiple occurrences of current word.
 		const maskWorkRegex = new RegExp('\\b' + this.currentWord + '\\b', 'g');
@@ -107,6 +120,8 @@ export class SearchChecker {
 		this.mappedExt = mappedExt;
 		this.extension = getExtensionNoHeadDot(currentFile.ext, '');
 		this.rootFolderName = getRootFolderName(this.currentFilePath);
+		this.isCodeFile = MyConfig.isCodeFiles(this.extension);
+		this.isScriptFile = MyConfig.isScriptFile(this.extension);
 
 		// for doc + config
 		this.ForceUseDefaultFindingDefinition = FindType.Definition === this.findType && MyConfig.UseDefaultFindingClassCheckExtensionRegex.test(this.currentFile.ext);
@@ -127,38 +142,64 @@ export class SearchChecker {
 		this.isFindClassOrMethodRegex = this.getCheckingRegex('isFindClassOrMethod', false);
 		this.isFindMemberOrLocalVariableRegex = this.getCheckingRegex('isFindMemberOrLocalVariable', false);
 		this.methodQuoteRegex = new RegExp('\\b' + currentWord + '\\b\\s*\\(');
-
-		const onlyFindMemberRegex = new RegExp(
-			'\\b' + currentWord + '\\s*='
-			+ '|' + '(this|self)[->\\.]{1,2}' + currentWord + '\\b');
-		this.isOnlyFindMember = onlyFindMemberRegex.test(this.currentTextMaskCurrentWord);
-
+		const isTypeAfterObject = this.extension.match(/^(go|scala)$/);
 		const onlyFindClassRegex = new RegExp(
-			'((new|is|as)\\s+|typeof\\W*)[\\w\\.:]*?\\b' + currentWord + "\\b"
-			+ '|' + '\\b' + currentWord + '\\s*[<&\\*\\?]+\\s*\\w+'
-			+ '|' + '\\(\\S*?\\b' + currentWord + '\\)\\s*\\w+'
-			+ '|' + '<\\S*?\\b' + currentWord + '\\b' + '[\\w,:\\s]*?>'
-			+ '|' + '<[\\s\\w,]*?\\b' + currentWord + '\\b' + '[\\w,:\\s]*?>'
-			+ '|' + '<[\\w,:\\s]*?\\b' + currentWord + '\\s*>'
-			+ '|' + '<[\\w,:\\s]*?\\b' + currentWord + '\\b[\\s\\w,]*?>'
-			+ '|' + '^\\s*((public|private|protected|internal|static|readonly|const|final|val)\\s+)+\\s*' + currentWord + '[^\\w,;=]*\\s+\\W?\\w+'
+			'\\bclass\\s+\\w+'
+			+ '|' + '((new|is|as)\\s+|typeof\\W*)[\\w\\.:]*?\\b' + currentWord + "\\b" // new Class
+			+ '|' + '\\b' + currentWord + '\\s*(<|[&\\*]+|\\?)\\s*\\w+' // Class*& var
+			+ '|' + '\\b' + currentWord + '\\.class\\b' // Like Java/Scala
+			+ '|' + '\\b' + currentWord + '\\s*\\[\\]' // Array type like C#
+			+ '|' + '\\w+\\s+\\[\\]' + currentWord + '\\b' // Array type like Golang
+			+ '|' + '\\(\\S*?\\b' + currentWord + '\\)\\s*\\w+'	// (Class)var -- type cast
+			+ '|' + '<\\S*?\\b' + currentWord + '\\b' + '[\\w,:\\s]*?>'	// generic
+			+ '|' + '<[\\s\\w,]*?\\b' + currentWord + '\\b' + '[\\w,:\\s]*?>' // generic
+			+ '|' + '<[\\w,:\\s]*?\\b' + currentWord + '\\s*>' // generic
+			+ '|' + '<[\\w,:\\s]*?\\b' + currentWord + '\\b[\\s\\w,]*?>' // generic
+			+ '|' + '^\\s*((public|private|protected|internal|static|readonly|const|final|val|virtual|volatile)\\s+)+\\s*' + currentWord + '[^\\w,;=]*\\s+[\\*\\&\\?]?\\w+'
 		);
 
-		this.isOnlyFindClass = !this.isOnlyFindMember && (
+		this.isOnlyFindClass =
 			onlyFindClassRegex.test(this.currentTextMaskCurrentWord)
-			|| (isCapitalizedWord && new RegExp('^\\s*\\W*' + currentWord + '\\W+\\w+').test(this.currentTextMaskCurrentWord))
+			|| (this.isCapitalizedWord &&
+				(
+					// left style like C++/C#/Java: Class var
+					!isTypeAfterObject && new RegExp('(^\\s*|\\(\\s*|,\\s*|\\b[A-Z]\\w+(\\.|::))\\b' + currentWord + '[\\s&\\*\\?]+[a-z_A-Z]\\w+').test(this.currentTextMaskCurrentWord)
+
+					// right style like Golang: var Class
+					|| isTypeAfterObject && new RegExp('(^\\s*|\\(|,)\\s*\\w+\\s*:\\s+\\*?(\\w+\\S+\\.)?' + currentWord + '\\s*(,|\\)|\\s*`)').test(this.currentTextMaskCurrentWord)
+
+					// Scala function return type
+					|| new RegExp('\\b(def\\s+\\w+).*?\\s+' + currentWord + '\\s+').test(this.currentTextMaskCurrentWord)
+
+					// Python params comment
+					|| this.extension === 'py' && new RegExp('^\\s*:\\s*type\\s+\\w+.*?\\b' + this.currentWord + '\\W*$').test(this.currentTextMaskCurrentWord)
+				)
+			);
+
+		const onlyFindMemberRegex = new RegExp('(this|self)[->\\.]{1,2}' + currentWord + '\\b');
+		this.isOnlyFindMember = !this.isOnlyFindClass && !this.methodQuoteRegex.test(this.currentTextMaskCurrentWord) && (
+			onlyFindMemberRegex.test(this.currentTextMaskCurrentWord) || (
+				!(new RegExp('\\b(def\\s+\\w+).*?\\s+').test(this.currentTextMaskCurrentWord)) && new RegExp('\\b' + currentWord + '\\s*=').test(this.currentTextMaskCurrentWord)
+			)
 		);
 
 		this.isFindClass = this.isOnlyFindClass || this.isFindClassRegex.test(this.currentTextMaskCurrentWord) && this.isFindClassWithWordCheckRegex.test(currentWord);
 		this.isFindMethod = (!this.isOnlyFindClass && !this.isOnlyFindMember) && this.isFindMethodRegex.test(this.currentTextMaskCurrentWord);
 		this.isFindMember = this.isOnlyFindMember || !this.isOnlyFindClass && this.isFindMemberRegex.test(this.currentTextMaskCurrentWord) && !this.methodQuoteRegex.test(this.currentTextMaskCurrentWord);
 		this.isFindEnum = !this.isOnlyFindClass && this.isFindEnumRegex.test(this.currentTextMaskCurrentWord);
-		this.isFindClassOrEnum = !this.isOnlyFindMember && isCapitalizedWord && this.isFindClassOrEnumRegex.test(this.currentTextMaskCurrentWord);
+		this.isFindClassOrEnum = !this.isOnlyFindMember && this.isCapitalizedWord && this.isFindClassOrEnumRegex.test(this.currentTextMaskCurrentWord);
 		this.isFindClassOrMethod = !this.isOnlyFindMember && !this.isOnlyFindClass && this.isFindClassOrMethodRegex.test(this.currentTextMaskCurrentWord);
 		this.isFindMemberOrLocalVariable = this.isOnlyFindMember || !this.isOnlyFindClass && this.isFindMemberOrLocalVariableRegex.test(this.currentTextMaskCurrentWord);
 
+		this.isProbablyFindClass = this.isCapitalizedWord && (
+			// class.method()
+			new RegExp('(^|[^\\w\\.:>])' + currentWord + '(\\.|->|::)\\w+\\(').test(this.currentTextMaskCurrentWord)
+			// class.Constant
+			|| new RegExp('(^|[^\\w\\.:>])' + currentWord + '(\\.|->|::)[A-Z]\\w+').test(this.currentTextMaskCurrentWord)
+		);
+
 		if (!this.isFindClass && !this.isOnlyFindMember && !this.isFindClassOrEnum && !this.isFindEnum
-			&& isCapitalizedWord
+			&& this.isCapitalizedWord
 			&& new RegExp("\\b" + this.currentWord + "\\s+\\w+").test(this.currentTextMaskCurrentWord)) {
 			this.isFindClass = true;
 		}
@@ -167,11 +208,11 @@ export class SearchChecker {
 			&& !this.methodQuoteRegex.test(this.currentTextMaskCurrentWord)
 			&& new RegExp('\\b' + this.currentWord + '\\b\\S*\\s*=').test(this.currentTextMaskCurrentWord);
 
-		this.isProbablyFindLocalVariable = !isCapitalizedWord
+		this.isProbablyFindLocalVariable = !this.isCapitalizedWord
 			&& new RegExp('([^\\w\\.:>])' + this.currentWord + '(\\s*$|[^\\w:-]|\\.\\w+\\()').test(this.currentTextMaskCurrentWord);
 
 		this.isFindConstantRegex = this.getCheckingRegex('isFindConstant', false);
-		if (isCapitalizedWord) {
+		if (this.isCapitalizedWord) {
 			this.isFindConstant = (this.isFindConstantRegex.source === EmptyRegex.source
 				? MyConfig.DefaultConstantsRegex.test(this.currentWord)
 				: this.isFindConstantRegex.test(this.currentWord)
@@ -187,34 +228,50 @@ export class SearchChecker {
 		this.enumOrConstantValueRegex = new RegExp('^\\s*' + this.currentWord + '\\s*=\\s*(-?\\d+|["\']\\w+)');
 
 		if (!this.isFindClass && !this.isFindMember && !this.isFindMethod && !this.isFindEnum) {
-			if (isCapitalizedWord && new RegExp('^\\s*' + this.currentWord + '\\s*=').test(this.currentTextMaskCurrentWord)) {
+			if (this.isCapitalizedWord && new RegExp('^\\s*' + this.currentWord + '\\s*=').test(this.currentTextMaskCurrentWord)) {
 				this.isFindMember = true;
 			}
 
-			if (isCapitalizedWord && new RegExp('[^\.\w]' + this.currentWord + '(\\.|::|->)\\w+').test(this.currentTextMaskCurrentWord)) {
+			if (this.isCapitalizedWord && new RegExp('[^\.\w]' + this.currentWord + '(\\??\\.|::|->)\\w+').test(this.currentTextMaskCurrentWord)) {
 				this.isFindClass = true;
 			}
-		} else if (!this.isFindClass && !this.isOnlyFindMember && isCapitalizedWord && /^(py|cpp)$/.test(mappedExt) && /^[A-Z]\w+/.test(this.currentWord) && this.methodQuoteRegex.test(currentText)) {
+		} else if (!this.isFindClass && !this.isOnlyFindMember && this.isCapitalizedWord && /^(py|cpp)$/.test(mappedExt) && /^[A-Z]\w+/.test(this.currentWord) && this.methodQuoteRegex.test(currentText)) {
 			this.isFindClass = true;
 		}
 
-		this.maybeEnum = false;
-		if (!this.isOnlyFindClass && !this.isOnlyFindMember && isCapitalizedWord && !this.isFindClass && !this.isFindMember
+		this.maybeEnum = this.isCapitalizedWord && new RegExp('\\w+(::|\\.|->)\\s*' + currentWord + '([^\\w\\.:-]|$)').test(this.currentTextMaskCurrentWord);
+		if (!this.isOnlyFindClass && !this.isOnlyFindMember && this.isCapitalizedWord && !this.isFindClass && !this.isFindMember
 			&& !this.isFindClassOrEnum && !this.isFindEnum && !this.isFindMethod && !this.isFindConstant) {
 			this.maybeEnum = true;
 			this.isFindClassOrMethod = true;
 		}
 
 		if (!this.isOnlyFindClass && !this.isOnlyFindMember && !this.maybeEnum) {
-			this.maybeEnum = isCapitalizedWord && new RegExp('(=|return|,)\\s*\\w+\\S*(\\.|->|::)' + currentWord + '\\s*(\\)|[,;]?\\s*$)').test(this.currentTextMaskCurrentWord);
+			this.maybeEnum = this.isCapitalizedWord && new RegExp('(=|return|,)\\s*\\w+\\S*(\\.|->|::)' + currentWord + '\\s*(\\)|[,;]?\\s*$)').test(this.currentTextMaskCurrentWord);
 		}
 
-		this.maybeEnumResultRegex = new RegExp("^\\s*" + this.currentWord + "\\s*,?\\s*$");
+		this.maybeEnumResultRegex = new RegExp('^\\s*' + this.currentWord + '\\b\\s*(' + ',?\\s*$' + '|' + '=\\s*(-?\\d|[\'"])' + ')');
+
+		this.shouldAddClassSearcher = (this.isOnlyFindClass || this.isProbablyFindClass || this.isFindClassOrMethod || this.isFindClassOrEnum)
+			&& (!this.isCodeFile || (!this.isFindMethod && !this.isFindMember));
+
+		const classNameMatch = this.currentTextMaskCurrentWord.match(new RegExp('(^|[^\\w:\\.>])([A-Z]\\w{2,})(\\??\\.|::|->)' + currentWord + '\\b'));
+		const classNameWord = (this.shouldAddClassSearcher ? currentWord : (classNameMatch ? classNameMatch[2] : '')).replace(/^m?_+|_+$/g, '');
+		if (!isNullOrEmpty(classNameWord)) {
+			this.classFileNamePattern = classNameWord.replace(/^I([A-Z]\w+)/, '$1');
+			if (this.extension === 'py' || mappedExt === 'py') {
+				this.classFileNamePattern = this.classFileNamePattern.replace(/([A-Z][a-z]+)/g, '.?$1').replace(/^\.\?|\.\?$/g, '');
+			}
+		}
+
+		const fileNameHighScoreWordMatch = this.currentTextMaskCurrentWord.match(new RegExp('(^|[^\\w:\\.>])m?_?([a-zA-Z]\\w{2,})(\\??\\.|::|->)' + currentWord + '\\b'));
+		this.fileNameHighScoreWord = fileNameHighScoreWordMatch ? fileNameHighScoreWordMatch[2] : '';
+		this.classFileNameScoreRegex = createRegex((this.classFileNamePattern || this.fileNameHighScoreWord || classNameWord).replace(/^m?_+|_+$/g, ''), 'i');
 
 		this.currentWordSet = getAllSingleWords(this.currentWord);
 		this.currentFileNameWordSet = getAllSingleWords(this.currentFile.name);
 		this.currentFilePathWordSet = getAllSingleWords(this.currentFilePath);
-		const highScoreRegex = new RegExp('(\\w+)(?:\\.|::|->)' + this.currentWord + '\\b' + '|' + '\\b(' + this.currentWord + ')(?:\\.|::|->)\\w+');
+		const highScoreRegex = new RegExp('(\\w+)(?:\\??\\.|::|->)' + this.currentWord + '\\b' + '|' + '\\b(' + this.currentWord + ')(?:\\??\\.|::|->)\\w+');
 		const highScoreMatch = highScoreRegex.exec(this.currentText);
 		if (highScoreMatch) {
 			if (highScoreMatch[1]) {

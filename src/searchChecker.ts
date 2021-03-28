@@ -66,6 +66,9 @@ export class SearchChecker {
 
 	public maybeEnum: boolean;
 	public maybeEnumResultRegex: RegExp;
+	public isInTestPath: boolean;
+	public isInTestFolder: boolean;
+	public isTestFileName: boolean;
 
 	public shouldAddClassSearcher: boolean;
 	public classFileNamePattern: string = '';
@@ -125,6 +128,10 @@ export class SearchChecker {
 
 		// for doc + config
 		this.ForceUseDefaultFindingDefinition = FindType.Definition === this.findType && MyConfig.UseDefaultFindingClassCheckExtensionRegex.test(this.currentFile.ext);
+
+		this.isTestFileName = /test/i.test(currentFile.name);
+		this.isInTestFolder = /test/i.test(currentFile.dir);
+		this.isInTestPath = this.isTestFileName || this.isInTestFolder;
 
 		this.isClassResultRegex = this.getCheckingRegex('isClassResult', true);
 		this.isEnumResultRegex = this.getCheckingRegex('isEnumResult', true);
@@ -247,7 +254,7 @@ export class SearchChecker {
 		}
 
 		if (!this.isOnlyFindClass && !this.isOnlyFindMember && !this.maybeEnum) {
-			this.maybeEnum = this.isCapitalizedWord && new RegExp('(=|return|,)\\s*\\w+\\S*(\\.|->|::)' + currentWord + '\\s*(\\)|[,;]?\\s*$)').test(this.currentTextMaskCurrentWord);
+			this.maybeEnum = this.isCapitalizedWord && new RegExp('(=|return|case|,)\\s*\\w+\\S*(\\.|->|::)' + currentWord + '\\s*(\\)|[,;:]?\\s*$)').test(this.currentTextMaskCurrentWord);
 		}
 
 		this.maybeEnumResultRegex = new RegExp('^\\s*' + this.currentWord + '\\b\\s*(' + ',?\\s*$' + '|' + '=\\s*(-?\\d|[\'"])' + ')');

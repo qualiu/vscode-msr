@@ -387,7 +387,20 @@ export class DefinitionFinder implements vscode.DefinitionProvider {
 			addSearcher(currentFolderSearchers, createSearcher(searchChecker, "Search-Current-Folder-Recursively", sourceFileFolder, true, defaultForceFindClassMethodMember, 9, 7));
 		}
 
-		let pathSet = new Set<string>();
+		function skipTestPathInCommandLine(searcher: Searcher | null): Searcher | null {
+			if (searcher) {
+				searcher.CommandLine = searcher.CommandLine.replace(/(\s+--n[pd]\s+")/, '$1test|');
+			}
+
+			return searcher;
+		}
+
+		if (!searchChecker.isInTestPath) {
+			for (let k = 0; k < currentFolderSearchers.length; k++) {
+				currentFolderSearchers[k] = skipTestPathInCommandLine(currentFolderSearchers[k]);
+			}
+		}
+
 		let slowSearchers: (Searcher | null)[] = [];
 		let parentFolder = path.dirname(sourceFileFolder);
 		const diskRegex = IsWindows ? /^[A-Z]:\\.+?\\\w+/i : new RegExp('^/[^/]+/[^/]+$');
@@ -396,8 +409,10 @@ export class DefinitionFinder implements vscode.DefinitionProvider {
 			if (isNullOrEmpty(rootFolder) || !parentFolder.startsWith(rootFolder) || !parentFolder.match(diskRegex)) {
 				break;
 			}
-			pathSet.add(parentFolder);
-			const searcher = createSearcher(searchChecker, "Search-Parent-Up-" + (k + 1), parentFolder, true, defaultForceFindClassMethodMember, 16, 9);
+			let searcher = createSearcher(searchChecker, "Search-Parent-Up-" + (k + 1), parentFolder, true, defaultForceFindClassMethodMember, 16, 9);
+			if (!searchChecker.isInTestPath) {
+				searcher = skipTestPathInCommandLine(searcher);
+			}
 			addClassNameFileSearcher(slowSearchers, searcher);
 			addSearcher(slowSearchers, searcher);
 			parentFolder = path.dirname(parentFolder);
@@ -407,10 +422,7 @@ export class DefinitionFinder implements vscode.DefinitionProvider {
 		const testFolderMatch = document.fileName.match(new RegExp('[\\\\/]test[\\\\/]'));
 		if (!isExternalFile && testFolderMatch) {
 			const testParentFolder = document.fileName.substring(0, testFolderMatch.index);
-			if (!pathSet.has(testParentFolder)) {
-				addSearcher(slowSearchers, createSearcher(searchChecker, 'Search-Parent-Test-Folder', testParentFolder));
-				pathSet.add(testParentFolder);
-			}
+			addSearcher(slowSearchers, createSearcher(searchChecker, 'Search-Parent-Test-Folder', testParentFolder));
 		}
 
 		if (searchChecker.shouldAddClassSearcher) {
@@ -418,11 +430,10 @@ export class DefinitionFinder implements vscode.DefinitionProvider {
 			slowSearchers = addClassSearchers(slowSearchers);
 		}
 
-		const repoSearcher = isNullOrEmpty(rootFolder) || pathSet.has(rootFolder) ? null : createSearcher(searchChecker, "Search-This-Repo", rootFolder);
+		const repoSearcher = isNullOrEmpty(rootFolder) ? null : createSearcher(searchChecker, "Search-This-Repo", rootFolder);
 		addClassNameFileSearcher(slowSearchers, createSearcher(searchChecker, "Search-This-Repo", rootFolder));
 
 		addSearcher(slowSearchers, repoSearcher);
-		pathSet.add(rootFolder);
 
 		const forbidReRunSearchers = new Set<Searcher | null>();
 		function addExtraOtherSearchers(searcherGroup: (Searcher | null)[], rootFolders: string[], isExtra: boolean) {

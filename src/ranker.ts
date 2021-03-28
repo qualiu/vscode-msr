@@ -589,8 +589,8 @@ export class Ranker {
 			score += 100 * boostFactor;
 		}
 
-		if (!this.searchChecker.currentFilePath.match(/test/i) && resultFilePath.match(/test/i)) {
-			score -= 200 * boostFactor;
+		if (!this.searchChecker.isInTestPath && resultFilePath.match(/test/i)) {
+			score -= 300 * boostFactor;
 			// return [type, 0]; // avoid no results for test folder/repo.
 		}
 

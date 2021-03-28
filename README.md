@@ -182,7 +182,7 @@ You can generate the command shortcuts (alias/doskey) to directly use for search
 ### Command Shortcuts
 
 - After you cooked command alias/doskeys, you'll see messages below: (You can **write**/**update** doskeys in file)
-- Automated command shortcuts on **Linux** + **WSL** + [**4 types of terminals** on Windows](#supported-4-terminal-types-on-windows) to search or [**mining-code**](#code-mining-without-or-with-little-knowledge) or replace files.
+- Automated command shortcuts on **Linux** + **WSL** + [**4 types of terminals** on Windows](#supported-4-terminal-types-on-windows) to [search](#search-files-with-rich-filters) or [**mining-code**](#code-mining-without-or-with-little-knowledge) or [replace files](#replace-files-with-preview-and-backup).
 
 ```bash
 Now you can directly use the command shortcuts in/out-of vscode to search + replace like:
@@ -243,8 +243,8 @@ When you open a new terminal, will [**auto set project specific command shortcut
     - Linux console or [Cygwin/MinGW/WSL console on Windows](#supported-4-terminal-types-on-windows):
       - **source** `/tmp/{project-folder-name}.msr-cmd-alias.bashrc`
     - Notes:
-      - The above `"temp alias file paths"` are already displayed in `MSR-RUN-CMD` or other terminals.
-      - Please check the **name** + **paths** by command: **`malias "update-\S*alias"`** in `MSR-RUN-CMD` or other terminals.
+      - The above `"temp alias file paths"` are already displayed in `MSR-RUN-CMD` and new terminals.
+      - Please get the **name** + **paths** by command: **`malias "update-\S*alias"`** in `MSR-RUN-CMD` and new terminals.
       - Only effective to current console, no impact to other/latter consoles.
 - You can verify switching by command like: **`alias find-ref`**, should see different **find-ref** definitions after switched.
 
@@ -256,9 +256,9 @@ Open user settings, set `msr.useGitIgnoreFile` = `true` (or `msr.{project-folder
 - Omit file/folder exemptions (like `!not-exclude.txt`) as default.
   - Set `msr.omitGitIgnoreExemptions` = `false` to not use git-ignore if found exemptions.
 
-Parsing result of `gitignore` file: see `MSR-Def-Ref` output channel (with `msr.debug` = `true` or launched in debug mode).
+Parsing result of `.gitignore` file: see `MSR-Def-Ref` output channel (with `msr.debug` = `true` or launched in debug mode).
 
-Run command `npm run test` in vscode-msr folder if you want to see the translation rule of git-ignore on Windows/Linux.
+Run command **`"npm run test"`** in vscode-msr folder if you want to see the translation rule of git-ignore on Windows/Linux.
 
 ### Compare file lists to help checking if a project can use git-ignore
 
@@ -341,7 +341,7 @@ See [**here**](https://github.com/qualiu/vscode-msr/blob/master/Add-New-Language
 
 For example of `Rust` language, adding `msr.fileExtensionMap.rs` = `"rs"` (like `"bat cmd"` for `msr.fileExtensionMap.batch`):
 
-- You'll get new command shortcuts like: `find-rs` + `find-s-ref` + `find-rs-def` to help [search/replace](#search-files-with-rich-filters) or [code mining](#code-mining-without-or-with-little-knowledge).
+- You'll get new command shortcuts like: `find-rs` + `find-rs-ref` + `find-rs-def` to help [search/replace](#search-files-with-rich-filters) or [code mining](#code-mining-without-or-with-little-knowledge).
 - This will use the default finding Regex patterns unless you added `Rust` patterns (see `msr.batch.definition` / `msr.cs.class.definition`).
 - Please **re-cook** [default/general shortcuts](#make-command-shortcuts-to-search-or-replace-in-or-out-of-vscode) to avoid missing `default` shortcuts when [**switching**](#switch-between-general-and-project-specific-command-shortcuts) from `project-specific` shortcuts.
 
@@ -437,7 +437,7 @@ There're another 2 ways to toggle besides the hot key (`Alt+F2`):
   - `msr.cookCmdAlias.outputRelativePathForLinuxTerminalsOnWindows`:
 - For search output (from `menu` or `auto-triggered re-run when got multiple results`):
   - `msr.searchRelativePathForLinuxTerminalsOnWindows`:
-    - Set `true` to help click + open results in `vscode` for Cygwin/MinGW/WSL terminals on Windows.
+    - Set `true` to help click + open results in `vscode` for [Cygwin/MinGW/WSL terminals](#supported-4-terminal-types-on-windows) on Windows.
   - `msr.searchRelativePathForNativeTerminals`: Enable it to get short paths.
 - Just add `-W` to output full paths when you re-use the command line and if it output relative paths.
 
@@ -451,7 +451,7 @@ This doc listed a few configuration names. Finding more by pressing `F1` to [Ope
 
   Don't activate (show) channels: `MSR-Def-Ref` (in `OUTPUT` tab) + `MSR-RUN-CMD` (in `TERMINAL` tab).
 
-  - `MSR-Def-Ref` shows sorted results after ranking, and specific search commands with time costs.
+  - `MSR-Def-Ref` shows **sorted results after ranking**, and specific search commands with time costs.
   - `MSR-RUN-CMD` shows `re-running search when got multiple results` or `finding commands from menu`.
 
 ## Extension Settings If You Want to Change
@@ -517,7 +517,7 @@ It's better to set one on Windows since vscode 1.53.0 which removed the terminal
 
 #### Use Short Mount Paths for WSL Bash Terminal on Windows
 
-- Set **/etc/wsl.conf** like below to use short mount paths (like **`/c/`** instead of **`/mnt/c/`**), may need restart to take effect:
+Set **/etc/wsl.conf** like below to use short mount paths (like **`/c/`** instead of **`/mnt/c/`**), may need restart to effect:
 
 ```bash
 [automount]
@@ -772,7 +772,7 @@ However, there're 1 workaround for duplicate results + 2 workarounds for finding
 #### Workaround for VsCode Finding Definition Bug
 
 - **Method-1**: Set **msr.quiet** = **false**: Un-check it from user settings, which is opposite to [Set Quiet Mode](#more-settings-like-quiet-mode).
-  - This will let you see the matched results and able to **click and go to the locations**.
+  - This let you see **`sorted results after ranking`** and able to **click and go to the locations**.
   - But this may **annoy you** to activate and show 2 channels each time `"Go To Definition"`:
     - It'll show search command + results in the `MSR-Def-Ref` channel in `OUTPUT` tab each time.
     - And re-run search in `MSR-RUN-CMD` in `TERMINAL` tab if `got multiple results` or `no results found`.

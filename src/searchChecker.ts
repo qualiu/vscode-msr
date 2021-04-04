@@ -263,7 +263,9 @@ export class SearchChecker {
 			&& (!this.isCodeFile || (!this.isFindMethod && !this.isFindMember));
 
 		const classNameMatch = this.currentTextMaskCurrentWord.match(new RegExp('(^|[^\\w:\\.>])([A-Z]\\w{2,})(\\??\\.|::|->)' + currentWord + '\\b'));
-		const classNameWord = (this.shouldAddClassSearcher ? currentWord : (classNameMatch ? classNameMatch[2] : '')).replace(/^m?_+|_+$/g, '');
+		const classNameWord = (this.shouldAddClassSearcher ? currentWord : (classNameMatch ? classNameMatch[2] : ''))
+			.replace(/^m?_+|([0-9]+|i?e?s)_*$/g, '')
+			.replace('_', '.?');
 		if (!isNullOrEmpty(classNameWord)) {
 			this.classFileNamePattern = classNameWord.replace(/^I([A-Z]\w+)/, '$1');
 			if (this.extension === 'py' || mappedExt === 'py') {

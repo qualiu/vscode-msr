@@ -2,6 +2,10 @@
 
 All notable changes to this "vscode-msr" extension will be documented in this file.
 
+## [2.1.16]
+
+- Trimmed more characters for file name to search.
+
 ## [2.1.15]
 
 - Improved searching member/enumerate + optimized searching + improved speed.

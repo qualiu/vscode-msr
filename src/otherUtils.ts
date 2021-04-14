@@ -69,7 +69,7 @@ export function isToolExistsInPath(exeToolName: string, terminalType: TerminalTy
   return [false, ''];
 }
 
-export function getTerminalInitialDirectory(terminal: vscode.Terminal | null | undefined): string {
+export function getTerminalInitialPath(terminal: vscode.Terminal | null | undefined): string {
   if (!terminal) {
     return '';
   }
@@ -77,8 +77,8 @@ export function getTerminalInitialDirectory(terminal: vscode.Terminal | null | u
   try {
     const creationOptions = Reflect.get(terminal, 'creationOptions');
     const terminalCwd = Reflect.get(creationOptions, 'cwd');
-    const terminalCurrentFolder = Reflect.get(terminalCwd, 'fsPath');
-    return terminalCurrentFolder;
+    const terminalPath = terminalCwd ? Reflect.get(terminalCwd, 'fsPath') : Reflect.get(creationOptions, 'shellPath');
+    return terminalPath;
   } catch (err) {
     console.error('Cannot get creationOptions.cwd.fsPath from terminal: ' + terminal.name);
     return '';

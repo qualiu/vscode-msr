@@ -8,7 +8,7 @@ import { IsWindows, RunCmdTerminalName, SearchTextHolderReplaceRegex } from './c
 import { cookCmdShortcutsOrFile } from './cookCommandAlias';
 import { FileExtensionToMappedExtensionMap, getConfig, getExtraSearchPaths, getGitIgnore, MappedExtToCodeFilePatternMap, MyConfig, printConfigInfo } from './dynamicConfig';
 import { FindCommandType, FindType, ForceFindType } from './enums';
-import { getTerminalInitialDirectory, getTerminalNameOrShellExeName } from './otherUtils';
+import { getTerminalInitialPath, getTerminalNameOrShellExeName } from './otherUtils';
 import { clearOutputChannel, disposeTerminal, outputDebug, outputInfoByDebugMode } from './outputUtils';
 import { Ranker } from './ranker';
 import { SearchChecker } from './searchChecker';
@@ -58,8 +58,8 @@ export function registerExtension(context: vscode.ExtensionContext) {
 			return;
 		}
 
-		const initFolder = getTerminalInitialDirectory(terminal);
-		const workspaceFolder = getRootFolder(initFolder);
+		const initialPath = getTerminalInitialPath(terminal);
+		const workspaceFolder = getRootFolder(initialPath);
 		const terminalName = getTerminalNameOrShellExeName(terminal);
 
 		if (MyConfig.SkipInitCmdAliasForNewTerminalTitleRegex.test(terminalName)) {

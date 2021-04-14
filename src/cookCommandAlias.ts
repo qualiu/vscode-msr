@@ -5,7 +5,7 @@ import { getConfigValueByRoot, getOverrideConfigByPriority } from "./configUtils
 import { HomeFolder, IsLinux, IsWindows, IsWSL, RunCmdTerminalName, SearchTextHolderReplaceRegex } from "./constants";
 import { DefaultRootFolder, getConfig, getGitIgnore, getSearchPathOptions, MappedExtToCodeFilePatternMap, MyConfig } from "./dynamicConfig";
 import { FindCommandType, TerminalType } from "./enums";
-import { getTerminalInitialDirectory, getTerminalNameOrShellExeName, getTerminalShellExePath, saveTextToFile } from './otherUtils';
+import { getTerminalInitialPath, getTerminalNameOrShellExeName, getTerminalShellExePath, saveTextToFile } from './otherUtils';
 import { clearOutputChannel, enableColorAndHideCommandLine, MessageLevel, outputDebug, outputError, outputInfoQuiet, runCommandGetInfo, runCommandInTerminal, sendCmdToTerminal } from "./outputUtils";
 import { escapeRegExp } from "./regexUtils";
 import { DefaultTerminalType, getRootFolder, getRootFolderName, getTimeCostToNow, getUniqueStringSetNoCase, IsLinuxTerminalOnWindows, isLinuxTerminalOnWindows, isNullOrEmpty, isWindowsTerminalType, nowText, quotePaths, replaceTextByRegex, toOsPath, toOsPathsForText, toWSLPath } from "./utils";
@@ -14,7 +14,7 @@ import os = require('os');
 import path = require('path');
 
 const CookCmdDocUrl = 'https://github.com/qualiu/vscode-msr/blob/master/README.md#command-shortcuts';
-let CookCmdTimesForRunCmdTerminal: number = 0;
+export let CookCmdTimesForRunCmdTerminal: number = 0;
 
 function getLinuxHomeFolderOnWindows(terminalType: TerminalType): string {
   const shellExeFolder = path.dirname(getTerminalShellExePath());
@@ -86,15 +86,21 @@ export function cookCmdShortcutsOrFile(
   const isCreatingRunCmdTerminal = newTerminal && newTerminal.name === RunCmdTerminalName;
   const isGeneralCmdAlias = !newTerminal && !useProjectSpecific;
 
+  const initialPath = getTerminalInitialPath(newTerminal) || '';
   const shellExe = getTerminalShellExePath();
   const shellExeFolder = path.dirname(shellExe);
-  const terminalName = getTerminalNameOrShellExeName(newTerminal) || getTerminalInitialDirectory(newTerminal);
+  const terminalOrShellName = getTerminalNameOrShellExeName(newTerminal);
 
-  if (terminalName === RunCmdTerminalName) {
+  const terminalName = initialPath.match(/(bash|exe|sh)$/i)
+    ? path.basename(initialPath)
+    : terminalOrShellName || path.basename(initialPath);
+
+  const isRunCmdTerminal = terminalOrShellName === RunCmdTerminalName;
+  if (isRunCmdTerminal) {
     CookCmdTimesForRunCmdTerminal += 1;
   }
 
-  const isReCookingForRunCmdTerminal: boolean = CookCmdTimesForRunCmdTerminal > 1 && terminalName === RunCmdTerminalName;
+  const isReCookingForRunCmdTerminal: boolean = CookCmdTimesForRunCmdTerminal > 1 && isRunCmdTerminal;
 
   let terminalType: TerminalType = DefaultTerminalType;
   if (newTerminal && terminalName !== RunCmdTerminalName) {
@@ -110,9 +116,9 @@ export function cookCmdShortcutsOrFile(
           terminalType = TerminalType.PowerShell;
         }
       } else {
-        if (/cmd.exe$/i.test(shellExe)) {
+        if (/cmd.exe$/i.test(terminalName || shellExe)) {
           terminalType = TerminalType.CMD;
-        } else if (/PowerShell.exe$/i.test(shellExe)) {
+        } else if (/PowerShell.exe$/i.test(terminalName || shellExe)) {
           terminalType = TerminalType.PowerShell;
         } else if (/Cygwin.*?bin\\bash.exe/i.test(shellExe)) {
           terminalType = TerminalType.CygwinBash;
@@ -132,7 +138,7 @@ export function cookCmdShortcutsOrFile(
   const isWindowsTerminal = isWindowsTerminalType(terminalType);
   const isLinuxTerminalOnWindows = IsWindows && !isWindowsTerminal;
   const saveFolder = getCmdAliasSaveFolder(isGeneralCmdAlias, terminalType);
-  const rootFolder = terminalName === RunCmdTerminalName ? DefaultRootFolder : getRootFolder(currentFilePath, useProjectSpecific);
+  const rootFolder = isRunCmdTerminal ? DefaultRootFolder : getRootFolder(currentFilePath, useProjectSpecific);
   const rootFolderName = getRootFolderName(rootFolder);
   if (isNullOrEmpty(rootFolderName) && !newTerminal) {
     useProjectSpecific = false;
@@ -295,7 +301,7 @@ export function cookCmdShortcutsOrFile(
       }
     }
 
-    if (!newTerminal || (terminalName === RunCmdTerminalName && MyConfig.IsDebug)) {
+    if (!newTerminal || (isRunCmdTerminal && MyConfig.IsDebug)) {
       outputCmdAliasGuide(newTerminal ? getGeneralCmdAliasFilePath(terminalType) : cmdAliasFile, '');
       const existingInfo = isWindowsTerminal ? ' (merged existing = ' + oldCmdCount + ')' : '';
       outputInfoQuiet(nowText() + (hasChanged ? 'Successfully made ' : 'Already has same ') + commands.length + existingInfo + ' command alias/doskey file at: ' + cmdAliasFile);

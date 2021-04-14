@@ -328,7 +328,7 @@ export function getExtensionNoHeadDot(extension: string | undefined, defaultValu
 }
 
 export function getRootFolder(filePath: string, useFirstFolderIfNotFound = false): string {
-    const folderUri = vscode.workspace.getWorkspaceFolder(vscode.Uri.file(filePath));
+    const folderUri = isNullOrEmpty(filePath) ? '' : vscode.workspace.getWorkspaceFolder(vscode.Uri.file(filePath));
     if (!folderUri || !folderUri.uri || !folderUri.uri.fsPath) {
         if (useFirstFolderIfNotFound && vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders.length > 0) {
             return vscode.workspace.workspaceFolders[0].uri.fsPath;

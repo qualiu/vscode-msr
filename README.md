@@ -32,9 +32,11 @@ Then it's the **light** and **right** tool for you(just **2~3 MB** storage + **1
 
 - Only support: **64-bit** + **32-bit** : **Windows** + **WSL** + **Linux** (`Ubuntu`+`CentOS`+`Fedora`: `gcc/g++` >= `4.8`).
 - [**Workaround**](#workaround-to-long-existing-vscode-bug-impact-to-finding-definition-and-reference) to [long existing VsCode bug](https://github.com/microsoft/vscode/issues/96754) impact to `Go To Definition` and `Find All Reference`.
-- See [**here**](#adjust-your-color-theme-if-result-file-path-folder-color-is-not-clear) if **`folder color`** of output result file paths is not clear: add/change one color theme.
-- [**Set exclusions**](#avoid-security-software-downgrade-search-performance-on-windows) if you cannot get search results **in 1~2 seconds** for just **10000 code files** on Windows.
-- You can start [**search**](#search-files-with-rich-filters) + [**replace**](#replace-files-with-preview-and-backup) + [**code mining**](#code-mining-without-or-with-little-knowledge) via [**mouse**/**menus**](#hide-or-show-more-context-menus) + [**keys**](#get-the-best-combined-power) + [**terminals** in/out vscode](#make-command-shortcuts-to-search-or-replace-in-or-out-of-vscode) **without reading/doing anything**.
+- You can start [**search**](#search-files-with-rich-filters) + [**replace**](#replace-files-with-preview-and-backup) + [**code mining**](#code-mining-without-or-with-little-knowledge) via [**mouse**/**menus**](#hide-or-show-more-context-menus) + [**keys**](#get-the-best-combined-power) + [**terminals**](#make-command-shortcuts-to-search-or-replace-in-or-out-of-vscode) **without** reading/doing anything **except**:
+  - [Cook doskey/alias](#make-command-shortcuts-to-search-or-replace-in-or-out-of-vscode) if you want to use `find-xxx` **out of vscode** (in normal `CMD`/`Bash` console).
+  - [**Set exclusions**](#avoid-security-software-downgrade-search-performance-on-windows) if you cannot get search results **in 1~2 seconds** for just **10000 code files** on Windows.
+  - See [**here**](#adjust-your-color-theme-if-result-file-path-folder-color-is-not-clear) if **`folder color`** of output result file paths is not clear: add/change one color theme.
+  - Please [manually set PATH for msr/nin](#or-manually-download--set-path-once-and-forever) and [explicitly set terminal type](#supported-4-terminal-types-on-windows) if caught problems.
 
 ## Features
 
@@ -495,10 +497,12 @@ Supported various types of terminals: ([settings file](https://code.visualstudio
 
 It's better to set one on Windows since vscode 1.53.0 which removed the terminal name/title in event of `vscode.window.onDidOpenTerminal`.
 
+Please **explicitly set terminal** on Windows if you caught problems when unable to determine `PowerShell` or `CMD` type.
+
 - [VsCode Official supported terminals](https://code.visualstudio.com/docs/editor/integrated-terminal#_configuration) like below:
 
 ```cpp
-// Command Prompt
+// CMD console:
 "terminal.integrated.shell.windows": "C:\\Windows\\System32\\cmd.exe"
 
 // Git Bash(MinGW): Built-in environment variable: MSYSTEM like: MSYSTEM=MINGW64

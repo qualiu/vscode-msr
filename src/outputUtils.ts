@@ -1,6 +1,7 @@
 import { execSync } from 'child_process';
 import * as vscode from 'vscode';
 import { IsDebugMode, IsWindows, OutputChannelName, RunCmdTerminalName } from './constants';
+import { cookCmdShortcutsOrFile, CookCmdTimesForRunCmdTerminal } from './cookCommandAlias';
 import { getConfig } from './dynamicConfig';
 import { getDefaultRootFolder, getDefaultRootFolderByActiveFile, IsLinuxTerminalOnWindows, nowText, replaceTextByRegex } from './utils';
 
@@ -68,7 +69,9 @@ export function getRunCmdTerminal(): vscode.Terminal {
 		if (vscode.workspace.getConfiguration('msr').get('initProjectCmdAliasForNewTerminals') as boolean) {
 			const rootFolder = getDefaultRootFolderByActiveFile() || getDefaultRootFolder();
 			RunCmdTerminalRootFolder = rootFolder.includes('/') ? rootFolder + '/' : rootFolder + '\\';
-			// cookCmdShortcutsOrFile(rootFolder, true, false, _runCmdTerminal);
+			if (CookCmdTimesForRunCmdTerminal < 1) {
+				cookCmdShortcutsOrFile(rootFolder, true, false, _runCmdTerminal);
+			}
 		}
 	}
 

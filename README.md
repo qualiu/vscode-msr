@@ -566,12 +566,19 @@ Code mining examples (run in vscode terminals: like `MSR-RUN-CMD` or add/open **
   - **find-ui** -it `"regex-pattern"` -x `"and-plain-text"`
   - **find-code** -it `"(class|enum)\s+\w*Class-Keyword-You-Heard\w*"`
   - **find-all** -i -t `"(class|enum)\s+\w*Class-Keyword-You-Heard\w*"`
+
 - Others like: (run command `alias find-xxx` to see the command template like `alias find-all`)
   - **find-doc** -it `"regex-pattern"` -x `"and-plain-text"` --nx ... --nt ... --xp ... --pp ... --np ...
   - **find-config** -it `"regex-pattern"` -x `"and-plain-text"`
   - **find-small** -it `"regex-pattern"` -x `"and-plain-text"`
-  - **find-nd** -it `"regex-pattern"` -x `"and-plain-text"`
-  - **find-ndp** path1,path2,pathN -it `"regex-pattern"` -x `"and-plain-text"`
+
+- **General** finding commands like:
+  - **find-nd** -it `"regex-pattern"` -x `"and-plain-text"` [**optional args**](https://github.com/qualiu/msr#brief-summary-of-msr-exe)
+  - **find-ndp** path1,path2,pathN -it `"regex-pattern"` -x `"and-plain-text"` --xp ... --pp ... --np ... -d ... --nd ... --nf ... --nt ... --nx ...
+  - **find-ndp** path1,path2,pathN -f `"\.(cs|py|java)$"` -it `"regex-pattern"` -x `"and-plain-text"` 
+  - **find-nd** -f `"\.(cs|py|java)$"` -it `"regex-pattern"` -x `"and-plain-text"`
+  
+  
 - With other optional args like:
   - **find-all** -it `"regex-pattern"` -x `"and-plain-text"` -l  just list matched file paths.
   - **find-all** -x `"and-plain-text"` -it `"regex-pattern"` -o `"replace-regex-to-this"` -R replace files

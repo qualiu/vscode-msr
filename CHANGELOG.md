@@ -2,6 +2,10 @@
 
 All notable changes to this "vscode-msr" extension will be documented in this file.
 
+## [2.1.18] 
+
+- Workaround for command shortcuts of `find-def` + `find-xxx-def`.
+
 ## [2.1.17]
 
 - Robust terminal initialization on Windows.

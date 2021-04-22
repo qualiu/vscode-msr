@@ -558,7 +558,7 @@ Code mining examples (run in vscode terminals: like `MSR-RUN-CMD` or add/open **
   - **find-def** `"\w*Keyword\w*"` **-i** --nx `private` --nt `"protected|internal"` --xp `test,/unit,/bin/,demo` --pp `"/src/|keyword"` -H 20 -J ...
 
 - **Accelerate searching** if you know the language type (like `Python`/`C#`), the **more** filters the **faster**:
-  - **find-py-def** `"\w*(get|set|update)\w*Method-Keyword-You-Heard\w*"` -ix `public` --nx ... --nt ... --xp ... --pp ... --np ...
+  - **find-py-def** `"\w*(get|set|update)\w*Method-Keyword-You-Heard\w*"` -ix `public` --nx ... --nt ... --xp ... --pp ... -d ... --nd ...
   - **find-cs-def** `"\w*(get|set|update)\w*Method-Keyword-You-Heard\w*"` -i
   - **find-cpp-ref** `"(class|enum)\s+\w*Class-Keyword-You-Heard\w*"` -i
   - **find-java-ref** `"(class|enum)\s+\w*Class-Keyword-You-Heard\w*"` -i
@@ -566,12 +566,18 @@ Code mining examples (run in vscode terminals: like `MSR-RUN-CMD` or add/open **
   - **find-ui** -it `"regex-pattern"` -x `"and-plain-text"`
   - **find-code** -it `"(class|enum)\s+\w*Class-Keyword-You-Heard\w*"`
   - **find-all** -i -t `"(class|enum)\s+\w*Class-Keyword-You-Heard\w*"`
+
 - Others like: (run command `alias find-xxx` to see the command template like `alias find-all`)
-  - **find-doc** -it `"regex-pattern"` -x `"and-plain-text"` --nx ... --nt ... --xp ... --pp ... --np ...
+  - **find-doc** -it `"regex-pattern"` -x `"and-plain-text"` --nx ... --nt ... --xp ... --pp ... -d ... --nd ...
   - **find-config** -it `"regex-pattern"` -x `"and-plain-text"`
   - **find-small** -it `"regex-pattern"` -x `"and-plain-text"`
-  - **find-nd** -it `"regex-pattern"` -x `"and-plain-text"`
-  - **find-ndp** path1,path2,pathN -it `"regex-pattern"` -x `"and-plain-text"`
+
+- **General** finding commands like:
+  - **find-nd** -it `"regex-pattern"` -x `"and-plain-text"` [**optional args**](https://github.com/qualiu/msr#brief-summary-of-msr-exe)
+  - **find-nd** -f `"\.(cs|py|java)$"` -it `"regex-pattern"` -x `"and-plain-text"`
+  - **find-ndp** path1,path2,pathN -f `"\.(cs|py|java)$"` -it `"regex-pattern"` -x `"and-plain-text"`
+  - **find-ndp** path1,path2,pathN -it `"regex-pattern"` -x `"and-plain-text"` -f ... --nf ... -d ... --nd ... --pp ... --xp ... --nt ... --nx ...
+
 - With other optional args like:
   - **find-all** -it `"regex-pattern"` -x `"and-plain-text"` -l  just list matched file paths.
   - **find-all** -x `"and-plain-text"` -it `"regex-pattern"` -o `"replace-regex-to-this"` -R replace files

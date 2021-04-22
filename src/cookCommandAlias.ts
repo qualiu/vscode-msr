@@ -753,7 +753,14 @@ function getCommandAliasMap(
   return [cmdAliasMap, oldCmdCount, commands];
 
   function getCommandAlias(cmdName: string, body: string, useFunction: boolean): string {
-    const text = getCommandAliasText(cmdName, body, useFunction, isWindowsTerminal, writeToEachFile);
+    let text = getCommandAliasText(cmdName, body, useFunction, isWindowsTerminal, writeToEachFile);
+
+    // Workaround for find-def + find-xxx-def
+    const hotFixFindDefRegex = /^find(-[\w-]+)?-def$/;
+    if (cmdName.match(hotFixFindDefRegex)) {
+      text = text.replace('[a-z0-9]+(\\.|->|::)?[A-Z]', '[a-z0-9]+(\\.|->|::)[A-Z]');
+    }
+
     cmdAliasMap.set(cmdName, text);
     return text;
   }

@@ -3,7 +3,7 @@
     "displayName": "Search code + Replace files + Find definition and references for all types.",
     "description": "Search code + Replace files + Find definition and references in multiple repository paths by msr for all coding languages + configuration + doc files.",
     "author": "qualiu@microsoft.com",
-    "version": "2.1.18",
+    "version": "2.1.19",
     "icon": "images/vscode-msr-icon.png",
     "license": "completely free",
     "publisher": "qualiu",
@@ -24,6 +24,8 @@
         "code mining",
         "go to definition",
         "jump to definition",
+        "automation",
+        "refactor",
         "find all",
         "find",
         "search",
@@ -1219,7 +1221,7 @@
                 },
                 "msr.default.definition": {
                     "type": "string",
-                    "default": "^\\s*(#\\s*define\\s+|(p[a-z]+|sealed|internal|readonly|const|static|volatile|final|type)\\s+[\\w\\s,<>\\[\\]]{0,100})\\b(%1)\\b|^\\s*\\w+[\\w\\s<,>]{0,80}\\b(%1)\\s*(?:[\\(\\{:<]|extends|implements|$)",
+                    "default": "^\\s*(#\\s*define\\s+|(p[a-z]+|sealed|internal|readonly|const|static|volatile|final|type)\\s+[\\w\\s,\\?<>\\[\\]]{0,100})\\b(%1)\\b|^\\s*\\w+[\\w\\s,\\?<>]{0,80}\\b(%1)\\s*(?:[\\(\\{:<]|extends|implements|$)",
                     "description": "Default Regex pattern to find definitions of a word (class, method, etc.). Must use `%1` to be replaced by word to search."
                 },
                 "msr.default.reference": {
@@ -1474,7 +1476,7 @@
                 },
                 "msr.cs.method.definition": {
                     "type": "string",
-                    "default": "^\\s*\\w+[\\w\\[\\]\\.\\(\\)<>,\\s]*?\\s+(%1)\\s*(?:<.+?>)?\\s*\\([^;]*$|^\\s*(\\w+\\s+)*?(async|Task|void)\\s+(%1)[\\(<]",
+                    "default": "^\\s*\\w+[\\w\\[\\]\\.\\(\\)\\?<>,\\s]*?\\s+(%1)\\s*(?:<.+?>)?\\s*\\([^;]*$|^\\s*(\\w+\\s+)*?(async|Task|void)\\s+(%1)[\\(<]",
                     "description": "Regex pattern to search C# method definitions."
                 },
                 "msr.cs.enum.definition": {

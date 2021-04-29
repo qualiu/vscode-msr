@@ -31,12 +31,12 @@ Then it's the **light** and **right** tool for you(just **2~3 MB** storage + **1
 **Note**: ([**Temp-toggle**](#get-the-best-combined-power) or [**change settings**](#disable-finding-definition-and-references-for-specific-file-types) for languages disabled by default settings.)
 
 - Only support: **64-bit** + **32-bit** : **Windows** + **WSL** + **Linux** (`Ubuntu`+`CentOS`+`Fedora`: `gcc/g++` >= `4.8`).
-- [**Workaround**](#workaround-to-long-existing-vscode-bug-impact-to-finding-definition-and-reference) to [long existing VsCode bug](https://github.com/microsoft/vscode/issues/96754) impact to `Go To Definition` and `Find All Reference`.
 - You can start [**search**](#search-files-with-rich-filters) + [**replace**](#replace-files-with-preview-and-backup) + [**code mining**](#code-mining-without-or-with-little-knowledge) via [**mouse**/**menus**](#hide-or-show-more-context-menus) + [**keys**](#get-the-best-combined-power) + [**terminals**](#make-command-shortcuts-to-search-or-replace-in-or-out-of-vscode) **without** reading/doing anything **except**:
   - [Cook doskey/alias](#make-command-shortcuts-to-search-or-replace-in-or-out-of-vscode) if you want to use `find-xxx` **out of vscode** (in normal `CMD`/`Bash` console).
   - [**Set exclusions**](#avoid-security-software-downgrade-search-performance-on-windows) if you cannot get search results **in 1~2 seconds** for just **10000 code files** on Windows.
   - See [**here**](#adjust-your-color-theme-if-result-file-path-folder-color-is-not-clear) if **`folder color`** of output result file paths is not clear: add/change one color theme.
-  - Please [manually set PATH for msr/nin](#or-manually-download--set-path-once-and-forever) and [explicitly set terminal type](#supported-4-terminal-types-on-windows) if caught problems.
+  - Please [manually **set PATH** for msr/nin](#or-manually-download--set-path-once-and-forever) if automation failed + [Explicitly set terminal type](#supported-4-terminal-types-on-windows) if caught problems.
+  - [**Workaround**](#workaround-to-long-existing-vscode-bug-impact-to-finding-definition-and-reference) to [long existing VsCode bug](https://github.com/microsoft/vscode/issues/96754) impact to `Go To Definition` and `Find All Reference`.
 
 ## Features
 
@@ -572,7 +572,7 @@ Code mining examples (run in vscode terminals: like `MSR-RUN-CMD` or add/open **
   - **find-config** -it `"regex-pattern"` -x `"and-plain-text"`
   - **find-small** -it `"regex-pattern"` -x `"and-plain-text"`
 
-- **General** finding commands like:
+- **General finding commands** like:
   - **find-nd** -it `"regex-pattern"` -x `"and-plain-text"` [**optional args**](https://github.com/qualiu/msr#brief-summary-of-msr-exe)
   - **find-nd** -f `"\.(cs|py|java)$"` -it `"regex-pattern"` -x `"and-plain-text"`
   - **find-ndp** path1,path2,pathN -f `"\.(cs|py|java)$"` -it `"regex-pattern"` -x `"and-plain-text"`

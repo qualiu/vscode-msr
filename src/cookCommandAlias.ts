@@ -87,11 +87,11 @@ export function cookCmdShortcutsOrFile(
   const isGeneralCmdAlias = !newTerminal && !useProjectSpecific;
 
   const initialPath = getTerminalInitialPath(newTerminal) || '';
-  const shellExe = getTerminalShellExePath();
+  const shellExe = initialPath.match(/\.exe$/i) ? initialPath : getTerminalShellExePath();
   const shellExeFolder = path.dirname(shellExe);
   const terminalOrShellName = getTerminalNameOrShellExeName(newTerminal);
 
-  const terminalName = initialPath.match(/(bash|exe|sh)$/i)
+  const terminalName = initialPath.match(/(bash|exe|wsl|sh)$/i)
     ? path.basename(initialPath)
     : terminalOrShellName || path.basename(initialPath);
 
@@ -108,7 +108,7 @@ export function cookCmdShortcutsOrFile(
       if (isNullOrEmpty(shellExe)) {
         if (/PowerShell/i.test(terminalName)) {
           terminalType = TerminalType.PowerShell;
-        } else if (/bash/.test(terminalName)) {
+        } else if (/bash/i.test(terminalName)) {
           terminalType = TerminalType.WslBash;
         } else if (/CMD|Command/i.test(terminalName)) {
           terminalType = TerminalType.CMD;
@@ -120,11 +120,11 @@ export function cookCmdShortcutsOrFile(
           terminalType = TerminalType.CMD;
         } else if (/PowerShell.exe$/i.test(terminalName || shellExe)) {
           terminalType = TerminalType.PowerShell;
-        } else if (/Cygwin.*?bin\\bash.exe/i.test(shellExe)) {
+        } else if (/Cygwin.*?bin\\bash.exe$/i.test(shellExe)) {
           terminalType = TerminalType.CygwinBash;
-        } else if (/System(32)?.bash.exe/i.test(shellExe)) {
+        } else if (/System(32)?.bash.exe$|wsl.exe$/i.test(shellExe)) {
           terminalType = TerminalType.WslBash;
-        } else if (shellExe.includes('Git\\bin\\bash.exe')) {
+        } else if (/Git\S+bash.exe$/i.test(shellExe)) { // (shellExe.includes('Git\\bin\\bash.exe'))
           terminalType = TerminalType.MinGWBash;
         } else {
           terminalType = TerminalType.PowerShell;

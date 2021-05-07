@@ -66,8 +66,8 @@ export function registerExtension(context: vscode.ExtensionContext) {
 			return;
 		}
 
-		const matchNameRegex = /^(PowerShell|CMD|Command(\s+Prompt)?)|bash|cmd.exe/i;
-		if (MyConfig.InitProjectCmdAliasForNewTerminals && (!IsWindows || isNullOrEmpty(terminalName) || matchNameRegex.test(terminalName))) {
+		const matchNameRegex = /^(PowerShell|CMD|Command(\s+Prompt)?)|bash|cmd.exe|wsl.exe/i;
+		if (MyConfig.InitProjectCmdAliasForNewTerminals && (!IsWindows || isNullOrEmpty(terminalName) || matchNameRegex.test(terminalName) || matchNameRegex.test(initialPath))) {
 			const folders = vscode.workspace.workspaceFolders;
 			const currentPath = folders && folders.length > 0 ? (workspaceFolder || folders[0].uri.fsPath) : '.';
 			cookCmdShortcutsOrFile(currentPath, true, false, terminal);

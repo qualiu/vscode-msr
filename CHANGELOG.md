@@ -2,6 +2,11 @@
 
 All notable changes to this "vscode-msr" extension will be documented in this file.
 
+## [2.1.20]
+
+- Supported vscode 1.56.0 directly creating terminals of `Git-Bash` + `WSL-Bash`.
+- Skipped initializing alias/doskeys for `Linux Powershell Terminal` + `JavaScript Debug Terminal`. 
+
 ## [2.1.19]
 
 - Improved finding C# method definition for case of nullable type in definition.

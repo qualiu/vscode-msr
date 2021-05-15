@@ -285,6 +285,15 @@ Run command **`"npm run test"`** in vscode-msr folder if you want to see the tra
 - Non-precise method: 
   - See [switch between general/specific shortcuts](#switch-between-general-and-project-specific-command-shortcuts).
 
+## Support Multiple Repositories
+
+- Method-1: Use multiple workspace
+  - Add workspace for each repository in vscode, to have specific [**git-ignore**](#use-git-ignore) for each repository.
+  - Recommended if you want to see the related/dependency files in vscode.
+- Method-2: Use [extra search paths](#extra-paths-settings)
+  - Searches extra paths as final resort.
+  - Recommended if you don't want to see the related/dependency files in vscode..
+
 ## Enable Finding Definition and References for Unknown Languages
 
 If you want to support unknown languages, do **anyone** of below:

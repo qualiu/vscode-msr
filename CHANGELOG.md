@@ -2,6 +2,11 @@
 
 All notable changes to this "vscode-msr" extension will be documented in this file.
 
+## [2.1.21] 
+
+- Supported multiple-workspace terminal initializing of `Git-bash` + `WSL-bash` for vscode >= 1.56.0.
+- Added `*.conf` to `find-config` + `msr.default.configFiles` + `msr.default.configAndDocs`.
+
 ## [2.1.20]
 
 - Supported vscode 1.56.0 directly creating terminals of `Git-Bash` + `WSL-Bash`.

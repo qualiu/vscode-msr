@@ -77,7 +77,9 @@ export function getTerminalInitialPath(terminal: vscode.Terminal | null | undefi
   try {
     const creationOptions = Reflect.get(terminal, 'creationOptions');
     const terminalCwd = Reflect.get(creationOptions, 'cwd');
-    const terminalPath = terminalCwd ? Reflect.get(terminalCwd, 'fsPath') : Reflect.get(creationOptions, 'shellPath');
+    const fsPath = !terminalCwd ? '' : Reflect.get(terminalCwd, 'fsPath') as string || '';
+    const shellPath = !creationOptions ? '' : Reflect.get(creationOptions, 'shellPath') as string || '';
+    const terminalPath = fsPath && fsPath.match(/bash$|\w+\.exe$/i) ? fsPath : (shellPath ? shellPath : fsPath);
     return terminalPath;
   } catch (err) {
     console.error('Cannot get creationOptions.cwd.fsPath from terminal: ' + terminal.name);

@@ -3,7 +3,7 @@
     "displayName": "Search code + Replace files + Find definition and references for all types.",
     "description": "Search code + Replace files + Find definition and references in multiple repository paths by msr for all coding languages + configuration + doc files.",
     "author": "qualiu@microsoft.com",
-    "version": "2.1.20",
+    "version": "2.1.21",
     "icon": "images/vscode-msr-icon.png",
     "license": "completely free",
     "publisher": "qualiu",
@@ -1181,7 +1181,7 @@
                 },
                 "msr.default.configFiles": {
                     "type": "string",
-                    "default": "\\.(config|json|ya?ml|xml|ini)$",
+                    "default": "\\.(config|conf|json|ya?ml|xml|ini)$",
                     "description": "Default Regex pattern for configuration files."
                 },
                 "msr.default.docFiles": {
@@ -1201,7 +1201,7 @@
                 },
                 "msr.default.configAndDocs": {
                     "type": "string",
-                    "default": "\\.(config|json|ya?ml|xml|ini|md|ipynb|rst)$|^readme",
+                    "default": "\\.(config|conf|json|ya?ml|xml|ini|md|ipynb|rst)$|^readme",
                     "description": "Default Regex pattern for configuration + document files."
                 },
                 "msr.default.class.skip.definition": {

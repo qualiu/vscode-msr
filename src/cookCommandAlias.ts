@@ -116,15 +116,15 @@ export function cookCmdShortcutsOrFile(
           terminalType = TerminalType.PowerShell;
         }
       } else {
-        if (/cmd.exe$/i.test(terminalName || shellExe)) {
+        if (/cmd.exe$|^Command Prompt/i.test(terminalName || shellExe)) {
           terminalType = TerminalType.CMD;
-        } else if (/PowerShell.exe$/i.test(terminalName || shellExe)) {
+        } else if (/PowerShell.exe$|^PowerShell/i.test(terminalName || shellExe)) {
           terminalType = TerminalType.PowerShell;
-        } else if (/Cygwin.*?bin\\bash.exe$/i.test(shellExe)) {
+        } else if (/Cygwin.*?bin\\bash.exe$|^Cygwin/i.test(shellExe)) {
           terminalType = TerminalType.CygwinBash;
-        } else if (/System(32)?.bash.exe$|wsl.exe$/i.test(shellExe)) {
+        } else if (/System(32)?.bash.exe$|wsl.exe$|^WSL/i.test(shellExe)) {
           terminalType = TerminalType.WslBash;
-        } else if (/Git\S+bash.exe$/i.test(shellExe)) { // (shellExe.includes('Git\\bin\\bash.exe'))
+        } else if (/Git\S+bash.exe$|^Git Bash/i.test(shellExe)) { // (shellExe.includes('Git\\bin\\bash.exe'))
           terminalType = TerminalType.MinGWBash;
         } else {
           terminalType = TerminalType.PowerShell;
@@ -269,7 +269,7 @@ export function cookCmdShortcutsOrFile(
         runCmdInTerminal('where find-def', false);
       } else {
         runCmdInTerminal('chmod +x ' + singleScriptFolderOsPath + (dumpOtherCmdAlias ? '/*' : '/find*'), false);
-        // const cmdHead = TerminalType.MinGWBash === terminalType ? 'alias ' : 'whereis ';
+        // const cmdHead = TerminalType.MinGWBash === terminalType ? 'alias ' : 'which ';
         // runCmdInTerminal(cmdHead + 'find-def', false);
         // runCmdInTerminal(cmdHead + 'find-ref', false);
       }
@@ -363,7 +363,7 @@ export function cookCmdShortcutsOrFile(
             process.env['PATH'] = Array.from(envPathSet).join(';');
             runCmdInTerminal(quotePaths(shellExe));
           }
-          runCmdInTerminal('export PATH=/usr/bin:$PATH');
+          runCmdInTerminal('export PATH=/usr/bin:$PATH:~');
         }
         prepareEnvForBashOnWindows(terminalType);
       }
@@ -390,19 +390,20 @@ export function cookCmdShortcutsOrFile(
     function prepareEnvForBashOnWindows(terminalType: TerminalType) {
       const displayPath = getDisplayPathForBash(defaultCmdAliasFileDisplayPath, '\\~');
       finalGuide = createCmdAliasTip + displayPath + ' .' + finalGuide;
-      if (newTerminal) {
+      const shouldUseDownload = IsWindows && /^(Git Bash|Cygwin)/i.test(shellExe);
+      if (newTerminal || shouldUseDownload) {
         const downloadCommands = [
-          new ToolChecker(terminalType).getDownloadCommandForNewTerminal('msr'),
-          new ToolChecker(terminalType).getDownloadCommandForNewTerminal('nin')
-        ];
+          new ToolChecker(terminalType).getDownloadCommandForNewTerminal('msr', shouldUseDownload),
+          new ToolChecker(terminalType).getDownloadCommandForNewTerminal('nin', shouldUseDownload)
+        ].filter(a => !isNullOrEmpty(a));
 
         downloadCommands.forEach(c => runCmdInTerminal(c));
       }
 
-      let setEnvCmd = getSetToolEnvCommand(terminalType, '; ');
+      let setEnvCmd: string = getSetToolEnvCommand(terminalType, '; ');
       const shellExeFolderOsPath = toOsPath(shellExeFolder, terminalType);
       const envPath = process.env['PATH'] || '';
-      if (!isNullOrEmpty(envPath) && !envPath.includes(shellExeFolderOsPath) && !isNullOrEmpty(shellExeFolderOsPath)) {
+      if (!isNullOrEmpty(envPath) && !isNullOrEmpty(shellExeFolderOsPath) && shellExeFolderOsPath !== '.' && !envPath.includes(shellExeFolderOsPath)) {
         // Avoid MinGW prior to Cygwin when use Cygwin bash.
         if (isNullOrEmpty(setEnvCmd)) {
           setEnvCmd = 'export PATH=' + shellExeFolderOsPath + ':$PATH; ';
@@ -413,16 +414,19 @@ export function cookCmdShortcutsOrFile(
 
       // Avoid msr.exe prior to msr.cygwin or msr.gcc48
       if (isNullOrEmpty(setEnvCmd)) {
-        setEnvCmd = 'export PATH=~/:$PATH';
+        setEnvCmd = 'export PATH=~:$PATH';
       } else {
-        setEnvCmd = setEnvCmd.replace('export PATH=', 'export PATH=~/:');
+        setEnvCmd = setEnvCmd.replace('export PATH=', 'export PATH=~:');
       }
 
       const envRootFolder = path.dirname(path.dirname(shellExe)).replace(/([^\\])(\\{1})([^\\]|$)/g, '$1$2$2$3');
+      const bashFolderValue = envRootFolder === '.' ?
+        String.raw`$(where bash.exe | head -n 1 | sed 's#\\[a-z]\+.exe##' | sed 's#usr.bin##' | sed 's/\\$//')`
+        : quotePaths(envRootFolder);
       if (TerminalType.CygwinBash === terminalType) {
-        setEnvCmd += 'export CYGWIN_ROOT=' + envRootFolder;
+        setEnvCmd += ';export CYGWIN_ROOT=' + bashFolderValue;
       } else if (TerminalType.MinGWBash === terminalType) {
-        setEnvCmd += 'export MINGW_ROOT=' + quotePaths(envRootFolder);
+        setEnvCmd += ';export MINGW_ROOT=' + bashFolderValue;
       }
 
       checkSetPathBeforeRunDoskeyAlias('source ' + quotePaths(toOsPath(cmdAliasFile, terminalType)), false, setEnvCmd);
@@ -575,6 +579,7 @@ export function cookCmdShortcutsOrFile(
   }
 
   function checkSetPathBeforeRunDoskeyAlias(doskeyOrSourceCmd: string, mergeCmd: boolean, setEnvCmd: string = '') {
+    setEnvCmd = setEnvCmd.replace(/;\s*;/g, ';');
     if (mergeCmd) {
       if (!isNullOrEmpty(setEnvCmd)) {
         setEnvCmd += TerminalType.CMD === terminalType ? ' & ' : ' ; ';

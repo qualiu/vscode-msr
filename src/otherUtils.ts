@@ -31,7 +31,7 @@ export function saveTextToFile(filePath: string, text: string, info: string = 'f
 }
 
 export function isToolExistsInPath(exeToolName: string, terminalType: TerminalType = DefaultTerminalType): [boolean, string] {
-  const whereCmd = (IsWindows ? 'where' : 'whereis') + ' ' + exeToolName;
+  const whereCmd = (IsWindows ? 'where' : 'which') + ' ' + exeToolName;
   try {
     let output = ChildProcess.execSync(whereCmd).toString();
     if (IsWindows) {
@@ -89,8 +89,36 @@ export function getTerminalInitialPath(terminal: vscode.Terminal | null | undefi
 
 export function getTerminalShellExePath(): string {
   // https://code.visualstudio.com/docs/editor/integrated-terminal#_configuration
-  const shellConfig = vscode.workspace.getConfiguration('terminal.integrated.shell');
-  const shellExePath = !shellConfig ? '' : shellConfig.get(IsWindows ? 'windows' : 'linux') as string || '';
+  const suffix = IsWindows ? 'windows' : 'linux';
+  const oldShellConfig = vscode.workspace.getConfiguration('terminal.integrated.shell').get(suffix);
+  const oldShellExePath = !oldShellConfig ? '' : oldShellConfig as string || '';
+
+  const newDefaultConfig = vscode.workspace.getConfiguration('terminal.integrated.defaultProfile');
+  const newDefaultValue = !newDefaultConfig ? '' : newDefaultConfig.get(suffix) as string || '';
+  const newConfig = vscode.workspace.getConfiguration('terminal.integrated.profiles');
+  let newShellExePath = '';
+  if (!isNullOrEmpty(newDefaultValue) && newConfig) {
+    const newShellExePathObj = newConfig.get(suffix + '.' + newDefaultValue);
+    if (newShellExePathObj) {
+      try {
+        const pathValueObj = Reflect.get(newShellExePathObj as any, 'path');
+        const valueType = typeof pathValueObj;
+        const text = valueType === 'string' ? '' : JSON.stringify(pathValueObj);
+        newShellExePath = text.startsWith('[') || valueType !== 'string' && valueType.length > 0 ? pathValueObj[0] : pathValueObj;
+      } catch (err) {
+        console.log(err);
+        outputError(nowText() + 'Failed to get path value from terminal.integrated.profiles.' + suffix + '.path , error: ' + err.toString());
+      }
+    }
+  }
+
+  if (isNullOrEmpty(newShellExePath)) {
+    newShellExePath = newDefaultValue;
+  }
+
+  const pathRegex = IsWindows ? /\\\w+.*?\\\w+.*?\.exe$/i : /[/]\w+/;
+  const shellExePath = oldShellExePath.match(pathRegex) ? oldShellExePath : newShellExePath;
+
   if (isNullOrEmpty(shellExePath)) {
     if (IsWSL || IsLinux) {
       if (isNullOrEmpty(BashExePath)) {

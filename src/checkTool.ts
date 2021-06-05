@@ -152,10 +152,12 @@ export class ToolChecker {
 		}
 	}
 
-	public getDownloadCommandForNewTerminal(exeName64bit: string = 'msr'): string {
+	public getDownloadCommandForNewTerminal(exeName64bit: string = 'msr', forceCheckDownload: boolean = false): string {
 		// others have already checked and downloaded.
 		if (TerminalType.CygwinBash !== this.terminalType && TerminalType.WslBash !== this.terminalType) {
-			return '';
+			if (!forceCheckDownload) {
+				return '';
+			}
 		}
 
 		const sourceExeName = this.getSourceExeName(exeName64bit);
@@ -163,9 +165,9 @@ export class ToolChecker {
 		const targetExePath = '~/' + exeName64bit;
 		const pureDownloadCmd = 'wget ' + SourceExeHomeUrl + sourceExeName + ' -O ' + tmpSaveExePath + ' --no-check-certificate'
 			+ ' && mv -f ' + tmpSaveExePath + ' ' + targetExePath
-			+ ' && chmod +x ' + targetExePath + ' && export PATH=~/:$PATH';
+			+ ' && chmod +x ' + targetExePath + ' && export PATH=~:$PATH';
 
-		const firstCheck = 'whereis ' + exeName64bit + ' | egrep -e "/' + exeName64bit + '\\s+"';
+		const firstCheck = 'which ' + exeName64bit + ' | egrep -e "/' + exeName64bit + '"';
 
 		const lastCheck = '(ls -al ' + targetExePath + ' 2>/dev/null | egrep -e "^-[rw-]*?x.*?/' + exeName64bit + '\\s*$" || ( ' + pureDownloadCmd + ' ) )';
 		const downloadCmd = firstCheck + ' || ' + lastCheck;

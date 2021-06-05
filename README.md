@@ -86,7 +86,7 @@ If not found [msr.EXE](https://github.com/qualiu/msr#liberate--digitize-daily-wo
 - **Windows**: If not found in `%PATH%` by command `"where msr.exe"`
   - Auto check and download to `%USERPROFILE%\msr.exe` when launching vscode.
   - Add `%USERPROFILE%` to `%PATH%` **temporarily** each time in each [newly opened terminal](#auto-set-command-shortcuts-for-new-terminals).
-- **Linux**: If not found in `$PATH` by command `"whereis msr"`
+- **Linux**: If not found in `$PATH` by command `"which msr"`
   - Auto check and download to `~/msr` when launching vscode.
   - Add `~/` to `$PATH` **temporarily** each time in each [newly opened terminal](#auto-set-command-shortcuts-for-new-terminals).
 
@@ -504,9 +504,9 @@ Note: Check [**your personal settings**](https://code.visualstudio.com/docs/gets
 
 Supported various types of terminals: ([settings file](https://code.visualstudio.com/docs/getstarted/settings#_settings-file-locations) like: `%APPDATA%\Code\User\settings.json` on Windows).
 
-It's better to set one on Windows since vscode 1.53.0 which removed the terminal name/title in event of `vscode.window.onDidOpenTerminal`.
+**Not recommend** to set terminal type after vscode 1.56, which is **unnecessary** since easier to open different terminals.
 
-Please **explicitly set terminal** on Windows if you caught problems when unable to determine `PowerShell` or `CMD` type.
+Only `explicitly set terminal` on Windows **when you caught problems** like unable to determine `PowerShell` or `CMD` type.
 
 - [VsCode Official supported terminals](https://code.visualstudio.com/docs/editor/integrated-terminal#_configuration) like below:
 
@@ -584,8 +584,8 @@ Code mining examples (run in vscode terminals: like `MSR-RUN-CMD` or add/open **
 - **General finding commands** like:
   - **find-nd** -it `"regex-pattern"` -x `"and-plain-text"` [**optional args**](https://github.com/qualiu/msr#brief-summary-of-msr-exe)
   - **find-nd** -f `"\.(cs|py|java)$"` -it `"regex-pattern"` -x `"and-plain-text"`
-  - **find-ndp** path1,path2,pathN -f `"\.(cs|py|java)$"` -it `"regex-pattern"` -x `"and-plain-text"`
-  - **find-ndp** path1,path2,pathN -it `"regex-pattern"` -x `"and-plain-text"` -f ... --nf ... -d ... --nd ... --pp ... --xp ... --nt ... --nx ...
+  - **find-ndp** `path1,path2,pathN` -f `"\.(cs|py|java)$"` -it `"regex-pattern"` -x `"and-plain-text"`
+  - **find-ndp** `path1,path2,pathN` -it `"regex-pattern"` -x `"and-plain-text"` -f ... --nf ... -d ... --nd ... --pp ... --xp ... --nt ... --nx ...
 
 - With other optional args like:
   - **find-all** -it `"regex-pattern"` -x `"and-plain-text"` -l  just list matched file paths.

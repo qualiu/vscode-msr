@@ -2,6 +2,10 @@
 
 All notable changes to this "vscode-msr" extension will be documented in this file.
 
+[2.1.22] 
+
+- Supported latest vscode `terminal.integrated.defaultProfile` config.
+
 ## [2.1.21] 
 
 - Supported multiple-workspace terminal initializing of `Git-bash` + `WSL-bash` for vscode >= 1.56.0.

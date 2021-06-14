@@ -150,6 +150,7 @@ export class SearchChecker {
 		this.isFindMemberOrLocalVariableRegex = this.getCheckingRegex('isFindMemberOrLocalVariable', false);
 		this.methodQuoteRegex = new RegExp('\\b' + currentWord + '\\b\\s*\\(');
 		const isTypeAfterObject = this.extension.match(/^(go|scala)$/);
+		const isGenericMethodOrConstructor = new RegExp('\\b' + currentWord + '\\s*<[\\s\\w\\.]+>\\s*\\(').test(this.currentTextMaskCurrentWord);
 		const onlyFindClassRegex = new RegExp(
 			'\\bclass\\s+\\w+'
 			+ '|' + '((new|is|as)\\s+|typeof\\W*)[\\w\\.:]*?\\b' + currentWord + "\\b" // new Class
@@ -165,7 +166,7 @@ export class SearchChecker {
 			+ '|' + '^\\s*((public|private|protected|internal|static|readonly|const|final|val|virtual|volatile)\\s+)+\\s*' + currentWord + '[^\\w,;=]*\\s+[\\*\\&\\?]?\\w+'
 		);
 
-		this.isOnlyFindClass =
+		this.isOnlyFindClass = !isGenericMethodOrConstructor && (
 			onlyFindClassRegex.test(this.currentTextMaskCurrentWord)
 			|| (this.isCapitalizedWord &&
 				(
@@ -181,7 +182,8 @@ export class SearchChecker {
 					// Python params comment
 					|| this.extension === 'py' && new RegExp('^\\s*:\\s*type\\s+\\w+.*?\\b' + this.currentWord + '\\W*$').test(this.currentTextMaskCurrentWord)
 				)
-			);
+			)
+		);
 
 		const onlyFindMemberRegex = new RegExp('(this|self)[->\\.]{1,2}' + currentWord + '\\b');
 		this.isOnlyFindMember = !this.isOnlyFindClass && !this.methodQuoteRegex.test(this.currentTextMaskCurrentWord) && (
@@ -190,8 +192,13 @@ export class SearchChecker {
 			)
 		);
 
-		this.isFindClass = this.isOnlyFindClass || this.isFindClassRegex.test(this.currentTextMaskCurrentWord) && this.isFindClassWithWordCheckRegex.test(currentWord);
-		this.isFindMethod = (!this.isOnlyFindClass && !this.isOnlyFindMember) && this.isFindMethodRegex.test(this.currentTextMaskCurrentWord);
+		this.isFindClass = this.isOnlyFindClass
+			|| (isGenericMethodOrConstructor && onlyFindClassRegex.test(this.currentTextMaskCurrentWord))
+			|| this.isFindClassRegex.test(this.currentTextMaskCurrentWord) && this.isFindClassWithWordCheckRegex.test(currentWord);
+
+		this.isFindMethod = isGenericMethodOrConstructor ||
+			(!this.isOnlyFindClass && !this.isOnlyFindMember) && this.isFindMethodRegex.test(this.currentTextMaskCurrentWord);
+
 		this.isFindMember = this.isOnlyFindMember || !this.isOnlyFindClass && this.isFindMemberRegex.test(this.currentTextMaskCurrentWord) && !this.methodQuoteRegex.test(this.currentTextMaskCurrentWord);
 		this.isFindEnum = !this.isOnlyFindClass && this.isFindEnumRegex.test(this.currentTextMaskCurrentWord);
 		this.isFindClassOrEnum = !this.isOnlyFindMember && this.isCapitalizedWord && this.isFindClassOrEnumRegex.test(this.currentTextMaskCurrentWord);

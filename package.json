@@ -3,7 +3,7 @@
     "displayName": "Search code + Replace files + Find definition and references for all types.",
     "description": "Search code + Replace files + Find definition and references in multiple repository paths by msr for all coding languages + configuration + doc files.",
     "author": "qualiu@microsoft.com",
-    "version": "2.1.22",
+    "version": "2.1.23",
     "icon": "images/vscode-msr-icon.png",
     "license": "completely free",
     "publisher": "qualiu",
@@ -1166,7 +1166,7 @@
                 },
                 "msr.default.allFiles": {
                     "type": "string",
-                    "default": "\\.(cs(html)?|cpp|cxx|h|hpp|cc?|c\\+{2}|\\w+proj|sln|nuspec|config|props|java|scala|py|go|rs|php|vue|tsx?|jsx?|json|ya?ml|xml|ini|md|ipynb|rst|sh|bat|cmd|psm?1)$|^readme|^make\\w+$",
+                    "default": "\\.(cs(html)?|cpp|cxx|h|hpp|cc?|c\\+{2}|\\w+proj|sln|nuspec|config|conf|resx|props|java|scala|py|go|rs|php|vue|tsx?|jsx?|json|ya?ml|xml|ini|md|ipynb|rst|sh|bat|cmd|psm?1)$|^readme|^make\\w+$",
                     "description": "Default Regex pattern for files to search."
                 },
                 "msr.default.codeFiles": {
@@ -1181,7 +1181,7 @@
                 },
                 "msr.default.configFiles": {
                     "type": "string",
-                    "default": "\\.(config|conf|json|ya?ml|xml|ini)$",
+                    "default": "\\.(config|conf|resx|json|ya?ml|xml|ini)$",
                     "description": "Default Regex pattern for configuration files."
                 },
                 "msr.default.docFiles": {
@@ -1191,17 +1191,17 @@
                 },
                 "msr.default.codeAndConfig": {
                     "type": "string",
-                    "default": "\\.(cs(html)?|cpp|cxx|h|hpp|cc?|c\\+{2}|vcx?proj|sln|nuspec|config|props|java|scala|py|go|rs|php|vue|tsx?|jsx?|json|ya?ml|xml|ini)$|^make\\w+$",
+                    "default": "\\.(cs(html)?|cpp|cxx|h|hpp|cc?|c\\+{2}|vcx?proj|sln|nuspec|config|conf|resx|props|java|scala|py|go|rs|php|vue|tsx?|jsx?|json|ya?ml|xml|ini)$|^make\\w+$",
                     "description": "Default Regex pattern for code + configuration files."
                 },
                 "msr.default.codeAndConfigDocs": {
                     "type": "string",
-                    "default": "\\.(cs(html)?|cpp|cxx|h|hpp|cc?|c\\+{2}|vcx?proj|sln|nuspec|config|props|java|scala|py|go|rs|php|vue|tsx?|jsx?|json|ya?ml|xml|ini|md|ipynb|rst)$|^readme|^make\\w+$",
+                    "default": "\\.(cs(html)?|cpp|cxx|h|hpp|cc?|c\\+{2}|vcx?proj|sln|nuspec|config|conf|resx|props|java|scala|py|go|rs|php|vue|tsx?|jsx?|json|ya?ml|xml|ini|md|ipynb|rst)$|^readme|^make\\w+$",
                     "description": "Default Regex pattern for code + configuration + document files."
                 },
                 "msr.default.configAndDocs": {
                     "type": "string",
-                    "default": "\\.(config|conf|json|ya?ml|xml|ini|md|ipynb|rst)$|^readme",
+                    "default": "\\.(config|conf|resx|json|ya?ml|xml|ini|md|ipynb|rst)$|^readme",
                     "description": "Default Regex pattern for configuration + document files."
                 },
                 "msr.default.class.skip.definition": {

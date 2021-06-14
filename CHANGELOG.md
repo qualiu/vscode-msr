@@ -2,7 +2,12 @@
 
 All notable changes to this "vscode-msr" extension will be documented in this file.
 
-[2.1.22] 
+## [2.1.23]
+
+- Tolerated searching C# generic method + class;
+- Added `*.conf` + `*.resx` to `find-all` / `find-config` etc.
+
+## [2.1.22] 
 
 - Supported latest vscode `terminal.integrated.defaultProfile` config.
 

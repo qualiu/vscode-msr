@@ -5,7 +5,7 @@ import { IsLinux, IsWindows, IsWSL } from './constants';
 import { cookCmdShortcutsOrFile, mergeSkipFolderPattern } from './cookCommandAlias';
 import { FindType, TerminalType } from './enums';
 import { GitIgnore } from './gitUtils';
-import { getRunCmdTerminal, outputDebug, outputInfo } from './outputUtils';
+import { getRunCmdTerminal, outputDebug, outputInfo, outputInfoClear } from './outputUtils';
 import { createRegex, escapeRegExp } from './regexUtils';
 import { SearchConfig } from './searchConfig';
 import { DefaultTerminalType, getDefaultRootFolderByActiveFile, getExtensionNoHeadDot, getRootFolder, getRootFolderName, getRootFolders, getUniqueStringSetNoCase, isLinuxTerminalOnWindows, isNullOrEmpty, nowText, quotePaths, toOsPath, toOsPaths, toOsPathsForText, toWSLPaths } from './utils';
@@ -50,19 +50,13 @@ export function updateGitIgnoreUsage() {
         return;
     }
 
-
-    const useGitIgnoreFile = getOverrideOrDefaultConfig(DefaultRootFolder, 'useGitIgnoreFile') === 'true';
-    const omitGitIgnoreExemptions = getOverrideOrDefaultConfig(DefaultRootFolder, 'omitGitIgnoreExemptions') === 'true';
-    const skipDotFolders = getOverrideOrDefaultConfig(DefaultRootFolder, 'skipDotFoldersIfUseGitIgnoreFile') === 'true';
-
-    if (!useGitIgnoreFile) {
-        cookCmdShortcutsOrFile(DefaultRootFolder, true, false, getRunCmdTerminal(), false);
-        return;
-    }
-
     for (let k = 0; k < vscode.workspace.workspaceFolders.length; k++) {
         const workspaceFolder = vscode.workspace.workspaceFolders[k].uri.fsPath;
         const rootFolder = getRootFolder(workspaceFolder);
+        const projectName = path.basename(rootFolder);
+        const useGitIgnoreFile = getOverrideOrDefaultConfig(projectName, 'useGitIgnoreFile') === 'true';
+        const omitGitIgnoreExemptions = getOverrideOrDefaultConfig(projectName, 'omitGitIgnoreExemptions') === 'true';
+        const skipDotFolders = getOverrideOrDefaultConfig(projectName, 'skipDotFoldersIfUseGitIgnoreFile') === 'true';
         const gitIgnore = new GitIgnore(path.join(rootFolder, '.gitignore'), useGitIgnoreFile, omitGitIgnoreExemptions, skipDotFolders);
         WorkspaceToGitIgnoreMap.set(rootFolder, gitIgnore);
         const canInitGitIgnore = workspaceFolder === DefaultRootFolder;
@@ -269,13 +263,13 @@ export class DynamicConfig {
         // don't enable finding references:
         if (toggleStatus !== undefined && FindType.Reference !== findType) {
             const status = true === toggleStatus ? '`enabled`' : '`disabled`';
-            outputInfo(nowText() + 'Toggle status = ' + status + ' for ' + findTypeText + ' because menu or hot key of `msr.tmpToggleEnableFindingDefinition` had been triggered.');
+            outputInfoClear(nowText() + 'Toggle status = ' + status + ' for ' + findTypeText + ' because menu or hot key of `msr.tmpToggleEnableFindingDefinition` had been triggered.');
             return false === toggleStatus;
         }
 
         if (this.OnlyFindDefinitionForKnownLanguages) {
             if (isNullOrEmpty(mappedExt) || !this.isKnownLanguage(extension)) {
-                outputInfo(nowText() + 'Disabled ' + findTypeText + '` files due to `msr.enable.onlyFindDefinitionForKnownLanguages` = true'
+                outputInfoClear(nowText() + 'Disabled ' + findTypeText + '` files due to `msr.enable.onlyFindDefinitionForKnownLanguages` = true'
                     + ' + Not exist `msr.fileExtensionMap.' + extension + '` nor `msr.' + extension + '.xxx`. ' + toggleTip);
                 return true;
             }
@@ -286,19 +280,19 @@ export class DynamicConfig {
             : this.DisableFindReferenceFileExtensionRegex;
 
         if (MyConfig.DisabledFileExtensionRegex.test(extension)) {
-            outputInfo(nowText() + 'Disabled ' + findTypeText + ' by `msr.disable.extensionPattern` = "' + this.DisabledFileExtensionRegex.source + '". ' + toggleTip);
+            outputInfoClear(nowText() + 'Disabled ' + findTypeText + ' by `msr.disable.extensionPattern` = "' + this.DisabledFileExtensionRegex.source + '". ' + toggleTip);
             return true;
         }
 
         if (checkRegex.test(extension)) {
             const configName = FindType.Definition === findType ? 'disable.findDef.extensionPattern' : 'disable.findRef.extensionPattern';
-            outputInfo(nowText() + 'Disabled ' + findTypeText + '` by `' + configName + '` = "' + this.RootConfig.get(configName) + '". ' + toggleTip);
+            outputInfoClear(nowText() + 'Disabled ' + findTypeText + '` by `' + configName + '` = "' + this.RootConfig.get(configName) + '". ' + toggleTip);
             return true;
         }
 
         const rootFolderName = getRootFolderName(currentFilePath, true);
         if (MyConfig.DisabledRootFolderNameRegex.test(rootFolderName)) {
-            outputInfo(nowText() + 'Disabled ' + findTypeText + ' by `msr.disable.projectRootFolderNamePattern` = "' + MyConfig.DisabledRootFolderNameRegex.source + '". ' + toggleTip);
+            outputInfoClear(nowText() + 'Disabled ' + findTypeText + ' by `msr.disable.projectRootFolderNamePattern` = "' + MyConfig.DisabledRootFolderNameRegex.source + '". ' + toggleTip);
             return true;
         }
 

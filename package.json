@@ -1,9 +1,9 @@
 {
     "name": "vscode-msr",
-    "displayName": "Search code + Replace files + Find definition and references for all types.",
-    "description": "Search code + Replace files + Find definition and references in multiple repository paths by msr for all coding languages + configuration + doc files.",
+    "displayName": "Search code + Replace file + Find definition and reference for all types.",
+    "description": "Search code + Replace file + Find definition and reference in multiple repository paths by msr for all coding languages + configuration + doc files.",
     "author": "qualiu@microsoft.com",
-    "version": "2.1.23",
+    "version": "2.1.24",
     "icon": "images/vscode-msr-icon.png",
     "license": "completely free",
     "publisher": "qualiu",
@@ -1261,7 +1261,7 @@
                 },
                 "msr.cookCmdAlias.hideWarningsAndExtraInfo": {
                     "type": "boolean",
-                    "default": false,
+                    "default": true,
                     "description": "When cooking command alias/shortcuts, add -I to hide warnings and extra info (overwrite default extraOption)."
                 },
                 "msr.cookCmdAlias.outputFullPath": {
@@ -1456,7 +1456,7 @@
                 },
                 "msr.java.method.definition": {
                     "type": "string",
-                    "default": "^\\s*\\w+.*?\\s+(%1)\\s*\\(.*?\\).*?\\{?\\s*$",
+                    "default": "^\\s*\\w+.*?\\s+(%1)\\s*\\(",
                     "description": "Scala Regex pattern to search method definitions."
                 },
                 "msr.cs.codeAndConfigDocs": {

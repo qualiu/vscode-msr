@@ -2,29 +2,26 @@
 
 Have you suffered issues below in your daily work?
 
-- **Unable to `jump-to-definition` or `find-references`** due to below issues:
-  - Basic Issues
-    - Lack of dependency packages.
-    - Lack of build or build failed.
-    - IDE caught some problems.
-  - Other issues
-    - `Multiple languages` in **one entire repository**: `C#` , `C++` , `Java`/`Scala`, `Python`, `Vue`, etc.
-    - `Multiple root folders` of **multiple related repositories**.
-- **Search code**: **Clumsy and slow** ?
-  - Too **narrow** `vscode` panel to preview?
+- **Find definition**: Unable to `jump-to-definition`?
+  - Lack of dependency packages / build , or failed to build?
+  - IDE/extension often caught some problems?
+  - Cannot cross `multiple languages`? `C#` , `C++` , `Java`/`Scala`, `Python`, `Vue`, etc.
+  - Cannot cross `multiple repositories`?
+- **Search code**:
+  - Clumsy and slow in IDE? Too **narrow** `vscode` panel to preview?
   - Wasting time to click and expand **each** item ?
   - `What if` a **colorful** + **fast** glance for **all search results** + [**rich and powerful filters**](#search-files-with-rich-filters)?
-- **Replace files**: **Lack of a fast + easy + safe + powerful** tool to replace files?
-  - Missed updates to multiple coding language files when `rename` or `refactor` ?
-  - Missed updates to `doc` + `config` files?
+- **Replace files**:
+  - **Missed changes to some files**(like `doc`/`config`) or **other languages** not loaded in IDE?
   - Your replacing tool **added** or **removed** the `tail empty line` ? And cause wrong `git diff` ?
   - Your replacing tool changed your file time even nothing changed?
   - `What if` a fast way to replace? [**Just reuse**](#reuse-the-command-to-search-further-or-replace-files) the **`powerful search used above`**?
-- **Large cost of official/professional language extensions** even if you just want to read/review code on laptop:
-  - Install **X GB language plugins** which have a lot of dependencies.
-  - Download **Y GB packages** to the disk.
-  - Build **Z GB outputs** to the disk.
-  - Offer **N GB running memory** to the `official/professional` language extensions.
+- Just read code but **inefficient** ? or **insufficient** resource on laptop?
+  - Too slow + hard to prepare environment for IDE to load code? Especially from other teams?
+  - Must install **X GB language plugins**?
+  - Must download **Y GB packages** to the disk?
+  - Must build **Z GB outputs** to the disk (like C#) before you can read code?
+  - Offer **N GB running memory** to the `official/professional` language extensions?
 
 Then it's the **light** and **right** tool for you(just **2~3 MB** storage + **1~5 MB** running memory) to search definition(near precise) + replace files.
 

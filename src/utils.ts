@@ -357,9 +357,14 @@ export function getActiveFilePath() {
     }
 }
 
-export function getDefaultRootFolderByActiveFile() {
+export function getDefaultRootFolderByActiveFile(useDefaultProjectIfEmpty = false) {
     const activePath = getActiveFilePath();
-    return isNullOrEmpty(activePath) ? getDefaultRootFolder() : getRootFolder(activePath);
+    const folder = isNullOrEmpty(activePath) ? getDefaultRootFolder() : getRootFolder(activePath);
+    if (useDefaultProjectIfEmpty && isNullOrEmpty(folder) && !isNullOrEmpty(activePath)) {
+        return getDefaultRootFolder();
+    } else {
+        return folder;
+    }
 }
 
 export function getRootFolderName(filePath: string, useFirstFolderIfNotFound = false): string {

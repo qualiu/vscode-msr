@@ -57,7 +57,6 @@ export class Ranker {
 		this.scoreWordSet = getAllSingleWords(this.scoreWordsText);
 		this.currentWordSet = getAllSingleWords(this.currentWord);
 		this.currentFileNameWordSet = getAllSingleWords(searchChecker.currentFile.name);
-		this.scoreWordSet = getAllSingleWords(this.scoreWordsText);
 
 		this.currentFilePathWordSet = getAllSingleWords(searchChecker.currentFilePath);
 		const highScoreRegex = new RegExp('(\\w+)(?:\\.|::|->)' + this.currentWord + '\\b' + '|' + '\\b(' + this.currentWord + ')(?:\\.|::|->)\\w+');
@@ -194,7 +193,7 @@ export class Ranker {
 					specificPatterns.add(this.getSubConfigValue('method', 'definition'));
 				}
 
-				if (this.isFindClassOrMethod) {
+				if (this.isFindClassOrMethod && (!this.isFindClassOrEnum && !this.isFindMethod)) {
 					specificPatterns.add(this.getSubConfigValue('class', 'definition'));
 					specificPatterns.add(this.getSubConfigValue('method', 'definition'));
 				}
@@ -327,7 +326,7 @@ export class Ranker {
 		return Array.from(skipPatternSet).join('|');
 	}
 
-	public getTypeAndScore(position: vscode.Position, resultFilePath: string, resultText: string): [ResultType, Number] {
+	public getTypeAndScore(position: vscode.Position, resultFilePath: string, resultText: string): [ResultType, number] {
 		if (this.searchChecker.findType !== FindType.Definition) {
 			return [ResultType.None, 1];
 		}
@@ -496,7 +495,7 @@ export class Ranker {
 
 		this.scoreWordSet.forEach(a => {
 			if (resultFileNameWordSet.has(a)) {
-				score += 50 * boostFactor;
+				score += 100 * boostFactor;
 			}
 		});
 

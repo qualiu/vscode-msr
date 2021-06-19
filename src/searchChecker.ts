@@ -70,7 +70,6 @@ export class SearchChecker {
 	public isInTestFolder: boolean;
 	public isTestFileName: boolean;
 
-	public shouldAddClassSearcher: boolean;
 	public classFileNamePattern: string = '';
 	public fileNameHighScoreWord: string = '';
 	public classFileNameScoreRegex: RegExp;
@@ -150,7 +149,7 @@ export class SearchChecker {
 		this.isFindMemberOrLocalVariableRegex = this.getCheckingRegex('isFindMemberOrLocalVariable', false);
 		this.methodQuoteRegex = new RegExp('\\b' + currentWord + '\\b\\s*\\(');
 		const isTypeAfterObject = this.extension.match(/^(go|scala)$/);
-		const isGenericMethodOrConstructor = new RegExp('\\b' + currentWord + '\\s*<[\\s\\w\\.]+>\\s*\\(').test(this.currentTextMaskCurrentWord);
+		const isGenericMethodOrConstructor = new RegExp('\\b' + currentWord + '\\s*<[\\s\\w\\.:]+>\\s*\\(').test(this.currentTextMaskCurrentWord);
 		const onlyFindClassRegex = new RegExp(
 			'\\bclass\\s+\\w+'
 			+ '|' + '((new|is|as)\\s+|typeof\\W*)[\\w\\.:]*?\\b' + currentWord + "\\b" // new Class
@@ -265,24 +264,35 @@ export class SearchChecker {
 		}
 
 		this.maybeEnumResultRegex = new RegExp('^\\s*' + this.currentWord + '\\b\\s*(' + ',?\\s*$' + '|' + '=\\s*(-?\\d|[\'"])' + ')');
+		let classNameWords = [];
+		if ((this.isFindMember || this.isFindMethod)) {
+			const leftText = this.currentText.substring(0, this.currentWordRange.start.character);
+			const rightText = this.currentText.substring(this.currentWordRange.end.character);
+			const classNameMatch = leftText.match(new RegExp('\\b(\\w+)(\\??\\.|::|->)\\s*$'));
+			if (classNameMatch) {
+				classNameWords.push(classNameMatch[1]);
 
-		this.shouldAddClassSearcher = (this.isOnlyFindClass || this.isProbablyFindClass || this.isFindClassOrMethod || this.isFindClassOrEnum)
-			&& (!this.isCodeFile || (!this.isFindMethod && !this.isFindMember));
-
-		const classNameMatch = this.currentTextMaskCurrentWord.match(new RegExp('(^|[^\\w:\\.>])([A-Z]\\w{2,})(\\??\\.|::|->)' + currentWord + '\\b'));
-		const classNameWord = (this.shouldAddClassSearcher ? currentWord : (classNameMatch ? classNameMatch[2] : ''))
-			.replace(/^m?_+|([0-9]+|i?e?s)_*$/g, '')
-			.replace('_', '.?');
-		if (!isNullOrEmpty(classNameWord)) {
-			this.classFileNamePattern = classNameWord.replace(/^I([A-Z]\w+)/, '$1');
-			if (this.extension === 'py' || mappedExt === 'py') {
-				this.classFileNamePattern = this.classFileNamePattern.replace(/([A-Z][a-z]+)/g, '.?$1').replace(/^\.\?|\.\?$/g, '');
+				// for case like xxx.ClassName
+				if (this.isFindMember && this.isCapitalizedWord
+					&& leftText.match(new RegExp('\\b([A-Z]\\w+)(\\??\\.|::|->)\\s*$')) && rightText.match(new RegExp('[\\W\\s]*$'))) {
+					if (classNameWords[0].toLowerCase() !== currentWord.toLowerCase()) {
+						classNameWords.push(currentWord);
+					}
+				}
 			}
+		} else if (this.isOnlyFindClass || this.isProbablyFindClass || this.isFindClassOrMethod || this.isFindClassOrEnum) {
+			classNameWords.push(currentWord);
+		}
+
+		classNameWords = classNameWords.map(a => this.getClassFileNamePattern(a));
+		this.classFileNamePattern = classNameWords.join('|');
+		if (classNameWords.length > 1) {
+			this.classFileNamePattern = '(' + this.classFileNamePattern + ')';
 		}
 
 		const fileNameHighScoreWordMatch = this.currentTextMaskCurrentWord.match(new RegExp('(^|[^\\w:\\.>])m?_?([a-zA-Z]\\w{2,})(\\??\\.|::|->)' + currentWord + '\\b'));
 		this.fileNameHighScoreWord = fileNameHighScoreWordMatch ? fileNameHighScoreWordMatch[2] : '';
-		this.classFileNameScoreRegex = createRegex((this.classFileNamePattern || this.fileNameHighScoreWord || classNameWord).replace(/^m?_+|_+$/g, ''), 'i');
+		this.classFileNameScoreRegex = createRegex((this.classFileNamePattern || this.fileNameHighScoreWord).replace(/^m?_+|_+$/g, ''), 'i');
 
 		this.currentWordSet = getAllSingleWords(this.currentWord);
 		this.currentFileNameWordSet = getAllSingleWords(this.currentFile.name);
@@ -396,5 +406,15 @@ export class SearchChecker {
 		}
 
 		return pattern;
+	}
+
+	private getClassFileNamePattern(className: string): string {
+		let classNamePattern = (className || '').replace(/^m?_+|([0-9]+|i?e?s|[oe]r)_*$/g, '').replace('_', '.?');
+		classNamePattern = classNamePattern.replace(/^I([A-Z]\w+)/, '$1');
+
+		if (this.extension === 'py' || this.mappedExt === 'py') {
+			classNamePattern = classNamePattern.replace(/([A-Z][a-z]+)/g, '.?$1').replace(/^\.\?|\.\?$/g, '');
+		}
+		return classNamePattern;
 	}
 }

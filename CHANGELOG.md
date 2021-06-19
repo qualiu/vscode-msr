@@ -2,6 +2,11 @@
 
 All notable changes to this "vscode-msr" extension will be documented in this file.
 
+## [2.1.24]
+
+- Improved searching precision + speed.
+- Hided BOM warnings by using `-I` (changed `cookCmdAlias.hideWarningsAndExtraInfo` to `true`).
+
 ## [2.1.23]
 
 - Tolerated searching C# generic method + class;

@@ -143,6 +143,14 @@ export function outputInfo(message: string, showWindow: boolean = true) {
 	}
 }
 
+export function outputInfoClear(message: string, showWindow: boolean = true) {
+	if (getConfig().ShowInfo) {
+		clearOutputChannel();
+		getOutputChannel().appendLine(message);
+		showOutputChannel(showWindow);
+	}
+}
+
 export function outputInfoQuiet(message: string, showWindow: boolean = false) {
 	if (getConfig().ShowInfo) {
 		getOutputChannel().appendLine(message);

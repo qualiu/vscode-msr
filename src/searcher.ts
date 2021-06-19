@@ -25,8 +25,8 @@ const CheckMaxSearchDepthRegex = /\s+(-k\s*\d+|--max-depth\s+\d+)/;
 // Use bytes/second should be more precise.
 const ExpectedMinLinesPerSecond = 16 * 10000;
 const ExpectedMaxTimeCostSecond = 3.0;
-let SearchToCostSumMap = new Map<FindType, Number>();
-let SearchTimesMap = new Map<FindType, Number>();
+let SearchToCostSumMap = new Map<FindType, number>();
+let SearchTimesMap = new Map<FindType, number>();
 
 let HasAlreadyReRunSearch: boolean = false;
 let CurrentSearchPidSet = new Set<number>();
@@ -365,7 +365,7 @@ function findAndProcessSummary(filteredResultCount: number, skipIfNotMatch: bool
   return true;
 }
 
-function sumTimeCost(findType: FindType, costSeconds: Number, lineCount: Number) {
+function sumTimeCost(findType: FindType, costSeconds: number, lineCount: number) {
   const times = 1 + (SearchTimesMap.get(findType) || 0).valueOf();
   SearchTimesMap.set(findType, times);
 
@@ -420,8 +420,8 @@ function parseCommandOutput(stdout: string, findType: FindType, cmd: string, ran
   const keepHighScoreResultCount = Number(getConfigValueByRoot(rootFolderName, ranker.searchChecker.extension, ranker.searchChecker.mappedExt, 'keepHighScoreResultCount') || -1);
 
   let scoreSum = 0;
-  let scoreList: Number[] = [];
-  let scoreToListMap = new Map<Number, [string, vscode.Location][]>();
+  let scoreList: number[] = [];
+  let scoreToListMap = new Map<number, [string, vscode.Location][]>();
   let typeToResultsMap = new Map<ResultType, ScoreTypeResult[]>();
   matchedFileLines.map(line => {
     const scoreTypeResult = parseMatchedText(line, ranker);
@@ -441,12 +441,19 @@ function parseCommandOutput(stdout: string, findType: FindType, cmd: string, ran
     outputDebug(nowText() + ResultType[type] + ' count = ' + v.length + ', search word = ' + ranker.searchChecker.currentWord);
   });
 
+  if (ranker.searchChecker.isFindMember && typeToResultsMap.has(ResultType.Member)) {
+    [ResultType.Class, ResultType.Interface, ResultType.Enum].forEach(
+      a => typeToResultsMap.delete(a)
+    );
+  }
+
   let highValueResults = [...typeToResultsMap.get(ResultType.Class) || [], ...typeToResultsMap.get(ResultType.Enum) || []];
-  [ResultType.Interface, ResultType.Method, ResultType.ConstantValue, ResultType.Member, ResultType.LocalVariable, ResultType.None].forEach((type) => {
-    if (highValueResults.length < 1) {
-      highValueResults = typeToResultsMap.get(type) || [];
-    }
-  });
+  [ResultType.Interface, ResultType.Method, ResultType.ConstantValue, ResultType.Member, ResultType.LocalVariable, ResultType.None].forEach(
+    (type) => {
+      if (highValueResults.length < 1) {
+        highValueResults = typeToResultsMap.get(type) || [];
+      }
+    });
 
   highValueResults.forEach((value) => {
     const score = value.Score;
@@ -465,10 +472,10 @@ function parseCommandOutput(stdout: string, findType: FindType, cmd: string, ran
     }
   });
 
-
   scoreList.sort((a, b) => a.valueOf() - b.valueOf());
+  const maxScore: number = scoreList.length < 1 ? -1 : scoreList[scoreList.length - 1];
   const averageScore = scoreSum / Math.max(1, scoreList.length);
-  const removeThreshold = ranker.isOneFileOrFolder && findType === FindType.Definition ? averageScore : averageScore * removeLowScoreResultsFactor;
+  const removeThreshold = ranker.isOneFileOrFolder && findType === FindType.Definition ? averageScore : maxScore * removeLowScoreResultsFactor;
 
   const isDescending = MyConfig.DescendingSortForVSCode;
   const sortedMap = isDescending
@@ -515,7 +522,6 @@ function parseCommandOutput(stdout: string, findType: FindType, cmd: string, ran
     console.log(debugList[k]);
   }
 
-  const maxScore = scoreList.length < 1 ? -1 : scoreList[scoreList.length - 1];
   const minScore = scoreList.length < 1 ? -1 : scoreList[0];
   console.log(nowText() + 'Result-Count = ' + scoreList.length + ' , averageScore = ' + averageScore.toFixed(1)
     + ' , max = ' + maxScore.toFixed(1) + ' , min = ' + minScore.toFixed(1)

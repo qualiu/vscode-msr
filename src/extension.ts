@@ -402,6 +402,7 @@ export class DefinitionFinder implements vscode.DefinitionProvider {
 		}
 
 		let slowSearchers: (Searcher | null)[] = [];
+		let classFileNameSearchers: (Searcher | null)[] = [];
 		let parentFolder = path.dirname(sourceFileFolder);
 		const diskRegex = IsWindows ? /^[A-Z]:\\.+?\\\w+/i : new RegExp('^/[^/]+/[^/]+$');
 		for (let k = 0; k < 4; k++) {
@@ -413,7 +414,7 @@ export class DefinitionFinder implements vscode.DefinitionProvider {
 			if (!searchChecker.isInTestPath) {
 				searcher = skipTestPathInCommandLine(searcher);
 			}
-			addClassNameFileSearcher(slowSearchers, searcher);
+			addClassNameFileSearcher(classFileNameSearchers, searcher);
 			addSearcher(slowSearchers, searcher);
 			parentFolder = path.dirname(parentFolder);
 		}
@@ -425,13 +426,13 @@ export class DefinitionFinder implements vscode.DefinitionProvider {
 			addSearcher(slowSearchers, createSearcher(searchChecker, 'Search-Parent-Test-Folder', testParentFolder));
 		}
 
-		if (searchChecker.shouldAddClassSearcher) {
+		if (!isNullOrEmpty(searchChecker.classFileNamePattern)) {
 			currentFolderSearchers = addClassSearchers(currentFolderSearchers);
 			slowSearchers = addClassSearchers(slowSearchers);
 		}
 
 		const repoSearcher = isNullOrEmpty(rootFolder) ? null : createSearcher(searchChecker, "Search-This-Repo", rootFolder);
-		addClassNameFileSearcher(slowSearchers, createSearcher(searchChecker, "Search-This-Repo", rootFolder));
+		addClassNameFileSearcher(classFileNameSearchers, createSearcher(searchChecker, "Search-This-Repo", rootFolder));
 
 		addSearcher(slowSearchers, repoSearcher);
 
@@ -529,7 +530,7 @@ export class DefinitionFinder implements vscode.DefinitionProvider {
 			}
 		}
 
-		const searcherGroups = [group1, group2, currentFileSearchers, currentFolderSearchers, slowSearchers, finalGroup]
+		const searcherGroups = [group1, group2, currentFileSearchers, classFileNameSearchers, currentFolderSearchers, slowSearchers, finalGroup]
 			.filter(g => g
 				.filter(a => a !== null).length > 0
 			);

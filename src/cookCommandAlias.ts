@@ -2,13 +2,13 @@ import * as vscode from 'vscode';
 import { getSetToolEnvCommand, ToolChecker } from "./checkTool";
 import { getFindTopDistributionCommand, getSortCommandText } from "./commands";
 import { getConfigValueByRoot, getOverrideConfigByPriority } from "./configUtils";
-import { HomeFolder, IsLinux, IsWindows, IsWSL, RunCmdTerminalName, SearchTextHolderReplaceRegex } from "./constants";
+import { HomeFolder, IsLinux, IsWindows, IsWSL, RunCmdTerminalName } from "./constants";
 import { DefaultRootFolder, getConfig, getGitIgnore, getSearchPathOptions, MappedExtToCodeFilePatternMap, MyConfig } from "./dynamicConfig";
 import { FindCommandType, TerminalType } from "./enums";
 import { getTerminalInitialPath, getTerminalNameOrShellExeName, getTerminalShellExePath, saveTextToFile } from './otherUtils';
 import { clearOutputChannel, enableColorAndHideCommandLine, MessageLevel, outputDebug, outputError, outputInfoQuiet, runCommandGetInfo, runCommandInTerminal, sendCmdToTerminal } from "./outputUtils";
 import { escapeRegExp } from "./regexUtils";
-import { DefaultTerminalType, getRootFolder, getRootFolderName, getTimeCostToNow, getUniqueStringSetNoCase, IsLinuxTerminalOnWindows, isLinuxTerminalOnWindows, isNullOrEmpty, isWindowsTerminalType, nowText, quotePaths, replaceTextByRegex, toOsPath, toOsPathsForText, toWSLPath } from "./utils";
+import { DefaultTerminalType, getRootFolder, getRootFolderName, getTimeCostToNow, getUniqueStringSetNoCase, IsLinuxTerminalOnWindows, isLinuxTerminalOnWindows, isNullOrEmpty, isWindowsTerminalType, nowText, quotePaths, replaceSearchTextHolder, replaceTextByRegex, toOsPath, toOsPathsForText, toWSLPath } from "./utils";
 import fs = require('fs');
 import os = require('os');
 import path = require('path');
@@ -785,7 +785,7 @@ function getCommandAliasText(
 
   const hasSearchTextHolder = isWindowsTerminal ? /%~?1/.test(cmdBody) : /\$1|%~?1/.test(cmdBody);
   if (hasSearchTextHolder) {
-    cmdBody = replaceTextByRegex(cmdBody.trimRight(), SearchTextHolderReplaceRegex, '$1');
+    cmdBody = replaceSearchTextHolder(cmdBody.trimRight(), '$1');
   }
 
   const tailArgs = !addTailArgs

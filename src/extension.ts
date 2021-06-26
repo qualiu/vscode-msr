@@ -4,7 +4,7 @@ import * as vscode from 'vscode';
 import { MsrExe } from './checkTool';
 import { getFindingCommandByCurrentWord, runFindingCommand } from './commands';
 import { getConfigValueByRoot } from './configUtils';
-import { IsWindows, RunCmdTerminalName, SearchTextHolderReplaceRegex } from './constants';
+import { IsWindows, RunCmdTerminalName } from './constants';
 import { cookCmdShortcutsOrFile } from './cookCommandAlias';
 import { FileExtensionToMappedExtensionMap, getConfig, getExtraSearchPaths, getGitIgnore, MappedExtToCodeFilePatternMap, MyConfig, printConfigInfo } from './dynamicConfig';
 import { FindCommandType, FindType, ForceFindType } from './enums';
@@ -13,7 +13,7 @@ import { clearOutputChannel, disposeTerminal, outputDebug, outputInfoByDebugMode
 import { Ranker } from './ranker';
 import { SearchChecker } from './searchChecker';
 import { createCommandSearcher, createSearcher, getCurrentFileSearchInfo, PlatformToolChecker, Searcher, setReRunMark, stopAllSearchers } from './searcher';
-import { getDefaultRootFolder, getDefaultRootFolderByActiveFile, getExtensionNoHeadDot, getRootFolder, getRootFolderName, getRootFolders, isNullOrEmpty, nowText, quotePaths, toPath } from './utils';
+import { getDefaultRootFolder, getDefaultRootFolderByActiveFile, getExtensionNoHeadDot, getRootFolder, getRootFolderName, getRootFolders, isNullOrEmpty, nowText, quotePaths, replaceSearchTextHolder, toPath } from './utils';
 import path = require('path');
 
 outputDebug(nowText() + 'Start loading extension and initialize ...');
@@ -609,7 +609,7 @@ function getCommandToSearchLocalVariableOrConstant(searchChecker: SearchChecker,
 
 	const filePath = quotePaths(searchChecker.Document.fileName);
 	let command = MsrExe + ' -p ' + filePath + ' -t "' + pattern + '"' + ' -N ' + searchChecker.Position.line + ' -T 1 -I -C';
-	command = command.replace(SearchTextHolderReplaceRegex, currentWord).trim();
+	command = replaceSearchTextHolder(command, currentWord).trim();
 
 	const name = isSimpleDefineAndInit
 		? "Search-Local-Tmp-Variable-Definition-Init-In-CurrentFile"

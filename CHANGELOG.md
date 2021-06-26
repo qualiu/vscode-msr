@@ -2,6 +2,10 @@
 
 All notable changes to this "vscode-msr" extension will be documented in this file.
 
+## [2.1.25]
+
+- Robust escaping selected text when running search commands by menus.
+
 ## [2.1.24]
 
 - Improved searching precision + speed.

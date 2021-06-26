@@ -4,9 +4,18 @@ import { before } from 'mocha';
 import * as vscode from 'vscode';
 import { checkConfigKeysInDoc, checkDuplicateDescription, validateRegexPatterns } from './configAndDocTest';
 import { testCmdTerminalWithBackSlash, testCmdTerminalWithForwardSlash, testLinuxTerminal, testNotSkipDotPaths, testOmitExemptions } from './gitIgnoreTest';
+import { testEscapeRegex, testEscapeRegexForFindingCommands, testSpecialCaseReplacing } from './utilsTest';
 
+suite('Test-1: Basic utils test', () => {
+    before(() => {
+        vscode.window.showInformationMessage('Start testing basic utils.');
+    });
+    test('Test escaping Regex.', testEscapeRegex);
+    test('Test escaping Regex for finding commands in terminal.', testEscapeRegexForFindingCommands);
+    test('Test special cases replacing.', testSpecialCaseReplacing);
+});
 
-suite('Test-1: Configuration and doc test suite', () => {
+suite('Test-2: Configuration and doc test suite', () => {
     before(() => {
         vscode.window.showInformationMessage('Start testing configuration keys + keys in readme doc.');
     });
@@ -18,7 +27,7 @@ suite('Test-1: Configuration and doc test suite', () => {
     test('Check duplicate descriptions in config file.', checkDuplicateDescription);
 });
 
-suite('Test-2: Parsing .gitignore test', () => {
+suite('Test-3: Parsing .gitignore test', () => {
     before(() => {
         vscode.window.showInformationMessage('Will start parsing .gitignore test for terminals: CMD + MinGW + Cygwin + WSL + Bash.');
     });

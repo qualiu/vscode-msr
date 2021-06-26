@@ -1,13 +1,13 @@
 import { ParsedPath } from 'path';
 import * as vscode from 'vscode';
 import { GetConfigPriorityPrefixes, getConfigValueByRoot, getOverrideConfigByPriority } from './configUtils';
-import { SearchTextHolder, SearchTextHolderReplaceRegex } from './constants';
+import { SearchTextHolder } from './constants';
 import { getConfig, MyConfig } from './dynamicConfig';
 import { FindType, ForceFindType } from './enums';
 import { ForceSetting } from './forceSettings';
 import { outputDebug, outputError } from './outputUtils';
 import { createRegex, EmptyRegex, getAllSingleWords } from './regexUtils';
-import { getExtensionNoHeadDot, getRootFolderName, isNullOrEmpty, nowText, toPath } from './utils';
+import { getExtensionNoHeadDot, getRootFolderName, isNullOrEmpty, nowText, replaceSearchTextHolder, toPath } from './utils';
 
 export class SearchChecker {
 	public currentFile: ParsedPath;
@@ -309,16 +309,16 @@ export class SearchChecker {
 			}
 		}
 
-		const classPattern = this.getSpecificConfigValue('class.definition', false).replace(SearchTextHolderReplaceRegex, currentWord);
+		const classPattern = replaceSearchTextHolder(this.getSpecificConfigValue('class.definition', false), currentWord);
 		this.classDefinitionRegex = classPattern.length < 1 ? EmptyRegex : new RegExp(classPattern);
 
-		const methodPattern = this.getSpecificConfigValue('method.definition', false).replace(SearchTextHolderReplaceRegex, currentWord);
+		const methodPattern = replaceSearchTextHolder(this.getSpecificConfigValue('method.definition', false), currentWord);
 		this.methodDefinitionRegex = methodPattern.length < 1 ? EmptyRegex : new RegExp(methodPattern);
 
-		const memberPattern = this.getSpecificConfigValue('member.definition', false).replace(SearchTextHolderReplaceRegex, currentWord);
+		const memberPattern = replaceSearchTextHolder(this.getSpecificConfigValue('member.definition', false), currentWord);
 		this.memberDefinitionRegex = memberPattern.length < 1 ? EmptyRegex : new RegExp(memberPattern);
 
-		const enumPattern = this.getSpecificConfigValue('enum.definition', false).replace(SearchTextHolderReplaceRegex, currentWord);
+		const enumPattern = replaceSearchTextHolder(this.getSpecificConfigValue('enum.definition', false), currentWord);
 		this.enumDefinitionRegex = enumPattern.length < 1 ? EmptyRegex : new RegExp(enumPattern);
 
 		const promoteFolderPattern = getConfigValueByRoot(this.rootFolderName, this.extension, mappedExt, 'promoteFolderPattern');
@@ -390,7 +390,7 @@ export class SearchChecker {
 		const rawPattern = useDefault
 			? getConfigValueByRoot(this.rootFolderName, 'default', '', configKeyTail, allowEmpty)
 			: getConfigValueByRoot(this.rootFolderName, this.extension, this.mappedExt, configKeyTail, allowEmpty);
-		const pattern = rawPattern.replace(SearchTextHolderReplaceRegex, this.currentWord);
+		const pattern = replaceSearchTextHolder(rawPattern, this.currentWord);
 		return matchAnyIfEmpty && isNullOrEmpty(pattern) ? new RegExp(".?") : createRegex(pattern);
 	}
 

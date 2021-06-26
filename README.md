@@ -1,4 +1,4 @@
-# vscode-msr
+# [vscode-msr](https://github.com/qualiu/vscode-msr/blob/master/README.md#vscode-msr)
 
 Have you suffered issues below in your daily work?
 
@@ -8,15 +8,16 @@ Have you suffered issues below in your daily work?
   - Cannot cross `multiple languages`? `C#` , `C++` , `Java`/`Scala`, `Python`, `Vue`, etc.
   - Cannot cross `multiple repositories`?
 - **Search code**:
-  - Clumsy and slow in IDE? Too **narrow** `vscode` panel to preview?
-  - Wasting time to click and expand **each** item ?
+  - Clumsy and slow in IDE? Too **narrow** `vscode` panel to preview? 
+  - Wasting time to click and expand **each** item?
+  - Lack of a powerful tool to [**learn/ramp-up code by yourself**](#code-mining-without-or-with-little-knowledge) ? (filter + stats + compare/analogy).
   - `What if` a **colorful** + **fast** glance for **all search results** + [**rich and powerful filters**](#search-files-with-rich-filters)?
 - **Replace files**:
   - **Missed changes to some files**(like `doc`/`config`) or **other languages** not loaded in IDE?
   - Your replacing tool **added** or **removed** the `tail empty line` ? And cause wrong `git diff` ?
   - Your replacing tool changed your file time even nothing changed?
   - `What if` a fast way to replace? [**Just reuse**](#reuse-the-command-to-search-further-or-replace-files) the **`powerful search used above`**?
-- Just read code but **inefficient** ? or **insufficient** resource on laptop?
+- Just **read code** but **inefficient** ? or **insufficient** resource on laptop?
   - Too slow + hard to prepare environment for IDE to load code? Especially from other teams?
   - Must install **X GB language plugins**?
   - Must download **Y GB packages** to the disk?

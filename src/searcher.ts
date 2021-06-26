@@ -3,7 +3,7 @@ import * as vscode from 'vscode';
 import { IsForwardingSlashSupportedOnWindows, setSearchDepthInCommandLine, setTimeoutInCommandLine, ToolChecker } from './checkTool';
 import { runFindingCommandByCurrentWord } from './commands';
 import { getConfigValueByRoot, getSubConfigValue } from './configUtils';
-import { IsWindows, RemoveJumpRegex, SearchTextHolderReplaceRegex } from './constants';
+import { IsWindows, RemoveJumpRegex } from './constants';
 import { FileExtensionToMappedExtensionMap, getConfig, getGitIgnore, getRootFolderExtraOptions, getSearchPathOptions, MyConfig } from './dynamicConfig';
 import { FindCommandType, FindType, ForceFindType, TerminalType } from './enums';
 import { outputDebug, outputDebugOrInfo, outputError, outputInfo, outputInfoByDebugMode, outputResult, outputWarn, runCommandInTerminal, runRawCommandInTerminal } from './outputUtils';
@@ -11,7 +11,7 @@ import { Ranker } from './ranker';
 import { escapeRegExp } from './regexUtils';
 import { ResultType, ScoreTypeResult } from './ScoreTypeResult';
 import { SearchChecker } from './searchChecker';
-import { changeFindingCommandForLinuxTerminalOnWindows, DefaultTerminalType, getCurrentWordAndText, getDefaultRootFolder, getExtensionNoHeadDot, getRootFolder, getRootFolderName, getSearchPathInCommand, IsLinuxTerminalOnWindows, isNullOrEmpty, nowText, quotePaths, toPath } from './utils';
+import { changeFindingCommandForLinuxTerminalOnWindows, DefaultTerminalType, getCurrentWordAndText, getDefaultRootFolder, getExtensionNoHeadDot, getRootFolder, getRootFolderName, getSearchPathInCommand, IsLinuxTerminalOnWindows, isNullOrEmpty, nowText, quotePaths, replaceSearchTextHolder, toPath } from './utils';
 import ChildProcess = require('child_process');
 import path = require('path');
 
@@ -214,7 +214,7 @@ function getSearchCommandLineAndRanker(searchChecker: SearchChecker, findType: F
     commandLine += ' ' + extraOptions + ' ' + searchOptions.trim();
   }
 
-  commandLine = commandLine.trim().replace(SearchTextHolderReplaceRegex, currentWord);
+  commandLine = replaceSearchTextHolder(commandLine, currentWord).trim();
   return [commandLine, ranker];
 }
 

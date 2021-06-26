@@ -8,7 +8,7 @@ import { GitIgnore } from './gitUtils';
 import { getRunCmdTerminal, outputDebug, outputInfo, outputInfoClear } from './outputUtils';
 import { createRegex, escapeRegExp } from './regexUtils';
 import { SearchConfig } from './searchConfig';
-import { DefaultTerminalType, getDefaultRootFolderByActiveFile, getExtensionNoHeadDot, getRootFolder, getRootFolderName, getRootFolders, getUniqueStringSetNoCase, isLinuxTerminalOnWindows, isNullOrEmpty, nowText, quotePaths, toOsPath, toOsPaths, toOsPathsForText, toWSLPaths } from './utils';
+import { DefaultTerminalType, getDefaultRootFolderByActiveFile, getExtensionNoHeadDot, getRootFolder, getRootFolderName, getRootFolders, getUniqueStringSetNoCase, IsLinuxTerminalOnWindows, isLinuxTerminalOnWindows, isNullOrEmpty, IsWindowsTerminalOnWindows, nowText, quotePaths, toOsPath, toOsPaths, toOsPathsForText, toWSLPaths } from './utils';
 
 const SplitPathsRegex = /\s*[,;]\s*/;
 const SplitPathGroupsRegex = /\s*;\s*/;
@@ -518,7 +518,8 @@ function splitPathList(pathListText: string) {
 }
 
 export function printConfigInfo(config: vscode.WorkspaceConfiguration) {
-    outputDebug('IsWindows = ' + IsWindows + ', IsWSL = ' + IsWSL + ', IsLinux = ' + IsLinux + ', DefaultTerminalType = ' + TerminalType[DefaultTerminalType]);
+    outputDebug(`IsWindows = ${IsWindows}, IsWSL = ${IsWSL}, IsLinux = ${IsLinux}, DefaultTerminalType = ${TerminalType[DefaultTerminalType]}`);
+    outputDebug(`IsWindowsTerminalOnWindows = ${IsWindowsTerminalOnWindows}, IsLinuxTerminalOnWindows = ${IsLinuxTerminalOnWindows}`);
     outputDebug('msr.enable.definition = ' + config.get('enable.definition'));
     outputDebug('msr.enable.reference = ' + config.get('enable.reference'));
     outputDebug('msr.enable.findingCommands = ' + config.get('enable.findingCommands'));

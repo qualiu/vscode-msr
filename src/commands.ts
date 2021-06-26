@@ -1,20 +1,28 @@
 import * as vscode from 'vscode';
 import { MsrExe, setTimeoutInCommandLine, ToolChecker } from './checkTool';
 import { getConfigValueByRoot, getOverrideConfigByPriority, getSubConfigValue } from './configUtils';
-import { HomeFolder, RemoveJumpRegex, SearchTextHolderReplaceRegex, SkipJumpOutForHeadResultsRegex } from './constants';
+import { HomeFolder, RemoveJumpRegex, SkipJumpOutForHeadResultsRegex } from './constants';
 import { FileExtensionToMappedExtensionMap, getConfig, getGitIgnore, getRootFolderExtraOptions, getSearchPathOptions, MappedExtToCodeFilePatternMap, MyConfig, removeSearchTextForCommandLine, replaceToRelativeSearchPath } from './dynamicConfig';
 import { FindCommandType, TerminalType } from './enums';
 import { enableColorAndHideCommandLine, outputDebug, outputInfo, RunCmdTerminalRootFolder, runCommandInTerminal } from './outputUtils';
 import { Ranker } from './ranker';
 import { escapeRegExp, NormalTextRegex } from './regexUtils';
 import { SearchConfig } from './searchConfig';
-import { changeFindingCommandForLinuxTerminalOnWindows, DefaultTerminalType, getCurrentWordAndText, getDefaultRootFolderByActiveFile, getExtensionNoHeadDot, getRootFolder, getRootFolderName, IsLinuxTerminalOnWindows, isLinuxTerminalOnWindows, isNullOrEmpty, nowText, quotePaths, replaceTextByRegex, setSearchPathInCommand, toOsPath, toPath } from './utils';
+import { changeFindingCommandForLinuxTerminalOnWindows, DefaultTerminalType, getCurrentWordAndText, getDefaultRootFolderByActiveFile, getExtensionNoHeadDot, getRootFolder, getRootFolderName, IsLinuxTerminalOnWindows, isLinuxTerminalOnWindows, isNullOrEmpty, IsWindowsTerminalOnWindows, nowText, quotePaths, replaceSearchTextHolder, replaceTextByRegex, setSearchPathInCommand, toOsPath, toPath } from './utils';
 import path = require('path');
 
 const ReplaceSearchPathRegex = /-r?p\s+\S+|-r?p\s+\".+?\"/g;
 
 function replaceSearchPathToDot(searchPathsOptions: string): string {
     return replaceTextByRegex(searchPathsOptions, ReplaceSearchPathRegex, '-rp .');
+}
+
+export function escapeRegExpForFindingCommand(text: string): string {
+    if (!IsWindowsTerminalOnWindows) {
+        text = text.replace(/\\/g, '\\\\');
+    }
+
+    return escapeRegExp(text);
 }
 
 export function runFindingCommand(findCmd: FindCommandType, textEditor: vscode.TextEditor) {
@@ -25,8 +33,11 @@ export function runFindingCommand(findCmd: FindCommandType, textEditor: vscode.T
 
     const findCmdText = FindCommandType[findCmd];
     const [currentWord] = getCurrentWordAndText(textEditor.document, textEditor.selection.active, textEditor);
-    const rawSearchText = currentWord;
-    const searchText = findCmdText.match(/Regex/i) ? escapeRegExp(rawSearchText) : rawSearchText;
+    const isRegexFinding = findCmdText.match(/Regex/i);
+    const rawSearchText = !isRegexFinding && IsWindowsTerminalOnWindows ? currentWord : currentWord.replace(/\\/g, '\\\\');
+    const searchText = isRegexFinding
+        ? escapeRegExpForFindingCommand(currentWord)
+        : rawSearchText;
 
     const parsedFile = path.parse(textEditor.document.fileName);
     let command = getFindingCommandByCurrentWord(true, findCmd, searchText, parsedFile, rawSearchText, undefined);
@@ -290,9 +301,13 @@ export function getFindingCommandByCurrentWord(toRunInTerminal: boolean, findCmd
     if (TerminalType.CMD !== DefaultTerminalType) {
         // escape double quoted variables
         if (isFindPlainText) {
-            rawSearchText = rawSearchText.replace(/(\$\w+)/g, '\\$1');
+            if (!IsWindowsTerminalOnWindows) {
+                rawSearchText = rawSearchText.replace(/(\$\w+)/g, '\\$1');
+            }
         } else {
-            searchText = searchText.replace(/(\$\w+)/g, '\\\\$1');
+            if (!IsWindowsTerminalOnWindows) {
+                searchText = searchText.replace(/(\$)/g, '\\\\$1')
+            }
         }
     }
 
@@ -350,7 +365,7 @@ export function getFindingCommandByCurrentWord(toRunInTerminal: boolean, findCmd
         command = removeSearchTextForCommandLine(command);
     }
 
-    command = command.replace(SearchTextHolderReplaceRegex, searchText).trim();
+    command = replaceSearchTextHolder(command, searchText).trim();
     command = command.replace(onlyRemoveJump ? RemoveJumpRegex : SkipJumpOutForHeadResultsRegex, ' ').trim();
     command = enableColorAndHideCommandLine(command);
     command = changeSearchFolderInCommand(command);

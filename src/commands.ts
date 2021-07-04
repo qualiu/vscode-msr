@@ -32,7 +32,10 @@ export function runFindingCommand(findCmd: FindCommandType, textEditor: vscode.T
     }
 
     const findCmdText = FindCommandType[findCmd];
-    const [currentWord] = getCurrentWordAndText(textEditor.document, textEditor.selection.active, textEditor);
+    let [currentWord] = getCurrentWordAndText(textEditor.document, textEditor.selection.active, textEditor);
+    const escapeHolder1 = '-ESCAPE-#-Holder#1-';
+    const escapeHolder2 = '-ESCAPE-#-Holder#2-';
+    currentWord = currentWord.replace(/%1/g, escapeHolder1).replace(/%~1/g, escapeHolder2);
     const isRegexFinding = findCmdText.match(/Regex/i);
     const rawSearchText = !isRegexFinding && IsWindowsTerminalOnWindows ? currentWord : currentWord.replace(/\\/g, '\\\\');
     const searchText = isRegexFinding
@@ -41,6 +44,7 @@ export function runFindingCommand(findCmd: FindCommandType, textEditor: vscode.T
 
     const parsedFile = path.parse(textEditor.document.fileName);
     let command = getFindingCommandByCurrentWord(true, findCmd, searchText, parsedFile, rawSearchText, undefined);
+    command = command.replace(new RegExp(escapeHolder1, 'g'), '%1').replace(new RegExp(escapeHolder2, 'g'), '%~1');
     if (findCmdText.includes('FindTop')) {
         const [hasGotExe, ninExePath] = new ToolChecker().checkAndDownloadTool('nin');
         if (!hasGotExe) {

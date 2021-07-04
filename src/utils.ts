@@ -311,16 +311,24 @@ export function replaceToForwardSlash(sourceText: string): string {
 
 
 export function replaceSearchTextHolder(command: string, searchText: string): string {
-    const SearchTextHolderReplaceRegex = /%~?1/g;
+    const searchTextHolderReplaceRegex = /%~?1/g;
     // Regex bug case:
-    //      String.raw`-t "%1" -e "%~1"`.replace(SearchTextHolderReplaceRegex, String.raw`'\$Macro\$'`);
-    // return command.replace(SearchTextHolderReplaceRegex, searchText);
+    //      String.raw`-t "%1" -e "%~1"`.replace(searchTextHolderReplaceRegex, String.raw`'\$Macro\$'`);
+    // return command.replace(searchTextHolderReplaceRegex, searchText);
 
     let result = command;
     let match: RegExpExecArray | null = null;
-    while ((match = SearchTextHolderReplaceRegex.exec(result)) !== null) {
-        result = result.substring(0, match.index) + searchText + result.substring(match.index + match[0].length);
+    const maxReplacingTimes = 99;
+    const maxIncreasingLength = 20 * command.length;
+    for (let k = 0; k < maxReplacingTimes && (match = searchTextHolderReplaceRegex.exec(result)) !== null; k++) {
+        const newText = result.substring(0, match.index) + searchText + result.substring(match.index + match[0].length);
+        if (newText.length >= maxIncreasingLength || newText === result) {
+            break;
+        }
+
+        result = newText;
     }
+
     return result;
 }
 

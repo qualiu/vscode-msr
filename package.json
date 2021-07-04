@@ -3,7 +3,7 @@
     "displayName": "Search code + Replace file + Find definition and reference for all types.",
     "description": "Search code + Replace file + Find definition and reference in multiple repository paths by msr for all coding languages + configuration + doc files.",
     "author": "qualiu@microsoft.com",
-    "version": "2.1.26",
+    "version": "2.1.27",
     "icon": "images/vscode-msr-icon.png",
     "license": "completely free",
     "publisher": "qualiu",

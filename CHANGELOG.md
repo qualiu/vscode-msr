@@ -2,9 +2,13 @@
 
 All notable changes to this "vscode-msr" extension will be documented in this file.
 
+## [2.1.27]
+
+- Fixed one special case when finding selected text by menus.
+
 ## [2.1.26]
 
-- Improve class searching of C# code: filtering results by namespaces.
+- Improved class searching of C# code: filtering results by namespaces.
 - Added `msr.default.preferSearchingSpeedOverPrecision` to support precision for small projects.
 
 ## [2.1.25]

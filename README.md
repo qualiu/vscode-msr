@@ -150,6 +150,15 @@ Follow [official Windows doc](https://support.microsoft.com/en-us/help/4028485/w
 
 (You probably have done for others tools like `golang`, npm `node.exe` , `pip.exe` and `python.exe` etc.)
 
+## Prefer Precision over Speed when Searching Definitions
+
+You can change the value for **small projects** which you can prefer **precision** over **speed** since it's fast:
+- Global change: `msr.default.preferSearchingSpeedOverPrecision` = `false`.
+- For a project: `msr.{project-folder-Name}.preferSearchingSpeedOverPrecision` = `false`.
+- For C# code: `msr.cs.preferSearchingSpeedOverPrecision` = `false`.
+
+More override settings see: [**full priority rule**](https://github.com/qualiu/vscode-msr/blob/master/Add-New-Language-Support-For-Developers.md#full-priority-order-of-config-override-rule).
+
 ## Make Command Shortcuts to Search or Replace In or Out of VSCODE
 
 You can generate the command shortcuts (alias/doskey) to directly use for searching or replacing in or out of vscode.

@@ -6,6 +6,7 @@ import { getConfigValueByRoot, getSubConfigValue } from './configUtils';
 import { IsWindows, RemoveJumpRegex } from './constants';
 import { FileExtensionToMappedExtensionMap, getConfig, getGitIgnore, getRootFolderExtraOptions, getSearchPathOptions, MyConfig } from './dynamicConfig';
 import { FindCommandType, FindType, ForceFindType, TerminalType } from './enums';
+import { filterClassResults } from './filter/filterClassResults';
 import { outputDebug, outputDebugOrInfo, outputError, outputInfo, outputInfoByDebugMode, outputResult, outputWarn, runCommandInTerminal, runRawCommandInTerminal } from './outputUtils';
 import { Ranker } from './ranker';
 import { escapeRegExp } from './regexUtils';
@@ -455,6 +456,7 @@ function parseCommandOutput(stdout: string, findType: FindType, cmd: string, ran
       }
     });
 
+  highValueResults = filterClassResults(highValueResults, ranker.searchChecker);
   highValueResults.forEach((value) => {
     const score = value.Score;
     const location = value.Location;

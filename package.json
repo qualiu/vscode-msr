@@ -3,7 +3,7 @@
     "displayName": "Search code + Replace file + Find definition and reference for all types.",
     "description": "Search code + Replace file + Find definition and reference in multiple repository paths by msr for all coding languages + configuration + doc files.",
     "author": "qualiu@microsoft.com",
-    "version": "2.1.25",
+    "version": "2.1.26",
     "icon": "images/vscode-msr-icon.png",
     "license": "completely free",
     "publisher": "qualiu",
@@ -1298,6 +1298,11 @@
                     "type": "string",
                     "default": "--s1 1B --s2 3.6MB -H 30 -J -I -C -c",
                     "description": "Default extra searching options for finding references: Get top {N} results and jump out. Will merge `msr.{root-folder-name}.extraOptions` if you set in your personal settings file like `%APPDATA%\\Code\\User\\settings.json` on Windows (See doc: https://github.com/qualiu/vscode-msr/blob/master/README.md#specific-extra-search-paths-settings)."
+                },
+                "msr.default.preferSearchingSpeedOverPrecision": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Prefer speed over precision when searching definition. Try to unset it for small projects if found wrong results."
                 },
                 "msr.default.isClassResult": {
                     "description": "Regex pattern to check if result is a class.",

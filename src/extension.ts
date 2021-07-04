@@ -336,8 +336,9 @@ export class DefinitionFinder implements vscode.DefinitionProvider {
 		}
 
 		// check and add same name file for class searching:
+		const preferSearchingSpeedOverPrecision = getConfigValueByRoot(rootFolderName, extension, mappedExt, 'preferSearchingSpeedOverPrecision') === 'true';
 		function addClassNameFileSearcher(searcherGroup: (Searcher | null)[], searcherToClone: Searcher | null): Searcher | null {
-			if (!searcherToClone || isNullOrEmpty(searchChecker.classFileNamePattern)) {
+			if (!preferSearchingSpeedOverPrecision || !searcherToClone || isNullOrEmpty(searchChecker.classFileNamePattern)) {
 				return null;
 			}
 

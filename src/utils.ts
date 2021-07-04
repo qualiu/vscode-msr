@@ -318,7 +318,7 @@ export function replaceSearchTextHolder(command: string, searchText: string): st
 
     let result = command;
     let match: RegExpExecArray | null = null;
-    while ((match = SearchTextHolderReplaceRegex.exec(result)) != null) {
+    while ((match = SearchTextHolderReplaceRegex.exec(result)) !== null) {
         result = result.substring(0, match.index) + searchText + result.substring(match.index + match[0].length);
     }
     return result;

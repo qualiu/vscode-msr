@@ -2,6 +2,10 @@
 
 All notable changes to this "vscode-msr" extension will be documented in this file.
 
+## [2.1.28]
+
+- Reduced show-tip commands for Windows PowerShell terminal.
+
 ## [2.1.27]
 
 - Fixed one special case when finding selected text by menus.
@@ -213,7 +217,7 @@ All notable changes to this "vscode-msr" extension will be documented in this fi
 ## [2.0.5]
 
 - Updated args-passing for Linux bash command shortcuts (use `"$@"` instead of `$@`).
-- Supported reading newly added command shorts for CMD terminal on Windows, when cooking shortcuts(doskeys).
+- Supported reading newly added command shortcuts for CMD terminal on Windows, when cooking shortcuts(doskeys).
 - Supported `/mnt/c/` style path on WSL (`/c/` style is already supported).
 
 ## [2.0.4]

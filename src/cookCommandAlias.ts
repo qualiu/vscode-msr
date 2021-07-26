@@ -334,8 +334,8 @@ export function cookCmdShortcutsOrFile(
         const cmd = setEnvCmd + 'cmd /k ' + '"doskey /MACROFILE=' + quotedFileForPS // + ' && doskey /macros | msr -t find-def -x msr --nx use- --nt out- -e \\s+-+\\w+\\S* -PM'
           + ' & echo. & echo Type exit if you want to back to PowerShell without ' + commands.length + shortcutsExample
           + finalGuide
-          + ' | msr -aPA -e .+ -ix powershell -t ' + commands.length
-          + '^|m*alias^|find-\\S+^|sort-\\S+^|out-\\S+^|use-\\S+^|msr.init\\S+^|\\S*msr-cmd-alias\\S*^|Toggle-Enable^|Adjust-Color^|Code-Mining^|Preview-^|-Replace-^|git-ignore^|Menus^|functions^|details'
+          + ' | msr -aPA -e .+ -ix exit -t ' + commands.length
+          + '^|PowerShell^|m*alias^|find-\\S+^|sort-\\S+^|out-\\S+^|use-\\S+^|msr.init\\S+^|\\S*msr-cmd-alias\\S*^|Toggle-Enable^|Adjust-Color^|Code-Mining^|Preview-^|-Replace-^|git-ignore^|Menus^|functions^|details'
           + '"';
         // if (!onlyReCookAliasFile) {
         runCmdInTerminal(cmd, true);
@@ -344,12 +344,14 @@ export function cookCmdShortcutsOrFile(
     }
 
     if (isWindowsTerminal) {
-      finalGuide = createCmdAliasTip + defaultCmdAliasFile + ' .' + finalGuide;
-      const setEnvCmd = getSetToolEnvCommand(terminalType, '');
-      checkSetPathBeforeRunDoskeyAlias('doskey /MACROFILE="' + cmdAliasFile + '"', true, setEnvCmd);
-      if (isGeneralCmdAlias) {
-        const regCmd = 'REG ADD "HKEY_CURRENT_USER\\Software\\Microsoft\\Command Processor" /v Autorun /d "DOSKEY /MACROFILE=' + slashQuotedDefaultCmdAliasFile + '" /f';
-        runCmdInTerminal(regCmd, true);
+      if (TerminalType.PowerShell !== terminalType) {
+        finalGuide = createCmdAliasTip + defaultCmdAliasFile + ' .' + finalGuide;
+        const setEnvCmd = getSetToolEnvCommand(terminalType, '');
+        checkSetPathBeforeRunDoskeyAlias('doskey /MACROFILE="' + cmdAliasFile + '"', true, setEnvCmd);
+        if (isGeneralCmdAlias) {
+          const regCmd = 'REG ADD "HKEY_CURRENT_USER\\Software\\Microsoft\\Command Processor" /v Autorun /d "DOSKEY /MACROFILE=' + slashQuotedDefaultCmdAliasFile + '" /f';
+          runCmdInTerminal(regCmd, true);
+        }
       }
     } else {
       if (isReCookingForRunCmdTerminal) {
@@ -376,7 +378,9 @@ export function cookCmdShortcutsOrFile(
     }
 
     if (isWindowsTerminal) {
-      runCmdInTerminal('malias "update-\\S*alias^|open-\\S*alias" -e "(.:.+)" -M', true);
+      if (TerminalType.PowerShell !== terminalType) {
+        runCmdInTerminal('malias "update-\\S*alias^|open-\\S*alias" -e "(.:.+)" -M', true);
+      }
     } else {
       runCmdInTerminal('malias "update-\\S*alias|open-\\S*alias" -e "(.:.+|[~/].+\\w+)" -M', true);
     }

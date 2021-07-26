@@ -1,4 +1,4 @@
-# [vscode-msr](https://github.com/qualiu/vscode-msr/blob/master/README.md#vscode-msr)
+# [vscode-msr](https://github.com/qualiu/vscode-msr/blob/master/README.md#vscode-msr) (see [msrUI](https://github.com/qualiu/msrUI) help using [msr](https://github.com/qualiu/msr))
 
 Have you suffered issues below in your daily work?
 
@@ -241,7 +241,7 @@ When you open a new terminal, will [**auto set project specific command shortcut
     - Run **update-{project-folder-name}-alias** to **recover**/use `git-ignore` filters.
       - Run **`malias "update-\S*alias"`** to get the exact `update-xxx-alias` **names** + **paths**.
   - Only for `MSR-RUN-CMD` terminals in vscode:
-    - Open user settings (press `F1`) -> search `msr.useGitIgnoreFile` and un-check it to use `default/general` filters.
+    - Open [user settings](https://code.visualstudio.com/docs/getstarted/settings#_settings-editor) (press `F1`) -> search `msr.useGitIgnoreFile` and un-check it to use `default/general` filters.
       - Change `msr.{project-folder-name}.useGitIgnoreFile` if you had set for a project in [user settings.json](https://code.visualstudio.com/docs/getstarted/settings#_settings-file-locations).
 - System console (`CMD/Bash`) **out of vscode** (after [cooking doskeys/alias](#make-command-shortcuts-to-search-or-replace-in-or-out-of-vscode)).
   - If you always work with only one project/repository:
@@ -259,7 +259,7 @@ When you open a new terminal, will [**auto set project specific command shortcut
 
 ## Use git-ignore
 
-Open user settings, set `msr.useGitIgnoreFile` = `true` (or `msr.{project-folder-name}.useGitIgnoreFile` = `true`)
+Open [user settings](https://code.visualstudio.com/docs/getstarted/settings#_settings-editor), set `msr.useGitIgnoreFile` = `true` (or `msr.{project-folder-name}.useGitIgnoreFile` = `true`)
 
 - This use the `.gitignore` file only in top folder of the project, without other kinds/folders of git-ignore files.
 - Omit file/folder exemptions (like `!not-exclude.txt`) as default.
@@ -277,7 +277,7 @@ Run command **`"npm run test"`** in vscode-msr folder if you want to see the tra
 ### Enable or disable git-ignore for all projects or one project
 
 - For all projects: Set `msr.useGitIgnoreFile` to `true` or `false`.
-- For one project: Add `msr.{project-folder-name}.useGitIgnoreFile` = `true` or `false` in [user settings](https://code.visualstudio.com/docs/getstarted/settings#_creating-user-and-workspace-settings).
+- For one project: Add `msr.{project-folder-name}.useGitIgnoreFile` = `true` or `false` in [user settings](#extension-settings-if-you-want-to-change).
 
 ### A better solution to support `git-ignore` in future
 
@@ -305,7 +305,7 @@ Run command **`"npm run test"`** in vscode-msr folder if you want to see the tra
 
 If you want to support unknown languages, do **anyone** of below:
 
-- Set `msr.enable.onlyFindDefinitionForKnownLanguages` = **false** in [personal settings file](https://code.visualstudio.com/docs/getstarted/settings#_settings-file-locations) or un-check it in [user settings](https://code.visualstudio.com/docs/getstarted/settings#_creating-user-and-workspace-settings).
+- Set `msr.enable.onlyFindDefinitionForKnownLanguages` = **false** in [personal settings file](https://code.visualstudio.com/docs/getstarted/settings#_settings-file-locations) or un-check it in [user settings](#extension-settings-if-you-want-to-change).
 - See [Easy to Support New Languages](#easy-to-support-new-languages) to add one or two config values.
 
 ## Easy to Support New Languages
@@ -375,7 +375,7 @@ See [optional settings](https://github.com/qualiu/vscode-msr/blob/master/Add-New
 
 Default setting just shows a few of 24 provided context menu items of `Plain-text find` + `Regex find` + `Sort`.
 
-To show or hide more menus, [open user settings](https://code.visualstudio.com/docs/getstarted/settings#_creating-user-and-workspace-settings) check/un-check menus like [screenshot](https://raw.githubusercontent.com/qualiu/vscode-msr/master/images/editor-context-menu.png) below:
+To show or hide more menus, [open user settings](#extension-settings-if-you-want-to-change) check/un-check menus like [screenshot](https://raw.githubusercontent.com/qualiu/vscode-msr/master/images/editor-context-menu.png) below:
 
 <img align='center' src='https://raw.githubusercontent.com/qualiu/vscode-msr/master/images/editor-context-menu.png' width=785 height=313>
 
@@ -463,7 +463,7 @@ There're another 2 ways to toggle besides the hot key (`Alt+F2`):
 
 <img align='center' src='https://raw.githubusercontent.com/qualiu/vscode-msr/master/images/browse-all-setting-names.png'>
 
-This doc listed a few configuration names. Finding more by pressing `F1` to [Open User settings](https://code.visualstudio.com/docs/getstarted/settings#_creating-user-and-workspace-settings) to change.
+This doc listed a few configuration names. Finding more by pressing `F1` to [Open User settings](#extension-settings-if-you-want-to-change) to change.
 
 - `msr.quiet`
 
@@ -474,9 +474,13 @@ This doc listed a few configuration names. Finding more by pressing `F1` to [Ope
 
 ## Extension Settings If You Want to Change
 
-- You **don't need to change** [user settings](https://code.visualstudio.com/docs/getstarted/settings#_creating-user-and-workspace-settings), unless you want to tune or improve `Regex` patterns, or add **extra search paths** , etc.
-- You can use `msr.{project-folder-name}.xxx` to override all config values, like: `msr.{git-folder-name}.useGitIgnoreFile` or `msr.{git-folder-name}.skipFolders` etc.
-- Full priority/order: See [override order](https://github.com/qualiu/vscode-msr/blob/master/Add-New-Language-Support-For-Developers.md#full-priority-order-of-config-override-rule).
+- You **don't need to change** [user settings](https://code.visualstudio.com/docs/getstarted/settings#_edit-settings), however, if you need: 
+  - Just type/paste **`msr.xxx`** in **vscode UI**(like below) or add/update **`msr.xxx`** in [**user settings file**](https://code.visualstudio.com/docs/getstarted/settings#_settings-file-locations):
+    <img align='center' src='https://raw.githubusercontent.com/qualiu/vscode-msr/master/images/change-settings-example.png'>
+
+- You can add `msr.{project-folder-name}.xxx` in [settings file](https://code.visualstudio.com/docs/getstarted/settings#_settings-file-locations) to override all config values, like:
+  - `msr.{git-folder-name}.useGitIgnoreFile` or `msr.{git-folder-name}.skipFolders` etc.
+- Full priority/order: See [**override rule + order**](https://github.com/qualiu/vscode-msr/blob/master/Add-New-Language-Support-For-Developers.md#full-priority-order-of-config-override-rule).
 
 Note: Check [**your personal settings**](https://code.visualstudio.com/docs/getstarted/settings#_settings-file-locations) (`msr.xxx` in file) with the latest tuned github settings, especially for `Regex` patterns.
 
@@ -492,7 +496,7 @@ Note: Check [**your personal settings**](https://code.visualstudio.com/docs/gets
 
 ### Auto Set Command Shortcuts for New Terminals
 
-- Default behavior:
+- Default behavior(change [user settings](#extension-settings-if-you-want-to-change) as you wish):
 
   - `msr.initProjectCmdAliasForNewTerminals` = `true`
     - Auto set/initialize command alias/doskeys for newly created terminals:
@@ -708,7 +712,7 @@ Reuse the search command above (or `find-reference` command line in `vscode`), y
 
 ## Brief Usage Summary for Search or Configuration
 
-Besides the [overview doc](https://github.com/qualiu/msr/blob/master/README.md) and [readme.txt](https://raw.githubusercontent.com/qualiu/msr/master/tools/readme.txt) here's brief summary:
+Besides the [overview doc](https://github.com/qualiu/msr/blob/master/README.md) and [readme.txt](https://raw.githubusercontent.com/qualiu/msr/master/tools/readme.txt) here's brief summary(try [**msrUI**](https://github.com/qualiu/msrUI) if [**built-in help**](https://github.com/qualiu/msr/blob/master/README.md#msr-overview-windows-or-linux) not good enough):
 
 - Easy to add, update or tune `Regex` patterns to improve existing or support new coding languages:
   - Use above debugging method with the output info.
@@ -740,6 +744,14 @@ Besides the [overview doc](https://github.com/qualiu/msr/blob/master/README.md) 
   - Skip/Exclude link files: **--xf**
   - Skip/Exclude link folders: **--xd**
   - Skip full or sub paths: **--xp** `d:\win\dir,my\sub,\bin\`
+    - Newer msr supports forwarding slash(`/`) on Windows to ease slash-escaping: 
+      - **--xp** `d:/win/dir,my/sub,/bin/` same as `d:\win\dir,my\sub,\bin\` 
+        - (You can omit double quotes since no spaces and special characters).
+      - **--np** `"d:/win/dir|my/sub|/bin/"` same as `"d:\\win\\dir|my\\sub|\\bin\\\\"` 
+        - (Need more slashes if end with a slash + double quote).
+      - **--pp** `"/src/|/common"` same as `"\\src\\|\\common"`.
+    - Check if your msr support forwarding slash(`/`) by command:
+      - `msr -h | msr -x "Support '/'"`
   - Try to read once for link files: **-G** (link files' folders must be or under input root paths of `-p` or/and `-w`)
   - Filter `file size`: **--s1** <= size <= **s2** , like set one or two: **--s1** `1B` **--s2** `1.5MB`
   - Filter `file time`: like **--w1** `2019-07`, **--w2** `"2019-07-16 13:20"` or `2019-07-16T13:20:01` (quote it if has spaces).
@@ -797,7 +809,7 @@ However, there're 1 workaround for duplicate results + 2 workarounds for finding
 
 #### Workaround for VsCode Finding Definition Bug
 
-- **Method-1**: Set **msr.quiet** = **false**: Un-check it from user settings, which is opposite to [Set Quiet Mode](#more-settings-like-quiet-mode).
+- **Method-1**: Set **msr.quiet** = **false**: Un-check it from [user settings](https://code.visualstudio.com/docs/getstarted/settings#_settings-editor), which is opposite to [Set Quiet Mode](#more-settings-like-quiet-mode).
   - This let you see **`sorted results after ranking`** and able to **click and go to the locations**.
   - But this may **annoy you** to activate and show 2 channels each time `"Go To Definition"`:
     - It'll show search command + results in the `MSR-Def-Ref` channel in `OUTPUT` tab each time.

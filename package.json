@@ -3,7 +3,7 @@
     "displayName": "Search code + Replace file + Find definition and reference for all types.",
     "description": "Search code + Replace file + Find definition and reference in multiple repository paths by msr for all coding languages + configuration + doc files.",
     "author": "qualiu@microsoft.com",
-    "version": "2.1.27",
+    "version": "2.1.28",
     "icon": "images/vscode-msr-icon.png",
     "license": "completely free",
     "publisher": "qualiu",
@@ -787,7 +787,7 @@
                 "msr.skipInitCmdAliasForNewTerminalTitleRegex": {
                     "type": "string",
                     "default": "PowerShell\\s*Integrated\\s*Console|pwsh$|Java|Debug",
-                    "description": "Regex pattern of terminal title to skip initializing command shorts for newly opened terminals."
+                    "description": "Regex pattern of terminal title to skip initializing command shortcuts for newly opened terminals."
                 },
                 "msr.overwriteProjectCmdAliasForNewTerminals": {
                     "type": "boolean",

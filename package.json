@@ -3,7 +3,7 @@
     "displayName": "Search code + Replace file + Find definition and reference for all types.",
     "description": "Search code + Replace file + Find definition and reference in multiple repository paths by msr for all coding languages + configuration + doc files.",
     "author": "qualiu@microsoft.com",
-    "version": "2.1.28",
+    "version": "2.1.29",
     "icon": "images/vscode-msr-icon.png",
     "license": "completely free",
     "publisher": "qualiu",
@@ -1273,6 +1273,16 @@
                     "type": "boolean",
                     "default": true,
                     "description": "When cooking command alias/shortcuts, remove -W to output relative path for Linux terminals on Windows (overwrite default extraOption)."
+                },
+                "msr.cookCmdAlias.addEchoOff": {
+                    "type": "string",
+                    "default": "@echo off",
+                    "description": "Add '@echo off' or set empty when cooking each command alias/doskeys to a batch script file named alias.cmd"
+                },
+                "msr.cookCmdAlias.setVariablesToLocalScope": {
+                    "type": "string",
+                    "default": "",
+                    "description": "Add '@SetLocal EnableExtensions EnableDelayedExpansion' or set to empty when cooking each command alias/doskeys to a batch script file named alias.cmd"
                 },
                 "msr.searchRelativePathForLinuxTerminalsOnWindows": {
                     "type": "boolean",

@@ -8,7 +8,7 @@ import { FindCommandType, TerminalType } from "./enums";
 import { getTerminalInitialPath, getTerminalNameOrShellExeName, getTerminalShellExePath, saveTextToFile } from './otherUtils';
 import { clearOutputChannel, enableColorAndHideCommandLine, MessageLevel, outputDebug, outputError, outputInfoQuiet, runCommandGetInfo, runCommandInTerminal, sendCmdToTerminal } from "./outputUtils";
 import { escapeRegExp } from "./regexUtils";
-import { DefaultTerminalType, getRootFolder, getRootFolderName, getTimeCostToNow, getUniqueStringSetNoCase, IsLinuxTerminalOnWindows, isLinuxTerminalOnWindows, isNullOrEmpty, isWindowsTerminalType, nowText, quotePaths, replaceSearchTextHolder, replaceTextByRegex, toOsPath, toOsPathsForText, toWSLPath } from "./utils";
+import { DefaultTerminalType, getRootFolder, getRootFolderName, getTimeCostToNow, getUniqueStringSetNoCase, IsLinuxTerminalOnWindows, isLinuxTerminalOnWindows, isNullOrEmpty, IsWindowsTerminalOnWindows, isWindowsTerminalType, nowText, quotePaths, replaceSearchTextHolder, replaceTextByRegex, toOsPath, toOsPathsForText, toWSLPath } from "./utils";
 import fs = require('fs');
 import os = require('os');
 import path = require('path');
@@ -239,16 +239,21 @@ export function cookCmdShortcutsOrFile(
 
   const sortedKeys = Array.from(cmdAliasMap.keys()).sort();
   sortedKeys.forEach(key => {
-    const value = cmdAliasMap.get(key) || '';
+    let scriptContent = cmdAliasMap.get(key) || '';
     if (writeToEachFile) {
       if (!failedToCreateSingleScriptFolder && !skipWritingScriptNames.has(key) && (dumpOtherCmdAlias || key.startsWith('find'))) {
         const singleScriptPath = path.join(singleScriptFolder, isWindowsTerminal ? key + '.cmd' : key);
-        if (!saveTextToFile(singleScriptPath, value.trimRight() + (isWindowsTerminal ? '\r\n' : '\n'), 'single command alias script file')) {
+        if (IsWindowsTerminalOnWindows) {
+          const head = (MyConfig.AddEchoOffWhenCookingWindowsCommandAlias + os.EOL + MyConfig.SetVariablesToLocalScopeWhenCookingWindowsCommandAlias).trim();
+          scriptContent = (head.length > 0 ? head + os.EOL : head) + replaceForLoopVariableOnWindows(scriptContent)
+        }
+
+        if (!saveTextToFile(singleScriptPath, scriptContent.trim() + (isWindowsTerminal ? '\r\n' : '\n'), 'single command alias script file')) {
           failureCount++;
         }
       }
     } else {
-      allText += value + (isWindowsTerminal ? '\r\n\r\n' : '\n\n');
+      allText += scriptContent + (isWindowsTerminal ? '\r\n\r\n' : '\n\n');
     }
   });
 
@@ -315,7 +320,7 @@ export function cookCmdShortcutsOrFile(
 
     const createCmdAliasTip = ` You can also create shortcuts in ${isWindowsTerminal ? '' : 'other files like '}`;
     let finalGuide = ' You can disable msr.initProjectCmdAliasForNewTerminals in user settings. '
-      + 'Toggle-Enable + Adjust-Color + Fuzzy-Code-Mining + Preview-And-Replace-Files + Hide/Show-Menus + Use git-ignore + More functions + details see doc like: ' + CookCmdDocUrl;
+      + 'Toggle-Enable + Speed-Up-if-Slowdown-by-Windows-Security + Adjust-Color + Fuzzy-Code-Mining + Preview-And-Replace-Files + Hide/Show-Menus + Use git-ignore + More functions + details see doc like: ' + CookCmdDocUrl;
     let canRunShowDef = true;
     if (newTerminal && isWindowsTerminal) {
       if (TerminalType.CMD !== terminalType && TerminalType.PowerShell !== terminalType) {
@@ -335,7 +340,7 @@ export function cookCmdShortcutsOrFile(
           + ' & echo. & echo Type exit if you want to back to PowerShell without ' + commands.length + shortcutsExample
           + finalGuide
           + ' | msr -aPA -e .+ -ix exit -t ' + commands.length
-          + '^|PowerShell^|m*alias^|find-\\S+^|sort-\\S+^|out-\\S+^|use-\\S+^|msr.init\\S+^|\\S*msr-cmd-alias\\S*^|Toggle-Enable^|Adjust-Color^|Code-Mining^|Preview-^|-Replace-^|git-ignore^|Menus^|functions^|details'
+          + '^|PowerShell^|m*alias^|find-\\S+^|sort-\\S+^|out-\\S+^|use-\\S+^|msr.init\\S+^|\\S*msr-cmd-alias\\S*^|Toggle-Enable^|Speed-Up^|Adjust-Color^|Code-Mining^|Preview-^|-Replace-^|git-ignore^|Menus^|functions^|details'
           + '"';
         // if (!onlyReCookAliasFile) {
         runCmdInTerminal(cmd, true);
@@ -387,7 +392,7 @@ export function cookCmdShortcutsOrFile(
 
     if (canRunShowDef || !newTerminal) {
       const cmd = 'echo Now you can use ' + commands.length + shortcutsExample + finalGuide + ' | msr -aPA -e .+ -x ' + commands.length
-        + ' -it "find-\\S+|sort-\\S+|out-\\S+|use-\\S+|msr.init\\S+|other|Toggle-Enable|Adjust-Color|Preview-|-Replace-|Code-Mining|git-ignore|Menus|functions|details|\\S*msr-cmd-alias\\S*|(m*alias \\w+\\S*)"';
+        + ' -it "find-\\S+|sort-\\S+|out-\\S+|use-\\S+|msr.init\\S+|other|Toggle-Enable|Speed-Up|Adjust-Color|Preview-|-Replace-|Code-Mining|git-ignore|Menus|functions|details|\\S*msr-cmd-alias\\S*|(m*alias \\w+\\S*)"';
       runCmdInTerminal(cmd, true);
     }
 
@@ -935,6 +940,42 @@ function replaceArgForWindowsCmdAlias(body: string): string {
   body = replaceTextByRegex(body, /\$(\d+)/g, '%$1');
   body = replaceTextByRegex(body, /\$\*/g, '%*');
   return body;
+}
+
+export function replaceForLoopVariableOnWindows(cmd: string): string {
+  // Example: for /f "tokens=*" %a in ('xxx') do xxx %a
+  // Should replace %a to %%a when writing each alias/doskey to a file.
+  const GetForLoopRegex = /\bfor\s+\/f\s+("[^"]*?tokens=\s*(?<Token>\*|\d+[, \d]*)[^"]*?"\s+)?%(?<StartVariable>[a-z])\s+in\s+\(.*?\)\s*do\s+/i;
+  const match = GetForLoopRegex.exec(cmd);
+  if (!match || !match.groups) {
+    return cmd;
+  }
+
+  let tokens = match.groups['Token'] ? match.groups['Token'].split(/,\s*/) : ['1'];
+  if (tokens.length === 1 && tokens[0] === '*') {
+    tokens = ['1'];
+  }
+
+  const startingVariableName = match.groups['StartVariable'];
+  const isLowerCaseVariable = startingVariableName.toLowerCase() === startingVariableName;
+  let beginCharCode = isLowerCaseVariable
+    ? startingVariableName.toLowerCase().charCodeAt(0)
+    : startingVariableName.toUpperCase().charCodeAt(0);
+
+  let variableChars: string[] = [];
+  tokens.forEach((numberText) => {
+    const number = Number.parseInt(numberText.toString());
+    const variableName = String.fromCharCode(beginCharCode + number - 1);
+    variableChars.push(variableName);
+  });
+
+  for (let k = 0; k < variableChars.length; k++) {
+    cmd = cmd.replace(new RegExp('%' + variableChars[k], 'g'), '%%' + variableChars[k]);
+  }
+
+  // next for loop
+  const subText = cmd.substr(match.index + match[0].length);
+  return cmd.substring(0, match.index + match[0].length) + replaceForLoopVariableOnWindows(subText);
 }
 
 export function mergeSkipFolderPattern(skipFoldersPattern: string) {

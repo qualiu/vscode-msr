@@ -123,6 +123,9 @@ export class DynamicConfig {
     public HideWarningsAndExtraInfoWhenCookingCommandAlias: boolean = false;
     public OutputFullPathWhenCookingCommandAlias: boolean = true;
     public OutputRelativePathForLinuxTerminalsOnWindows: boolean = true;
+    public AddEchoOffWhenCookingWindowsCommandAlias: string = '';
+    public SetVariablesToLocalScopeWhenCookingWindowsCommandAlias: string = '';
+
     public UseDefaultFindingClassCheckExtensionRegex: RegExp = new RegExp('to-load');
     public AllSourceFileExtensionRegex: RegExp = new RegExp('to-load');
     public AllFileExtensionMapExtRegex: RegExp[] = [];
@@ -222,6 +225,8 @@ export class DynamicConfig {
         this.HideWarningsAndExtraInfoWhenCookingCommandAlias = getConfigValue('cookCmdAlias.hideWarningsAndExtraInfo') === 'true';
         this.OutputFullPathWhenCookingCommandAlias = getConfigValue('cookCmdAlias.outputFullPath') === 'true';
         this.OutputRelativePathForLinuxTerminalsOnWindows = getConfigValue('cookCmdAlias.outputRelativePathForLinuxTerminalsOnWindows') === 'true';
+        this.AddEchoOffWhenCookingWindowsCommandAlias = getConfigValue('cookCmdAlias.addEchoOff', true);
+        this.SetVariablesToLocalScopeWhenCookingWindowsCommandAlias = getConfigValue('cookCmdAlias.setVariablesToLocalScope', true);
 
         this.UseDefaultFindingClassCheckExtensionRegex = createRegex(getConfigValue('useDefaultFindingClass.extensions'));
         this.AllSourceFileExtensionRegex = createRegex(getConfigValue('allFiles'), 'i');

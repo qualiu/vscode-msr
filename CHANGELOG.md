@@ -2,6 +2,12 @@
 
 All notable changes to this "vscode-msr" extension will be documented in this file.
 
+## [2.1.29]
+
+- Supported cooking script files for each command alias/shortcuts(`doskey`) if contains `for loop` on Windows.
+  - Added `msr.cookCmdAlias.addEchoOff` to hide script content (default: added).
+  - Added `msr.cookCmdAlias.setVariablesToLocalScope` to set local variable (default: empty/not).
+
 ## [2.1.28]
 
 - Reduced show-tip commands for Windows PowerShell terminal.

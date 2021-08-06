@@ -186,6 +186,14 @@ You can generate the command shortcuts (alias/doskey) to directly use for search
   - `"Cook script files: Only general finding command alias/doskey."`
   - `"Cook script files by project: Only finding command alias/doskey."`
   - `"Cook general finding + Dump with other command alias/doskey to script files."`
+    - Tip for [**msr advantage**](https://github.com/qualiu/msr#tip-for-captured-groups-reference-to-replace-files-or-transform-text) on **Windows** + **Linux**(including `MinGW` + `Cygwin` on Windows):
+      - You can use `"\1"` instead of `"$1"` to avoid conflict if your `doskey`/`alias` contains **`Regex-Replacing`** commands:
+        -  `Regex replace-to` conflict with `doskey macro` variables like **$1** on Windows.
+        -  `Regex replace-to` conflict with `bash` variables like **$1** on Linux.
+      - Same to use **\2** + **\3** better than **$2** **$3** and etc.
+    - To hide command + set local variable scope for Windows `doskey` shortcuts to script files:
+      - Change `msr.cookCmdAlias.addEchoOff` (default: added) to **`@REM echo off`** if you want to show command line.
+      - Change `msr.cookCmdAlias.setVariablesToLocalScope` to **`SetLocal EnableExtensions EnableDelayedExpansion`** to avoid global scope.
   - `"Cook finding by project + Dump with other command alias/doskey to script files."`
 
 ### Command Shortcuts

@@ -3,12 +3,13 @@ import { before } from 'mocha';
 // as well as import your extension to test it
 import * as vscode from 'vscode';
 import { checkConfigKeysInDoc, checkDuplicateDescription, validateRegexPatterns } from './configAndDocTest';
+import { testForLoopCmdAlias } from './cookCmdAliasTest';
 import { testCmdTerminalWithBackSlash, testCmdTerminalWithForwardSlash, testLinuxTerminal, testNotSkipDotPaths, testOmitExemptions } from './gitIgnoreTest';
 import { testEscapeRegex, testEscapeRegexForFindingCommands, testSpecialCaseReplacing } from './utilsTest';
 
 suite('Test-1: Basic utils test', () => {
     before(() => {
-        vscode.window.showInformationMessage('Start testing basic utils.');
+        vscode.window.showInformationMessage('Begin of testing basic utils.');
     });
     test('Test escaping Regex.', testEscapeRegex);
     test('Test escaping Regex for finding commands in terminal.', testEscapeRegexForFindingCommands);
@@ -51,4 +52,8 @@ suite('Test-3: Parsing .gitignore test', () => {
     test('Parsing .gitignore with relative path + forwarding slash for Windows CMD terminal.', () => {
         testCmdTerminalWithForwardSlash();
     });
+});
+
+suite('Test-4: Cook each doskey/alias to a batch script file for Windows doskey', () => {
+    test('Test use "%%x" for looping variable "%x" when cooking doskey/alias to files on Windows.', testForLoopCmdAlias);
 });

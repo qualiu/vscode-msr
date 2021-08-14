@@ -319,7 +319,7 @@ export function cookCmdShortcutsOrFile(
     }
 
     const createCmdAliasTip = ` You can also create shortcuts in ${isWindowsTerminal ? '' : 'other files like '}`;
-    let finalGuide = ' You can disable msr.initProjectCmdAliasForNewTerminals in user settings. '
+    let finalGuide = ' You can change msr.skipInitCmdAliasForNewTerminalTitleRegex in user settings. '
       + 'Toggle-Enable + Speed-Up-if-Slowdown-by-Windows-Security + Adjust-Color + Fuzzy-Code-Mining + Preview-And-Replace-Files + Hide/Show-Menus + Use git-ignore + More functions + details see doc like: ' + CookCmdDocUrl;
     let canRunShowDef = true;
     if (newTerminal && isWindowsTerminal) {
@@ -340,7 +340,7 @@ export function cookCmdShortcutsOrFile(
           + ' & echo. & echo Type exit if you want to back to PowerShell without ' + commands.length + shortcutsExample
           + finalGuide
           + ' | msr -aPA -e .+ -ix exit -t ' + commands.length
-          + '^|PowerShell^|m*alias^|find-\\S+^|sort-\\S+^|out-\\S+^|use-\\S+^|msr.init\\S+^|\\S*msr-cmd-alias\\S*^|Toggle-Enable^|Speed-Up^|Adjust-Color^|Code-Mining^|Preview-^|-Replace-^|git-ignore^|Menus^|functions^|details'
+          + '^|PowerShell^|m*alias^|find-\\S+^|sort-\\S+^|out-\\S+^|use-\\S+^|msr.skip\\S+^|\\S*msr-cmd-alias\\S*^|Toggle-Enable^|Speed-Up^|Adjust-Color^|Code-Mining^|Preview-^|-Replace-^|git-ignore^|Menus^|functions^|details'
           + '"';
         // if (!onlyReCookAliasFile) {
         runCmdInTerminal(cmd, true);
@@ -392,7 +392,7 @@ export function cookCmdShortcutsOrFile(
 
     if (canRunShowDef || !newTerminal) {
       const cmd = 'echo Now you can use ' + commands.length + shortcutsExample + finalGuide + ' | msr -aPA -e .+ -x ' + commands.length
-        + ' -it "find-\\S+|sort-\\S+|out-\\S+|use-\\S+|msr.init\\S+|other|Toggle-Enable|Speed-Up|Adjust-Color|Preview-|-Replace-|Code-Mining|git-ignore|Menus|functions|details|\\S*msr-cmd-alias\\S*|(m*alias \\w+\\S*)"';
+        + ' -it "find-\\S+|sort-\\S+|out-\\S+|use-\\S+|msr.skip\\S+|other|Toggle-Enable|Speed-Up|Adjust-Color|Preview-|-Replace-|Code-Mining|git-ignore|Menus|functions|details|\\S*msr-cmd-alias\\S*|(m*alias \\w+\\S*)"';
       runCmdInTerminal(cmd, true);
     }
 

@@ -24,7 +24,7 @@ Have you suffered issues below in your daily work?
   - Must build **Z GB outputs** to the disk (like C#) before you can read code?
   - Offer **N GB running memory** to the `official/professional` language extensions?
 
-Then it's the **light** and **right** tool for you(just **2~3 MB** storage + **1~5 MB** running memory) to search definition(near precise) + replace files.
+Then it's the **light** and **right** tool for you(just **2~3 MB** storage + **1~5+ MB** running memory) to search definition(near precise) + replace files.
 
 **Note**: ([**Temp-toggle**](#get-the-best-combined-power) or [**change settings**](#disable-finding-definition-and-references-for-specific-file-types) for languages disabled by default settings.)
 
@@ -63,7 +63,7 @@ Then it's the **light** and **right** tool for you(just **2~3 MB** storage + **1
 - Simple + flexible configuration (`just general Regex` of `C++`,`Java`,`C#`,`Python`), overwrite default settings if need.
 
 - All just leverage one [tiny exe: msr-EXE](https://github.com/qualiu/msr/blob/master/README.md) **without** `storage`/`cache`, `server`/`service`, `network`, etc.
-  - This extension costs **2~3 MB** download/storage + **1~5 MB** running memory.
+  - This extension costs **2~3 MB** download/storage + **1~5+ MB** running memory.
   - Much faster than professional language extensions in some cases (like results in same file or folder).
   - Auto search other language files + [extra repo folders](#extra-paths-settings) if not found definition results.
 
@@ -139,7 +139,7 @@ More details or other color settings follow [official vscode doc](https://code.v
 
 ## Avoid Security Software Downgrade Search Performance on Windows
 
-If you cannot get search results **in 1~2 seconds** for just **10000 code files** (auto skip `packages`, `build` and `junk files`):
+If you cannot get search results **in 1~2 seconds** for just **10000 code files** (auto skip `packages`/`build`/`junk files`):
 
 Follow [official Windows doc](https://support.microsoft.com/en-us/help/4028485/windows-10-add-an-exclusion-to-windows-security):
 
@@ -696,10 +696,11 @@ You can use any 1 of **3 methods** below to filter results or take further searc
 Change the value of **-t** / **--np** / **--nd** if already used in command line.
 
 - Filter result text:
-  - **-x** `"need plain text"` , **--nx** `"exclude plain-text"` , **--nt** `"exclude Regex"` , **-t** `"search/include Regex"`.
+  - **-x** `"need plain text"` , **--nx** `"exclude plain-text"`
+  - **-t** `"search/include Regex"` , **--nt** `"exclude Regex"`
 - Filter result file name, folder, full-path:
   - **-d** `"match folders Regex"`, **--nd** `"exclude folder Regex"`
-  - **--pp** `"full path Regex"` , **--np** `"exclude full path Regex"` , **--xp** `"sub-paths,sub-text"`
+  - **--pp** `"full path Regex"` , **--np** `"exclude full path Regex"` , **--xp** `"/full-paths,or/sub-paths,sub-path-text"`
 - You can also add more `msr` commands to the command line like:
   - `msr original command` **|** `msr -i -t "^\s*public" -P -A -C`
 - Get matched file `list` (**-l**) -> Generate new command (**-o** `msr xxx`) -> Execute command (**-X**):

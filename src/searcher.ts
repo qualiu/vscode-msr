@@ -179,7 +179,7 @@ function getSearchCommandLineAndRanker(searchChecker: SearchChecker, findType: F
   if (isSearchOneFile) {
     extraOptions = "-I -C " + (isFindDefinition ? '-J -H 60' : '-J -H 360');
   } else {
-    extraOptions = getRootFolderExtraOptions(rootFolderName) + ' ' + getSubConfigValue(rootFolderName, extension, mappedExt, configKeyName, 'extraOptions');
+    extraOptions = getSubConfigValue(rootFolderName, extension, mappedExt, configKeyName, 'extraOptions', true);
     // if (skipTestPathFiles && /test/i.test(document.fileName) === false && /\s+--np\s+/.test(extraOptions) === false) {
     // 	extraOptions = '--np test ' + extraOptions;
     // }

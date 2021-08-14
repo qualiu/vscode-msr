@@ -86,9 +86,9 @@ export function getSortCommandText(toRunInTerminal: boolean, useProjectSpecific:
     const folderKey = useProjectSpecific ? rootFolderName : 'default';
     let filePattern = '';
     if (findCmdText.includes('SortSource')) {
-        filePattern = getOverrideConfigByPriority([folderKey, 'default'], 'allFiles');
+        filePattern = getOverrideConfigByPriority([folderKey, 'default', ''], 'allFiles');
     } else if (findCmdText.includes('SortCode')) {
-        filePattern = getOverrideConfigByPriority([folderKey, 'default'], 'codeFiles');
+        filePattern = getOverrideConfigByPriority([folderKey, 'default', ''], 'codeFiles');
     }
 
     if (!isNullOrEmpty(filePattern)) {
@@ -96,9 +96,9 @@ export function getSortCommandText(toRunInTerminal: boolean, useProjectSpecific:
     }
 
     const optionalArgs = addOptionalArgs ? ' $*' : '';
-    let extraOptions = ' ' + getRootFolderExtraOptions(folderKey);
+    let extraOptions = ' ' + getOverrideConfigByPriority([folderKey, 'default', ''], 'extraOptions', true).trimRight();
     extraOptions += (findCmdText.match(/BySize/i) ? '--sz --wt' : '--wt --sz');
-    extraOptions += ' ' + getOverrideConfigByPriority([folderKey, 'default'], 'listSortingFilesOptions') as string || '-l -H 10 -T 10';
+    extraOptions += ' ' + getOverrideConfigByPriority([folderKey, 'default', ''], 'listSortingFilesOptions') as string || '-l -H 10 -T 10';
 
     let searchPathsOptions = getSearchPathOptions(toRunInTerminal, useProjectSpecific, rootFolder, '', FindCommandType.RegexFindAsClassOrMethodDefinitionInCodeFiles === findCmd);
     if (isCookingCmdAlias) {
@@ -123,9 +123,9 @@ export function getFindTopDistributionCommand(toRunInTerminal: boolean, useProje
     const folderKey = useProjectSpecific ? rootFolderName : 'default';
     let filePattern = '';
     if (findCmdText.includes('TopSource')) {
-        filePattern = getOverrideConfigByPriority([folderKey, 'default'], 'allFiles');
+        filePattern = getOverrideConfigByPriority([folderKey, 'default', ''], 'allFiles');
     } else if (findCmdText.includes('TopCode')) {
-        filePattern = getOverrideConfigByPriority([folderKey, 'default'], 'codeFiles');
+        filePattern = getOverrideConfigByPriority([folderKey, 'default', ''], 'codeFiles');
     }
 
     if (!isNullOrEmpty(filePattern)) {

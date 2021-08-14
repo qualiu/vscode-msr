@@ -1,9 +1,9 @@
 {
     "name": "vscode-msr",
-    "displayName": "Search code + Replace file + Find definition and reference for all types.",
-    "description": "Search code + Replace file + Find definition and reference in multiple repository paths by msr for all coding languages + configuration + doc files.",
+    "displayName": "Code mining + Replace file + Find definition and reference for all types.",
+    "description": "Code mining + Replace file + Find definition and reference in multiple repository paths by msr for all coding languages + configuration + doc files.",
     "author": "qualiu@microsoft.com",
-    "version": "2.1.29",
+    "version": "2.1.30",
     "icon": "images/vscode-msr-icon.png",
     "license": "completely free",
     "publisher": "qualiu",

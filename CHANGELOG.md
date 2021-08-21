@@ -2,11 +2,13 @@
 
 All notable changes to this "vscode-msr" extension will be documented in this file.
 
+## [2.1.31] 
+- Removed constraints(like `--w1`/`--s1`) when running finding commands in current file via menu or command palette.
+
 ## [2.1.30]
 - Changed `msr.default.extraOptions` rule: `msr.{project}.extraOptions` will overwrite `msr.default.extraOptions`.
- 
-## [2.1.29]
 
+## [2.1.29]
 - Supported cooking script files for each command alias/shortcuts(`doskey`) if contains `for loop` on Windows.
   - Added `msr.cookCmdAlias.addEchoOff` to hide script content (default: added).
   - Added `msr.cookCmdAlias.setVariablesToLocalScope` to set local variable (default: empty/not).

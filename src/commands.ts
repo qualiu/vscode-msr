@@ -180,9 +180,10 @@ export function getFindingCommandByCurrentWord(toRunInTerminal: boolean, findCmd
         return '';
     }
 
-    const isFindDefinition = findCmdText.indexOf('Definition') >= 0;
-    const isFindReference = findCmdText.indexOf('Reference') >= 0;
-    const isFindPlainText = findCmdText.indexOf('FindPlainText') >= 0;
+    const isFindDefinition = findCmdText.includes('Definition');
+    const isFindReference = findCmdText.includes('Reference');
+    const isFindPlainText = findCmdText.includes('FindPlainText');
+    const isFindInCurrentFile = findCmdText.includes('InCurrentFile');
     rawSearchText = rawSearchText.length < 1 ? searchText : rawSearchText;
 
     let extraOptions = isFindDefinition
@@ -301,6 +302,10 @@ export function getFindingCommandByCurrentWord(toRunInTerminal: boolean, findCmd
     // if (!isSorting && ('.' + extension).match(new RegExp(getOverrideConfigByPriority([rootFolderName, 'default'], 'scriptFiles') as string))) {
     //     filePattern = (MappedExtToCodeFilePatternMap.get(mappedExt) || getOverrideConfigByPriority([rootFolderName, 'default'], 'scriptFiles')) as string;
     // }
+
+    if (isFindInCurrentFile && !isNullOrEmpty(extraOptions)) {
+        extraOptions = extraOptions.replace(/--[ws][12]\s+("[^"]*"|\S+)(\s+|$)/g, '').trim();
+    }
 
     if (TerminalType.CMD !== DefaultTerminalType) {
         // escape double quoted variables

@@ -70,7 +70,7 @@ export function getRunCmdTerminal(): vscode.Terminal {
 			const rootFolder = getDefaultRootFolderByActiveFile() || getDefaultRootFolder();
 			RunCmdTerminalRootFolder = rootFolder.includes('/') ? rootFolder + '/' : rootFolder + '\\';
 			if (CookCmdTimesForRunCmdTerminal < 1) {
-				cookCmdShortcutsOrFile(rootFolder, true, false, _runCmdTerminal);
+				cookCmdShortcutsOrFile(false, rootFolder, true, false, _runCmdTerminal);
 			}
 		}
 	}

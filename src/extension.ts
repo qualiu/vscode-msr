@@ -70,7 +70,7 @@ export function registerExtension(context: vscode.ExtensionContext) {
 		if (MyConfig.InitProjectCmdAliasForNewTerminals && (!IsWindows || isNullOrEmpty(terminalName) || matchNameRegex.test(terminalName) || matchNameRegex.test(initialPath))) {
 			const folders = vscode.workspace.workspaceFolders;
 			const currentPath = folders && folders.length > 0 ? (workspaceFolder || folders[0].uri.fsPath) : '.';
-			cookCmdShortcutsOrFile(currentPath, true, false, terminal);
+			cookCmdShortcutsOrFile(false, currentPath, true, false, terminal);
 		}
 	}));
 
@@ -178,27 +178,27 @@ export function registerExtension(context: vscode.ExtensionContext) {
 
 	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.cookCmdAlias',
 		(textEditor: vscode.TextEditor, _edit: vscode.TextEditorEdit, ..._args: any[]) =>
-			cookCmdShortcutsOrFile(textEditor.document.uri.fsPath, false, false)));
+			cookCmdShortcutsOrFile(true, textEditor.document.uri.fsPath, false, false)));
 
 	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.cookCmdAliasByProject',
 		(textEditor: vscode.TextEditor, _edit: vscode.TextEditorEdit, ..._args: any[]) =>
-			cookCmdShortcutsOrFile(textEditor.document.uri.fsPath, true, false)));
+			cookCmdShortcutsOrFile(true, textEditor.document.uri.fsPath, true, false)));
 
 	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.cookCmdAliasFiles',
 		(textEditor: vscode.TextEditor, _edit: vscode.TextEditorEdit, ..._args: any[]) =>
-			cookCmdShortcutsOrFile(textEditor.document.uri.fsPath, false, true)));
+			cookCmdShortcutsOrFile(true, textEditor.document.uri.fsPath, false, true)));
 
 	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.cookCmdAliasFilesByProject',
 		(textEditor: vscode.TextEditor, _edit: vscode.TextEditorEdit, ..._args: any[]) =>
-			cookCmdShortcutsOrFile(textEditor.document.uri.fsPath, true, true)));
+			cookCmdShortcutsOrFile(true, textEditor.document.uri.fsPath, true, true)));
 
 	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.cookCmdAliasDumpWithOthersToFiles',
 		(textEditor: vscode.TextEditor, _edit: vscode.TextEditorEdit, ..._args: any[]) =>
-			cookCmdShortcutsOrFile(textEditor.document.uri.fsPath, false, true, undefined, true)));
+			cookCmdShortcutsOrFile(true, textEditor.document.uri.fsPath, false, true, undefined, true)));
 
 	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.cookCmdAliasDumpWithOthersToFilesByProject',
 		(textEditor: vscode.TextEditor, _edit: vscode.TextEditorEdit, ..._args: any[]) =>
-			cookCmdShortcutsOrFile(textEditor.document.uri.fsPath, true, true, undefined, true)));
+			cookCmdShortcutsOrFile(true, textEditor.document.uri.fsPath, true, true, undefined, true)));
 
 	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.tmpToggleEnableFindingDefinition',
 		(textEditor: vscode.TextEditor, _edit: vscode.TextEditorEdit, ..._args: any[]) => {

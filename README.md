@@ -1,4 +1,4 @@
-# [vscode-msr](https://github.com/qualiu/vscode-msr/blob/master/README.md#vscode-msr) (see [msrUI](https://github.com/qualiu/msrUI) help using [msr](https://github.com/qualiu/msr))
+# [vscode-msr](https://github.com/qualiu/vscode-msr/blob/master/README.md#vscode-msr)
 
 Have you suffered issues below in your daily work?
 

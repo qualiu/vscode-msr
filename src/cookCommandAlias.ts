@@ -72,6 +72,7 @@ function getDisplayPathForBash(filePath: string, replaceTo: string = '~'): strin
 }
 
 export function cookCmdShortcutsOrFile(
+  isFromMenu: boolean,
   currentFilePath: string,
   useProjectSpecific: boolean,
   writeToEachFile: boolean,
@@ -257,6 +258,12 @@ export function cookCmdShortcutsOrFile(
     }
   });
 
+  const createCmdAliasTip = ` You can also create shortcuts in ${isWindowsTerminal ? '' : 'other files like '}`;
+  let finalGuide = ' You can change msr.skipInitCmdAliasForNewTerminalTitleRegex in user settings. '
+    + 'Toggle-Enable + Speed-Up-if-Slowdown-by-Windows-Security + Adjust-Color + Fuzzy-Code-Mining + Preview-And-Replace-Files + Hide/Show-Menus + Use git-ignore + More functions + details see doc like: ' + CookCmdDocUrl;
+  const shortcutsExample = ' shortcuts like find-all-def find-pure-ref find-doc find-small , use-rp use-fp out-fp out-rp , find-top-folder find-top-type sort-code-by-time etc. See detail like: alias find-def or malias find-top or malias use-fp or malias sort-.+?= etc.';
+  let canRunShowDef = true;
+
   if (writeToEachFile) {
     if (!failedToCreateSingleScriptFolder && failureCount < cmdAliasMap.size) {
       outputCmdAliasGuide(newTerminal ? getGeneralCmdAliasFilePath(terminalType) : cmdAliasFile, saveFolder);
@@ -313,15 +320,10 @@ export function cookCmdShortcutsOrFile(
       outputInfoQuiet(nowText() + 'To more freely use them (like in scripts or nested command line pipe): Press `F1` search `msr Cook` and choose cooking script files. (You can make menu `msr.cookCmdAliasFiles` visible).');
     }
 
-    const shortcutsExample = ' shortcuts like find-all-def find-pure-ref find-doc find-small , use-rp use-fp out-fp out-rp , find-top-folder find-top-type sort-code-by-time etc. See detail like: alias find-def or malias find-top or malias use-fp or malias sort-.+?= etc.';
     if (defaultCmdAliasFile !== cmdAliasFile && !fs.existsSync(defaultCmdAliasFile)) {
       fs.copyFileSync(cmdAliasFile, defaultCmdAliasFile);
     }
 
-    const createCmdAliasTip = ` You can also create shortcuts in ${isWindowsTerminal ? '' : 'other files like '}`;
-    let finalGuide = ' You can change msr.skipInitCmdAliasForNewTerminalTitleRegex in user settings. '
-      + 'Toggle-Enable + Speed-Up-if-Slowdown-by-Windows-Security + Adjust-Color + Fuzzy-Code-Mining + Preview-And-Replace-Files + Hide/Show-Menus + Use git-ignore + More functions + details see doc like: ' + CookCmdDocUrl;
-    let canRunShowDef = true;
     if (newTerminal && isWindowsTerminal) {
       if (TerminalType.CMD !== terminalType && TerminalType.PowerShell !== terminalType) {
         outputError('\n' + nowText() + 'Not supported terminal: ' + newTerminal.name + ', shellExe = ' + shellExe);
@@ -342,106 +344,102 @@ export function cookCmdShortcutsOrFile(
           + ' | msr -aPA -e .+ -ix exit -t ' + commands.length
           + '^|PowerShell^|m*alias^|find-\\S+^|sort-\\S+^|out-\\S+^|use-\\S+^|msr.skip\\S+^|\\S*msr-cmd-alias\\S*^|Toggle-Enable^|Speed-Up^|Adjust-Color^|Code-Mining^|Preview-^|-Replace-^|git-ignore^|Menus^|functions^|details'
           + '"';
-        // if (!onlyReCookAliasFile) {
         runCmdInTerminal(cmd, true);
-        // }
       }
     }
+  }
 
-    if (isWindowsTerminal) {
-      if (TerminalType.PowerShell !== terminalType) {
-        finalGuide = createCmdAliasTip + defaultCmdAliasFile + ' .' + finalGuide;
-        const setEnvCmd = getSetToolEnvCommand(terminalType, '');
-        checkSetPathBeforeRunDoskeyAlias('doskey /MACROFILE="' + cmdAliasFile + '"', true, setEnvCmd);
-        if (isGeneralCmdAlias) {
-          const regCmd = 'REG ADD "HKEY_CURRENT_USER\\Software\\Microsoft\\Command Processor" /v Autorun /d "DOSKEY /MACROFILE=' + slashQuotedDefaultCmdAliasFile + '" /f';
-          runCmdInTerminal(regCmd, true);
-        }
-      }
+  if (isWindowsTerminal) {
+    finalGuide = createCmdAliasTip + defaultCmdAliasFile + ' .' + finalGuide;
+    const setEnvCmd = getSetToolEnvCommand(terminalType, '');
+    checkSetPathBeforeRunDoskeyAlias('doskey /MACROFILE="' + cmdAliasFile + '"', true, setEnvCmd);
+    if (isFromMenu) {
+      const regCmd = 'REG ADD "HKEY_CURRENT_USER\\Software\\Microsoft\\Command Processor" /v Autorun /d "DOSKEY /MACROFILE=' + slashQuotedDefaultCmdAliasFile + '" /f';
+      runCmdInTerminal(regCmd, true);
+    }
+  } else {
+    if (isReCookingForRunCmdTerminal) {
+      checkSetPathBeforeRunDoskeyAlias('source ' + quotePaths(toOsPath(cmdAliasFile, terminalType)), false);
     } else {
-      if (isReCookingForRunCmdTerminal) {
-        checkSetPathBeforeRunDoskeyAlias('source ' + quotePaths(toOsPath(cmdAliasFile, terminalType)), false);
-      } else {
-        if (IsWindows && !isWindowsTerminal) {
-          if (isCreatingRunCmdTerminal) {
-            let envPathSet = new Set<string>().add(shellExeFolder);
-            (process.env['PATH'] || '').split(/\\?\s*;\s*/).forEach(a => envPathSet.add(a));
-            envPathSet = getUniqueStringSetNoCase(envPathSet, true);
-            process.env['PATH'] = Array.from(envPathSet).join(';');
-            runCmdInTerminal(quotePaths(shellExe));
-          }
-          runCmdInTerminal('export PATH=/usr/bin:$PATH:~');
+      if (IsWindows && !isWindowsTerminal) {
+        if (isCreatingRunCmdTerminal) {
+          let envPathSet = new Set<string>().add(shellExeFolder);
+          (process.env['PATH'] || '').split(/\\?\s*;\s*/).forEach(a => envPathSet.add(a));
+          envPathSet = getUniqueStringSetNoCase(envPathSet, true);
+          process.env['PATH'] = Array.from(envPathSet).join(';');
+          runCmdInTerminal(quotePaths(shellExe));
         }
-        prepareEnvForBashOnWindows(terminalType);
+        runCmdInTerminal('export PATH=/usr/bin:$PATH:~');
       }
-
-      if (isGeneralCmdAlias) {
-        const displayPath = getDisplayPathForBash(defaultCmdAliasFileDisplayPath, '~');
-        runCmdInTerminal('ls ~/.bashrc > /dev/null 2>&1 || echo \'source ' + displayPath + '\' >> ~/.bashrc');
-        runCmdInTerminal('msr -p ~/.bashrc 2>/dev/null -x \'source ' + displayPath + '\' -M && echo \'source ' + displayPath + '\' >> ~/.bashrc');
-      }
+      prepareEnvForBashOnWindows(terminalType);
     }
 
-    if (isWindowsTerminal) {
-      if (TerminalType.PowerShell !== terminalType) {
-        runCmdInTerminal('malias "update-\\S*alias^|open-\\S*alias" -e "(.:.+)" -M', true);
-      }
-    } else {
-      runCmdInTerminal('malias "update-\\S*alias|open-\\S*alias" -e "(.:.+|[~/].+\\w+)" -M', true);
+    if (isFromMenu) {
+      const displayPath = getDisplayPathForBash(defaultCmdAliasFileDisplayPath, '~');
+      runCmdInTerminal('ls ~/.bashrc > /dev/null 2>&1 || echo \'source ' + displayPath + '\' >> ~/.bashrc');
+      runCmdInTerminal('msr -p ~/.bashrc 2>/dev/null -x \'source ' + displayPath + '\' -M && echo \'source ' + displayPath + '\' >> ~/.bashrc');
+    }
+  }
+
+  if (isWindowsTerminal) {
+    if (TerminalType.PowerShell !== terminalType) {
+      runCmdInTerminal('malias "update-\\S*alias^|open-\\S*alias" -e "(.:.+)" -M', true);
+    }
+  } else {
+    runCmdInTerminal('malias "update-\\S*alias|open-\\S*alias" -e "(.:.+|[~/].+\\w+)" -M', true);
+  }
+
+  if (canRunShowDef || !newTerminal) {
+    const cmd = 'echo Now you can use ' + commands.length + shortcutsExample + finalGuide + ' | msr -aPA -e .+ -x ' + commands.length
+      + ' -it "find-\\S+|sort-\\S+|out-\\S+|use-\\S+|msr.skip\\S+|other|Toggle-Enable|Speed-Up|Adjust-Color|Preview-|-Replace-|Code-Mining|git-ignore|Menus|functions|details|\\S*msr-cmd-alias\\S*|(m*alias \\w+\\S*)"';
+    runCmdInTerminal(cmd, true);
+  }
+
+  outputDebug(nowText() + 'Finished to cook command shortcuts. Cost ' + getTimeCostToNow(trackBeginTime) + ' seconds.');
+
+  function prepareEnvForBashOnWindows(terminalType: TerminalType) {
+    const displayPath = getDisplayPathForBash(defaultCmdAliasFileDisplayPath, '\\~');
+    finalGuide = createCmdAliasTip + displayPath + ' .' + finalGuide;
+    const shouldUseDownload = IsWindows && /^(Git Bash|Cygwin)/i.test(shellExe);
+    if (newTerminal || shouldUseDownload) {
+      const downloadCommands = [
+        new ToolChecker(terminalType).getDownloadCommandForNewTerminal('msr', shouldUseDownload),
+        new ToolChecker(terminalType).getDownloadCommandForNewTerminal('nin', shouldUseDownload)
+      ].filter(a => !isNullOrEmpty(a));
+
+      downloadCommands.forEach(c => runCmdInTerminal(c));
     }
 
-    if (canRunShowDef || !newTerminal) {
-      const cmd = 'echo Now you can use ' + commands.length + shortcutsExample + finalGuide + ' | msr -aPA -e .+ -x ' + commands.length
-        + ' -it "find-\\S+|sort-\\S+|out-\\S+|use-\\S+|msr.skip\\S+|other|Toggle-Enable|Speed-Up|Adjust-Color|Preview-|-Replace-|Code-Mining|git-ignore|Menus|functions|details|\\S*msr-cmd-alias\\S*|(m*alias \\w+\\S*)"';
-      runCmdInTerminal(cmd, true);
-    }
-
-    function prepareEnvForBashOnWindows(terminalType: TerminalType) {
-      const displayPath = getDisplayPathForBash(defaultCmdAliasFileDisplayPath, '\\~');
-      finalGuide = createCmdAliasTip + displayPath + ' .' + finalGuide;
-      const shouldUseDownload = IsWindows && /^(Git Bash|Cygwin)/i.test(shellExe);
-      if (newTerminal || shouldUseDownload) {
-        const downloadCommands = [
-          new ToolChecker(terminalType).getDownloadCommandForNewTerminal('msr', shouldUseDownload),
-          new ToolChecker(terminalType).getDownloadCommandForNewTerminal('nin', shouldUseDownload)
-        ].filter(a => !isNullOrEmpty(a));
-
-        downloadCommands.forEach(c => runCmdInTerminal(c));
-      }
-
-      let setEnvCmd: string = getSetToolEnvCommand(terminalType, '; ');
-      const shellExeFolderOsPath = toOsPath(shellExeFolder, terminalType);
-      const envPath = process.env['PATH'] || '';
-      if (!isNullOrEmpty(envPath) && !isNullOrEmpty(shellExeFolderOsPath) && shellExeFolderOsPath !== '.' && !envPath.includes(shellExeFolderOsPath)) {
-        // Avoid MinGW prior to Cygwin when use Cygwin bash.
-        if (isNullOrEmpty(setEnvCmd)) {
-          setEnvCmd = 'export PATH=' + shellExeFolderOsPath + ':$PATH; ';
-        } else {
-          setEnvCmd = setEnvCmd.replace('export PATH=', 'export PATH=' + shellExeFolderOsPath + ':');
-        }
-      }
-
-      // Avoid msr.exe prior to msr.cygwin or msr.gcc48
+    let setEnvCmd: string = getSetToolEnvCommand(terminalType, '; ');
+    const shellExeFolderOsPath = toOsPath(shellExeFolder, terminalType);
+    const envPath = process.env['PATH'] || '';
+    if (!isNullOrEmpty(envPath) && !isNullOrEmpty(shellExeFolderOsPath) && shellExeFolderOsPath !== '.' && !envPath.includes(shellExeFolderOsPath)) {
+      // Avoid MinGW prior to Cygwin when use Cygwin bash.
       if (isNullOrEmpty(setEnvCmd)) {
-        setEnvCmd = 'export PATH=~:$PATH';
+        setEnvCmd = 'export PATH=' + shellExeFolderOsPath + ':$PATH; ';
       } else {
-        setEnvCmd = setEnvCmd.replace('export PATH=', 'export PATH=~:');
+        setEnvCmd = setEnvCmd.replace('export PATH=', 'export PATH=' + shellExeFolderOsPath + ':');
       }
-
-      const envRootFolder = path.dirname(path.dirname(shellExe)).replace(/([^\\])(\\{1})([^\\]|$)/g, '$1$2$2$3');
-      const bashFolderValue = envRootFolder === '.' ?
-        String.raw`$(where bash.exe | head -n 1 | sed 's#\\[a-z]\+.exe##' | sed 's#usr.bin##' | sed 's/\\$//')`
-        : quotePaths(envRootFolder);
-      if (TerminalType.CygwinBash === terminalType) {
-        setEnvCmd += ';export CYGWIN_ROOT=' + bashFolderValue;
-      } else if (TerminalType.MinGWBash === terminalType) {
-        setEnvCmd += ';export MINGW_ROOT=' + bashFolderValue;
-      }
-
-      checkSetPathBeforeRunDoskeyAlias('source ' + quotePaths(toOsPath(cmdAliasFile, terminalType)), false, setEnvCmd);
     }
 
-    outputDebug(nowText() + 'Finished to cook command shortcuts. Cost ' + getTimeCostToNow(trackBeginTime) + ' seconds.');
+    // Avoid msr.exe prior to msr.cygwin or msr.gcc48
+    if (isNullOrEmpty(setEnvCmd)) {
+      setEnvCmd = 'export PATH=~:$PATH';
+    } else {
+      setEnvCmd = setEnvCmd.replace('export PATH=', 'export PATH=~:');
+    }
+
+    const envRootFolder = path.dirname(path.dirname(shellExe)).replace(/([^\\])(\\{1})([^\\]|$)/g, '$1$2$2$3');
+    const bashFolderValue = envRootFolder === '.' ?
+      String.raw`$(where bash.exe | head -n 1 | sed 's#\\[a-z]\+.exe##' | sed 's#usr.bin##' | sed 's/\\$//')`
+      : quotePaths(envRootFolder);
+    if (TerminalType.CygwinBash === terminalType) {
+      setEnvCmd += ';export CYGWIN_ROOT=' + bashFolderValue;
+    } else if (TerminalType.MinGWBash === terminalType) {
+      setEnvCmd += ';export MINGW_ROOT=' + bashFolderValue;
+    }
+
+    checkSetPathBeforeRunDoskeyAlias('source ' + quotePaths(toOsPath(cmdAliasFile, terminalType)), false, setEnvCmd);
   }
 
   function getPathCmdAliasBody(useWorkspacePath: boolean, sourceAliasFile: string, onlyForOutput: boolean = false, outputFullPath: boolean = false, useTmpFile: boolean = false): string {

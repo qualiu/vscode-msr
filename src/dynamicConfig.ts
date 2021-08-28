@@ -67,7 +67,7 @@ export function updateGitIgnoreUsage() {
 
             const terminal = getRunCmdTerminal();
             // clearTerminal(terminal, IsLinuxTerminalOnWindows);
-            cookCmdShortcutsOrFile(DefaultRootFolder, true, false, terminal, false);
+            cookCmdShortcutsOrFile(false, DefaultRootFolder, true, false, terminal, false);
             const autoCompare = getConfigValue('autoCompareFileListsIfUsedGitIgnore') === 'true';
             if (autoCompare) {
                 gitIgnore.compareFileList();
@@ -75,7 +75,7 @@ export function updateGitIgnoreUsage() {
         }
 
         function actionWhenFailedToParse() {
-            cookCmdShortcutsOrFile(DefaultRootFolder, true, false, getRunCmdTerminal(), false);
+            cookCmdShortcutsOrFile(false, DefaultRootFolder, true, false, getRunCmdTerminal(), false);
         }
 
         gitIgnore.parse(actionWhenSuccessfullyParsed, actionWhenFailedToParse);

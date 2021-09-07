@@ -2,6 +2,9 @@
 
 All notable changes to this "vscode-msr" extension will be documented in this file.
 
+## [2.1.33]
+- Fixed sort-xxx command alias/doskey.
+
 ## [2.1.32]
 - Fixed/Enabled cooking command alias/doskeys for system.
 

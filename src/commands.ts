@@ -97,7 +97,7 @@ export function getSortCommandText(toRunInTerminal: boolean, useProjectSpecific:
 
     const optionalArgs = addOptionalArgs ? ' $*' : '';
     let extraOptions = ' ' + getOverrideConfigByPriority([folderKey, 'default', ''], 'extraOptions', true).trimRight();
-    extraOptions += (findCmdText.match(/BySize/i) ? '--sz --wt' : '--wt --sz');
+    extraOptions += (findCmdText.match(/BySize/i) ? ' --sz --wt' : ' --wt --sz');
     extraOptions += ' ' + getOverrideConfigByPriority([folderKey, 'default', ''], 'listSortingFilesOptions') as string || '-l -H 10 -T 10';
 
     let searchPathsOptions = getSearchPathOptions(toRunInTerminal, useProjectSpecific, rootFolder, '', FindCommandType.RegexFindAsClassOrMethodDefinitionInCodeFiles === findCmd);

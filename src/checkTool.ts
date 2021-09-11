@@ -11,9 +11,9 @@ import { clearOutputChannel, outputDebug, outputError, outputInfo, outputKeyInfo
 import { checkAddFolderToPath, DefaultTerminalType, getTimeCostToNow, isLinuxTerminalOnWindows, isNullOrEmpty, isWindowsTerminalOnWindows, nowText, PathEnvName, quotePaths, runCommandGetOutput, toCygwinPath, toOsPath, toOsPaths } from './utils';
 
 export const MsrExe = 'msr';
-const SourceMd5FileUrl = 'https://raw.githubusercontent.com/qualiu/msr/master/tools/md5.txt';
 const Is64BitOS = process.arch.match(/x64|\s+64/);
 const SourceExeHomeUrl = 'https://raw.githubusercontent.com/qualiu/msr/master/tools/';
+const SourceMd5FileUrl = SourceExeHomeUrl + 'md5.txt';
 const SourceExeNameTail = Is64BitOS ? '' : (IsWindows ? '-Win32' : '-i386');
 export const TerminalTypeToSourceExtensionMap = new Map<TerminalType, string>()
 	.set(TerminalType.CMD, '.exe')
@@ -205,11 +205,13 @@ export class ToolChecker {
 		saveExePath = saveExePath.startsWith('"') ? saveExePath : quotePaths(saveExePath);
 
 		const [isWgetExistsOnWindows] = this.isTerminalOfWindows ? isToolExistsInPath('wget.exe', this.terminalType) : [false, ''];
+		const wgetHelpText = isWgetExistsOnWindows ? runCommandGetOutput('wget --help') : '';
+		const noCheckCertArg = wgetHelpText.includes('--no-check-certificate') ? ' --no-check-certificate' : '';
 
 		const downloadCommand = this.isTerminalOfWindows && !isWgetExistsOnWindows
 			? 'Powershell -Command "$ProgressPreference = \'SilentlyContinue\'; [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; '
 			+ "Invoke-WebRequest -Uri '" + sourceUrl + "' -OutFile " + quotePaths(tmpSaveExePath, "'") + '"'
-			: 'wget "' + sourceUrl + '" -O ' + tmpSaveExePath + ' --no-check-certificate';
+			: 'wget "' + sourceUrl + '" -O ' + tmpSaveExePath + noCheckCertArg;
 
 		const renameFileCommand = this.isTerminalOfWindows
 			? 'move /y ' + tmpSaveExePath + ' ' + saveExePath

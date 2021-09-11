@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import { MsrExe, setTimeoutInCommandLine, ToolChecker } from './checkTool';
 import { getConfigValueByRoot, getOverrideConfigByPriority, getSubConfigValue } from './configUtils';
 import { HomeFolder, RemoveJumpRegex, SkipJumpOutForHeadResultsRegex } from './constants';
-import { FileExtensionToMappedExtensionMap, getConfig, getGitIgnore, getRootFolderExtraOptions, getSearchPathOptions, MappedExtToCodeFilePatternMap, MyConfig, removeSearchTextForCommandLine, replaceToRelativeSearchPath } from './dynamicConfig';
+import { FileExtensionToMappedExtensionMap, getConfig, getGitIgnore, getSearchPathOptions, MappedExtToCodeFilePatternMap, MyConfig, removeSearchTextForCommandLine, replaceToRelativeSearchPath } from './dynamicConfig';
 import { FindCommandType, TerminalType } from './enums';
 import { enableColorAndHideCommandLine, outputDebug, outputInfo, RunCmdTerminalRootFolder, runCommandInTerminal } from './outputUtils';
 import { Ranker } from './ranker';
@@ -78,8 +78,8 @@ export function runFindingCommandByCurrentWord(findCmd: FindCommandType, searchT
 
 export function getSortCommandText(toRunInTerminal: boolean, useProjectSpecific: boolean, addOptionalArgs: boolean, findCmd: FindCommandType, rootFolder = '', isCookingCmdAlias = false): string {
     const findCmdText = FindCommandType[findCmd];
-    if (isNullOrEmpty(rootFolder) && useProjectSpecific) {
-        rootFolder = getDefaultRootFolderByActiveFile() || '.';
+    if (isNullOrEmpty(rootFolder)) {
+        rootFolder = useProjectSpecific ? getDefaultRootFolderByActiveFile() || '.' : '.';
     }
 
     const rootFolderName = getRootFolderName(rootFolder, useProjectSpecific);
@@ -115,8 +115,8 @@ export function getSortCommandText(toRunInTerminal: boolean, useProjectSpecific:
 
 export function getFindTopDistributionCommand(toRunInTerminal: boolean, useProjectSpecific: boolean, addOptionalArgs: boolean, findCmd: FindCommandType, rootFolder = ''): string {
     const findCmdText = FindCommandType[findCmd];
-    if (isNullOrEmpty(rootFolder) && useProjectSpecific) {
-        rootFolder = getDefaultRootFolderByActiveFile() || '.';
+    if (isNullOrEmpty(rootFolder)) {
+        rootFolder = useProjectSpecific ? getDefaultRootFolderByActiveFile() || '.' : '.';
     }
 
     const rootFolderName = getRootFolderName(rootFolder, useProjectSpecific);

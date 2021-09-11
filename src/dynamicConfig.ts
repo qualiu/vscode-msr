@@ -323,7 +323,7 @@ export class DynamicConfig {
                 }
             });
         } catch (error) {
-            outputDebug(nowText() + 'Failed to get exclude folder from `' + keyName + '.exclude`: ' + error.toString());
+            outputDebug(nowText() + 'Failed to get exclude folder from `' + keyName + '.exclude`: ' + error);
         }
 
         outputDebug(nowText() + 'Got ' + textSet.size + ' folders of `' + keyName + '.exclude`: ' + Array.from(textSet).join(' , '));

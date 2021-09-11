@@ -94,7 +94,7 @@ export function validateRegexPatterns() {
       validatedRegexCount++;
       console.info('Validated Regex of ' + keyName + ' = "' + pattern + '"');
     } catch (err) {
-      assert.fail('Failed to validate Regex of ' + keyName + ' = "' + pattern + '" , error: ' + err.toString());
+      assert.fail('Failed to validate Regex of ' + keyName + ' = "' + pattern + '" , error: ' + err);
     }
 
     const matched = pattern.match(getErrorRegex);

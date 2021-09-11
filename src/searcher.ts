@@ -4,7 +4,7 @@ import { IsForwardingSlashSupportedOnWindows, setSearchDepthInCommandLine, setTi
 import { runFindingCommandByCurrentWord } from './commands';
 import { getConfigValueByRoot, getSubConfigValue } from './configUtils';
 import { IsWindows, RemoveJumpRegex } from './constants';
-import { FileExtensionToMappedExtensionMap, getConfig, getGitIgnore, getRootFolderExtraOptions, getSearchPathOptions, MyConfig } from './dynamicConfig';
+import { FileExtensionToMappedExtensionMap, getConfig, getGitIgnore, getSearchPathOptions, MyConfig } from './dynamicConfig';
 import { FindCommandType, FindType, ForceFindType, TerminalType } from './enums';
 import { filterClassResults } from './filter/filterClassResults';
 import { outputDebug, outputDebugOrInfo, outputError, outputInfo, outputInfoByDebugMode, outputResult, outputWarn, runCommandInTerminal, runRawCommandInTerminal } from './outputUtils';
@@ -50,7 +50,7 @@ export function stopAllSearchers() {
   try {
     ChildProcess.execSync(command);
   } catch (err) {
-    outputDebug(nowText() + 'Failed to kill ' + message + ', error = ' + err.toString());
+    outputDebug(nowText() + 'Failed to kill ' + message + ', error = ' + err);
   }
 
   CurrentSearchPidSet.clear();
@@ -109,9 +109,12 @@ export class Searcher {
     try {
       outputInfo('\n' + nowText() + this.CommandLine + '\n');
       return getMatchedLocationsAsync(this.FindType, this.CommandLine, this.Ranker, token, this);
-    } catch (e) {
-      outputError(nowText() + e.stack.toString());
-      outputError(nowText() + e.toString());
+    } catch (error) {
+      if (error instanceof Error && error.stack) {
+        outputError(nowText() + error.stack);
+      }
+
+      outputError(nowText() + error);
       return Promise.resolve([]);
     }
   }
@@ -304,7 +307,7 @@ function killProcess(process: ChildProcess.ChildProcess | null, extraInfo: strin
     outputInfoByDebugMode(nowText() + 'Kill process ' + process.pid + ' ' + extraInfo.trimLeft());
     process.kill();
   } catch (err) {
-    outputError(nowText() + 'Failed to kill process ' + process.pid + ' ' + extraInfo.trimLeft() + ', error = ' + err.toString());
+    outputError(nowText() + 'Failed to kill process ' + process.pid + ' ' + extraInfo.trimLeft() + ', error = ' + err);
   }
 }
 

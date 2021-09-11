@@ -33,7 +33,7 @@ export function runCommandGetInfo(command: string, showCmdLevel: MessageLevel = 
 		}
 		return [output, null];
 	} catch (err) {
-		outputMessage(errorOutputLevel, '\n' + err.toString());
+		outputMessage(errorOutputLevel, '\n' + err);
 		return ['', err];
 	}
 }

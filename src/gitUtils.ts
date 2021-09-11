@@ -178,7 +178,7 @@ export class GitIgnore {
     const beginTime = new Date();
     fs.readFile(this.IgnoreFilePath, 'utf8', (err, text) => {
       if (err) {
-        const message = 'Failed to read file: ' + this.IgnoreFilePath + ' , error: ' + err.toString();
+        const message = 'Failed to read file: ' + this.IgnoreFilePath + ' , error: ' + err;
         outputError(nowText() + message);
         this.showErrorInRunCmdTerminal(message);
         callbackWhenFailed();
@@ -237,7 +237,7 @@ export class GitIgnore {
           skipPatterns.add(pattern);
         } catch (err) {
           const message = 'Error[' + (errorList.length + 1) + ']:' + ' at ' + this.IgnoreFilePath + ':' + row + ' : Input_Git_Ignore = ' + line
-            + ' , Skip_Paths_Regex = ' + pattern + ' , error = ' + err.toString();
+            + ' , Skip_Paths_Regex = ' + pattern + ' , error = ' + err;
           errorList.push(message);
           outputError('\n' + nowText() + message + '\n');
         }

@@ -91,10 +91,8 @@ export function cookCmdShortcutsOrFile(
   const shellExe = initialPath.match(/\.exe$/i) ? initialPath : getTerminalShellExePath();
   const shellExeFolder = path.dirname(shellExe);
   const terminalOrShellName = getTerminalNameOrShellExeName(newTerminal);
-
-  const terminalName = initialPath.match(/(bash|exe|wsl|sh)$/i)
-    ? path.basename(initialPath)
-    : terminalOrShellName || path.basename(initialPath);
+  const exeNameByInitPath = isNullOrEmpty(initialPath) ? '' : path.basename(initialPath);
+  const terminalName = !isNullOrEmpty(exeNameByInitPath) ? exeNameByInitPath : terminalOrShellName;
 
   const isRunCmdTerminal = terminalOrShellName === RunCmdTerminalName;
   if (isRunCmdTerminal) {
@@ -234,7 +232,7 @@ export function cookCmdShortcutsOrFile(
       fs.mkdirSync(singleScriptFolder);
     } catch (err) {
       failedToCreateSingleScriptFolder = true;
-      outputError('\n' + nowText() + 'Failed to make single script folder: ' + singleScriptFolder + ' Error: ' + err.toString());
+      outputError('\n' + nowText() + 'Failed to make single script folder: ' + singleScriptFolder + ' Error: ' + err);
     }
   }
 
@@ -299,7 +297,7 @@ export function cookCmdShortcutsOrFile(
         existedText = fs.readFileSync(cmdAliasFile).toString();
       }
     } catch (err) {
-      outputError('\n' + nowText() + 'Failed to read file: ' + cmdAliasFile + ' Error: ' + err.toString());
+      outputError('\n' + nowText() + 'Failed to read file: ' + cmdAliasFile + ' Error: ' + err);
     }
 
     const hasChanged = allText !== existedText;
@@ -994,7 +992,7 @@ export function mergeSkipFolderPattern(skipFoldersPattern: string) {
       }
     }
     catch (error) {
-      outputDebug(nowText() + 'Failed to add exclude folder from settings:' + error.toString());
+      outputDebug(nowText() + 'Failed to add exclude folder from settings:' + error);
     }
   }
   else if (isNullOrEmpty(skipFoldersPattern) && MyConfig.ExcludeFoldersFromSettings.size > 0) {

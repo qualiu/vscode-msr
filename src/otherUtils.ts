@@ -20,7 +20,7 @@ export function saveTextToFile(filePath: string, text: string, info: string = 'f
       }
       return true;
     } catch (err) {
-      outputError(nowText() + 'Times-' + k + ': Failed to save ' + info + ': ' + filePath + ' Error: ' + err.toString());
+      outputError(nowText() + 'Times-' + k + ': Failed to save ' + info + ': ' + filePath + ' Error: ' + err);
       if (k >= tryTimes) {
         return false;
       }
@@ -63,7 +63,7 @@ export function isToolExistsInPath(exeToolName: string, terminalType: TerminalTy
       }
     }
   } catch (err) {
-    outputDebug(nowText() + err.toString());
+    outputDebug(nowText() + err);
   }
 
   return [false, ''];
@@ -107,7 +107,7 @@ export function getTerminalShellExePath(): string {
         newShellExePath = text.startsWith('[') || valueType !== 'string' && valueType.length > 0 ? pathValueObj[0] : pathValueObj;
       } catch (err) {
         console.log(err);
-        outputError(nowText() + 'Failed to get path value from terminal.integrated.profiles.' + suffix + '.path , error: ' + err.toString());
+        outputError(nowText() + 'Failed to get path value from terminal.integrated.profiles.' + suffix + '.path , error: ' + err);
       }
     }
   }

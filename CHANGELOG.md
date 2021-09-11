@@ -2,6 +2,9 @@
 
 All notable changes to this "vscode-msr" extension will be documented in this file.
 
+## [2.1.34]
+- Fixed cooking command alias/doskeys of `sort-xxx` + `find-top-xxx` when cooking in non-repo files.
+
 ## [2.1.33]
 - Fixed sort-xxx command alias/doskey.
 

@@ -3,7 +3,7 @@
     "displayName": "Code mining + Replace file + Find definition and reference for all types.",
     "description": "Code mining + Replace file + Find definition and reference in multiple repository paths by msr for all coding languages + configuration + doc files.",
     "author": "qualiu@microsoft.com",
-    "version": "2.1.34",
+    "version": "2.1.35",
     "icon": "images/vscode-msr-icon.png",
     "license": "completely free",
     "publisher": "qualiu",
@@ -986,18 +986,18 @@
                 },
                 "msr.disable.extensionPattern": {
                     "type": "string",
-                    "default": "tsx?|jsx?",
-                    "description": "Regex pattern of file extensions to disable finding definition and references. Example: tsx?|jsx?|py|java|cpp"
+                    "default": "tsx?|jsx?|vue",
+                    "description": "Regex pattern of file extensions to disable finding definition and references. Example: tsx?|jsx?|vue|py|java|cpp"
                 },
                 "msr.disable.findDef.extensionPattern": {
                     "type": "string",
                     "default": "tsx?|jsx?",
-                    "description": "Regex pattern of file extensions to disable finding definition. Example: tsx?|jsx?|py|java|cpp"
+                    "description": "Regex pattern of file extensions to disable finding definition. Example: tsx?|jsx?|vue|py|java|cpp"
                 },
                 "msr.disable.findRef.extensionPattern": {
                     "type": "string",
                     "default": "tsx?|jsx?|.*",
-                    "description": "Regex pattern of file extensions to disable finding reference. Example: tsx?|jsx?|py|java|cpp (Please reload vscode if removed `.*`)"
+                    "description": "Regex pattern of file extensions to disable finding reference. Example: tsx?|jsx?|vue|py|java|cpp (Please reload vscode if removed `.*`)"
                 },
                 "msr.findingCommands.useExtraPaths": {
                     "type": "boolean",
@@ -1136,7 +1136,7 @@
                 },
                 "msr.default.skipFolders": {
                     "type": "string",
-                    "default": "^([\\.\\$]|(Release|Debug|objd?|bin|node_modules|static|dist|target|(Js)?Packages|\\w+-packages?)$|__pycache__)",
+                    "default": "^([\\.\\$]|(Release|Debug|objd?|bin|node_modules|static|dist|target|(Js)?Packages|\\w+-packages?|wwwroot)$|__pycache__)",
                     "description": "Default Regex pattern to skip folders. You can set each project's additional skip patterns: `msr.{root-folder-name}.definition.skipFolders` or `msr.{root-folder-name}.reference.skipFolders` in your personal settings file like `%APPDATA%\\Code\\User\\settings.json` on Windows (See doc: https://github.com/qualiu/vscode-msr/blob/master/README.md#specific-extra-search-paths-settings)."
                 },
                 "msr.useGitIgnoreFile": {
@@ -1725,7 +1725,7 @@
                 "msr.go.skipFolders": {
                     "description": "Regex pattern to skip folders for GoLang. You can set each project's additional skip patterns: `msr.{root-folder-name}.definition.skipFolders` or `msr.{root-folder-name}.reference.skipFolders` in your personal settings file like `%APPDATA%\\Code\\User\\settings.json` on Windows (See doc: https://github.com/qualiu/vscode-msr/blob/master/README.md#specific-extra-search-paths-settings).",
                     "type": "string",
-                    "default": "^([\\.\\$]|(github.com|golang.com|golang.org|pkg|Release|Debug|objd?|bin|node_modules|static|dist|target|(Js)?Packages|\\w+-packages?)$|__pycache__)"
+                    "default": "^([\\.\\$]|(github.com|golang.com|golang.org|pkg|Release|Debug|objd?|bin|node_modules|static|dist|target|(Js)?Packages|\\w+-packages?|wwwroot)$|__pycache__)"
                 }
             }
         }
@@ -1743,7 +1743,7 @@
         "@types/node": "^10.12.21",
         "@types/vscode": "^1.36.0",
         "glob": "^7.1.4",
-        "mocha": "^7.1.2",
+        "mocha": "^9.1.2",
         "tslint": "^5.12.1",
         "typescript": "^3.3.1",
         "vscode-test": "^1.0.0-next.0"

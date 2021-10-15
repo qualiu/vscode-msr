@@ -348,7 +348,7 @@ export class ToolChecker {
 		if (!IsDebugMode) {
 			const now = new Date();
 			const hour = now.getHours();
-			if (now.getDay() !== 2 || hour < 9 || hour > 11) {
+			if (now.getDay() !== 2 || hour < 8 || hour > 12) {
 				outputDebug(nowText() + 'Skip checking for now. Only check at every Tuesday 09:00 ~ 11:00.');
 				return;
 			}

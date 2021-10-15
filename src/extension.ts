@@ -62,8 +62,9 @@ export function registerExtension(context: vscode.ExtensionContext) {
 		const workspaceFolder = getRootFolder(initialPath);
 		const exeNameByInitPath = isNullOrEmpty(initialPath) ? '' : path.basename(initialPath);
 		const terminalName = !isNullOrEmpty(exeNameByInitPath) ? exeNameByInitPath : getTerminalNameOrShellExeName(terminal);
+		const terminalTitle = !isNullOrEmpty(terminal.name) ? terminal.name : terminalName;
 
-		if (MyConfig.SkipInitCmdAliasForNewTerminalTitleRegex.test(terminalName)) {
+		if (MyConfig.SkipInitCmdAliasForNewTerminalTitleRegex.test(terminalTitle)) {
 			return;
 		}
 

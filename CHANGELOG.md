@@ -2,6 +2,11 @@
 
 All notable changes to this "vscode-msr" extension will be documented in this file.
 
+## [2.1.35]
+- Avoided initializing doskeys for `"PowerShell Integrated Console"` on Windows.
+- Disabled finding definition for `Vue` by updating `msr.disable.extensionPattern`.
+- Updated default skip folder pattern by updating `msr.default.skipFolders`.
+
 ## [2.1.34]
 - Fixed cooking command alias/doskeys of `sort-xxx` + `find-top-xxx` when cooking in non-repo files.
 

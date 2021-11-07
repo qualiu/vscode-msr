@@ -4,7 +4,7 @@ import * as vscode from 'vscode';
 import { MsrExe } from './checkTool';
 import { getFindingCommandByCurrentWord, runFindingCommand } from './commands';
 import { getConfigValueByRoot } from './configUtils';
-import { IsWindows, RunCmdTerminalName } from './constants';
+import { IsSupportedSystem, IsWindows, RunCmdTerminalName } from './constants';
 import { cookCmdShortcutsOrFile } from './cookCommandAlias';
 import { FileExtensionToMappedExtensionMap, getConfig, getExtraSearchPaths, getGitIgnore, MappedExtToCodeFilePatternMap, MyConfig, printConfigInfo } from './dynamicConfig';
 import { FindCommandType, FindType, ForceFindType } from './enums';
@@ -29,6 +29,11 @@ export function activate(context: vscode.ExtensionContext) {
 	// The command has been defined in the package.json file
 	// Now provide the implementation of the command with registerCommand
 	// The commandId parameter must match the command field in package.json
+
+	if (!IsSupportedSystem) {
+		return;
+	}
+
 	registerExtension(context);
 
 	// Listening to configuration changes
@@ -345,7 +350,7 @@ export class DefinitionFinder implements vscode.DefinitionProvider {
 			}
 
 			const extensionPattern = !searchChecker.isCodeFile
-				? getConfigValueByRoot(rootFolderName, extension, mappedExt, 'codeFiles')
+				? MyConfig.CodeFilesRegex.source
 				: MappedExtToCodeFilePatternMap.get(mappedExt) || `\\.${extension}$`;
 
 			const commandLine = searcherToClone.CommandLine.replace(/\s+-f\s+(".+?"|\S+)/, ` -f "${searchChecker.classFileNamePattern}.*?${extensionPattern}"`);

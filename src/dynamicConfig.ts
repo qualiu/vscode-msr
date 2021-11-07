@@ -1,20 +1,20 @@
 import path = require('path');
 import * as vscode from 'vscode';
-import { GetConfigPriorityPrefixes, getConfigValue, getConfigValueByRoot, getOverrideOrDefaultConfig, getSubConfigValue } from './configUtils';
+import { GetConfigPriorityPrefixes, getConfigValue, getConfigValueByRoot, getOverrideConfigByPriority, getOverrideOrDefaultConfig, getSubConfigValue } from './configUtils';
 import { IsLinux, IsWindows, IsWSL } from './constants';
 import { cookCmdShortcutsOrFile, mergeSkipFolderPattern } from './cookCommandAlias';
 import { FindType, TerminalType } from './enums';
 import { GitIgnore } from './gitUtils';
-import { getRunCmdTerminal, outputDebug, outputInfo, outputInfoClear } from './outputUtils';
+import { getRunCmdTerminal, outputDebug, outputError, outputInfo, outputInfoClear } from './outputUtils';
 import { createRegex, escapeRegExp } from './regexUtils';
 import { SearchConfig } from './searchConfig';
-import { DefaultTerminalType, getDefaultRootFolderByActiveFile, getExtensionNoHeadDot, getRootFolder, getRootFolderName, getRootFolders, getUniqueStringSetNoCase, IsLinuxTerminalOnWindows, isLinuxTerminalOnWindows, isNullOrEmpty, IsWindowsTerminalOnWindows, nowText, quotePaths, toOsPath, toOsPaths, toOsPathsForText, toWSLPaths } from './utils';
+import { DefaultTerminalType, getDefaultRootFolderByActiveFile, getDefaultRootFolderName, getExtensionNoHeadDot, getRootFolder, getRootFolderName, getRootFolders, getUniqueStringSetNoCase, IsLinuxTerminalOnWindows, isLinuxTerminalOnWindows, isNullOrEmpty, IsWindowsTerminalOnWindows, nowText, quotePaths, toOsPath, toOsPaths, toOsPathsForText, toWSLPaths } from './utils';
 
 const SplitPathsRegex = /\s*[,;]\s*/;
 const SplitPathGroupsRegex = /\s*;\s*/;
 const FolderToPathPairRegex = /(\w+\S+?)\s*=\s*(\S+.+)$/;
 
-export const DefaultRootFolder = getDefaultRootFolderByActiveFile();
+export const DefaultRootFolder = getDefaultRootFolderByActiveFile(true);
 
 export let MyConfig: DynamicConfig;
 
@@ -82,6 +82,27 @@ export function updateGitIgnoreUsage() {
     }
 }
 
+export function addExtensionToPattern(ext: string, fileExtensionsRegex: RegExp) {
+    if (fileExtensionsRegex.test('\.' + ext)) {
+        return fileExtensionsRegex;
+    }
+
+    const firstMatch = /\|(cpp|cs|java|py|go|rs|vue|tsx?|php|bat|cmd|ps1|sh|ini|xml|json|yaml)\|/i.exec(fileExtensionsRegex.source)
+        || /\|\w+\|/.exec(fileExtensionsRegex.source);
+
+    const newPattern = firstMatch
+        ? fileExtensionsRegex.source.substring(0, firstMatch.index) + '|' + ext.replace('.', '\\.') + fileExtensionsRegex.source.substring(firstMatch.index)
+        : fileExtensionsRegex.source + '|\\.' + ext + '$';
+
+    try {
+        fileExtensionsRegex = new RegExp(newPattern, 'i');
+    } catch (err) {
+        outputError(nowText() + 'Failed to add extension: "' + ext + '" to AllFilesRegex, error: ' + err);
+    }
+
+    return fileExtensionsRegex;
+}
+
 export class DynamicConfig {
     public RootConfig: vscode.WorkspaceConfiguration = vscode.workspace.getConfiguration('msr');
 
@@ -102,10 +123,6 @@ export class DynamicConfig {
     public ReRunSearchInTerminalIfResultsMoreThan: number = 1;
     public OnlyFindDefinitionForKnownLanguages: boolean = true;
 
-    public ConfigAndDocFilesRegex: RegExp = new RegExp('to-load');
-    public CodeAndConfigAndDocFilesRegex: RegExp = new RegExp('to-load');
-    public DefaultConstantsRegex: RegExp = new RegExp('to-load');
-
     public GetSearchTextHolderInCommandLine: RegExp = /\s+-c\s+.*?%~?1/;
     public DisabledFileExtensionRegex: RegExp = new RegExp('to-load');
     public DisabledRootFolderNameRegex: RegExp = new RegExp('to-load');
@@ -119,23 +136,36 @@ export class DynamicConfig {
     public OverwriteProjectCmdAliasForNewTerminals: boolean = true;
     public AutoMergeSkipFolders: boolean = true;
 
-
     public HideWarningsAndExtraInfoWhenCookingCommandAlias: boolean = false;
     public OutputFullPathWhenCookingCommandAlias: boolean = true;
     public OutputRelativePathForLinuxTerminalsOnWindows: boolean = true;
     public AddEchoOffWhenCookingWindowsCommandAlias: string = '';
     public SetVariablesToLocalScopeWhenCookingWindowsCommandAlias: string = '';
-
+    public DefaultConstantsRegex: RegExp = new RegExp('to-load');
     public UseDefaultFindingClassCheckExtensionRegex: RegExp = new RegExp('to-load');
-    public AllSourceFileExtensionRegex: RegExp = new RegExp('to-load');
-    public AllFileExtensionMapExtRegex: RegExp[] = [];
     public MaxWaitSecondsForSearchDefinition: number = 36.0;
     public MaxWaitSecondsForAutoReSearchDefinition: number = 60.0;
-    private ScriptFileExtensionRegex: RegExp = new RegExp('to-load');
-    private CodeFileExtensionRegex: RegExp = new RegExp('to-load');
+
     public UseGitIgnoreFile: boolean = true;
     public OmitGitIgnoreExemptions: boolean = false;
     public SkipDotFolders: boolean = true;
+
+    // allFiles codeFiles codeFilesPlusUI codeAndConfig codeAndConfigDocs
+    public AllFileExtensionMappingRegexList: RegExp[] = [];
+    public CodeFileExtensionMappingTypesRegex: RegExp = new RegExp('to-load msr.codeFileExtensionMappingTypes');
+    public AllFilesRegex: RegExp = new RegExp('to-load msr.default.allFiles');
+    public AllFilesDefaultRegex: RegExp = new RegExp('to-load msr.default.allFiles');
+    public CodeFilesRegex: RegExp = new RegExp('to-load msr.default.codeFiles');
+    public CodeFilesDefaultRegex: RegExp = new RegExp('to-load msr.default.codeFiles');
+    public CodeFilesPlusUIRegex: RegExp = new RegExp('to-load msr.default.codeFilesPlusUI');
+    public CodeFilesPlusUIDefaultRegex: RegExp = new RegExp('to-load msr.default.codeFilesPlusUI');
+    public CodeAndConfigRegex: RegExp = new RegExp('to-load msr.default.codeAndConfig');
+    public CodeAndConfigDefaultRegex: RegExp = new RegExp('to-load msr.default.codeAndConfig');
+    public CodeAndConfigDocsRegex: RegExp = new RegExp('to-load msr.default.codeAndConfigDocs');
+    public CodeAndConfigDocsDefaultRegex: RegExp = new RegExp('to-load msr.default.codeAndConfigDocs');
+
+    private ScriptFileExtensionRegex: RegExp = new RegExp('to-load msr.default.scriptFiles');
+    public ConfigAndDocFilesRegex: RegExp = new RegExp('to-load msr.default.configAndDocs');
 
     private TmpToggleEnabledExtensionToValueMap = new Map<string, boolean>();
 
@@ -149,11 +179,11 @@ export class DynamicConfig {
             return false;
         }
 
-        if (this.AllSourceFileExtensionRegex.test(extension)) {
+        if (this.AllFilesRegex.test(extension) || this.AllFilesDefaultRegex.test(extension)) {
             return false;
         }
 
-        for (let reg of this.AllFileExtensionMapExtRegex) {
+        for (let reg of this.AllFileExtensionMappingRegexList) {
             if (extension.match(reg)) {
                 return false;
             }
@@ -182,17 +212,46 @@ export class DynamicConfig {
 
     public update() {
         this.RootConfig = vscode.workspace.getConfiguration('msr');
-        this.AllFileExtensionMapExtRegex = [];
+        const rootFolderName = getDefaultRootFolderName();
+        this.ConfigAndDocFilesRegex = new RegExp(getOverrideConfigByPriority([rootFolderName, 'default', ''], 'configAndDocs') || '\\.(json|xml|ini|ya?ml|md)|readme', 'i');
+
+        const codeFileExtensionMappingTypes = getOverrideConfigByPriority([rootFolderName, 'default', ''], 'codeFileExtensionMappingTypes') || '^(cpp|cs|java|py|go|rs|ui)$';
+        this.CodeFileExtensionMappingTypesRegex = new RegExp(codeFileExtensionMappingTypes.trim(), 'i');
+
+        this.AllFilesRegex = new RegExp(getOverrideConfigByPriority([rootFolderName, 'default', ''], 'allFiles') || '\.(cp*|hp*|cs|java|scala|py|go|tsx?)$', 'i');
+        this.AllFilesDefaultRegex = new RegExp(getOverrideConfigByPriority(['default', ''], 'allFiles') || '\.(cp*|hp*|cs|java|scala|py|go|tsx?)$', 'i');
+        this.CodeFilesRegex = new RegExp(getOverrideConfigByPriority([rootFolderName, 'default', ''], 'codeFiles') || '\.(cp*|hp*|cs|java|scala|py|go)$', 'i');
+        this.CodeFilesDefaultRegex = new RegExp(getOverrideConfigByPriority(['default', ''], 'codeFiles') || '\.(cp*|hp*|cs|java|scala|py|go)$', 'i');
+        this.CodeAndConfigRegex = new RegExp(getOverrideConfigByPriority([rootFolderName, 'default', ''], 'codeAndConfig') || '\.(cp*|hp*|cs|java|scala|py|go|md)$', 'i');
+        this.CodeAndConfigDefaultRegex = new RegExp(getOverrideConfigByPriority(['default', ''], 'codeAndConfig') || '\.(cp*|hp*|cs|java|scala|py|go|md)$', 'i');
+        this.CodeFilesPlusUIRegex = new RegExp(getOverrideConfigByPriority([rootFolderName, 'default', ''], 'codeFilesPlusUI') || '\.(cp*|hp*|cs|java|scala|py|go|tsx?)$', 'i');
+        this.CodeFilesPlusUIDefaultRegex = new RegExp(getOverrideConfigByPriority(['default', ''], 'codeFilesPlusUI') || '\.(cp*|hp*|cs|java|scala|py|go|tsx?)$', 'i');
+        this.CodeAndConfigDocsRegex = new RegExp(getOverrideConfigByPriority([rootFolderName, 'default', ''], 'codeAndConfigDocs') || '\\.(cs\\w*|nuspec|config|c[px]*|h[px]*|java|scala|py|go|php|vue|tsx?|jsx?|json|ya?ml|xml|ini|md)$|readme', 'i');
+        this.CodeAndConfigDocsDefaultRegex = new RegExp(getOverrideConfigByPriority(['default', ''], 'codeAndConfigDocs') || '\\.(cs\\w*|nuspec|config|c[px]*|h[px]*|java|scala|py|go|php|vue|tsx?|jsx?|json|ya?ml|xml|ini|md)$|readme', 'i');
+
+        this.AllFileExtensionMappingRegexList = [];
         const fileExtensionMapInConfig = this.RootConfig.get('fileExtensionMap') as {};
         if (fileExtensionMapInConfig) {
             Object.keys(fileExtensionMapInConfig).forEach((mapExt) => {
                 const extensions = (this.RootConfig.get('fileExtensionMap.' + mapExt) as string).split(/\s+/);
                 const regexExtensions = extensions.map(ext => escapeRegExp(ext));
                 const extensionsRegex = new RegExp('\\.(' + regexExtensions.join('|') + ')$', 'i');
-                this.AllFileExtensionMapExtRegex.push(extensionsRegex);
+                this.AllFileExtensionMappingRegexList.push(extensionsRegex);
                 MappedExtToCodeFilePatternMap.set(mapExt, extensionsRegex.source);
                 extensions.forEach((ext) => {
                     FileExtensionToMappedExtensionMap.set(ext, mapExt);
+                    this.AllFilesRegex = addExtensionToPattern(ext, this.AllFilesRegex);
+                    this.AllFilesDefaultRegex = addExtensionToPattern(ext, this.AllFilesDefaultRegex);
+                    if (this.CodeFileExtensionMappingTypesRegex.test(mapExt)) {
+                        this.CodeFilesRegex = addExtensionToPattern(ext, this.CodeFilesRegex);
+                        this.CodeFilesDefaultRegex = addExtensionToPattern(ext, this.CodeFilesDefaultRegex);
+                        this.CodeAndConfigRegex = addExtensionToPattern(ext, this.CodeAndConfigRegex);
+                        this.CodeAndConfigDefaultRegex = addExtensionToPattern(ext, this.CodeAndConfigDefaultRegex);
+                        this.CodeFilesPlusUIRegex = addExtensionToPattern(ext, this.CodeFilesPlusUIRegex);
+                        this.CodeFilesPlusUIDefaultRegex = addExtensionToPattern(ext, this.CodeFilesPlusUIDefaultRegex);
+                        this.CodeAndConfigDocsRegex = addExtensionToPattern(ext, this.CodeAndConfigDocsRegex);
+                        this.CodeAndConfigDocsDefaultRegex = addExtensionToPattern(ext, this.CodeAndConfigDocsDefaultRegex);
+                    }
                 });
             });
         }
@@ -212,8 +271,6 @@ export class DynamicConfig {
         this.NeedSortResults = getConfigValue('sortResults') === 'true';
         this.ReRunCmdInTerminalIfCostLessThan = Number(getConfigValue('reRunSearchInTerminalIfCostLessThan') || '3.3');
         this.ReRunSearchInTerminalIfResultsMoreThan = Number(getConfigValue('reRunSearchInTerminalIfResultsMoreThan') || '1');
-        this.ConfigAndDocFilesRegex = new RegExp(getConfigValue('configAndDocs') || '\\.(json|xml|ini|ya?ml|md)|readme', 'i');
-        this.CodeAndConfigAndDocFilesRegex = new RegExp(getConfigValue('codeAndConfigDocs') || '\\.(cs\\w*|nuspec|config|c[px]*|h[px]*|java|scala|py|go|php|vue|tsx?|jsx?|json|ya?ml|xml|ini|md)$|readme', 'i');
         this.DefaultConstantsRegex = new RegExp(getConfigValue('isFindConstant'));
 
         this.DisabledRootFolderNameRegex = createRegex(getConfigValue('disable.projectRootFolderNamePattern'));
@@ -229,12 +286,10 @@ export class DynamicConfig {
         this.SetVariablesToLocalScopeWhenCookingWindowsCommandAlias = getConfigValue('cookCmdAlias.setVariablesToLocalScope', true);
 
         this.UseDefaultFindingClassCheckExtensionRegex = createRegex(getConfigValue('useDefaultFindingClass.extensions'));
-        this.AllSourceFileExtensionRegex = createRegex(getConfigValue('allFiles'), 'i');
 
         this.MaxWaitSecondsForSearchDefinition = Number(getConfigValue('searchDefinition.timeoutSeconds'));
         this.MaxWaitSecondsForAutoReSearchDefinition = Number(getConfigValue('autoRunSearchDefinition.timeoutSeconds'));
         this.ScriptFileExtensionRegex = createRegex(this.RootConfig.get('default.scriptFiles') || '\\.(bat|cmd|psm?1|sh|bash|[kzct]sh)$', 'i');
-        this.CodeFileExtensionRegex = createRegex(this.RootConfig.get('default.codeFiles') || '\\.(cs(html)?|cpp|cxx|h|hpp|cc?|c\\+{2}|java|scala|py|go|rs|php)$', 'i');
         this.UseGitIgnoreFile = getConfigValue('useGitIgnoreFile') === 'true';
         this.OmitGitIgnoreExemptions = getConfigValue('omitGitIgnoreExemptions') === 'true';
         this.SkipDotFolders = getConfigValue('skipDotFoldersIfUseGitIgnoreFile') === 'true';
@@ -253,7 +308,7 @@ export class DynamicConfig {
     }
 
     public isCodeFiles(extension: string): boolean {
-        return this.CodeFileExtensionRegex.test(extension.startsWith('.') ? extension : '.' + extension) && !this.isScriptFile(extension);
+        return this.CodeFilesRegex.test(extension.startsWith('.') ? extension : '.' + extension) && !this.isScriptFile(extension);
     }
 
     public shouldSkipFinding(findType: FindType, currentFilePath: string): boolean {

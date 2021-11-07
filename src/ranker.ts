@@ -2,7 +2,7 @@ import { ParsedPath } from 'path';
 import * as vscode from 'vscode';
 import { GetConfigPriorityPrefixes, getConfigValueByRoot, getOverrideConfigByPriority, getSubConfigValue } from './configUtils';
 import { SearchTextHolder } from './constants';
-import { getConfig, MappedExtToCodeFilePatternMap, MyConfig } from './dynamicConfig';
+import { addExtensionToPattern, getConfig, MappedExtToCodeFilePatternMap, MyConfig } from './dynamicConfig';
 import { FindType, ForceFindType } from './enums';
 import { ForceSetting } from './forceSettings';
 import { outputDebug, outputError } from './outputUtils';
@@ -219,12 +219,12 @@ export class Ranker {
 		let searchPattern = this.getConfigValue(configKeyName, this.searchChecker.findType !== FindType.Definition, false);
 
 		const rootConfig = vscode.workspace.getConfiguration('msr');
-		const codeFilesKey = this.searchChecker.mappedExt === 'ui' ? 'default.codeFilesPlusUI' : 'default.codeFiles';
+		const codeFilesPattern = this.searchChecker.mappedExt === 'ui' ? MyConfig.CodeFilesPlusUIRegex.source : MyConfig.CodeFilesRegex.source;
 		let filePattern = MappedExtToCodeFilePatternMap.get(this.searchChecker.mappedExt) || '\\.' + extension + '$';
 		const searchAllFilesForReferences = getConfigValueByRoot(this.rootFolderName, extension, this.searchChecker.mappedExt, 'searchAllFilesForReferences') === 'true';
 		const searchAllFilesForDefinition = getConfigValueByRoot(this.rootFolderName, extension, this.searchChecker.mappedExt, 'searchAllFilesForDefinitions') === 'true';
 		if (searchAllFilesForReferences && configKeyName === 'reference') {
-			filePattern = rootConfig.get('default.allFiles') as string;
+			filePattern = config.AllFilesRegex.source;
 			const defaultFindRef = rootConfig.get('default.reference') as string;
 			if (defaultFindRef.length > 1) {
 				searchPattern = defaultFindRef;
@@ -238,7 +238,7 @@ export class Ranker {
 				searchPattern = searchPattern.substring(0, searchPattern.length - 2);
 			}
 		} else if (searchAllFilesForDefinition && configKeyName === 'definition') {
-			filePattern = rootConfig.get(codeFilesKey) as string;
+			filePattern = codeFilesPattern;
 			const defaultFindDefinitionPattern = rootConfig.get('default.definition') as string;
 			if (defaultFindDefinitionPattern.length > 1) {
 				searchPattern = defaultFindDefinitionPattern;
@@ -247,9 +247,7 @@ export class Ranker {
 
 		if (!searchAllFilesForDefinition && !searchAllFilesForReferences) {
 			if (config.ConfigAndDocFilesRegex.test(parsedFile.base)) {
-				filePattern = configKeyName === 'definition'
-					? rootConfig.get(codeFilesKey) as string
-					: config.CodeAndConfigAndDocFilesRegex.source;
+				filePattern = configKeyName === 'definition' ? codeFilesPattern : config.CodeAndConfigDocsRegex.source;
 			}
 
 			if (configKeyName === 'definition') {
@@ -281,15 +279,9 @@ export class Ranker {
 		}
 
 		if (this.searchChecker.ForceUseDefaultFindingDefinition) {
-			filePattern = getConfigValueByRoot(this.rootFolderName, '', '', 'codeFiles', false, true)
-				|| getConfigValueByRoot(this.rootFolderName, '', '', 'allFiles', false, true);
+			filePattern = MyConfig.CodeFilesDefaultRegex.source || MyConfig.AllFilesRegex.source;
 		} else if (MyConfig.isUnknownFileType(this.searchChecker.currentFile.ext)) {
-			let patternSet = new Set<string>([
-				getConfigValueByRoot(this.rootFolderName, 'default', '', 'codeFiles', false),
-				'\\.' + extension + '$'
-			]);
-			patternSet.delete('');
-			filePattern = Array.from(patternSet).join('|');
+			filePattern = addExtensionToPattern(extension, MyConfig.CodeFilesDefaultRegex).source;
 		}
 
 		filePattern = '"' + filePattern + '"';

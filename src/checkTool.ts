@@ -130,6 +130,10 @@ export class ToolChecker {
 	}
 
 	public checkAndDownloadTool(exeName64bit: string): [boolean, string] {
+		if (!IsSupportedSystem) {
+			return [false, ''];
+		}
+
 		const [isExisted, exePath] = isToolExistsInPath(exeName64bit, this.terminalType);
 		const exeName = this.getSourceExeName(exeName64bit);
 		outputDebug(nowText() + (isExisted ? 'Found ' + exeName + ' = ' + exePath : 'Not found ' + exeName + ', will download it.'));

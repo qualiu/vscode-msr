@@ -185,7 +185,7 @@ You can generate the command shortcuts (alias/doskey) to directly use for search
 - Multiple **script files** choose menus below: More freely to use (**in other script files** or **nested command lines** like pipe)
   - `"Cook script files: Only general finding command alias/doskey."`
   - `"Cook script files by project: Only finding command alias/doskey."`
-  - `"Cook general finding + Dump with other command alias/doskey to script files."`
+  - **`"Cook general finding + Dump with other command alias/doskey to script files."`**
     - Tip for [**msr advantage**](https://github.com/qualiu/msr#tip-for-captured-groups-reference-to-replace-files-or-transform-text) on **Windows** + **Linux**(including `MinGW` + `Cygwin` on Windows):
       - You can use `"\1"` instead of `"$1"` to avoid conflict if your `doskey`/`alias` contains **`Regex-Replacing`** commands:
         -  `Regex replace-to` conflict with `doskey macro` variables like **$1** on Windows.
@@ -194,6 +194,10 @@ You can generate the command shortcuts (alias/doskey) to directly use for search
     - To hide command + set local variable scope for Windows `doskey` shortcuts to script files:
       - Change `msr.cookCmdAlias.addEchoOff` (default: added) to **`@REM echo off`** if you want to show command line.
       - Change `msr.cookCmdAlias.setVariablesToLocalScope` to **`SetLocal EnableExtensions EnableDelayedExpansion`** to avoid global scope.
+    - This **enables you to use alias/doskeys (like `find-def`) everywhere** like:
+      - Nested commands/pipe like `for-loop` in CMD/Bash + `while-loop`, etc.
+      - Script files (like `*.cmd` + `*.bat` + `*.sh` + `*.ps1` etc.)
+      - Interactive `PowerShell` terminal/console (`PowerShell` cannot use `doskey/alias`).
   - `"Cook finding by project + Dump with other command alias/doskey to script files."`
 
 ### Command Shortcuts

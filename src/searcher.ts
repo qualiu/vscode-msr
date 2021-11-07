@@ -101,7 +101,7 @@ export class Searcher {
     if (this.Process) {
       text += ', pid = ' + this.Process.pid;
     }
-    return text + ', SourcePath = ' + this.SourcePath;
+    return text + ', SourcePath = ' + this.SourcePath + ', Command = ' + this.CommandLine;
   }
 
   public searchMatchedWords(token: vscode.CancellationToken)

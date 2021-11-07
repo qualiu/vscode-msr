@@ -2,6 +2,15 @@
 
 All notable changes to this "vscode-msr" extension will be documented in this file.
 
+## [2.1.36]
+- Added config `msr.msr.default.codeFileExtensionMappingTypes` to co-work with `msr.fileExtensionMap.xxx`:
+  - Auto add new code type (file extension) in `msr.fileExtensionMap.xxx` (like adding `groovy` in `msr.fileExtensionMap.java`).
+  - Also add to command shortcuts like: `find-all` , `find-code` and `find-def` etc.
+- Added `groovy` to `msr.fileExtensionMap.java`.
+- Added `sql` to `msr.default.allFiles`.
+- Added a **completely free** license file to fix warnings of new version `vsce package` command.
+- Updated `activationEvents` to to fix warnings of new version `vsce package` command.
+
 ## [2.1.35]
 - Avoided initializing doskeys for `"PowerShell Integrated Console"` on Windows.
 - Disabled finding definition for `Vue` by updating `msr.disable.extensionPattern`.

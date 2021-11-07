@@ -626,9 +626,9 @@ function getCommandAliasMap(
     skipFoldersPattern = mergeSkipFolderPattern(skipFoldersPattern);
   }
 
-  let fileTypes = Array.from(MappedExtToCodeFilePatternMap.keys());
-  if (!fileTypes.includes('py')) {
-    fileTypes.push('py');
+  let fileExtensionMapTypes = Array.from(MappedExtToCodeFilePatternMap.keys());
+  if (!fileExtensionMapTypes.includes('py')) {
+    fileExtensionMapTypes.push('py');
   }
 
   const findTypes = ['definition', 'reference'];
@@ -649,11 +649,12 @@ function getCommandAliasMap(
   }
 
   let commands: string[] = [];
-  fileTypes.forEach(ext => {
+  fileExtensionMapTypes.forEach(ext => {
     if (ext === 'default') {
       return;
     }
 
+    // find-cs find-py find-cpp find-java
     let cmdName = 'find-' + ext.replace(/Files?$/i, '');
     let filePattern = getOverrideConfigByPriority([projectKey + '.' + ext, ext, projectKey], 'codeFiles');
     if (isNullOrEmpty(filePattern)) {
@@ -721,12 +722,12 @@ function getCommandAliasMap(
       skipPattern = ' --nt "' + skipPattern + '"';
     }
 
-    const filePattern = getOverrideConfigByPriority([projectKey, 'default'], 'allFiles'); // codeFilesPlusUI
+    const allFilesPattern = useProjectSpecific ? MyConfig.AllFilesRegex.source : MyConfig.AllFilesDefaultRegex.source;
 
     // msr.definition.extraOptions msr.default.extraOptions
     const extraOption = addFullPathHideWarningOption(getOverrideConfigByPriority([projectKey, 'default'], 'extraOptions'));
 
-    let body = 'msr -rp .' + getSkipFolderPatternForCmdAlias() + ' -f "' + filePattern + '" ' + extraOption;
+    let body = 'msr -rp .' + getSkipFolderPatternForCmdAlias() + ' -f "' + allFilesPattern + '" ' + extraOption;
     body += skipPattern + searchPattern;
     commands.push(getCommandAlias(cmdName, body, true));
   });
@@ -734,7 +735,9 @@ function getCommandAliasMap(
   // msr.cpp.member.definition msr.py.class.definition msr.default.class.definition msr.default.definition
   const additionalFileTypes = ['allFiles', 'docFiles', 'configFiles', 'scriptFiles'];
   additionalFileTypes.forEach(fp => {
-    const filePattern = getOverrideConfigByPriority([projectKey, 'default'], fp);
+    const filePattern = 'allFiles' === fp
+      ? (useProjectSpecific ? MyConfig.AllFilesRegex.source : MyConfig.AllFilesDefaultRegex.source)
+      : getOverrideConfigByPriority([projectKey, 'default'], fp);
 
     // find-all
     const cmdName = 'find-' + fp.replace(/[A-Z]\w*$/, '');
@@ -751,7 +754,7 @@ function getCommandAliasMap(
   });
 
   // find-nd find-code find-ndp find-small find-all
-  const allCodeFilePattern = getOverrideConfigByPriority([projectKey, 'default', ''], 'codeFilesPlusUI');
+  const allCodeFilePattern = useProjectSpecific ? MyConfig.CodeFilesPlusUIRegex.source : MyConfig.CodeFilesPlusUIDefaultRegex.source;
   const extraOption = addFullPathHideWarningOption(getOverrideConfigByPriority([projectKey, 'default'], 'extraOptions'));
   commands.push(getCommandAlias('find-nd', 'msr -rp .' + getSkipFolderPatternForCmdAlias(), false));
   commands.push(getCommandAlias('find-ndp', 'msr -rp %1' + getSkipFolderPatternForCmdAlias(), true));

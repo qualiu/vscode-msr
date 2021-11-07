@@ -370,6 +370,11 @@ export function getDefaultRootFolder(): string {
     }
 }
 
+export function getDefaultRootFolderName(): string {
+    const folder = getDefaultRootFolder();
+    return isNullOrEmpty(folder) ? '' : path.basename(folder);
+}
+
 export function getActiveFilePath() {
     if (vscode.window.activeTextEditor
         && vscode.window.activeTextEditor.document
@@ -405,3 +410,4 @@ export function getRootFolders(currentFilePath: string): string[] {
     rootFolderSet.delete('');
     return Array.from(rootFolderSet);
 }
+

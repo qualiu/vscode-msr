@@ -86,9 +86,9 @@ export function getSortCommandText(toRunInTerminal: boolean, useProjectSpecific:
     const folderKey = useProjectSpecific ? rootFolderName : 'default';
     let filePattern = '';
     if (findCmdText.includes('SortSource')) {
-        filePattern = getOverrideConfigByPriority([folderKey, 'default', ''], 'allFiles');
+        filePattern = useProjectSpecific ? MyConfig.AllFilesRegex.source : MyConfig.AllFilesDefaultRegex.source;
     } else if (findCmdText.includes('SortCode')) {
-        filePattern = getOverrideConfigByPriority([folderKey, 'default', ''], 'codeFiles');
+        filePattern = useProjectSpecific ? MyConfig.CodeFilesRegex.source : MyConfig.CodeFilesDefaultRegex.source;
     }
 
     if (!isNullOrEmpty(filePattern)) {
@@ -123,9 +123,9 @@ export function getFindTopDistributionCommand(toRunInTerminal: boolean, useProje
     const folderKey = useProjectSpecific ? rootFolderName : 'default';
     let filePattern = '';
     if (findCmdText.includes('TopSource')) {
-        filePattern = getOverrideConfigByPriority([folderKey, 'default', ''], 'allFiles');
+        filePattern = useProjectSpecific ? MyConfig.AllFilesRegex.source : MyConfig.AllFilesDefaultRegex.source;
     } else if (findCmdText.includes('TopCode')) {
-        filePattern = getOverrideConfigByPriority([folderKey, 'default', ''], 'codeFiles');
+        filePattern = useProjectSpecific ? MyConfig.CodeFilesRegex.source : MyConfig.CodeFilesDefaultRegex.source;
     }
 
     if (!isNullOrEmpty(filePattern)) {
@@ -257,7 +257,7 @@ export function getFindingCommandByCurrentWord(toRunInTerminal: boolean, findCmd
         case FindCommandType.RegexFindReferencesInCodeFiles:
         case FindCommandType.FindPlainTextInCodeFiles:
         case FindCommandType.RegexFindPureReferencesInCodeFiles:
-            filePattern = getOverrideConfigByPriority([rootFolderName, 'default'], 'codeFilesPlusUI') as string;
+            filePattern = MyConfig.CodeFilesPlusUIRegex.source;
             break;
 
         case FindCommandType.RegexFindReferencesInDocs:
@@ -272,7 +272,7 @@ export function getFindingCommandByCurrentWord(toRunInTerminal: boolean, findCmd
 
         case FindCommandType.RegexFindReferencesInCodeAndConfig:
         case FindCommandType.FindPlainTextInConfigAndConfigFiles:
-            filePattern = getOverrideConfigByPriority([rootFolderName, 'default'], 'codeAndConfig') as string;
+            filePattern = MyConfig.CodeAndConfigRegex.source;
             break;
 
         case FindCommandType.RegexFindReferencesInSameTypeFiles:
@@ -283,7 +283,7 @@ export function getFindingCommandByCurrentWord(toRunInTerminal: boolean, findCmd
         case FindCommandType.RegexFindReferencesInAllSourceFiles:
         case FindCommandType.FindPlainTextInAllSourceFiles:
         case FindCommandType.RegexFindPureReferencesInAllSourceFiles:
-            filePattern = getOverrideConfigByPriority([rootFolderName, 'default'], 'allFiles') as string;
+            filePattern = MyConfig.AllFilesRegex.source;
             break;
 
         case FindCommandType.RegexFindReferencesInAllSmallFiles:

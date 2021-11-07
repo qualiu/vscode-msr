@@ -11,7 +11,7 @@ const DocFilePath = path.join(GitRootPath, 'README.md');
 const KeyRegex = /["`](msr\.\w+[\.\w]*)/g;
 const SkipKeysRegex = /^(msr|nin)\.(exe|cygwin|gcc48|xxx)|\.project\d+|default.extra\w*Groups|\.My|^msr.py.extra\w*|^msr.\w+(\.\w+)?.definition|msr.\w+.codeFiles|fileExtensionMap|\.default\.$|bat\w*\.skipFolders|preferSearchingSpeedOverPrecision/i;
 const ExemptDuplicateKeyRegex = /^(msr\.)?\w*(find|sort|make)\w+$|^msr.cookCmdAlias\w*|^msr.\w*GitIgnore\w*$/i;
-const ExemptNoValueKeyRegex = /extra|skip.definition|extensionPattern|projectRootFolderNamePattern|cmdAlias\w*|^\w*(find|sort)\w+$/i;
+const ExemptNoValueKeyRegex = /extra|skip.definition|extensionPattern|projectRootFolderNamePattern|cmdAlias\w*|^\w*(find|sort)\w+$|^msr.fileExtensionMap.xxx/i;
 const NonStringValueRegex = /^(\d+|bool\w*$)/;
 
 const [AllConfigKeys, AllKeyToNameMap] = readAllKeysAndRegexPatterns();
@@ -42,10 +42,6 @@ function readAllKeysAndRegexPatterns(): [Set<string>, Map<string, string>] {
       const value = rootConfig.get(key);
       const valueText = !value || NonStringValueRegex.test(value as string || '') ? value : '"' + value + '"';
       console.info('Found config key = ' + fullKey + ' , value = ' + valueText);
-
-      if (ExemptDuplicateKeyRegex.test(key) === false && !key.endsWith('.')) {
-        assert.notStrictEqual(value, undefined, 'Value should not be undefined for key = ' + fullKey);
-      }
 
       const textValue = String(value);
       if (ExemptNoValueKeyRegex.test(key) === false) {

@@ -16,6 +16,7 @@ const SkipPathVariableName: string = 'Skip_Git_Paths';
 
 export class GitIgnore {
   public Valid: boolean = false;
+  public ExemptionCount: number = 0;
   private Terminal: TerminalType;
   private IgnoreFilePath: string = '';
   private UseGitIgnoreFile: boolean;
@@ -24,7 +25,6 @@ export class GitIgnore {
   private SkipPathPattern: string = '';
   private RootFolder: string = '';
   private CheckUseForwardingSlashForCmd = true;
-  private ExemptionCount: number = 0;
   private ExportLongSkipGitPathsLength: number = 200;
   private LastExportedSkipPaths: string = '';
   private SetSkipPathEnvFile: string = '';
@@ -257,10 +257,11 @@ export class GitIgnore {
         + this.ExemptionCount + ' exemptions from: ' + this.IgnoreFilePath;
 
       if (this.ExemptionCount > 0) {
-        parsedInfo += ` , see ${OutputChannelName} in OUTPUT`;
+        parsedInfo += ` , see ${OutputChannelName} in OUTPUT tab above.`
+          + ` Use gfind-xxx instead of find-xxx like gfind-all to solve git-exemptions`;
       }
 
-      parsedInfo += ' , ' + SkipPathVariableName + ' length = ' + this.SkipPathPattern.length + '.';
+      parsedInfo += ' ; env-var ' + SkipPathVariableName + ' length = ' + this.SkipPathPattern.length + '.';
 
       const message = 'Cost ' + (cost / 1000).toFixed(3) + ' s: ' + parsedInfo;
 
@@ -272,16 +273,18 @@ export class GitIgnore {
       saveTextToFile(this.SetSkipPathEnvFile, setEnvCommands);
       callbackWhenSucceeded();
 
-      const tipHead = 'echo TerminalType = ' + TerminalType[DefaultTerminalType] + ', Universal slash = ' + IsForwardingSlashSupportedOnWindows + '. ';
+      const extraColorArgs = '-e "\\d+|' + SkipPathVariableName + '|find-\\w+"';
+      const commonErrorPattern = '[1-9]\\d* e\\w+|gfind-\\w+|' + OutputChannelName;
+      const tipHead = 'msr -aPA -z "TerminalType = ' + TerminalType[DefaultTerminalType] + ', Universal slash = ' + IsForwardingSlashSupportedOnWindows + '. ';
       if (!isInMaxLength) {
         let warning = 'Will not use git-ignore: ' + parsedInfo + ' setVariableCommandLength = ' + setVarCmdLength + ' exceeds ' + this.MaxCommandLength
           + ' which is max command length of ' + TerminalType[this.Terminal] + ' terminal.';
         outputError(nowText() + warning);
         warning = IsLinuxTerminalOnWindows ? warning.replace(this.IgnoreFilePath, this.IgnoreFilePath.replace(/\\/g, '/')) : warning;
-        runRawCommandInTerminal(tipHead + warning + ' | msr -aPA -t "(not use \\S+)|[1-9]\\d* e\\w+" -e "\\d+" -x ' + this.MaxCommandLength);
+        runRawCommandInTerminal(tipHead + warning + '" -t "(not use \\S+)|' + commonErrorPattern + '" ' + extraColorArgs + ' -x ' + this.MaxCommandLength);
       } else { // if (errorList.length > 0 || this.ExemptionCount > 0) {
         parsedInfo = IsLinuxTerminalOnWindows ? parsedInfo.replace(this.IgnoreFilePath, this.IgnoreFilePath.replace(/\\/g, '/')) : parsedInfo;
-        runRawCommandInTerminal(tipHead + parsedInfo + ' | msr -aPA -e "\\d+" -t "[1-9]\\d* e\\w+" -x ignored');
+        runRawCommandInTerminal(tipHead + parsedInfo + '" ' + extraColorArgs + ' -t "' + commonErrorPattern + '" -x ignored');
       }
     });
   }

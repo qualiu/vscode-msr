@@ -3,7 +3,7 @@
     "displayName": "Code mining + Replace file + Find definition and reference for all types.",
     "description": "Code mining + Replace file + Find definition and reference in multiple repository paths by msr for all coding languages + configuration + doc files.",
     "author": "qualiu@microsoft.com",
-    "version": "2.1.36",
+    "version": "2.1.37",
     "icon": "images/vscode-msr-icon.png",
     "license": "completely free",
     "publisher": "qualiu",
@@ -280,7 +280,7 @@
             },
             {
                 "command": "msr.cookCmdAlias",
-                "title": "Cook alias/doskey: Only general finding commands to 1 file.",
+                "title": "Cook general alias/doskey to 1 file.",
                 "category": "msr",
                 "icon": {
                     "dark": "images/vscode-msr-small.svg",
@@ -289,7 +289,7 @@
             },
             {
                 "command": "msr.cookCmdAliasByProject",
-                "title": "Cook alias/doskey by project: Only finding commands to 1 file.",
+                "title": "Cook project specific alias/doskey to 1 file.",
                 "category": "msr",
                 "icon": {
                     "dark": "images/vscode-msr-small.svg",
@@ -298,7 +298,7 @@
             },
             {
                 "command": "msr.cookCmdAliasFiles",
-                "title": "Cook script files: Only general finding command alias/doskey.",
+                "title": "Cook scripts: General alias/doskey.",
                 "category": "msr",
                 "icon": {
                     "dark": "images/vscode-msr-small.svg",
@@ -307,7 +307,7 @@
             },
             {
                 "command": "msr.cookCmdAliasFilesByProject",
-                "title": "Cook script files by project: Only finding command alias/doskey.",
+                "title": "Cook scripts: Project specific alias/doskey.",
                 "category": "msr",
                 "icon": {
                     "dark": "images/vscode-msr-small.svg",
@@ -316,7 +316,7 @@
             },
             {
                 "command": "msr.cookCmdAliasDumpWithOthersToFiles",
-                "title": "Cook general finding + Dump with other command alias/doskey to script files.",
+                "title": "Cook general + Dump other alias/doskey to scripts.",
                 "category": "msr",
                 "icon": {
                     "dark": "images/vscode-msr-small.svg",
@@ -325,7 +325,7 @@
             },
             {
                 "command": "msr.cookCmdAliasDumpWithOthersToFilesByProject",
-                "title": "Cook finding by project + Dump with other command alias/doskey to script files.",
+                "title": "Cook project + Dump other alias/doskey to scripts.",
                 "category": "msr",
                 "icon": {
                     "dark": "images/vscode-msr-small.svg",
@@ -786,8 +786,13 @@
                 },
                 "msr.skipInitCmdAliasForNewTerminalTitleRegex": {
                     "type": "string",
-                    "default": "PowerShell\\s*Integrated\\s*Console|pwsh$|Java|Debug",
+                    "default": "PowerShell\\s*Integrated\\s*Console|pwsh$|Java|Python|Debug",
                     "description": "Regex pattern of terminal title to skip initializing command shortcuts for newly opened terminals."
+                },
+                "msr.changePowerShellTerminalToCmdOnWindows": {
+                    "type": "string",
+                    "default": "auto",
+                    "description": "Value = [auto | false | true]: Change PowerShell to CMD terminal on Windows when adding/initializing new terminals. For `auto`: treat as `false` if got git-exemptions"
                 },
                 "msr.overwriteProjectCmdAliasForNewTerminals": {
                     "type": "boolean",
@@ -831,7 +836,7 @@
                 },
                 "msr.cookCmdAlias.menu.visible": {
                     "type": "boolean",
-                    "default": true,
+                    "default": false,
                     "description": "Cook 1 file of general command alias/doskey (like 'find-def', 'find-doc') to help fast search in/out vscode."
                 },
                 "msr.cookCmdAliasByProject.menu.visible": {
@@ -842,16 +847,16 @@
                 "msr.cookCmdAliasFiles.menu.visible": {
                     "type": "boolean",
                     "default": false,
-                    "description": "Cook script files of general command alias/doskey (like 'find-def', 'find-doc') to help fast search in/out vscode."
+                    "description": "Cook scripts of general command alias/doskey (like 'find-def', 'find-doc') to help fast search in/out vscode."
                 },
                 "msr.cookCmdAliasFilesByProject.menu.visible": {
                     "type": "boolean",
                     "default": false,
-                    "description": "Cook script files of command alias/doskey by settings of default + overwritten-by-project to help fast search in/out vscode."
+                    "description": "Cook scripts of command alias/doskey by settings of default + overwritten-by-project to help fast search in/out vscode."
                 },
                 "msr.cookCmdAliasDumpWithOthersToFiles.menu.visible": {
                     "type": "boolean",
-                    "default": false,
+                    "default": true,
                     "description": "Cook general shortcuts + Dump with other command alias/doskeys to script files to be used in other scripts or commands."
                 },
                 "msr.cookCmdAliasDumpWithOthersToFilesByProject.menu.visible": {
@@ -1267,17 +1272,22 @@
                 "msr.cookCmdAlias.hideWarningsAndExtraInfo": {
                     "type": "boolean",
                     "default": true,
-                    "description": "When cooking command alias/shortcuts, add -I to hide warnings and extra info (overwrite default extraOption)."
+                    "description": "When cooking command alias/doskey, add -I to hide warnings and extra info (overwrite default extraOption)."
                 },
                 "msr.cookCmdAlias.outputFullPath": {
                     "type": "boolean",
                     "default": false,
-                    "description": "When cooking command alias/shortcuts, add -W to output full path (overwrite default extraOption)."
+                    "description": "When cooking command alias/doskeys, add -W to output full path (overwrite default extraOption)."
+                },
+                "msr.cookCmdAlias.outputFullPathForDumpingScriptFiles": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "When cooking command alias/doskey to script files, add -W to output full path (overwrite default extraOption)."
                 },
                 "msr.cookCmdAlias.outputRelativePathForLinuxTerminalsOnWindows": {
                     "type": "boolean",
                     "default": true,
-                    "description": "When cooking command alias/shortcuts, remove -W to output relative path for Linux terminals on Windows (overwrite default extraOption)."
+                    "description": "When cooking command alias/doskey, remove -W to output relative path for Linux terminals on Windows (overwrite default extraOption)."
                 },
                 "msr.cookCmdAlias.addEchoOff": {
                     "type": "string",

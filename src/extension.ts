@@ -4,7 +4,7 @@ import * as vscode from 'vscode';
 import { MsrExe } from './checkTool';
 import { getFindingCommandByCurrentWord, runFindingCommand } from './commands';
 import { getConfigValueByRoot } from './configUtils';
-import { IsSupportedSystem, IsWindows, RunCmdTerminalName } from './constants';
+import { IsWindows, RunCmdTerminalName } from './constants';
 import { cookCmdShortcutsOrFile } from './cookCommandAlias';
 import { FileExtensionToMappedExtensionMap, getConfig, getExtraSearchPaths, getGitIgnore, MappedExtToCodeFilePatternMap, MyConfig, printConfigInfo } from './dynamicConfig';
 import { FindCommandType, FindType, ForceFindType } from './enums';
@@ -29,10 +29,6 @@ export function activate(context: vscode.ExtensionContext) {
 	// The command has been defined in the package.json file
 	// Now provide the implementation of the command with registerCommand
 	// The commandId parameter must match the command field in package.json
-
-	if (!IsSupportedSystem) {
-		return;
-	}
 
 	registerExtension(context);
 
@@ -200,12 +196,16 @@ export function registerExtension(context: vscode.ExtensionContext) {
 			cookCmdShortcutsOrFile(true, textEditor.document.uri.fsPath, true, true)));
 
 	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.cookCmdAliasDumpWithOthersToFiles',
-		(textEditor: vscode.TextEditor, _edit: vscode.TextEditorEdit, ..._args: any[]) =>
-			cookCmdShortcutsOrFile(true, textEditor.document.uri.fsPath, false, true, undefined, true)));
+		(textEditor: vscode.TextEditor, _edit: vscode.TextEditorEdit, ..._args: any[]) => {
+			cookCmdShortcutsOrFile(true, textEditor.document.uri.fsPath, false, false);
+			cookCmdShortcutsOrFile(true, textEditor.document.uri.fsPath, false, true, undefined, true);
+		}));
 
 	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.cookCmdAliasDumpWithOthersToFilesByProject',
-		(textEditor: vscode.TextEditor, _edit: vscode.TextEditorEdit, ..._args: any[]) =>
-			cookCmdShortcutsOrFile(true, textEditor.document.uri.fsPath, true, true, undefined, true)));
+		(textEditor: vscode.TextEditor, _edit: vscode.TextEditorEdit, ..._args: any[]) => {
+			cookCmdShortcutsOrFile(true, textEditor.document.uri.fsPath, true, false);
+			cookCmdShortcutsOrFile(true, textEditor.document.uri.fsPath, true, true, undefined, true);
+		}));
 
 	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.tmpToggleEnableFindingDefinition',
 		(textEditor: vscode.TextEditor, _edit: vscode.TextEditorEdit, ..._args: any[]) => {

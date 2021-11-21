@@ -2,6 +2,14 @@
 
 All notable changes to this "vscode-msr" extension will be documented in this file.
 
+## [2.1.37]
+- Supported MacOS of `Darwin`-`Arm64`.
+- Supported writing + keeping alias into **default file** (like `~/msr-cmd-alias.bashrc`) on Linux/MacOS as on Windows.
+- No longer force change `PowerShell` to `CMD` on Windows.
+  - Added `msr.changePowerShellTerminalToCmdOnWindows` = `auto` (Treat as `false` if got git-exemptions).
+- Added `gfind-xxx` by duplicating each `find-xxx` + `sort-xxx` + `find-top-xxx` (use`"git ls-files"` as precise source files).
+- Changed default menu of `Cook-alias/doskey` to easy use (cook alias + dump scripts).
+
 ## [2.1.36]
 - Added config `msr.msr.default.codeFileExtensionMappingTypes` to co-work with `msr.fileExtensionMap.xxx`:
   - Auto add new code type (file extension) in `msr.fileExtensionMap.xxx` (like adding `groovy` in `msr.fileExtensionMap.java`).

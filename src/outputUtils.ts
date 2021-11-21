@@ -1,8 +1,8 @@
 import { execSync } from 'child_process';
 import * as vscode from 'vscode';
-import { IsDebugMode, IsWindows, OutputChannelName, RunCmdTerminalName } from './constants';
+import { IsDebugMode, IsSupportedSystem, IsWindows, OutputChannelName, RunCmdTerminalName } from './constants';
 import { cookCmdShortcutsOrFile, CookCmdTimesForRunCmdTerminal } from './cookCommandAlias';
-import { getConfig } from './dynamicConfig';
+import { getConfig, MyConfig } from './dynamicConfig';
 import { getDefaultRootFolder, getDefaultRootFolderByActiveFile, IsLinuxTerminalOnWindows, nowText, replaceTextByRegex } from './utils';
 
 export let RunCmdTerminalRootFolder = '';
@@ -69,7 +69,8 @@ export function getRunCmdTerminal(): vscode.Terminal {
 		if (vscode.workspace.getConfiguration('msr').get('initProjectCmdAliasForNewTerminals') as boolean) {
 			const rootFolder = getDefaultRootFolderByActiveFile() || getDefaultRootFolder();
 			RunCmdTerminalRootFolder = rootFolder.includes('/') ? rootFolder + '/' : rootFolder + '\\';
-			if (CookCmdTimesForRunCmdTerminal < 1) {
+			const workspaceCount = !vscode.workspace.workspaceFolders ? 0 : vscode.workspace.workspaceFolders.length;
+			if (!MyConfig.UseGitIgnoreFile && workspaceCount > 1 && CookCmdTimesForRunCmdTerminal < 1) {
 				cookCmdShortcutsOrFile(false, rootFolder, true, false, _runCmdTerminal);
 			}
 		}
@@ -188,6 +189,16 @@ export function enableColorAndHideCommandLine(cmd: string, removeSearchWordHint:
 	}
 
 	return text.replace(/\s+Search\s*$/, '');
+}
+
+export function checkIfSupported(): boolean {
+	if (IsSupportedSystem) {
+		return true;
+	}
+
+	outputError(nowText() + 'Sorry, "' + process.platform + ' ' + process.arch + ' " is not supported yet: Support 64-bit + 32-bit : Windows + Linux (Ubuntu / CentOS / Fedora which gcc/g++ version >= 4.8).');
+	outputError(nowText() + 'https://github.com/qualiu/vscode-msr/blob/master/README.md');
+	return false;
 }
 
 export function showOutputChannel(showWindow: boolean = true, ignoreQuiet: boolean = false) {

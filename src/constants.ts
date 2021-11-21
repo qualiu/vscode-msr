@@ -6,7 +6,11 @@ export const OutputChannelName = 'MSR-Def-Ref';
 
 export const IsDebugMode = process.execArgv && process.execArgv.length > 0 && process.execArgv.some((arg) => /^--debug=?/.test(arg) || /^--(debug|inspect)-brk=?/.test(arg));
 export const SearchTextHolder = '%1';
-export const IsSupportedSystem = /win32|Windows|Linux/i.test(process.platform);
+
+export const IsSupportedSystem = /win32|Windows|Linux/i.test(process.platform)
+  || (/^Darwin/i.test(process.platform) && process.arch === 'arm64')
+  ;
+
 export const SkipJumpOutForHeadResultsRegex = /\s+(-J\s+-H|-J?H)\s*\d+(\s+-J)?(\s+|$)/;
 export const RemoveJumpRegex = /\s+-J(\s+|$)/;
 export const TrimSearchTextRegex = /^[^\w\.-]+|[^\w\.-]+$/g;

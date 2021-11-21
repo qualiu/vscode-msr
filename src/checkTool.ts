@@ -3,18 +3,17 @@ import fs = require('fs');
 import https = require('https');
 import crypto = require('crypto');
 import ChildProcess = require('child_process');
-import { HomeFolder, IsDebugMode, IsSupportedSystem, IsWindows } from './constants';
+import { HomeFolder, IsDebugMode, IsWindows } from './constants';
 import { MyConfig } from './dynamicConfig';
 import { TerminalType } from './enums';
 import { getHomeFolderForLinuxTerminalOnWindows, getTerminalShellExePath, isToolExistsInPath } from './otherUtils';
-import { clearOutputChannel, outputDebug, outputError, outputInfo, outputKeyInfo } from './outputUtils';
+import { checkIfSupported, clearOutputChannel, outputDebug, outputError, outputInfo, outputKeyInfo } from './outputUtils';
 import { checkAddFolderToPath, DefaultTerminalType, getTimeCostToNow, isLinuxTerminalOnWindows, isNullOrEmpty, isWindowsTerminalOnWindows, nowText, PathEnvName, quotePaths, runCommandGetOutput, toCygwinPath, toOsPath, toOsPaths } from './utils';
 
 export const MsrExe = 'msr';
-const Is64BitOS = process.arch.match(/x64|\s+64/);
+const Is64BitOS = process.arch.includes('64');
 const SourceExeHomeUrl = 'https://raw.githubusercontent.com/qualiu/msr/master/tools/';
 const SourceMd5FileUrl = SourceExeHomeUrl + 'md5.txt';
-const SourceExeNameTail = Is64BitOS ? '' : (IsWindows ? '-Win32' : '-i386');
 export const TerminalTypeToSourceExtensionMap = new Map<TerminalType, string>()
 	.set(TerminalType.CMD, '.exe')
 	.set(TerminalType.PowerShell, IsWindows ? '.exe' : '.gcc48')
@@ -85,20 +84,30 @@ function updateToolNameToPathMap(terminalType: TerminalType, toolName: string, t
 	}
 }
 
-export function getSetToolEnvCommand(terminalType: TerminalType, addTailTextIfNotEmpty: string = ''): string {
+export function getSetToolEnvCommand(terminalType: TerminalType, addTailTextIfNotEmpty: string = '', foldersToAddPath: string[] = []): string {
+	let toolFolderSet = new Set<string>();
 	if (terminalType === TerminalType.CygwinBash || TerminalType.WslBash === terminalType) {
-		return '';
+		if (foldersToAddPath && foldersToAddPath.length > 0) {
+			foldersToAddPath.forEach((folder) => toolFolderSet.add(folder));
+		} else {
+			return '';
+		}
 	}
 
-	let toolFolderSet = new Set<string>();
 	const toolNameToPathMap = TerminalTypeToToolNamePathMap.get(terminalType);
 	if (!toolNameToPathMap || toolNameToPathMap.size < 1) {
-		return '';
+		if (foldersToAddPath && foldersToAddPath.length > 0) {
+			foldersToAddPath.forEach((folder) => toolFolderSet.add(folder));
+		} else {
+			return '';
+		}
 	}
 
-	toolNameToPathMap.forEach((value, _key, _m) => {
-		toolFolderSet.add(path.dirname(value));
-	});
+	if (toolNameToPathMap) {
+		toolNameToPathMap.forEach((value, _key, _m) => {
+			toolFolderSet.add(path.dirname(value));
+		});
+	}
 
 	const toolFolders = Array.from(toOsPaths(toolFolderSet, terminalType));
 	switch (terminalType) {
@@ -125,15 +134,24 @@ export class ToolChecker {
 		this.terminalType = terminalType;
 		this.autoDownload = autoDownload;
 		this.isTerminalOfWindows = isWindowsTerminalOnWindows(this.terminalType);
-		const sourceExeExtension = TerminalTypeToSourceExtensionMap.get(this.terminalType) || '';
-		this.MatchExeMd5Regex = new RegExp('^(\\S+)\\s+(\\w+)' + SourceExeNameTail + sourceExeExtension + '\\s*$', 'm');
+		this.MatchExeMd5Regex = new RegExp('^(\\S+)\\s+(\\w+)' + this.getSourceExeNameTail() + '\\s*$', 'm');
+	}
+
+	private getSourceExeNameTail() {
+		if (process.platform.match(/Darwin/i)) {
+			return '-' + process.arch.toLowerCase() + '.' + process.platform.toLowerCase();
+		}
+
+		const suffix = TerminalTypeToSourceExtensionMap.get(this.terminalType);
+		if (IsWindows) {
+			return (Is64BitOS ? '' : '-Win32') + suffix;
+		}
+
+		// for Linux
+		return (Is64BitOS ? '' : '-i386') + suffix;
 	}
 
 	public checkAndDownloadTool(exeName64bit: string): [boolean, string] {
-		if (!IsSupportedSystem) {
-			return [false, ''];
-		}
-
 		const [isExisted, exePath] = isToolExistsInPath(exeName64bit, this.terminalType);
 		const exeName = this.getSourceExeName(exeName64bit);
 		outputDebug(nowText() + (isExisted ? 'Found ' + exeName + ' = ' + exePath : 'Not found ' + exeName + ', will download it.'));
@@ -156,7 +174,7 @@ export class ToolChecker {
 		}
 	}
 
-	public getDownloadCommandForNewTerminal(exeName64bit: string = 'msr', forceCheckDownload: boolean = false): string {
+	public getCheckDownloadCommandsForLinuxBashOnWindows(exeName64bit: string = 'msr', forceCheckDownload: boolean = false): string {
 		// others have already checked and downloaded.
 		if (TerminalType.CygwinBash !== this.terminalType && TerminalType.WslBash !== this.terminalType) {
 			if (!forceCheckDownload) {
@@ -164,18 +182,12 @@ export class ToolChecker {
 			}
 		}
 
-		const sourceExeName = this.getSourceExeName(exeName64bit);
-		const tmpSaveExePath = '~/' + sourceExeName + '.tmp';
-		const targetExePath = '~/' + exeName64bit;
-		const pureDownloadCmd = 'wget ' + SourceExeHomeUrl + sourceExeName + ' -O ' + tmpSaveExePath + ' --no-check-certificate'
-			+ ' && mv -f ' + tmpSaveExePath + ' ' + targetExePath
-			+ ' && chmod +x ' + targetExePath + ' && export PATH=~:$PATH';
-
+		const [downloadCmd, targetExePath] = this.getDownloadCommandAndSavePath(exeName64bit, '~/');
+		const exportCommand = 'export PATH=~:$PATH';
+		const checkExistCommand = 'ls -al ' + targetExePath + ' 2>/dev/null | egrep -e "^-[rw-]*?x.*?/' + exeName64bit + '\\s*$"';
 		const firstCheck = 'which ' + exeName64bit + ' | egrep -e "/' + exeName64bit + '"';
-
-		const lastCheck = '(ls -al ' + targetExePath + ' 2>/dev/null | egrep -e "^-[rw-]*?x.*?/' + exeName64bit + '\\s*$" || ( ' + pureDownloadCmd + ' ) )';
-		const downloadCmd = firstCheck + ' || ' + lastCheck;
-		return downloadCmd;
+		const lastCheck = '( ' + checkExistCommand + ' || ( ' + downloadCmd + ' && ' + exportCommand + ' ) )';
+		return firstCheck + ' || ' + lastCheck;
 	}
 
 	private getDownloadUrl(sourceExeName: string): string {
@@ -183,7 +195,7 @@ export class ToolChecker {
 	}
 
 	private getSourceExeName(exeName64bit: string): string {
-		return exeName64bit + SourceExeNameTail + TerminalTypeToSourceExtensionMap.get(this.terminalType);
+		return exeName64bit + this.getSourceExeNameTail();
 	}
 
 	private getSaveExeName(exeName64bit: string) {
@@ -197,12 +209,16 @@ export class ToolChecker {
 		return this.isTerminalOfWindows ? savePath : savePath.replace(/\\/g, '/');
 	}
 
-	private getDownloadCommand(exeName64bit: string, saveExePath: string = ''): string {
+	private getDownloadCommandAndSavePath(exeName64bit: string, saveExePath: string = ''): [string, string] {
 		const sourceExeName = this.getSourceExeName(exeName64bit);
 		const sourceUrl = this.getDownloadUrl(sourceExeName);
 		const [IsExistIcacls] = this.isTerminalOfWindows ? isToolExistsInPath('icacls', this.terminalType) : [false, ''];
 		if (isNullOrEmpty(saveExePath)) {
 			saveExePath = this.getTempSaveExePath(exeName64bit);
+		} else if (saveExePath.endsWith('/') || saveExePath === '~') {
+			saveExePath = this.isTerminalOfWindows
+				? path.join(saveExePath, exeName64bit)
+				: saveExePath.replace(/\/$/, '') + "/" + exeName64bit;
 		}
 
 		const tmpSaveExePath = quotePaths(saveExePath + '.tmp');
@@ -222,10 +238,11 @@ export class ToolChecker {
 			: 'mv -f ' + tmpSaveExePath + ' ' + saveExePath;
 
 		const setExecutableCommand = this.isTerminalOfWindows
-			? (IsExistIcacls ? ' && icacls ' + saveExePath + ' /grant %USERNAME%:RX' : '')
-			: ' && chmod +x ' + saveExePath;
+			? (IsExistIcacls ? 'icacls ' + saveExePath + ' /grant %USERNAME%:RX' : '')
+			: 'chmod +x ' + saveExePath;
 
-		return downloadCommand + ' && ' + renameFileCommand + ' ' + setExecutableCommand;
+		const command = downloadCommand + ' && ' + renameFileCommand + ' && ' + setExecutableCommand;
+		return [command, saveExePath];
 	}
 
 	public toRunnableToolPath(commandLine: string) {
@@ -243,13 +260,11 @@ export class ToolChecker {
 			return true;
 		}
 
-		if (!IsSupportedSystem) {
-			outputError(nowText() + 'Sorry, "' + process.platform + ' platform" is not supported yet: Support 64-bit + 32-bit : Windows + Linux (Ubuntu / CentOS / Fedora which gcc/g++ version >= 4.8).');
-			outputError(nowText() + 'https://github.com/qualiu/vscode-msr/blob/master/README.md');
+		[this.isMsrToolExists, this.MsrExePath] = isToolExistsInPath('msr', this.terminalType);
+
+		if (!checkIfSupported()) {
 			return false;
 		}
-
-		[this.isMsrToolExists, this.MsrExePath] = isToolExistsInPath('msr', this.terminalType);
 
 		if (!this.isMsrToolExists) {
 			if (clearOutputBeforeWarning) {
@@ -280,7 +295,7 @@ export class ToolChecker {
 		const targetExePath = path.join(path.dirname(tmpSaveExePath), isWindowsTerminalOnWindows(this.terminalType) ? exeName64bit + '.exe' : exeName64bit);
 		if (!fs.existsSync(tmpSaveExePath)) {
 			outputKeyInfo('\n' + nowText() + 'Will try to download the tiny tool "' + sourceExeName + '" by command:');
-			const downloadCommand = this.getDownloadCommand(exeName64bit);
+			const [downloadCommand, _] = this.getDownloadCommandAndSavePath(exeName64bit, tmpSaveExePath);
 			outputKeyInfo(downloadCommand);
 			const saveFolder = path.dirname(tmpSaveExePath);
 			try {
@@ -426,7 +441,7 @@ export class ToolChecker {
 				if (TerminalType.CygwinBash === this.terminalType) {
 					currentExeSavePath = toCygwinPath(currentExeSavePath);
 				}
-				const downloadCommand = this.getDownloadCommand(exeName64bit, currentExeSavePath);
+				const [downloadCommand, _] = this.getDownloadCommandAndSavePath(exeName64bit, currentExeSavePath);
 				outputKeyInfo(downloadCommand + '\n');
 			});
 		}

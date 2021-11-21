@@ -1,7 +1,7 @@
 import path = require('path');
 import * as vscode from 'vscode';
 import { GetConfigPriorityPrefixes, getConfigValue, getConfigValueByRoot, getOverrideConfigByPriority, getOverrideOrDefaultConfig, getSubConfigValue } from './configUtils';
-import { IsLinux, IsWindows, IsWSL } from './constants';
+import { IsLinux, IsSupportedSystem, IsWindows, IsWSL } from './constants';
 import { cookCmdShortcutsOrFile, mergeSkipFolderPattern } from './cookCommandAlias';
 import { FindType, TerminalType } from './enums';
 import { GitIgnore } from './gitUtils';
@@ -46,7 +46,7 @@ export function getGitIgnore(currentPath: string): GitIgnore {
 export function updateGitIgnoreUsage() {
     WorkspaceToGitIgnoreMap.clear();
 
-    if (!vscode.workspace.workspaceFolders || vscode.workspace.workspaceFolders.length < 1) {
+    if (!IsSupportedSystem || !vscode.workspace.workspaceFolders || vscode.workspace.workspaceFolders.length < 1) {
         return;
     }
 
@@ -60,11 +60,12 @@ export function updateGitIgnoreUsage() {
         const gitIgnore = new GitIgnore(path.join(rootFolder, '.gitignore'), useGitIgnoreFile, omitGitIgnoreExemptions, skipDotFolders);
         WorkspaceToGitIgnoreMap.set(rootFolder, gitIgnore);
         const canInitGitIgnore = workspaceFolder === DefaultRootFolder;
-        function actionWhenSuccessfullyParsed() {
+        function actionWhenSuccessfullyParsedGitIgnore() {
             if (!canInitGitIgnore) {
                 return;
             }
 
+            MyConfig.setChangePowerShellToCmdOnWindows(gitIgnore.ExemptionCount < 1);
             const terminal = getRunCmdTerminal();
             // clearTerminal(terminal, IsLinuxTerminalOnWindows);
             cookCmdShortcutsOrFile(false, DefaultRootFolder, true, false, terminal, false);
@@ -74,11 +75,12 @@ export function updateGitIgnoreUsage() {
             }
         }
 
-        function actionWhenFailedToParse() {
+        function actionWhenFailedToParseGitIgnore() {
             cookCmdShortcutsOrFile(false, DefaultRootFolder, true, false, getRunCmdTerminal(), false);
+            MyConfig.setChangePowerShellToCmdOnWindows(false);
         }
 
-        gitIgnore.parse(actionWhenSuccessfullyParsed, actionWhenFailedToParse);
+        gitIgnore.parse(actionWhenSuccessfullyParsedGitIgnore, actionWhenFailedToParseGitIgnore);
     }
 }
 
@@ -105,6 +107,9 @@ export function addExtensionToPattern(ext: string, fileExtensionsRegex: RegExp) 
 
 export class DynamicConfig {
     public RootConfig: vscode.WorkspaceConfiguration = vscode.workspace.getConfiguration('msr');
+
+    public ChangePowerShellTerminalToCmdOnWindows: boolean = false;
+    private ChangePowerShellTerminalToCmdOnWindowsConfig: string = "auto";
 
     // Temp toggle enable/disable finding definition and reference
     public IsEnabledFindingDefinition: boolean = true;
@@ -137,7 +142,8 @@ export class DynamicConfig {
     public AutoMergeSkipFolders: boolean = true;
 
     public HideWarningsAndExtraInfoWhenCookingCommandAlias: boolean = false;
-    public OutputFullPathWhenCookingCommandAlias: boolean = true;
+    public OutputFullPathWhenCookingCommandAlias: boolean = false;
+    public OutputFullPathWhenCookAndDumpingAliasFiles: boolean = true;
     public OutputRelativePathForLinuxTerminalsOnWindows: boolean = true;
     public AddEchoOffWhenCookingWindowsCommandAlias: string = '';
     public SetVariablesToLocalScopeWhenCookingWindowsCommandAlias: string = '';
@@ -259,6 +265,8 @@ export class DynamicConfig {
         this.OnlyFindDefinitionForKnownLanguages = getConfigValue('enable.onlyFindDefinitionForKnownLanguages') === 'true';
         this.ClearTerminalBeforeExecutingCommands = getConfigValue('clearTerminalBeforeExecutingCommands') === 'true';
         this.InitProjectCmdAliasForNewTerminals = getConfigValue('initProjectCmdAliasForNewTerminals') === 'true';
+        this.ChangePowerShellTerminalToCmdOnWindowsConfig = getConfigValue('changePowerShellTerminalToCmdOnWindows');
+        this.ChangePowerShellTerminalToCmdOnWindows = /auto|true/i.test(this.ChangePowerShellTerminalToCmdOnWindowsConfig);
         this.SkipInitCmdAliasForNewTerminalTitleRegex = createRegex(getConfigValue('skipInitCmdAliasForNewTerminalTitleRegex'), 'i');
         this.OverwriteProjectCmdAliasForNewTerminals = getConfigValue('overwriteProjectCmdAliasForNewTerminals') === 'true';
         this.AutoMergeSkipFolders = getConfigValue('autoMergeSkipFolders') === 'true';
@@ -281,6 +289,7 @@ export class DynamicConfig {
 
         this.HideWarningsAndExtraInfoWhenCookingCommandAlias = getConfigValue('cookCmdAlias.hideWarningsAndExtraInfo') === 'true';
         this.OutputFullPathWhenCookingCommandAlias = getConfigValue('cookCmdAlias.outputFullPath') === 'true';
+        this.OutputFullPathWhenCookAndDumpingAliasFiles = getConfigValue('cookCmdAlias.outputFullPathForDumpingScriptFiles') === 'true';
         this.OutputRelativePathForLinuxTerminalsOnWindows = getConfigValue('cookCmdAlias.outputRelativePathForLinuxTerminalsOnWindows') === 'true';
         this.AddEchoOffWhenCookingWindowsCommandAlias = getConfigValue('cookCmdAlias.addEchoOff', true);
         this.SetVariablesToLocalScopeWhenCookingWindowsCommandAlias = getConfigValue('cookCmdAlias.setVariablesToLocalScope', true);
@@ -300,6 +309,13 @@ export class DynamicConfig {
         if (this.AutoMergeSkipFolders) {
             this.ExcludeFoldersFromSettings = this.getExcludeFolders('search');
             this.getExcludeFolders('files').forEach(a => this.ExcludeFoldersFromSettings.add(a));
+        }
+    }
+
+    // If has git-exemptions, should not use git-ignore and thus better to use PowerShell (general search).
+    public setChangePowerShellToCmdOnWindows(shouldChange: boolean) {
+        if (/auto/i.test(MyConfig.ChangePowerShellTerminalToCmdOnWindowsConfig)) {
+            MyConfig.ChangePowerShellTerminalToCmdOnWindows = shouldChange;
         }
     }
 

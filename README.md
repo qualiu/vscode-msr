@@ -1,4 +1,4 @@
-# [vscode-msr](https://github.com/qualiu/vscode-msr/blob/master/README.md#vscode-msr)
+# [vscode-msr](https://github.com/qualiu/vscode-msr/blob/master/README.md#vscode-msr) for [VSCode + other IDEs Windows + Linux + MacOS](#the-cookeddumped-aliasdoskey-can-be-used-in-many-ides-not-just-vscode)
 
 Have you suffered issues below in your daily work?
 
@@ -28,13 +28,20 @@ Then it's the **light** and **right** tool for you(just **2~3 MB** storage + **1
 
 **Note**: ([**Temp-toggle**](#get-the-best-combined-power) or [**change settings**](#disable-finding-definition-and-references-for-specific-file-types) for languages disabled by default settings.)
 
-- Only support: **64-bit** + **32-bit** : **Windows** + **WSL** + **Linux** (`Ubuntu`+`CentOS`+`Fedora`: `gcc/g++` >= `4.8`).
-- You can start [**search**](#search-files-with-rich-filters) + [**replace**](#replace-files-with-preview-and-backup) + [**code mining**](#code-mining-without-or-with-little-knowledge) via [**mouse**/**menus**](#hide-or-show-more-context-menus) + [**keys**](#get-the-best-combined-power) + [**terminals**](#make-command-shortcuts-to-search-or-replace-in-or-out-of-vscode) **without** reading/doing anything **except**:
-  - [Cook doskey/alias](#make-command-shortcuts-to-search-or-replace-in-or-out-of-vscode) if you want to use `find-xxx` **out of vscode** (in normal `CMD`/`Bash` console).
-  - [**Set exclusions**](#avoid-security-software-downgrade-search-performance-on-windows) if you cannot get search results **in 1~2 seconds** for just **10000 code files** on Windows.
-  - See [**here**](#adjust-your-color-theme-if-result-file-path-folder-color-is-not-clear) if **`folder color`** of output result file paths is not clear: add/change one color theme.
-  - Please [manually **set PATH** for msr/nin](#or-manually-download--set-path-once-and-forever) if automation failed + [Explicitly set terminal type](#supported-4-terminal-types-on-windows) if caught problems.
-  - [**Workaround**](#workaround-to-long-existing-vscode-bug-impact-to-finding-definition-and-reference) to [long existing VsCode bug](https://github.com/microsoft/vscode/issues/96754) impact to `Go To Definition` and `Find All Reference`.
+### Supported Platforms
+- **Windows**: 64-bit + 32-bit Windows (including **WSL** + **Cygwin** + **MinGW**).
+- **Linux**: 64-bit + 32-bit **Ubuntu** + **CentOS** + **Fedora** (`kernel` >= `2.6.32` , `gcc/g++` >= `4.8`).
+- **MacOS**: **Darwin Arm64**.
+
+### **You Can Start Using this without Doing Anything**
+
+ You can start [**search**](#search-files-with-rich-filters) + [**replace**](#replace-files-with-preview-and-backup) + [**code mining**](#code-mining-without-or-with-little-knowledge) via [**mouse**/**menus**](#hide-or-show-more-context-menus) + [**keys**](#get-the-best-combined-power) + [**terminals**](#make-command-shortcuts-to-search-or-replace-in-or-out-of-vscode) **without** reading/doing anything **except**:
+
+- [Cook doskey/alias](#make-command-shortcuts-to-search-or-replace-in-or-out-of-vscode) if you want to use `find-xxx` **out of vscode** (in normal `CMD`/`Bash` console).
+- [**Set exclusions**](#avoid-security-software-downgrade-search-performance-on-windows) if you cannot get search results **in 1~2 seconds** for just **10000 code files** on Windows.
+- See [**here**](#adjust-your-color-theme-if-result-file-path-folder-color-is-not-clear) if **`folder color`** of output result file paths is not clear: add/change one color theme.
+- Please [manually **set PATH** for msr/nin](#or-manually-download--set-path-once-and-forever) if automation failed + [Explicitly set terminal type](#supported-4-terminal-types-on-windows) if caught problems.
+- [**Workaround**](#workaround-to-long-existing-vscode-bug-impact-to-finding-definition-and-reference) to [long existing VsCode bug](https://github.com/microsoft/vscode/issues/96754) impact to `Go To Definition` and `Find All Reference`.
 
 ## Features
 
@@ -68,8 +75,11 @@ Then it's the **light** and **right** tool for you(just **2~3 MB** storage + **1
   - Auto search other language files + [extra repo folders](#extra-paths-settings) if not found definition results.
 
 [Screenshot GIF](https://raw.githubusercontent.com/qualiu/vscode-msr/master/images/find-def-ref.gif): Search **Definitions** + **References** for **C++** / **Python** / **Java** in `vscode`:
+<img src='https://raw.githubusercontent.com/qualiu/vscode-msr/master/images/find-def-ref.gif'>
 
-<img src='https://raw.githubusercontent.com/qualiu/vscode-msr/master/images/find-def-ref.gif' width=956 height=480>
+### The [cooked/dumped alias/doskey](#make-command-shortcuts-to-search-or-replace-in-or-out-of-vscode) can be used in **many IDEs**, not just vscode.
+
+<img src='https://raw.githubusercontent.com/qualiu/vscode-msr/master/images/cooked-cmd-alias-doskeys-can-be-used-in-many-IDEs.png'>
 
 More powerful usages + examples see [overview doc](https://github.com/qualiu/msr/blob/master/README.md) or just run [msr-EXE](https://qualiu.github.io/msr/usage-by-running/msr-Windows.html) you will see [colorful text doc of usage + examples](https://qualiu.github.io/msr/usage-by-running/msr-Windows.html) (on Windows, [Linux at here](https://qualiu.github.io/msr/usage-by-running/msr-CentOS-7.html)) or [doc without color](https://raw.githubusercontent.com/qualiu/msr/master/tools/readme.txt).
 
@@ -84,7 +94,7 @@ If not found [msr.EXE](https://github.com/qualiu/msr#liberate--digitize-daily-wo
 - **Windows**: If not found in `%PATH%` by command `"where msr.exe"`
   - Auto check and download to `%USERPROFILE%\msr.exe` when launching vscode.
   - Add `%USERPROFILE%` to `%PATH%` **temporarily** each time in each [newly opened terminal](#auto-set-command-shortcuts-for-new-terminals).
-- **Linux**: If not found in `$PATH` by command `"which msr"`
+- **Linux**/**MacOS**: If not found in `$PATH` by command `"which msr"`
   - Auto check and download to `~/msr` when launching vscode.
   - Add `~/` to `$PATH` **temporarily** each time in each [newly opened terminal](#auto-set-command-shortcuts-for-new-terminals).
 
@@ -102,19 +112,23 @@ You can also manually **download** the tiny [msr.EXE](https://github.com/qualiu/
 
     - **If `wget.exe` exists**: (check by command `"where wget.exe"`, you can get it by [choco](https://chocolatey.org/packages/Wget) or [cygwin](https://github.com/qualiu/msrTools/blob/master/system/install-cygwin.bat))
 
-      **wget** <https://github.com/qualiu/msr/raw/master/tools/msr.exe> -O `msr.exe.tmp` && `move /y msr.exe.tmp msr.exe` && `icacls msr.exe /grant %USERNAME%:RX` && **copy** [msr.exe](https://github.com/qualiu/msr/raw/master/tools/msr.exe) `%SystemRoot%\`
+      **wget** <https://github.com/qualiu/msr/raw/master/tools/msr.exe> -O `msr.exe.tmp` && `move /y msr.exe.tmp msr.exe` && `icacls msr.exe /grant %USERNAME%:RX` && **move** [msr.exe](https://github.com/qualiu/msr/raw/master/tools/msr.exe) `%SystemRoot%\`
 
     - Otherwise use `PowerShell`:
 
-      **PowerShell** `-Command "$ProgressPreference = 'SilentlyContinue'; [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri 'https://github.com/qualiu/msr/raw/master/tools/msr.exe' -OutFile msr.exe.tmp"` && `move /y msr.exe.tmp msr.exe` && `icacls msr.exe /grant %USERNAME%:RX` && **copy** [msr.exe](https://github.com/qualiu/msr/raw/master/tools/msr.exe) `%SystemRoot%\`
+      **PowerShell** `-Command "$ProgressPreference = 'SilentlyContinue'; [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri 'https://github.com/qualiu/msr/raw/master/tools/msr.exe' -OutFile msr.exe.tmp"` && `move /y msr.exe.tmp msr.exe` && `icacls msr.exe /grant %USERNAME%:RX` && **move** [msr.exe](https://github.com/qualiu/msr/raw/master/tools/msr.exe) `%SystemRoot%\`
 
   - **Linux**: `Ubuntu`/`CentOS`/`Fedora`: (If it's a 32-bit system, use **[msr-i386.gcc48](https://github.com/qualiu/msr/raw/master/tools/msr-i386.gcc48)**. `gcc`/`g++` >= 4.8)
 
-    **wget** <https://github.com/qualiu/msr/raw/master/tools/msr.gcc48> -O `msr.gcc48.tmp` && `mv -f msr.gcc48.tmp msr.gcc48` && `chmod +x msr.gcc48` && `cp msr.gcc48 /usr/bin/msr`
+    **wget** <https://github.com/qualiu/msr/raw/master/tools/msr.gcc48> -O `msr.tmp` && `mv -f msr.tmp msr` && `chmod +x msr` && `mv msr /usr/bin/msr`
 
   - **Cygwin** [bash terminal on Windows](#supported-4-terminal-types-on-windows):
 
-    **wget** <https://github.com/qualiu/msr/raw/master/tools/msr.cygwin> -O `msr.cygwin.tmp` && `mv -f msr.cygwin.tmp msr.cygwin` && `chmod +x msr.cygwin` && `cp msr.cygwin /usr/bin/msr`
+    **wget** <https://github.com/qualiu/msr/raw/master/tools/msr.cygwin> -O `msr.tmp` && `mv -f msr.tmp msr` && `chmod +x msr` && `mv msr /usr/bin/msr`
+
+  - **MacOS**: `Darwin-Arm64`:
+  
+    **wget** <https://github.com/qualiu/msr/raw/master/tools/msr-arm64.darwin> -O `msr.tmp` && `mv -f msr.tmp msr` && `chmod +x msr` && `mv msr /usr/local/bin/msr`
 
 After done, you can directly run **msr --help** (or **msr -h** or just **msr**) should display [colorful usages and examples on Windows](https://qualiu.github.io/msr/usage-by-running/msr-Windows.html) or Linux like: [Fedora](https://qualiu.github.io/msr/usage-by-running/msr-Fedora-25.html) and [CentOS](https://qualiu.github.io/msr/usage-by-running/msr-CentOS-7.html).
 
@@ -163,6 +177,13 @@ More override settings see: [**full priority rule**](https://github.com/qualiu/v
 
 You can generate the command shortcuts (alias/doskey) to directly use for searching or replacing in or out of vscode.
 
+### Try to use gfind-xxx instead of find-xxx alias/doskey
+
+Try **gfind-xxx** alias/doskey/scripts which uses **accurate** source file paths by "`git ls-files`", though a bit slower than **find-xxx**.
+
+This's helpful if got [**git-exemption-warnings**](#use-git-ignore) when initializing new terminals.
+
+
 <img align='center' src='https://raw.githubusercontent.com/qualiu/vscode-msr/master/images/cook-command-menu.png'>
 
 - One single shortcuts file: (Press `F1` if not shown in right-pop menu, then search `msr Cook xxx` as below)
@@ -186,10 +207,10 @@ You can generate the command shortcuts (alias/doskey) to directly use for search
   - `"Cook script files: Only general finding command alias/doskey."`
   - `"Cook script files by project: Only finding command alias/doskey."`
   - **`"Cook general finding + Dump with other command alias/doskey to script files."`**
-    - Tip for [**msr advantage**](https://github.com/qualiu/msr#tip-for-captured-groups-reference-to-replace-files-or-transform-text) on **Windows** + **Linux**(including `MinGW` + `Cygwin` on Windows):
+    - Tip for [**msr advantage**](https://github.com/qualiu/msr#tip-for-captured-groups-reference-to-replace-files-or-transform-text) on **Windows**(including `MinGW` + `Cygwin`) + **Linux**/**MacOS**:
       - You can use `"\1"` instead of `"$1"` to avoid conflict if your `doskey`/`alias` contains **`Regex-Replacing`** commands:
         -  `Regex replace-to` conflict with `doskey macro` variables like **$1** on Windows.
-        -  `Regex replace-to` conflict with `bash` variables like **$1** on Linux.
+        -  `Regex replace-to` conflict with `bash` variables like **$1** on Linux/MacOS.
       - Same to use **\2** + **\3** better than **$2** **$3** and etc.
     - To hide command + set local variable scope for Windows `doskey` shortcuts to script files:
       - Change `msr.cookCmdAlias.addEchoOff` (default: added) to **`@REM echo off`** if you want to show command line.
@@ -203,7 +224,8 @@ You can generate the command shortcuts (alias/doskey) to directly use for search
 ### Command Shortcuts
 
 - After you cooked command alias/doskeys, you'll see messages below: (You can **write**/**update** doskeys in file)
-- Automated command shortcuts on **Linux** + **WSL** + [**4 types of terminals** on Windows](#supported-4-terminal-types-on-windows) to [search](#search-files-with-rich-filters) or [**mining-code**](#code-mining-without-or-with-little-knowledge) or [replace files](#replace-files-with-preview-and-backup).
+- Automated command shortcuts on **Linux** + **MacOS** + **WSL** + [**4 types of terminals** on Windows](#supported-4-terminal-types-on-windows) to [search](#search-files-with-rich-filters) or [**mining-code**](#code-mining-without-or-with-little-knowledge) or [replace files](#replace-files-with-preview-and-backup).
+- Try **gfind-xxx** instead of **find-xxx** if warned [**exemptions**](#try-to-use-gfind-xxx-instead-of-find-xxx-aliasdoskey) when initializing new terminals.
 
 ```bash
 Now you can directly use the command shortcuts in/out-of vscode to search + replace like:
@@ -239,9 +261,9 @@ You can search **in vscode terminal** then **click** the results to **open and l
 
 Each time it will write 1 or multiple script files to the folder of `msr.cmdAlias.saveFolder`, if not set:
 
-- Single alias/doskey file: Save to `%USERPROFILE%\` on Windows or `~/` on Linux.
+- Single alias/doskey file: Save to `%USERPROFILE%\` on Windows or `~/` on Linux/MacOS.
 
-- Multiple script files: Save to `%USERPROFILE%\cmdAlias\` on Windows or `~/cmdAlias/` on Linux.
+- Multiple script files: Save to `%USERPROFILE%\cmdAlias\` on Windows or `~/cmdAlias/` on Linux/MacOS.
 
 When you open a new terminal, will [**auto set project specific command shortcuts**](#auto-set-command-shortcuts-for-new-terminals) to use temporary command shortcuts of each project's specific settings plus `.vscode/settings.json` in it's root folder.
 
@@ -250,6 +272,7 @@ When you open a new terminal, will [**auto set project specific command shortcut
 - Terminals in vscode:
   - For `MSR-RUN-CMD` + other existing terminals in vscode:
     - Run **update-alias** to temporarily use/switch to `default/general` filters.
+    - Run **open-alias** to open the general/default command alias file (like `~/msr-cmd-alias.bashrc` or `%USERPROFILE%\msr-cmd-alias.doskeys`).
     - Run **update-{project-folder-name}-alias** to **recover**/use `git-ignore` filters.
       - Run **`malias "update-\S*alias"`** to get the exact `update-xxx-alias` **names** + **paths**.
   - Only for `MSR-RUN-CMD` terminals in vscode:
@@ -261,7 +284,7 @@ When you open a new terminal, will [**auto set project specific command shortcut
   - If you work with many projects/repositories, run 1 command to switch to project specific [git-ignore](#use-git-ignore):
     - Windows CMD console:
       - **doskey** /MACROFILE=`%TMP%\{project-folder-name}.msr-cmd-alias.doskeys`
-    - Linux console or [Cygwin/MinGW/WSL console on Windows](#supported-4-terminal-types-on-windows):
+    - Linux/MacOS console or [Cygwin/MinGW/WSL console on Windows](#supported-4-terminal-types-on-windows):
       - **source** `/tmp/{project-folder-name}.msr-cmd-alias.bashrc`
     - Notes:
       - The above `"temp alias file paths"` are already displayed in `MSR-RUN-CMD` and new terminals.
@@ -279,7 +302,7 @@ Open [user settings](https://code.visualstudio.com/docs/getstarted/settings#_set
 
 Parsing result of `.gitignore` file: see `MSR-Def-Ref` output channel (with `msr.debug` = `true` or launched in debug mode).
 
-Run command **`"npm run test"`** in vscode-msr folder if you want to see the translation rule of git-ignore on Windows/Linux.
+Run command **`"npm run test"`** in vscode-msr folder if you want to see the translation rule of git-ignore on Windows/Linux/MacOS.
 
 ### Compare file lists to help checking if a project can use git-ignore
 
@@ -292,8 +315,8 @@ Run command **`"npm run test"`** in vscode-msr folder if you want to see the tra
 - For one project: Add `msr.{project-folder-name}.useGitIgnoreFile` = `true` or `false` in [user settings](#extension-settings-if-you-want-to-change).
 
 ### A better solution to support `git-ignore` in future
-
 - Use `git ls-files` command output all file list to `/tmp/{project}-git-files.txt`.
+  - For terminal usages, there's a new group of [**gfind-xxx**](#try-to-use-gfind-xxx-instead-of-find-xxx-aliasdoskey) alias/doskey shortcuts.
 - Use `msr -w /tmp/{project}-git-files.txt` instead of current `msr -rp .` or `msr -rp {project}-full-path`.
 - Create a file watcher to auto update `/tmp/{project}-git-files.txt` when captured file `deletion` or `creation` events.
 
@@ -729,7 +752,7 @@ Besides the [overview doc](https://github.com/qualiu/msr/blob/master/README.md) 
 
 - Easy to add, update or tune `Regex` patterns to improve existing or support new coding languages:
   - Use above debugging method with the output info.
-  - Directly use the tiny and colorful [msr.EXE](https://github.com/qualiu/msr#liberate--digitize-daily-works-by-2-exe-file-processing-data-mining-map-reduce) of your [system type](#more-freely-to-use-and-help-you-more) to test or tune your `Regex` patterns:
+  - To test or tune your `Regex` patterns: Use the [auto-downloaded](#default-auto-check-and-download--set-path) tool [msr.EXE](https://github.com/qualiu/msr#liberate--digitize-daily-works-by-2-exe-file-processing-data-mining-map-reduce) of your [system type](#more-freely-to-use-and-help-you-more) to test like:
     - Input a string from input-arg (`-z`) or pipe (like `echo`):
       - msr **-z** `"class CPP_EXPORT MatchThisCppClass"` -t `"^\s*class (\w+\s+)?\bMatchThisCppClass"`
       - **echo** `class CPP_EXPORT MatchThisCppClass` `|` msr -t `"^\s*class (\w+\s+)?\bMatchThisCppClass"`

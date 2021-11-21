@@ -38,6 +38,7 @@
   // Turn off tsc task auto detection since we have the necessary tasks as npm scripts
   "typescript.tsc.autoDetect": "off",
   "cSpell.words": [
+    "aliasdoskey",
     "APPDATA",
     "args",
     "automount",
@@ -55,6 +56,7 @@
     "env",
     "findstr",
     "gcc",
+    "gfind",
     "github",
     "gitignore",
     "hkey",

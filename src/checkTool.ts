@@ -185,7 +185,7 @@ export class ToolChecker {
 		const [downloadCmd, targetExePath] = this.getDownloadCommandAndSavePath(exeName64bit, '~/');
 		const exportCommand = 'export PATH=~:$PATH';
 		const checkExistCommand = 'ls -al ' + targetExePath + ' 2>/dev/null | egrep -e "^-[rw-]*?x.*?/' + exeName64bit + '\\s*$"';
-		const firstCheck = 'which ' + exeName64bit + ' | egrep -e "/' + exeName64bit + '"';
+		const firstCheck = 'which ' + exeName64bit + ' 2>/dev/null | egrep -e "/' + exeName64bit + '"';
 		const lastCheck = '( ' + checkExistCommand + ' || ( ' + downloadCmd + ' && ' + exportCommand + ' ) )';
 		return firstCheck + ' || ' + lastCheck;
 	}

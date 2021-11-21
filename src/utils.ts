@@ -8,27 +8,33 @@ import ChildProcess = require('child_process');
 
 export const PathEnvName = IsWindows ? '%PATH%' : '$PATH';
 export const MatchWindowsDiskRegex = /^([A-Z]):/i;
-export const TerminalExePath = vscode.workspace.getConfiguration('terminal.integrated.shell').get(IsWindows ? 'windows' : 'linux') as string || '';
 const GetInputPathsRegex: RegExp = /^(msr\s+-[r\s]*-?p)\s+("[^\"]+"|\S+)/;
 
 let HasMountPrefixForWSL: boolean | undefined = undefined;
 
-function getDefaultTerminalType(): TerminalType {
+export function getTerminalExeFromVsCodeSettings(): string {
+    const shellConfig = vscode.workspace.getConfiguration('terminal.integrated.shell');
+    const exePath = shellConfig.get(IsWindows ? 'windows' : 'linux') as string || '';
+    return exePath;
+}
+
+export const TerminalExePath = getTerminalExeFromVsCodeSettings();
+export function getTerminalTypeFromExePath(terminalExePath: string = TerminalExePath): TerminalType {
     if (IsLinux) {
         return TerminalType.LinuxBash;
     } else if (IsWSL) {
         return TerminalType.WslBash;
-    } else if (/cmd.exe$/i.test(TerminalExePath)) {
+    } else if (/cmd.exe$/i.test(terminalExePath)) {
         return TerminalType.CMD;
-    } else if (/PowerShell.exe$/i.test(TerminalExePath)) {
+    } else if (/PowerShell.exe$/i.test(terminalExePath)) {
         return TerminalType.PowerShell;
-    } else if (/Cygwin.*?bash.exe$/i.test(TerminalExePath)) {
+    } else if (/Cygwin.*?bash.exe$/i.test(terminalExePath)) {
         return TerminalType.CygwinBash;
-    } else if (/System(32)?.bash.exe$/i.test(TerminalExePath)) {
+    } else if (/System(32)?.bash.exe$/i.test(terminalExePath)) {
         return TerminalType.WslBash;
-    } else if (/MinGW.*?bash.exe$/i.test(TerminalExePath) || /Git.*?bin.*?bash.exe$/i.test(TerminalExePath)) {
+    } else if (/MinGW.*?bash.exe$/i.test(terminalExePath) || /Git.*?bin.*?bash.exe$/i.test(terminalExePath)) {
         return TerminalType.MinGWBash;
-    } else if (/bash.exe$/.test(TerminalExePath)) {
+    } else if (/bash.exe$/.test(terminalExePath)) {
         return TerminalType.WslBash;
     } else {
         return TerminalType.PowerShell; // TerminalType.CMD;
@@ -36,7 +42,7 @@ function getDefaultTerminalType(): TerminalType {
 }
 
 // Must copy/update extension + Restart vscode if using WSL terminal on Windows:
-export const DefaultTerminalType = getDefaultTerminalType();
+export const DefaultTerminalType = getTerminalTypeFromExePath();
 
 export function isWindowsTerminalOnWindows(terminalType = DefaultTerminalType) {
     return TerminalType.CMD === terminalType || (TerminalType.PowerShell === terminalType && IsWindows);

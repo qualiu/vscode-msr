@@ -1,4 +1,4 @@
-# [vscode-msr](https://github.com/qualiu/vscode-msr/blob/master/README.md#vscode-msr) for [VSCode + other IDEs Windows + Linux + MacOS](#the-cookeddumped-aliasdoskey-can-be-used-in-many-ides-not-just-vscode)
+# [vscode-msr](https://github.com/qualiu/vscode-msr/blob/master/README.md#vscode-msr) for [IDEs on Windows/Linux/MacOS](#the-cookeddumped-aliasdoskey-can-be-used-in-many-ides-not-just-vscode)
 
 Have you suffered issues below in your daily work?
 
@@ -29,9 +29,9 @@ Then it's the **light** and **right** tool for you(just **2~3 MB** storage + **1
 **Note**: ([**Temp-toggle**](#get-the-best-combined-power) or [**change settings**](#disable-finding-definition-and-references-for-specific-file-types) for languages disabled by default settings.)
 
 ### Supported Platforms
-- **Windows**: 64-bit + 32-bit Windows (including **WSL** + **Cygwin** + **MinGW**).
-- **Linux**: 64-bit + 32-bit **Ubuntu** + **CentOS** + **Fedora** (`kernel` >= `2.6.32` , `gcc/g++` >= `4.8`).
-- **MacOS**: **Darwin Arm64**.
+- **Windows** `x86_64`: 64-bit + 32-bit Windows (including **WSL** + **Cygwin** + **MinGW**).
+- **Linux** `x86_64`: 64-bit + 32-bit **Ubuntu** + **CentOS** + **Fedora** (`kernel` >= `2.6.32` , `gcc/g++` >= `4.8`).
+- **MacOS** `arm64`: **Darwin Arm64**.
 
 ### **You Can Start Using this without Doing Anything**
 
@@ -77,7 +77,7 @@ Then it's the **light** and **right** tool for you(just **2~3 MB** storage + **1
 [Screenshot GIF](https://raw.githubusercontent.com/qualiu/vscode-msr/master/images/find-def-ref.gif): Search **Definitions** + **References** for **C++** / **Python** / **Java** in `vscode`:
 <img src='https://raw.githubusercontent.com/qualiu/vscode-msr/master/images/find-def-ref.gif'>
 
-### The [cooked/dumped alias/doskey](#make-command-shortcuts-to-search-or-replace-in-or-out-of-vscode) can be used in **many IDEs**, not just vscode.
+### The [cooked/dumped alias/doskey](#make-command-shortcuts-to-search-or-replace-in-or-out-of-vscode) can be used in **many IDEs**, not just **VSCode**.
 
 <img src='https://raw.githubusercontent.com/qualiu/vscode-msr/master/images/cooked-cmd-alias-doskeys-can-be-used-in-many-IDEs.png'>
 

@@ -17,7 +17,8 @@ const CookCmdDocUrl = 'https://github.com/qualiu/vscode-msr/blob/master/README.m
 export let CookCmdTimesForRunCmdTerminal: number = 0;
 
 function getLinuxHomeFolderOnWindows(terminalType: TerminalType): string {
-  const shellExeFolder = path.dirname(getTerminalShellExePath());
+  const shellExePath = getTerminalShellExePath();
+  const shellExeFolder = path.dirname(shellExePath);
   if (IsWSL || IsLinux) {
     return "~/";
   }
@@ -396,13 +397,14 @@ export function cookCmdShortcutsOrFile(
         const quotedFileForPS = quotedCmdAliasFile === cmdAliasFile ? cmdAliasFile : '`"' + cmdAliasFile + '`"';
         const cmd = setEnvCmd + 'cmd /k ' + '"doskey /MACROFILE=' + quotedFileForPS // + ' && doskey /macros | msr -t find-def -x msr --nx use- --nt out- -e \\s+-+\\w+\\S* -PM'
           + ' & echo. & echo Type exit if you want to back to PowerShell. '
-          + finalGuide + ' | msr -aPA -e .+ -ix exit -t ' + colorPatternForCmdEscape + '"';
+          + finalGuide + ' | msr -aPA -e .+ -x exit -it ' + colorPatternForCmdEscape + '"';
         runCmdInTerminal(cmd, true);
       } else {
         runCmdInTerminal('msr -l --wt --sz -p ' + quotePaths(generalScriptFilesFolder) + ' -f "^g?find-" -H 2 -T 2');
-        runCmdInTerminal('Get-Command find-def | msr --nt "^\s*$" -P -M');
-        const guide = 'Write-Output "' + finalGuide + '" | msr -aPA -e .+ -ix ' + cmdAliasMap.size + ' -t "' + colorPattern + '"';
-        runCmdInTerminal(guide);
+        // Use extra PowerShell + msr to run command to avoid CMD terminal case.
+        runCmdInTerminal('PowerShell Get-Command find-def | msr --nt "^\s*$" -P -M');
+        const cmdToRun = 'msr -aPA -z "' + finalGuide + '" -e .+ -x ' + cmdAliasMap.size + ' -it "' + colorPattern + '"';
+        runCmdInTerminal(cmdToRun);
       }
     }
   } else {
@@ -487,7 +489,8 @@ export function cookCmdShortcutsOrFile(
       setEnvCmd += '; export MINGW_ROOT=' + bashFolderValue;
     }
 
-    setEnvAndLoadCmdAlias('source ' + quotePaths(toOsPath(cmdAliasFile, terminalType)), false, setEnvCmd);
+    const allCmd = 'source ' + quotePaths(toOsPath(cmdAliasFile, terminalType));
+    setEnvAndLoadCmdAlias(allCmd, false, setEnvCmd);
   }
 
   function getPathCmdAliasBody(useWorkspacePath: boolean, sourceAliasFile: string, onlyForOutput: boolean = false, outputFullPath: boolean = false, useTmpFile: boolean = false): string {

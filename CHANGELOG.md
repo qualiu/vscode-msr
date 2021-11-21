@@ -2,6 +2,9 @@
 
 All notable changes to this "vscode-msr" extension will be documented in this file.
 
+## [2.1.38]
+- Robust cooking-alias message tip on Windows PowerShell + CMD.
+
 ## [2.1.37]
 - Supported MacOS of `Darwin`-`Arm64`.
 - Supported writing + keeping alias into **default file** (like `~/msr-cmd-alias.bashrc`) on Linux/MacOS as on Windows.

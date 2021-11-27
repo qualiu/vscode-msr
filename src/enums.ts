@@ -12,7 +12,8 @@ export enum TerminalType {
     LinuxBash = 3,
     CygwinBash = 4,
     MinGWBash = 5,
-    WslBash = 6
+    WslBash = 6,
+    Pwsh = 7, // PowerShell on Linux/MacOS
 }
 
 export enum ForceFindType {

@@ -44,8 +44,12 @@ export function getTerminalTypeFromExePath(terminalExePath: string = TerminalExe
 // Must copy/update extension + Restart vscode if using WSL terminal on Windows:
 export const DefaultTerminalType = getTerminalTypeFromExePath();
 
-export function isWindowsTerminalOnWindows(terminalType = DefaultTerminalType) {
+export function isWindowsTerminalOnWindows(terminalType = DefaultTerminalType): boolean {
     return TerminalType.CMD === terminalType || (TerminalType.PowerShell === terminalType && IsWindows);
+}
+
+export function isPowerShellTerminal(terminalType: TerminalType): boolean {
+    return TerminalType.PowerShell === terminalType || TerminalType.Pwsh === terminalType;
 }
 
 export function isWindowsTerminalType(terminalType: TerminalType): boolean {

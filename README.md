@@ -75,9 +75,14 @@ Then it's the **light** and **right** tool for you(just **2~3 MB** storage + **1
   - Auto search other language files + [extra repo folders](#extra-paths-settings) if not found definition results.
 
 [Screenshot GIF](https://raw.githubusercontent.com/qualiu/vscode-msr/master/images/find-def-ref.gif): Search **Definitions** + **References** for **C++** / **Python** / **Java** in `vscode`:
+
 <img src='https://raw.githubusercontent.com/qualiu/vscode-msr/master/images/find-def-ref.gif'>
 
 ### The [cooked/dumped alias/doskey](#make-command-shortcuts-to-search-or-replace-in-or-out-of-vscode) can be used in **many IDEs**, not just **VSCode**.
+
+[Add msr to **PATH**](#or-manually-download--set-path-once-and-forever) and [Cook + **Dump** script files](#make-command-shortcuts-to-search-or-replace-in-or-out-of-vscode) for other IDEs. 
+
+Since out of `vscode`, no menus/mouse, use `gfind-xxx`/`find-xxx` to [search](#code-mining-without-or-with-little-knowledge) and [replace](#replace-files-with-preview-and-backup) files.
 
 <img src='https://raw.githubusercontent.com/qualiu/vscode-msr/master/images/cooked-cmd-alias-doskeys-can-be-used-in-many-IDEs.png'>
 

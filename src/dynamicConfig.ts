@@ -108,8 +108,8 @@ export function addExtensionToPattern(ext: string, fileExtensionsRegex: RegExp) 
 export class DynamicConfig {
     public RootConfig: vscode.WorkspaceConfiguration = vscode.workspace.getConfiguration('msr');
 
-    public ChangePowerShellTerminalToCmdOnWindows: boolean = false;
-    private ChangePowerShellTerminalToCmdOnWindowsConfig: string = "auto";
+    public ChangePowerShellTerminalToCmdOrBash: boolean = false;
+    private ChangePowerShellTerminalToCmdOrBashConfig: string = "auto";
 
     // Temp toggle enable/disable finding definition and reference
     public IsEnabledFindingDefinition: boolean = true;
@@ -265,8 +265,8 @@ export class DynamicConfig {
         this.OnlyFindDefinitionForKnownLanguages = getConfigValue('enable.onlyFindDefinitionForKnownLanguages') === 'true';
         this.ClearTerminalBeforeExecutingCommands = getConfigValue('clearTerminalBeforeExecutingCommands') === 'true';
         this.InitProjectCmdAliasForNewTerminals = getConfigValue('initProjectCmdAliasForNewTerminals') === 'true';
-        this.ChangePowerShellTerminalToCmdOnWindowsConfig = getConfigValue('changePowerShellTerminalToCmdOnWindows');
-        this.ChangePowerShellTerminalToCmdOnWindows = /auto|true/i.test(this.ChangePowerShellTerminalToCmdOnWindowsConfig);
+        this.ChangePowerShellTerminalToCmdOrBashConfig = getConfigValue('changePowerShellTerminalToCmdOrBash');
+        this.ChangePowerShellTerminalToCmdOrBash = /auto|true/i.test(this.ChangePowerShellTerminalToCmdOrBashConfig);
         this.SkipInitCmdAliasForNewTerminalTitleRegex = createRegex(getConfigValue('skipInitCmdAliasForNewTerminalTitleRegex'), 'i');
         this.OverwriteProjectCmdAliasForNewTerminals = getConfigValue('overwriteProjectCmdAliasForNewTerminals') === 'true';
         this.AutoMergeSkipFolders = getConfigValue('autoMergeSkipFolders') === 'true';
@@ -314,8 +314,8 @@ export class DynamicConfig {
 
     // If has git-exemptions, should not use git-ignore and thus better to use PowerShell (general search).
     public setChangePowerShellToCmdOnWindows(shouldChange: boolean) {
-        if (/auto/i.test(MyConfig.ChangePowerShellTerminalToCmdOnWindowsConfig)) {
-            MyConfig.ChangePowerShellTerminalToCmdOnWindows = shouldChange;
+        if (/auto/i.test(MyConfig.ChangePowerShellTerminalToCmdOrBashConfig)) {
+            MyConfig.ChangePowerShellTerminalToCmdOrBash = shouldChange;
         }
     }
 

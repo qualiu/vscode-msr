@@ -114,6 +114,7 @@ export function getSetToolEnvCommand(terminalType: TerminalType, addTailTextIfNo
 		case TerminalType.CMD:
 			return 'SET "PATH=' + toolFolders.join(';') + ';%PATH%;"' + addTailTextIfNotEmpty;
 		case TerminalType.PowerShell:
+		case TerminalType.Pwsh:
 			return "$env:Path = $env:Path + ';" + toolFolders.join(';') + "'" + addTailTextIfNotEmpty;
 		case TerminalType.LinuxBash:
 		case TerminalType.MinGWBash:
@@ -367,8 +368,8 @@ export class ToolChecker {
 		if (!IsDebugMode) {
 			const now = new Date();
 			const hour = now.getHours();
-			if (now.getDay() !== 2 || hour < 8 || hour > 12) {
-				outputDebug(nowText() + 'Skip checking for now. Only check at every Tuesday 09:00 ~ 11:00.');
+			if (now.getDay() !== 2 || hour < 7 || hour > 12) {
+				outputDebug(nowText() + 'Skip checking for now. Only check at every Tuesday 07:00 ~ 12:00.');
 				return;
 			}
 		}

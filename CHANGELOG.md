@@ -2,6 +2,13 @@
 
 All notable changes to this "vscode-msr" extension will be documented in this file.
 
+## [2.1.39]
+- Improved dumping other command `alias` on Linux + MacOS.
+  - Add `#!/bin/bash` when dumping other `alias` scripts on Linux/MacOS (for MacOS).
+- Supported changing PowerShell to Bash on Linux + MacOS.
+  - Renamed `msr.changePowerShellTerminalToCmdOnWindows` to `msr.changePowerShellTerminalToCmdOrBash`.
+- Moved tmp alias files to `%TMP%` folder for `MinGW`/`Cygwin`/`WSL` terminals on Windows.
+
 ## [2.1.38]
 - Robust cooking-alias message tip on Windows PowerShell + CMD.
 

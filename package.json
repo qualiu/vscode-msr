@@ -3,7 +3,7 @@
     "displayName": "Code mining + Replace file + Find definition and reference for all types.",
     "description": "Code mining + Replace file + Find definition and reference in multiple repository paths by msr for all coding languages + configuration + doc files.",
     "author": "qualiu@microsoft.com",
-    "version": "2.1.38",
+    "version": "2.1.39",
     "icon": "images/vscode-msr-icon.png",
     "license": "completely free",
     "publisher": "qualiu",
@@ -786,13 +786,13 @@
                 },
                 "msr.skipInitCmdAliasForNewTerminalTitleRegex": {
                     "type": "string",
-                    "default": "PowerShell\\s*Integrated\\s*Console|pwsh$|Java|Python|Debug",
+                    "default": "PowerShell\\s*Integrated\\s*Console|Java|Python|Debug",
                     "description": "Regex pattern of terminal title to skip initializing command shortcuts for newly opened terminals."
                 },
-                "msr.changePowerShellTerminalToCmdOnWindows": {
+                "msr.changePowerShellTerminalToCmdOrBash": {
                     "type": "string",
                     "default": "auto",
-                    "description": "Value = [auto | false | true]: Change PowerShell to CMD terminal on Windows when adding/initializing new terminals. For `auto`: treat as `false` if got git-exemptions"
+                    "description": "Value = [auto | false | true]: Change PowerShell to CMD/Bash terminal when adding/initializing new terminals. For `auto`: treat as `false` if got git-exemptions"
                 },
                 "msr.overwriteProjectCmdAliasForNewTerminals": {
                     "type": "boolean",
@@ -1171,7 +1171,7 @@
                 },
                 "msr.default.allFiles": {
                     "type": "string",
-                    "default": "\\.(cs(html)?|cpp|cxx|h|hpp|cc?|c\\+{2}|\\w+proj|sln|nuspec|config|conf|resx|props|java|scala|py|go|rs|php|vue|tsx?|jsx?|json|ya?ml|xml|ini|sql|md|ipynb|rst|sh|bat|cmd|psm?1)$|^readme|^make\\w+$",
+                    "default": "\\.(cs(html)?|cpp|cxx|h|hpp|cc?|c\\+{2}|\\w+proj|sln|nuspec|config|conf|properties|resx|props|java|scala|py|go|rs|php|vue|tsx?|jsx?|json|ya?ml|xml|ini|sql|md|ipynb|rst|sh|bat|cmd|psm?1)$|^readme|^make\\w+$",
                     "description": "Default Regex pattern for files to search."
                 },
                 "msr.default.codeFileExtensionMappingTypes": {
@@ -1191,7 +1191,7 @@
                 },
                 "msr.default.configFiles": {
                     "type": "string",
-                    "default": "\\.(config|conf|resx|json|ya?ml|xml|ini)$",
+                    "default": "\\.(config|conf|properties|resx|json|ya?ml|xml|ini)$",
                     "description": "Default Regex pattern for configuration files."
                 },
                 "msr.default.docFiles": {
@@ -1201,17 +1201,17 @@
                 },
                 "msr.default.codeAndConfig": {
                     "type": "string",
-                    "default": "\\.(cs(html)?|cpp|cxx|h|hpp|cc?|c\\+{2}|vcx?proj|sln|nuspec|config|conf|resx|props|java|scala|py|go|rs|php|vue|tsx?|jsx?|json|ya?ml|xml|ini)$|^make\\w+$",
+                    "default": "\\.(cs(html)?|cpp|cxx|h|hpp|cc?|c\\+{2}|vcx?proj|sln|nuspec|config|conf|properties|resx|props|java|scala|py|go|rs|php|vue|tsx?|jsx?|json|ya?ml|xml|ini)$|^make\\w+$",
                     "description": "Default Regex pattern for code + configuration files."
                 },
                 "msr.default.codeAndConfigDocs": {
                     "type": "string",
-                    "default": "\\.(cs(html)?|cpp|cxx|h|hpp|cc?|c\\+{2}|vcx?proj|sln|nuspec|config|conf|resx|props|java|scala|py|go|rs|php|vue|tsx?|jsx?|json|ya?ml|xml|ini|sql|md|ipynb|rst)$|^readme|^make\\w+$",
+                    "default": "\\.(cs(html)?|cpp|cxx|h|hpp|cc?|c\\+{2}|vcx?proj|sln|nuspec|config|conf|properties|resx|props|java|scala|py|go|rs|php|vue|tsx?|jsx?|json|ya?ml|xml|ini|sql|md|ipynb|rst)$|^readme|^make\\w+$",
                     "description": "Default Regex pattern for code + configuration + document files."
                 },
                 "msr.default.configAndDocs": {
                     "type": "string",
-                    "default": "\\.(config|conf|resx|json|ya?ml|xml|ini|sql|md|ipynb|rst)$|^readme",
+                    "default": "\\.(config|conf|properties|resx|json|ya?ml|xml|ini|sql|md|ipynb|rst)$|^readme",
                     "description": "Default Regex pattern for configuration + document files."
                 },
                 "msr.default.class.skip.definition": {

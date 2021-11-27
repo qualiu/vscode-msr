@@ -116,7 +116,7 @@ export function getTerminalShellExePath(): string {
     newShellExePath = newDefaultValue;
   }
 
-  const pathRegex = IsWindows ? /\\\w+.*?\\\w+.*?\.exe$/i : /[/]\w+/;
+  const pathRegex = IsWindows ? /\\\w+.*?\\\w+.*?\.exe$/i : /[/]\w+$/;
   const shellExePath = oldShellExePath.match(pathRegex) ? oldShellExePath : newShellExePath;
 
   if (isNullOrEmpty(shellExePath)) {

@@ -2,6 +2,13 @@
 
 All notable changes to this "vscode-msr" extension will be documented in this file.
 
+## [2.1.40]
+- Moved temp script files to tmp folder to set git-ignore skip path environment variable `Skip_Git_Paths`.
+- Imported bash profile by adding command: "`source ~/.bashrc`" before importing `msr-cmd-alias.bashrc`
+- Improved multiple workspaces support.
+- Improved finding definitions (`"Go To Definition"`) for `Java` member + `PowerShell` script-variable.
+- Added new default priority: `msr.xxx` is prior to `msr.default.xxx` (like `msr.java.definition` is prior to `msr.default.definition`).
+
 ## [2.1.39]
 - Improved dumping other command `alias` on Linux + MacOS.
   - Add `#!/bin/bash` when dumping other `alias` scripts on Linux/MacOS (for MacOS).

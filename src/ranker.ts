@@ -252,7 +252,7 @@ export class Ranker {
 
 			if (configKeyName === 'definition') {
 				if (specificPatterns.size < 1) {
-					const generalPattern = getOverrideConfigByPriority(['default', ''], configKeyName, false);
+					const generalPattern = getOverrideConfigByPriority(['', 'default'], configKeyName, false);
 					if (!isNullOrEmpty(generalPattern)) {
 						specificPatterns.add(generalPattern);
 					}
@@ -620,7 +620,7 @@ export class Ranker {
 
 			if (!isFindingMember && isMemberResult && this.ForceSetting.ForceFind !== ForceFindType.None) {
 				if (!this.searchChecker.maybeFindLocalVariable && !this.searchChecker.isFindMemberOrLocalVariable) {
-					return [type, 0];
+					return [type, this.searchChecker.canAcceptMemberResult ? score : 0];
 				}
 			}
 
@@ -630,7 +630,11 @@ export class Ranker {
 		}
 
 		if (ResultType.None === type) {
-			return [type, 0];
+			if (MyConfig.ScriptFileExtensionRegex.test(resultFilePath)) {
+				return [ResultType.LocalVariable, score];
+			} else {
+				return [type, 0];
+			}
 		}
 
 		if (this.isFindClassOrMethod

@@ -30,7 +30,7 @@ export let MappedExtToCodeFilePatternMap = new Map<string, string>()
     // .set('java', RootConfig.get('java.codeFiles') as string)
     // .set('ui', RootConfig.get('ui.codeFiles') as string)
     // .set('cpp', RootConfig.get('cpp.codeFiles') as string)
-    .set('default', '')
+    .set('', 'default')
     ;
 
 export function removeSearchTextForCommandLine(cmd: string): string {
@@ -170,7 +170,7 @@ export class DynamicConfig {
     public CodeAndConfigDocsRegex: RegExp = new RegExp('to-load msr.default.codeAndConfigDocs');
     public CodeAndConfigDocsDefaultRegex: RegExp = new RegExp('to-load msr.default.codeAndConfigDocs');
 
-    private ScriptFileExtensionRegex: RegExp = new RegExp('to-load msr.default.scriptFiles');
+    public ScriptFileExtensionRegex: RegExp = new RegExp('to-load msr.default.scriptFiles');
     public ConfigAndDocFilesRegex: RegExp = new RegExp('to-load msr.default.configAndDocs');
 
     private TmpToggleEnabledExtensionToValueMap = new Map<string, boolean>();
@@ -219,21 +219,21 @@ export class DynamicConfig {
     public update() {
         this.RootConfig = vscode.workspace.getConfiguration('msr');
         const rootFolderName = getDefaultRootFolderName();
-        this.ConfigAndDocFilesRegex = new RegExp(getOverrideConfigByPriority([rootFolderName, 'default', ''], 'configAndDocs') || '\\.(json|xml|ini|ya?ml|md)|readme', 'i');
+        this.ConfigAndDocFilesRegex = new RegExp(getOverrideConfigByPriority([rootFolderName, '', 'default'], 'configAndDocs') || '\\.(json|xml|ini|ya?ml|md)|readme', 'i');
 
-        const codeFileExtensionMappingTypes = getOverrideConfigByPriority([rootFolderName, 'default', ''], 'codeFileExtensionMappingTypes') || '^(cpp|cs|java|py|go|rs|ui)$';
+        const codeFileExtensionMappingTypes = getOverrideConfigByPriority([rootFolderName, '', 'default'], 'codeFileExtensionMappingTypes') || '^(cpp|cs|java|py|go|rs|ui)$';
         this.CodeFileExtensionMappingTypesRegex = new RegExp(codeFileExtensionMappingTypes.trim(), 'i');
 
-        this.AllFilesRegex = new RegExp(getOverrideConfigByPriority([rootFolderName, 'default', ''], 'allFiles') || '\.(cp*|hp*|cs|java|scala|py|go|tsx?)$', 'i');
-        this.AllFilesDefaultRegex = new RegExp(getOverrideConfigByPriority(['default', ''], 'allFiles') || '\.(cp*|hp*|cs|java|scala|py|go|tsx?)$', 'i');
-        this.CodeFilesRegex = new RegExp(getOverrideConfigByPriority([rootFolderName, 'default', ''], 'codeFiles') || '\.(cp*|hp*|cs|java|scala|py|go)$', 'i');
-        this.CodeFilesDefaultRegex = new RegExp(getOverrideConfigByPriority(['default', ''], 'codeFiles') || '\.(cp*|hp*|cs|java|scala|py|go)$', 'i');
-        this.CodeAndConfigRegex = new RegExp(getOverrideConfigByPriority([rootFolderName, 'default', ''], 'codeAndConfig') || '\.(cp*|hp*|cs|java|scala|py|go|md)$', 'i');
-        this.CodeAndConfigDefaultRegex = new RegExp(getOverrideConfigByPriority(['default', ''], 'codeAndConfig') || '\.(cp*|hp*|cs|java|scala|py|go|md)$', 'i');
-        this.CodeFilesPlusUIRegex = new RegExp(getOverrideConfigByPriority([rootFolderName, 'default', ''], 'codeFilesPlusUI') || '\.(cp*|hp*|cs|java|scala|py|go|tsx?)$', 'i');
-        this.CodeFilesPlusUIDefaultRegex = new RegExp(getOverrideConfigByPriority(['default', ''], 'codeFilesPlusUI') || '\.(cp*|hp*|cs|java|scala|py|go|tsx?)$', 'i');
-        this.CodeAndConfigDocsRegex = new RegExp(getOverrideConfigByPriority([rootFolderName, 'default', ''], 'codeAndConfigDocs') || '\\.(cs\\w*|nuspec|config|c[px]*|h[px]*|java|scala|py|go|php|vue|tsx?|jsx?|json|ya?ml|xml|ini|md)$|readme', 'i');
-        this.CodeAndConfigDocsDefaultRegex = new RegExp(getOverrideConfigByPriority(['default', ''], 'codeAndConfigDocs') || '\\.(cs\\w*|nuspec|config|c[px]*|h[px]*|java|scala|py|go|php|vue|tsx?|jsx?|json|ya?ml|xml|ini|md)$|readme', 'i');
+        this.AllFilesRegex = new RegExp(getOverrideConfigByPriority([rootFolderName, '', 'default'], 'allFiles') || '\.(cp*|hp*|cs|java|scala|py|go|tsx?)$', 'i');
+        this.AllFilesDefaultRegex = new RegExp(getOverrideConfigByPriority(['', 'default'], 'allFiles') || '\.(cp*|hp*|cs|java|scala|py|go|tsx?)$', 'i');
+        this.CodeFilesRegex = new RegExp(getOverrideConfigByPriority([rootFolderName, '', 'default'], 'codeFiles') || '\.(cp*|hp*|cs|java|scala|py|go)$', 'i');
+        this.CodeFilesDefaultRegex = new RegExp(getOverrideConfigByPriority(['', 'default'], 'codeFiles') || '\.(cp*|hp*|cs|java|scala|py|go)$', 'i');
+        this.CodeAndConfigRegex = new RegExp(getOverrideConfigByPriority([rootFolderName, '', 'default'], 'codeAndConfig') || '\.(cp*|hp*|cs|java|scala|py|go|md)$', 'i');
+        this.CodeAndConfigDefaultRegex = new RegExp(getOverrideConfigByPriority(['', 'default'], 'codeAndConfig') || '\.(cp*|hp*|cs|java|scala|py|go|md)$', 'i');
+        this.CodeFilesPlusUIRegex = new RegExp(getOverrideConfigByPriority([rootFolderName, '', 'default'], 'codeFilesPlusUI') || '\.(cp*|hp*|cs|java|scala|py|go|tsx?)$', 'i');
+        this.CodeFilesPlusUIDefaultRegex = new RegExp(getOverrideConfigByPriority(['', 'default'], 'codeFilesPlusUI') || '\.(cp*|hp*|cs|java|scala|py|go|tsx?)$', 'i');
+        this.CodeAndConfigDocsRegex = new RegExp(getOverrideConfigByPriority([rootFolderName, '', 'default'], 'codeAndConfigDocs') || '\\.(cs\\w*|nuspec|config|c[px]*|h[px]*|java|scala|py|go|php|vue|tsx?|jsx?|json|ya?ml|xml|ini|md)$|readme', 'i');
+        this.CodeAndConfigDocsDefaultRegex = new RegExp(getOverrideConfigByPriority(['', 'default'], 'codeAndConfigDocs') || '\\.(cs\\w*|nuspec|config|c[px]*|h[px]*|java|scala|py|go|php|vue|tsx?|jsx?|json|ya?ml|xml|ini|md)$|readme', 'i');
 
         this.AllFileExtensionMappingRegexList = [];
         const fileExtensionMapInConfig = this.RootConfig.get('fileExtensionMap') as {};

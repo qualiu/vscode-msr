@@ -63,6 +63,7 @@ export class SearchChecker {
 	public isFindMemberOrLocalVariable: boolean;
 	public maybeFindLocalVariable: boolean;
 	public isProbablyFindLocalVariable: boolean;
+	public canAcceptMemberResult: boolean;
 
 	public maybeEnum: boolean;
 	public maybeEnumResultRegex: RegExp;
@@ -217,8 +218,10 @@ export class SearchChecker {
 			this.isFindClass = true;
 		}
 
-		this.maybeFindLocalVariable = /^_?[a-z_]\w+$/.test(this.currentWord)
-			&& !this.methodQuoteRegex.test(this.currentTextMaskCurrentWord)
+		this.canAcceptMemberResult = /^_?[a-z_]\w+$/.test(this.currentWord)
+			&& !this.methodQuoteRegex.test(this.currentTextMaskCurrentWord);
+
+		this.maybeFindLocalVariable = this.canAcceptMemberResult
 			&& new RegExp('\\b' + this.currentWord + '\\b\\S*\\s*=').test(this.currentTextMaskCurrentWord);
 
 		this.isProbablyFindLocalVariable = !this.isCapitalizedWord
@@ -388,7 +391,7 @@ export class SearchChecker {
 	public getCheckingRegex(configKeyTail: string, allowEmpty: boolean, matchAnyIfEmpty: boolean = false): RegExp {
 		const useDefault = configKeyTail === 'isFindClass' && MyConfig.UseDefaultFindingClassCheckExtensionRegex.test(this.currentFile.ext);
 		const rawPattern = useDefault
-			? getConfigValueByRoot(this.rootFolderName, 'default', '', configKeyTail, allowEmpty)
+			? getConfigValueByRoot(this.rootFolderName, '', 'default', configKeyTail, allowEmpty)
 			: getConfigValueByRoot(this.rootFolderName, this.extension, this.mappedExt, configKeyTail, allowEmpty);
 		const pattern = replaceSearchTextHolder(rawPattern, this.currentWord);
 		return matchAnyIfEmpty && isNullOrEmpty(pattern) ? new RegExp(".?") : createRegex(pattern);

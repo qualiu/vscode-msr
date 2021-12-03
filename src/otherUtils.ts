@@ -3,6 +3,7 @@ import path = require('path');
 import os = require('os');
 import ChildProcess = require('child_process');
 import * as vscode from 'vscode';
+import { Terminal } from 'vscode';
 import { IsLinux, IsWindows, IsWSL } from "./constants";
 import { TerminalType } from "./enums";
 import { outputDebug, outputError, outputInfo } from "./outputUtils";
@@ -82,7 +83,19 @@ export function getTerminalInitialPath(terminal: vscode.Terminal | null | undefi
     const terminalPath = fsPath && fsPath.match(/bash$|\w+\.exe$/i) ? fsPath : (shellPath ? shellPath : fsPath);
     return terminalPath;
   } catch (err) {
-    console.error('Cannot get creationOptions.cwd.fsPath from terminal: ' + terminal.name);
+    console.error('Cannot get creationOptions.cwd.fsPath from terminal: ' + terminal.name + ' in getTerminalInitialPath.');
+    return '';
+  }
+}
+
+export function getRootFolderFromTerminalCreation(terminal: Terminal): string {
+  try {
+    const creationOptions = Reflect.get(terminal, 'creationOptions');
+    const terminalCwd = Reflect.get(creationOptions, 'cwd');
+    const fsPath = !terminalCwd ? '' : Reflect.get(terminalCwd, 'fsPath') as string || '';
+    return fsPath;
+  } catch (err) {
+    console.error('Cannot get creationOptions.cwd.fsPath from terminal: ' + terminal.name + ' in getRootFolderFromTerminalCreation.');
     return '';
   }
 }

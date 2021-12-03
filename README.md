@@ -76,15 +76,15 @@ Then it's the **light** and **right** tool for you(just **2~3 MB** storage + **1
 
 [Screenshot GIF](https://raw.githubusercontent.com/qualiu/vscode-msr/master/images/find-def-ref.gif): Search **Definitions** + **References** for **C++** / **Python** / **Java** in `vscode`:
 
-<img src='https://raw.githubusercontent.com/qualiu/vscode-msr/master/images/find-def-ref.gif'>
+![find-def-ref](images/find-def-ref.gif)
 
 ### The [cooked/dumped alias/doskey](#make-command-shortcuts-to-search-or-replace-in-or-out-of-vscode) can be used in **many IDEs**, not just **VSCode**.
 
-[Add msr to **PATH**](#or-manually-download--set-path-once-and-forever) and [Cook + **Dump** script files](#make-command-shortcuts-to-search-or-replace-in-or-out-of-vscode) for other IDEs. 
+[Add msr to **PATH**](#or-manually-download--set-path-once-and-forever) and [Cook + **Dump** script files](#make-command-shortcuts-to-search-or-replace-in-or-out-of-vscode) for **other IDEs** or **system terminals** out of vscode.
 
-Since out of `vscode`, no menus/mouse, use `gfind-xxx`/`find-xxx` to [search](#code-mining-without-or-with-little-knowledge) and [replace](#replace-files-with-preview-and-backup) files.
+Since out of `vscode`, no menus/mouse function support, use `gfind-xxx`/`find-xxx` to [search](#code-mining-without-or-with-little-knowledge) and [replace](#replace-files-with-preview-and-backup) files.
 
-<img src='https://raw.githubusercontent.com/qualiu/vscode-msr/master/images/cooked-cmd-alias-doskeys-can-be-used-in-many-IDEs.png'>
+![cooked-cmd-alias-doskeys-can-be-used-in-many-IDEs](images/cooked-cmd-alias-doskeys-can-be-used-in-many-IDEs.png)
 
 More powerful usages + examples see [overview doc](https://github.com/qualiu/msr/blob/master/README.md) or just run [msr-EXE](https://qualiu.github.io/msr/usage-by-running/msr-Windows.html) you will see [colorful text doc of usage + examples](https://qualiu.github.io/msr/usage-by-running/msr-Windows.html) (on Windows, [Linux at here](https://qualiu.github.io/msr/usage-by-running/msr-CentOS-7.html)) or [doc without color](https://raw.githubusercontent.com/qualiu/msr/master/tools/readme.txt).
 
@@ -188,13 +188,11 @@ Try **gfind-xxx** alias/doskey/scripts which uses **accurate** source file paths
 
 This's helpful if got [**git-exemption-warnings**](#use-git-ignore) when initializing new terminals.
 
-
-<img align='center' src='https://raw.githubusercontent.com/qualiu/vscode-msr/master/images/cook-command-menu.png'>
+![cook-command-menu](images/cook-command-menu.png)
 
 - One single shortcuts file: (Press `F1` if not shown in right-pop menu, then search `msr Cook xxx` as below)
   - **General command shortcuts**
     - Click/Choose **`"Cook alias/doskey: Only general finding commands to 1 file"`** to make **general command shortcuts**.
-    - **This is recommended**.
     - Please **re-cook** this if [**added new languages support**](#easy-to-support-new-languages) including [**fastest adding**](#fastest-and-easiest-way-to-support-new-language).
       - Will not **auto update** if once cooked + nothing changed (like `msr.xxx.definition` settings).
   - **Project specific shortcuts**
@@ -359,7 +357,7 @@ This extension is **disabled** for some languages which has good official/profes
 
 Other languages use a rough support: When click `"Go To Definition"` just like click the **right-pop-menu**: `"Regex find as 'class' or 'method' definition roughly"`.
 
-**Two methods** to support a new language. (If you're a **developer**/**contributor** see: [**here**](https://github.com/qualiu/vscode-msr/blob/master/Add-New-Language-Support-For-Developers.md), welcome!)
+**Two methods** to support a new language. (If you're a **developer**/**contributor** see: [**here**](Add-New-Language-Support-For-Developers.md), welcome!)
 
 ### File to Add New Language Settings
 
@@ -417,7 +415,7 @@ Default setting just shows a few of 24 provided context menu items of `Plain-tex
 
 To show or hide more menus, [open user settings](#extension-settings-if-you-want-to-change) check/un-check menus like [screenshot](https://raw.githubusercontent.com/qualiu/vscode-msr/master/images/editor-context-menu.png) below:
 
-<img align='center' src='https://raw.githubusercontent.com/qualiu/vscode-msr/master/images/editor-context-menu.png' width=785 height=313>
+![editor-context-menu](images/editor-context-menu.png)
 
 Set `msr.menu.visible` = `false` to hide all context menus of `Regex find xxx` + `Find xxx` etc.
 
@@ -501,7 +499,7 @@ There're another 2 ways to toggle besides the hot key (`Alt+F2`):
 
 ## More Settings like Quiet Mode
 
-<img align='center' src='https://raw.githubusercontent.com/qualiu/vscode-msr/master/images/browse-all-setting-names.png'>
+![browse-all-setting-names](images/browse-all-setting-names.png)
 
 This doc listed a few configuration names. Finding more by pressing `F1` to [Open User settings](#extension-settings-if-you-want-to-change) to change.
 
@@ -516,7 +514,8 @@ This doc listed a few configuration names. Finding more by pressing `F1` to [Ope
 
 - You **don't need to change** [user settings](https://code.visualstudio.com/docs/getstarted/settings#_edit-settings), however, if you need: 
   - Just type/paste **`msr.xxx`** in **vscode UI**(like below) or add/update **`msr.xxx`** in [**user settings file**](https://code.visualstudio.com/docs/getstarted/settings#_settings-file-locations):
-    <img align='center' src='https://raw.githubusercontent.com/qualiu/vscode-msr/master/images/change-settings-example.png'>
+  
+  ![change-settings-example](images/change-settings-example.png)
 
 - You can add `msr.{project-folder-name}.xxx` in [settings file](https://code.visualstudio.com/docs/getstarted/settings#_settings-file-locations) to override all config values, like:
   - `msr.{git-folder-name}.useGitIgnoreFile` or `msr.{git-folder-name}.skipFolders` etc.
@@ -604,7 +603,7 @@ The 40+ [shortcuts](#command-shortcuts) like `find-xxx` are convenient wrappers 
 
 Code mining examples (run in vscode terminals: like `MSR-RUN-CMD` or add/open **new** terminals):
 
-- Fuzzy search a class/method:
+- Fuzzy search a class/method: (Try [**gfind-xxx**](#try-to-use-gfind-xxx-instead-of-find-xxx-aliasdoskey) for all commands if got git exemptions)
   - **find-def** `"\w*Keyword\w*You-Heard-or-Knew\w*"`
 
 - Fuzzy search a class/method, with [**optional args**](https://github.com/qualiu/msr#brief-summary-of-msr-exe) like **ignore case**(**-i**) :

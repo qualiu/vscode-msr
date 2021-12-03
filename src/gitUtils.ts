@@ -3,11 +3,10 @@ import fs = require('fs');
 import { IsForwardingSlashSupportedOnWindows } from './checkTool';
 import { getConfigValue } from './configUtils';
 import { IsWSL, OutputChannelName, RunCmdTerminalName } from './constants';
-import { getGeneralCmdAliasFilePath } from './cookCommandAlias';
 import { TerminalType } from './enums';
 import { saveTextToFile } from './otherUtils';
 import { outputError, outputInfo, outputInfoByDebugMode, outputWarn, RunCmdTerminalRootFolder, runCommandInTerminal, runRawCommandInTerminal } from './outputUtils';
-import { DefaultTerminalType, IsLinuxTerminalOnWindows, isNullOrEmpty, isWindowsTerminalOnWindows, nowText, quotePaths, toOsPath, toWSLPath } from './utils';
+import { DefaultTerminalType, getTempFolder, IsLinuxTerminalOnWindows, isNullOrEmpty, isWindowsTerminalOnWindows, nowText, quotePaths, toOsPath, toWSLPath } from './utils';
 
 // Another solution: (1) git ls-files > project-file-list.txt ; (2) msr -w project-file-list.txt  (3) file watcher + update list.
 // Show junk files: (1) git ls-files --ignored --others --exclude-standard (2) git ls-files --others --ignored -X .gitignore
@@ -266,7 +265,7 @@ export class GitIgnore {
       const message = 'Cost ' + (cost / 1000).toFixed(3) + ' s: ' + parsedInfo;
 
       outputInfo(nowText() + message);
-      const saveFolder = path.dirname(getGeneralCmdAliasFilePath(DefaultTerminalType));
+      const saveFolder = getTempFolder();
       const tmpScriptName = path.basename(this.RootFolder).replace(/[^\w\.-]/g, '-') + '.set-git-skip-paths-env.tmp';
       this.SetSkipPathEnvFile = path.join(saveFolder, tmpScriptName + (this.IsCmdTerminal ? '.cmd' : '.sh'));
       const setEnvCommands = this.getExportCommand(this.SkipPathPattern);

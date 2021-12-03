@@ -115,7 +115,7 @@ export function getSetToolEnvCommand(terminalType: TerminalType, addTailTextIfNo
 			return 'SET "PATH=' + toolFolders.join(';') + ';%PATH%;"' + addTailTextIfNotEmpty;
 		case TerminalType.PowerShell:
 		case TerminalType.Pwsh:
-			return "$env:Path = $env:Path + ';" + toolFolders.join(';') + "'" + addTailTextIfNotEmpty;
+			return "$env:Path += ';" + toolFolders.join(';') + "'" + addTailTextIfNotEmpty;
 		case TerminalType.LinuxBash:
 		case TerminalType.MinGWBash:
 		default:

@@ -5,7 +5,7 @@ import path = require('path');
 export function getConfigValue(configTailKey: string, allowEmpty = false): string {
   const rootFolder = getDefaultRootFolderByActiveFile();
   const rootFolderName = path.basename(rootFolder);
-  return getOverrideConfigByPriority([rootFolderName, 'default', ''], configTailKey, allowEmpty);
+  return getOverrideConfigByPriority([rootFolderName, '', 'default'], configTailKey, allowEmpty);
 }
 
 export function getConfigValueByRoot(rootFolderName: string, extension: string, mappedExt: string, configTailKey: string, allowEmpty = false, addDefault: boolean = true): string {
@@ -14,7 +14,7 @@ export function getConfigValueByRoot(rootFolderName: string, extension: string, 
 }
 
 export function getOverrideOrDefaultConfig(mappedExtOrFolderName: string, suffix: string, allowEmpty: boolean = true): string {
-  const prefixes = [mappedExtOrFolderName, 'default', ''];
+  const prefixes = [mappedExtOrFolderName, '', 'default'];
   return getOverrideConfigByPriority(prefixes, suffix, allowEmpty);
 }
 
@@ -49,8 +49,8 @@ export function getSubConfigValue(rootFolderName: string, extension: string, map
     extension,
     mappedExt,
     subKeyName,
+    '',
     'default',
-    ''
   ]);
 
   if (!rootFolderName || rootFolderName === '') {
@@ -67,8 +67,8 @@ export function GetConfigPriorityPrefixes(rootFolderName: string, extension: str
     rootFolderName,
     extension,
     mappedExt,
+    '',
     'default',
-    ''
   ]);
 
   if (!rootFolderName || rootFolderName === '') {

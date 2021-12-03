@@ -8,7 +8,7 @@ import { IsWindows, RunCmdTerminalName } from './constants';
 import { cookCmdShortcutsOrFile } from './cookCommandAlias';
 import { FileExtensionToMappedExtensionMap, getConfig, getExtraSearchPaths, getGitIgnore, MappedExtToCodeFilePatternMap, MyConfig, printConfigInfo } from './dynamicConfig';
 import { FindCommandType, FindType, ForceFindType } from './enums';
-import { getTerminalInitialPath, getTerminalNameOrShellExeName } from './otherUtils';
+import { getRootFolderFromTerminalCreation, getTerminalInitialPath, getTerminalNameOrShellExeName } from './otherUtils';
 import { clearOutputChannel, disposeTerminal, outputDebug, outputInfoByDebugMode } from './outputUtils';
 import { Ranker } from './ranker';
 import { SearchChecker } from './searchChecker';
@@ -60,20 +60,27 @@ export function registerExtension(context: vscode.ExtensionContext) {
 		}
 
 		const initialPath = getTerminalInitialPath(terminal);
-		const workspaceFolder = getRootFolder(initialPath);
+		const workspaceFolder = getRootFolderFromTerminalCreation(terminal) || getRootFolder(initialPath);
 		const exeNameByInitPath = isNullOrEmpty(initialPath) ? '' : path.basename(initialPath);
 		const terminalName = !isNullOrEmpty(exeNameByInitPath) ? exeNameByInitPath : getTerminalNameOrShellExeName(terminal);
 		const terminalTitle = !isNullOrEmpty(terminal.name) ? terminal.name : terminalName;
 
 		if (MyConfig.SkipInitCmdAliasForNewTerminalTitleRegex.test(terminalTitle)) {
+			outputInfoByDebugMode(`"Skip cooking alias: terminalTitle = ${terminalTitle} , regex = ${MyConfig.SkipInitCmdAliasForNewTerminalTitleRegex.source}"`)
 			return;
 		}
 
-		const matchNameRegex = /^(PowerShell|CMD|Command(\s+Prompt)?)|bash|cmd.exe|wsl.exe/i;
-		if (MyConfig.InitProjectCmdAliasForNewTerminals && (!IsWindows || isNullOrEmpty(terminalName) || matchNameRegex.test(terminalName) || matchNameRegex.test(initialPath))) {
+		const matchNameRegex = /^(PowerShell|CMD|Command(\s+Prompt)?)|bash|pwsh|\w*sh.exe$|cmd.exe|wsl.exe/i;
+		if (MyConfig.InitProjectCmdAliasForNewTerminals
+			&& (
+				initialPath === workspaceFolder // default shell, no value set.
+				|| (!IsWindows || isNullOrEmpty(terminalName) || matchNameRegex.test(terminalName) || matchNameRegex.test(initialPath))
+			)) {
 			const folders = vscode.workspace.workspaceFolders;
 			const currentPath = folders && folders.length > 0 ? (workspaceFolder || folders[0].uri.fsPath) : '.';
 			cookCmdShortcutsOrFile(false, currentPath, true, false, terminal);
+		} else {
+			outputInfoByDebugMode(`"Skip cooking alias: terminalName = ${terminalName}, title = ${terminalTitle}, initialPath = ${initialPath}, matchNameRegex = ${matchNameRegex.source}"`);
 		}
 	}));
 

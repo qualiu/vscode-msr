@@ -4,6 +4,7 @@ import { IsLinux, IsWindows, IsWSL, ShouldQuotePathRegex, TrimSearchTextRegex } 
 import { TerminalType } from './enums';
 import path = require('path');
 import fs = require('fs');
+import os = require('os');
 import ChildProcess = require('child_process');
 
 export const PathEnvName = IsWindows ? '%PATH%' : '$PATH';
@@ -421,3 +422,15 @@ export function getRootFolders(currentFilePath: string): string[] {
     return Array.from(rootFolderSet);
 }
 
+export function getTempFolder(): string {
+    const tmpFolder = os.tmpdir();
+    if (IsWindows) {
+        return tmpFolder;
+    }
+
+    if (tmpFolder.startsWith('/')) {
+        return '/tmp/';
+    }
+
+    return tmpFolder;
+}

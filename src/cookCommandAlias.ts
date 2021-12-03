@@ -38,7 +38,7 @@ function getCmdAliasSaveFolder(isGeneralCmdAlias: boolean, terminalType: Termina
   let saveFolder = !isGeneralCmdAlias ? os.tmpdir() : toWSLPath(forceUseDefault ? HomeFolder : (rootConfig.get('cmdAlias.saveFolder') as string || HomeFolder));
 
   // avoid random folder in Darwin like: '/var/folders/7m/f0z72nfn3nn6_mnb_0000gn/T'
-  if (!isGeneralCmdAlias && saveFolder.startsWith('/') && !saveFolder.startsWith('/tmp/') && fs.existsSync('/tmp/')) {
+  if (!isGeneralCmdAlias && saveFolder.startsWith('/')) {
     saveFolder = '/tmp/';
   }
 
@@ -309,10 +309,10 @@ export function cookCmdShortcutsOrFile(
   const shortcutsExample = 'Now you can use ' + cmdAliasMap.size + ' shortcuts like find-all gfind-all find-def gfind-ref find-doc gfind-small , use-rp use-fp out-fp out-rp'
     + ' , find-top-folder gfind-top-type sort-code-by-time etc. See detail like: alias find-def or malias find-top or malias use-fp or malias sort-.+?= etc.';
   const finalGuide = createCmdAliasTip + shortcutsExample + ' You can change msr.skipInitCmdAliasForNewTerminalTitleRegex in user settings. '
-    + 'Toggle-Enable + Speed-Up-if-Slowdown-by-Windows-Security + Adjust-Color + Fuzzy-Code-Mining + Preview-And-Replace-Files + Hide/Show-Menus + Use git-ignore + More functions + details see doc like: ' + CookCmdDocUrl;
+    + 'Toggle-Enable/Disable + Speed-Up-if-Slowdown-by-Windows-Security + Adjust-Color + Fuzzy-Code-Mining + Preview-And-Replace-Files + Hide/Show-Menus + Use git-ignore + More functions + details see doc like: ' + CookCmdDocUrl;
 
   const colorPattern = 'PowerShell|m*alias|find-\\S+|sort-\\S+|out-\\S+|use-\\S+|msr.skip\\S+|\\S*msr-cmd-alias\\S*|other'
-    + '|Toggle-Enable|Speed-Up|Adjust-Color|Code-Mining|Preview-|-Replace-|git-ignore|Menus|functions|details';
+    + '|Toggle|Enable|Disable|Speed-Up|Adjust-Color|Code-Mining|Preview-|-Replace-|git-ignore|Menus|functions|details';
 
   if (writeToEachFile) {
     if (!failedToCreateSingleScriptFolder && writeScriptFailureCount < cmdAliasMap.size) {
@@ -400,7 +400,7 @@ export function cookCmdShortcutsOrFile(
   } else {
     if (isReCookingForRunCmdTerminal) {
       if (TerminalType.Pwsh !== terminalType) {
-        setEnvAndLoadCmdAlias('source ' + quotePaths(toOsPath(cmdAliasFile, terminalType)), false);
+        setEnvAndLoadCmdAlias('source ' + quotePaths(toOsPath(cmdAliasFile, terminalType)), true, 'source ~/.bashrc');
       }
     } else {
       if (IsWindows && !isWindowsTerminal) {
@@ -520,7 +520,9 @@ export function cookCmdShortcutsOrFile(
       setEnvCmd += '; export MINGW_ROOT=' + bashFolderValue;
     }
 
-    const allCmd = TerminalType.Pwsh === terminalType ? '' : 'source ' + quotePaths(toOsPath(cmdAliasFile, terminalType));
+    const allCmd = TerminalType.Pwsh === terminalType
+      ? ''
+      : 'source ~/.bashrc; ' + 'source ' + quotePaths(toOsPath(cmdAliasFile, terminalType));
     setEnvAndLoadCmdAlias(allCmd, false, setEnvCmd);
   }
 
@@ -770,7 +772,9 @@ function getCommandAliasMap(
       }
 
       const newBody = body + skipPattern + searchPattern;
-      commands.push(getCommandAlias(cmdName + '-' + fd.replace(/^(.{3}).*/, '$1'), newBody, true));
+      // find-cpp-def find-java-def find-py-def
+      const newCmdName = cmdName + '-' + fd.replace(/^(.{3}).*/, '$1');
+      commands.push(getCommandAlias(newCmdName, newBody, true));
     });
   });
 
@@ -843,7 +847,7 @@ function getCommandAliasMap(
   commands.push(getCommandAlias('find-ndp', 'msr -rp %1' + getSkipFolderPatternForCmdAlias() + ' ' + extraOption, true));
   commands.push(getCommandAlias('find-code', 'msr -rp .' + getSkipFolderPatternForCmdAlias() + ' -f "' + allCodeFilePattern + '" ' + extraOption, false));
 
-  const findSmallOptions = getOverrideConfigByPriority([projectKey, 'default', ''], 'allSmallFiles.extraOptions');
+  const findSmallOptions = getOverrideConfigByPriority([projectKey, '', 'default'], 'allSmallFiles.extraOptions');
   const allSmallFilesOptions = addFullPathHideWarningOption(findSmallOptions, writeToEachFile);
   commands.push(getCommandAlias('find-small', 'msr -rp .' + getSkipFolderPatternForCmdAlias() + ' ' + allSmallFilesOptions, false));
 

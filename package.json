@@ -3,7 +3,7 @@
     "displayName": "Code mining + Replace file + Find definition and reference for all types.",
     "description": "Code mining + Replace file + Find definition and reference in multiple repository paths by msr for all coding languages + configuration + doc files.",
     "author": "qualiu@microsoft.com",
-    "version": "2.1.40",
+    "version": "2.1.41",
     "icon": "images/vscode-msr-icon.png",
     "license": "completely free",
     "publisher": "qualiu",
@@ -1721,6 +1721,11 @@
                     "description": "Golang file extensions.",
                     "type": "string",
                     "default": "go"
+                },
+                "msr.fileExtensionMap.gradle": {
+                    "description": "Java gradle file extension.",
+                    "type": "string",
+                    "default": "gradle"
                 },
                 "msr.go.method.definition": {
                     "description": "Regex pattern to search Golang method definition.",

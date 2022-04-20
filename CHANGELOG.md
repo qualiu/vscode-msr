@@ -2,6 +2,10 @@
 
 All notable changes to this "vscode-msr" extension will be documented in this file.
 
+## [2.1.41]
+- Added `msr.fileExtensionMap.gradle` to support searching gradle project files by `find-gradle` / `gfind-gradle`.
+- Used `curl` instead of `wget` to auto download msr/nin.
+
 ## [2.1.40]
 - Moved temp script files to tmp folder to set git-ignore skip path environment variable `Skip_Git_Paths`.
 - Imported bash profile by adding command: "`source ~/.bashrc`" before importing `msr-cmd-alias.bashrc`
@@ -50,12 +54,12 @@ All notable changes to this "vscode-msr" extension will be documented in this fi
 ## [2.1.32]
 - Fixed/Enabled cooking command alias/doskeys for system.
 
-## [2.1.31] 
+## [2.1.31]
 - Removed constraints(like `--w1`/`--s1`) when running finding commands in current file via menu or command palette.
 
 ## [2.1.30]
 - Changed `msr.default.extraOptions` rule: `msr.{project}.extraOptions` will overwrite `msr.default.extraOptions`.
- 
+
 ## [2.1.29]
 
 - Supported cooking script files for each command alias/shortcuts(`doskey`) if contains `for loop` on Windows.
@@ -89,11 +93,11 @@ All notable changes to this "vscode-msr" extension will be documented in this fi
 - Tolerated searching C# generic method + class;
 - Added `*.conf` + `*.resx` to `find-all` / `find-config` etc.
 
-## [2.1.22] 
+## [2.1.22]
 
 - Supported latest vscode `terminal.integrated.defaultProfile` config.
 
-## [2.1.21] 
+## [2.1.21]
 
 - Supported multiple-workspace terminal initializing of `Git-bash` + `WSL-bash` for vscode >= 1.56.0.
 - Added `*.conf` to `find-config` + `msr.default.configFiles` + `msr.default.configAndDocs`.
@@ -101,13 +105,13 @@ All notable changes to this "vscode-msr" extension will be documented in this fi
 ## [2.1.20]
 
 - Supported vscode 1.56.0 directly creating terminals of `Git-Bash` + `WSL-Bash`.
-- Skipped initializing alias/doskeys for `Linux Powershell Terminal` + `JavaScript Debug Terminal`. 
+- Skipped initializing alias/doskeys for `Linux Powershell Terminal` + `JavaScript Debug Terminal`.
 
 ## [2.1.19]
 
 - Improved finding C# method definition for case of nullable type in definition.
 
-## [2.1.18] 
+## [2.1.18]
 
 - Workaround for command shortcuts of `find-def` + `find-xxx-def`.
 

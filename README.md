@@ -76,15 +76,14 @@ Then it's the **light** and **right** tool for you(just **2~3 MB** storage + **1
 
 [Screenshot GIF](https://raw.githubusercontent.com/qualiu/vscode-msr/master/images/find-def-ref.gif): Search **Definitions** + **References** for **C++** / **Python** / **Java** in `vscode`:
 
-![find-def-ref](images/find-def-ref.gif)
+![find-def-ref.gif](images/find-def-ref.gif)
 
 ### The [cooked/dumped alias/doskey](#make-command-shortcuts-to-search-or-replace-in-or-out-of-vscode) can be used in **many IDEs**, not just **VSCode**.
 
 [Add msr to **PATH**](#or-manually-download--set-path-once-and-forever) and [Cook + **Dump** script files](#make-command-shortcuts-to-search-or-replace-in-or-out-of-vscode) for **other IDEs** or **system terminals** out of vscode.
 
-Since out of `vscode`, no menus/mouse function support, use `gfind-xxx`/`find-xxx` to [search](#code-mining-without-or-with-little-knowledge) and [replace](#replace-files-with-preview-and-backup) files.
-
-![cooked-cmd-alias-doskeys-can-be-used-in-many-IDEs](images/cooked-cmd-alias-doskeys-can-be-used-in-many-IDEs.png)
+Since out of `vscode`, no menus/mouse function support, use `gfind-xxx`/`find-xxx` to [search](#code-mining-without-or-with-little-knowledge) and [replace](#replace-files-with-preview-and-backup) files, [screenshot](images/cooked-cmd-alias-doskeys-can-be-used-in-many-IDEs.png):
+![cooked-cmd-alias-doskeys-can-be-used-in-many-IDEs.png](images/cooked-cmd-alias-doskeys-can-be-used-in-many-IDEs.png)
 
 More powerful usages + examples see [overview doc](https://github.com/qualiu/msr/blob/master/README.md) or just run [msr-EXE](https://qualiu.github.io/msr/usage-by-running/msr-Windows.html) you will see [colorful text doc of usage + examples](https://qualiu.github.io/msr/usage-by-running/msr-Windows.html) (on Windows, [Linux at here](https://qualiu.github.io/msr/usage-by-running/msr-CentOS-7.html)) or [doc without color](https://raw.githubusercontent.com/qualiu/msr/master/tools/readme.txt).
 

@@ -225,14 +225,12 @@ export class ToolChecker {
 		const tmpSaveExePath = quotePaths(saveExePath + '.tmp');
 		saveExePath = saveExePath.startsWith('"') ? saveExePath : quotePaths(saveExePath);
 
-		const [isWgetExistsOnWindows] = this.isTerminalOfWindows ? isToolExistsInPath('wget.exe', this.terminalType) : [false, ''];
-		const wgetHelpText = isWgetExistsOnWindows ? runCommandGetOutput('wget --help') : '';
-		const noCheckCertArg = wgetHelpText.includes('--no-check-certificate') ? ' --no-check-certificate' : '';
+		const [isCurlExists] = isToolExistsInPath(this.isTerminalOfWindows ? "curl.exe" : "curl", this.terminalType);
 
-		const downloadCommand = this.isTerminalOfWindows && !isWgetExistsOnWindows
+		const downloadCommand = this.isTerminalOfWindows && !isCurlExists
 			? 'Powershell -Command "$ProgressPreference = \'SilentlyContinue\'; [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; '
 			+ "Invoke-WebRequest -Uri '" + sourceUrl + "' -OutFile " + quotePaths(tmpSaveExePath, "'") + '"'
-			: 'wget "' + sourceUrl + '" -O ' + tmpSaveExePath + noCheckCertArg;
+			: 'curl --silent --show-error --fail "' + sourceUrl + '" -o ' + tmpSaveExePath;
 
 		const renameFileCommand = this.isTerminalOfWindows
 			? 'move /y ' + tmpSaveExePath + ' ' + saveExePath

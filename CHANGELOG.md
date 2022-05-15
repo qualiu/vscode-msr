@@ -2,6 +2,10 @@
 
 All notable changes to this "vscode-msr" extension will be documented in this file.
 
+## [2.1.42]
+- Solved random messy initialization command lines in `MSR-RUN-CMD` terminal on `MacOS`.
+- Updated doc to use `curl` instead of `wget`.
+
 ## [2.1.41]
 - Added `msr.fileExtensionMap.gradle` to support searching gradle project files by `find-gradle` / `gfind-gradle`.
 - Used `curl` instead of `wget` to auto download msr/nin.

@@ -67,7 +67,6 @@ export function updateGitIgnoreUsage() {
 
             MyConfig.setChangePowerShellToCmdOnWindows(gitIgnore.ExemptionCount < 1);
             const terminal = getRunCmdTerminal();
-            // clearTerminal(terminal, IsLinuxTerminalOnWindows);
             cookCmdShortcutsOrFile(false, DefaultRootFolder, true, false, terminal, false);
             const autoCompare = getConfigValue('autoCompareFileListsIfUsedGitIgnore') === 'true';
             if (autoCompare) {

@@ -1,9 +1,12 @@
+import os = require('os');
 import { execSync } from 'child_process';
 import * as vscode from 'vscode';
 import { IsDebugMode, IsSupportedSystem, IsWindows, OutputChannelName, RunCmdTerminalName } from './constants';
 import { cookCmdShortcutsOrFile, CookCmdTimesForRunCmdTerminal } from './cookCommandAlias';
 import { getConfig, MyConfig } from './dynamicConfig';
 import { getDefaultRootFolder, getDefaultRootFolderByActiveFile, IsLinuxTerminalOnWindows, nowText, replaceTextByRegex } from './utils';
+var AsyncLock = require('async-lock');
+var Locker = new AsyncLock();
 
 export let RunCmdTerminalRootFolder = '';
 
@@ -103,18 +106,26 @@ export function sendCmdToTerminal(cmd: string, terminal: vscode.Terminal, showTe
 		terminal.show();
 	}
 
-	if (clearAtFirst) {
-		clearTerminal(terminal, isLinuxOnWindows);
-	} else {
-		terminal.sendText('\n');
-	}
-
-	terminal.sendText(cmd);
-}
-
-export function clearTerminal(terminal: vscode.Terminal, isLinuxOnWindows = IsLinuxTerminalOnWindows) {
-	// vscode.commands.executeCommand('workbench.action.terminal.clear');
-	terminal.sendText(isLinuxOnWindows ? 'clear' : ClearCmd);
+	const lockName = 'RUN-CMD-LOCK' + terminal.name;
+	Locker.acquire(lockName, function () {
+		if (clearAtFirst) {
+			// vscode.commands.executeCommand('workbench.action.terminal.clear');
+			terminal.sendText(isLinuxOnWindows ? 'clear' : ClearCmd);
+		} else {
+			terminal.sendText(os.EOL);
+		}
+		terminal.sendText(cmd.trim());
+		// Promise.resolve(new Promise((resolve) => { setTimeout(resolve, 200); }));
+		if (!IsWindows || isLinuxOnWindows) {
+			try {
+				execSync('sleep 0.3');
+			} catch (error) {
+				outputWarn(`"Failed to run sleep for terminal:${terminal.name}: ${error}"`)
+			}
+		}
+	}, function (err: any) {
+		console.log(`"Caught error when running command in terminal ${terminal.name}: ${err}"`)
+	});
 }
 
 export function outputWarn(message: string, showWindow: boolean = true) {

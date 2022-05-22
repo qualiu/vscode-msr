@@ -66,7 +66,7 @@ export function registerExtension(context: vscode.ExtensionContext) {
 		const terminalTitle = !isNullOrEmpty(terminal.name) ? terminal.name : terminalName;
 
 		if (MyConfig.SkipInitCmdAliasForNewTerminalTitleRegex.test(terminalTitle)) {
-			outputInfoByDebugMode(`"Skip cooking alias: terminalTitle = ${terminalTitle} , regex = ${MyConfig.SkipInitCmdAliasForNewTerminalTitleRegex.source}"`)
+			outputInfoByDebugMode(`Skip cooking alias: terminalTitle = ${terminalTitle} , regex = ${MyConfig.SkipInitCmdAliasForNewTerminalTitleRegex.source}`)
 			return;
 		}
 
@@ -80,7 +80,7 @@ export function registerExtension(context: vscode.ExtensionContext) {
 			const currentPath = folders && folders.length > 0 ? (workspaceFolder || folders[0].uri.fsPath) : '.';
 			cookCmdShortcutsOrFile(false, currentPath, true, false, terminal);
 		} else {
-			outputInfoByDebugMode(`"Skip cooking alias: terminalName = ${terminalName}, title = ${terminalTitle}, initialPath = ${initialPath}, matchNameRegex = ${matchNameRegex.source}"`);
+			outputInfoByDebugMode(`Skip cooking alias: terminalName = ${terminalName}, title = ${terminalTitle}, initialPath = ${initialPath}, matchNameRegex = ${matchNameRegex.source}`);
 		}
 	}));
 
@@ -539,7 +539,7 @@ export class DefinitionFinder implements vscode.DefinitionProvider {
 			let command = repoSearcher.CommandLine;
 			let match = /\s+-t (\S+|"[^"]+")\s+/.exec(command);
 			if (match) {
-				command = command.substring(0, match.index) + ' -t "' + getSearchPatternForLocalVairableOrConstant(currentWord) + '" ' + command.substring(match.index + match[0].length);
+				command = command.substring(0, match.index) + ' -t "' + getSearchPatternForLocalVariableOrConstant(currentWord) + '" ' + command.substring(match.index + match[0].length);
 				const constSearcher = createCommandSearcher('Search-Constant', rootFolder, command, ranker);
 				finalGroup.push(constSearcher);
 			}
@@ -606,7 +606,7 @@ function getCommandToSearchDefinitionInCurrentFile(searchChecker: SearchChecker)
 	return createCommandSearcher('Search-Definition-In-Current-File', toPath(parsedFile), command, ranker);
 }
 
-function getSearchPatternForLocalVairableOrConstant(currentWord: string, isSimpleDefineAndInit = false) {
+function getSearchPatternForLocalVariableOrConstant(currentWord: string, isSimpleDefineAndInit = false) {
 	return isSimpleDefineAndInit
 		? "^\\s*\\w+\\s+" + currentWord + "\\s*=\\s*\\S+"
 		: '^\\s*' + currentWord + '\\s*=\\s*\\S+'
@@ -619,7 +619,7 @@ function getCommandToSearchLocalVariableOrConstant(searchChecker: SearchChecker,
 	const mappedExt = FileExtensionToMappedExtensionMap.get(extension) || extension;
 	let ranker = new Ranker(searchChecker, true, ForceFindType.FindLocalVariable);
 	const pattern = isVariableInit || isSimpleDefineAndInit
-		? getSearchPatternForLocalVairableOrConstant(currentWord, isSimpleDefineAndInit)
+		? getSearchPatternForLocalVariableOrConstant(currentWord, isSimpleDefineAndInit)
 		: getConfigValueByRoot(getRootFolderName(searchChecker.Document.fileName), extension, mappedExt, 'definition') + '|^\\w*[^;]{0,120}\\s+' + currentWord + '\\s*;\\s*$';
 
 	const filePath = quotePaths(searchChecker.Document.fileName);

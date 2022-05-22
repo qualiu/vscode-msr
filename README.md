@@ -116,16 +116,16 @@ You can also manually **download** the tiny [msr.EXE](https://github.com/qualiu/
 
     - **If `curl.exe` or `wget.exe` exists**: (check by command like `"where curl.exe"`, you can get it by [choco](https://chocolatey.org/packages/Wget) or [cygwin](https://github.com/qualiu/msrTools/blob/master/system/install-cygwin.bat))
 
-      - **curl** <https://raw.githubusercontent.com/qualiu/msr/master/tools/msr.exe> -o `msr.exe.tmp` && `move /y msr.exe.tmp msr.exe` && `icacls msr.exe /grant %USERNAME%:RX` && **move** [msr.exe](https://raw.githubusercontent.com/qualiu/msr/master/tools/msr.exe) `%SystemRoot%\`
-      - **wget** <https://raw.githubusercontent.com/qualiu/msr/master/tools/msr.exe> -O `msr.exe.tmp` && `move /y msr.exe.tmp msr.exe` && `icacls msr.exe /grant %USERNAME%:RX` && **move** [msr.exe](https://raw.githubusercontent.com/qualiu/msr/master/tools/msr.exe) `%SystemRoot%\`
+      - **curl** <https://raw.githubusercontent.com/qualiu/msr/master/tools/msr.exe> -o `msr.tmp` && `move /y msr.tmp msr.exe` && `icacls msr.exe /grant %USERNAME%:RX` && **move** [msr.exe](https://raw.githubusercontent.com/qualiu/msr/master/tools/msr.exe) `%SystemRoot%\`
+      - **wget** <https://raw.githubusercontent.com/qualiu/msr/master/tools/msr.exe> -O `msr.tmp` && `move /y msr.tmp msr.exe` && `icacls msr.exe /grant %USERNAME%:RX` && **move** [msr.exe](https://raw.githubusercontent.com/qualiu/msr/master/tools/msr.exe) `%SystemRoot%\`
 
     - Otherwise use `PowerShell`:
 
-      **PowerShell** `-Command "$ProgressPreference = 'SilentlyContinue'; [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/qualiu/msr/master/tools/msr.exe' -OutFile msr.exe.tmp"` && `move /y msr.exe.tmp msr.exe` && `icacls msr.exe /grant %USERNAME%:RX` && **move** [msr.exe](https://raw.githubusercontent.com/qualiu/msr/master/tools/msr.exe) `%SystemRoot%\`
+      **PowerShell** `-Command "$ProgressPreference = 'SilentlyContinue'; [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/qualiu/msr/master/tools/msr.exe' -OutFile msr.tmp"` && `move /y msr.tmp msr.exe` && `icacls msr.exe /grant %USERNAME%:RX` && **move** [msr.exe](https://raw.githubusercontent.com/qualiu/msr/master/tools/msr.exe) `%SystemRoot%\`
 
   - **Linux**: `Ubuntu`/`CentOS`/`Fedora`: (If it's a 32-bit system, use **[msr-i386.gcc48](https://raw.githubusercontent.com/qualiu/msr/master/tools/msr-i386.gcc48)**. `gcc`/`g++` >= 4.8)
 
-    **curl** <https://raw.githubusercontent.com/qualiu/msr/master/tools/msr.gcc48> -o `msr.tmp` && `mv -f msr.tmp msr` && `chmod +x msr` && `mv msr /usr/bin/msr`
+    **curl** <https://raw.githubusercontent.com/qualiu/msr/master/tools/msr.gcc48> -o `msr.tmp` && `mv -f msr.tmp msr` && `chmod +x msr` && `sudo mv msr /usr/bin/msr`
 
   - **Cygwin** [bash terminal on Windows](#supported-4-terminal-types-on-windows):
 
@@ -133,7 +133,24 @@ You can also manually **download** the tiny [msr.EXE](https://github.com/qualiu/
 
   - **MacOS**: `Darwin-Arm64`:
   
-    **curl** <https://raw.githubusercontent.com/qualiu/msr/master/tools/msr-arm64.darwin> -o `msr.tmp` && `mv -f msr.tmp msr` && `chmod +x msr` && `mv msr /usr/local/bin/msr`
+    **curl** <https://raw.githubusercontent.com/qualiu/msr/master/tools/msr-arm64.darwin> -o `msr.tmp` && `mv -f msr.tmp msr` && `chmod +x msr` && `sudo mv msr /usr/local/bin/msr`
+
+### Alternative Sources if Unable to Download msr/nin from GitHub
+If you're unable to download msr/nin tools from [GitHub](https://github.com/qualiu/msr)(validation: [md5.txt](https://github.com/qualiu/msr/blob/master/tools/md5.txt)) by command lines above, try sources + command lines below:
+- https://sourceforge.net/projects/avasattva/files/ to download msr/nin by commands or click URLs like:
+  - **curl** "<https://master.dl.sourceforge.net/project/avasattva/msr.exe?viasf=1>" -o `msr.tmp` && `move /y msr.tmp msr.exe` && `icacls msr.exe /grant %USERNAME%:RX` && **move** [msr.exe](https://raw.githubusercontent.com/qualiu/msr/master/tools/msr.exe) `%SystemRoot%\`
+  - **wget** "<https://master.dl.sourceforge.net/project/avasattva/msr.gcc48?viasf=1>" -O `msr.tmp` && `mv -f msr.tmp msr` && `chmod +x msr` && `sudo mv msr /usr/bin/msr`
+  - **curl** "<https://master.dl.sourceforge.net/project/avasattva/msr-arm64.darwin?viasf=1>" -o `msr.tmp` && `mv -f msr.tmp msr` && `chmod +x msr` && `sudo mv msr /usr/local/bin/msr`
+  - File validation: [md5.txt](https://master.dl.sourceforge.net/project/avasattva/md5.txt?viasf=1)
+- https://gitlab.com/lqm678/msr to download msr/nin by commands or click URLs like:
+  - **curl** "<https://gitlab.com/lqm678/msr/-/raw/master/tools/msr.exe?inline=false>" -o `msr.tmp` && `move /y msr.tmp msr.exe` && `icacls msr.exe /grant %USERNAME%:RX` && **move** [msr.exe](https://raw.githubusercontent.com/qualiu/msr/master/tools/msr.exe) `%SystemRoot%\`
+  - **wget** "<https://gitlab.com/lqm678/msr/-/raw/master/tools/msr.gcc48?inline=false>" -O `msr.tmp` && `mv -f msr.tmp msr` && `chmod +x msr` && `sudo mv msr /usr/bin/msr`
+  - **curl** "<https://gitlab.com/lqm678/msr/-/raw/master/tools/msr-arm64.darwin?inline=false>" -o `msr.tmp` && `mv -f msr.tmp msr` && `chmod +x msr` && `sudo mv msr /usr/local/bin/msr`
+  - File validation: [md5.txt](https://gitlab.com/lqm678/msr/-/blob/master/tools/md5.txt)
+- https://gitee.com/qualiu/msr to manually download msr/nin.
+  - File validation: [md5.txt](https://gitee.com/qualiu/msr/blob/master/tools/md5.txt)
+
+Same with [GitHub downloading](#or-manually-download--set-path-once-and-forever) above: You can **use/create a folder** (in `%PATH%`/`$PATH`) to replace **`%SystemRoot%`** or **`/usr/bin/`** or **`/usr/local/bin/`**.
 
 After done, you can directly run **msr --help** (or **msr -h** or just **msr**) should display [colorful usages and examples on Windows](https://qualiu.github.io/msr/usage-by-running/msr-Windows.html) or Linux like: [Fedora](https://qualiu.github.io/msr/usage-by-running/msr-Fedora-25.html) and [CentOS](https://qualiu.github.io/msr/usage-by-running/msr-CentOS-7.html).
 

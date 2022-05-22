@@ -166,7 +166,8 @@ export function getTerminalNameOrShellExeName(terminal: vscode.Terminal | null |
     return terminal.name;
   }
 
-  const shellExePath = getTerminalShellExePath();
+  const initialPath = getTerminalInitialPath(terminal) || '';
+  const shellExePath = !isNullOrEmpty(initialPath) ? initialPath : getTerminalShellExePath();
   return path.basename(shellExePath);
 }
 

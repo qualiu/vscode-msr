@@ -2,6 +2,16 @@
 
 All notable changes to this "vscode-msr" extension will be documented in this file.
 
+## [2.1.43]
+- Added alternative sources to fix downloading failures from GitHub.
+- Reused `MSR-RUN-CMD` terminal when reload window or load previous sessions.
+- Auto correlated command aliases other shells like `zsh` on `Linux`/`MacOS`.
+- Added warning to re-cook new doskeys/alias.
+- Added new configuration items to auto generate command shortcuts:
+  - `msr.fileExtensionMap.ts` to auto generate `find-ts` + `find-ts-def` + `find-ts-ref`.
+  - `msr.fileExtensionMap.js` to auto generate `find-js` + `find-js-def` + `find-js-ref`.
+  - `msr.fileExtensionMap.vue` to auto generate `find-vue` + `find-vue-def` + `find-vue-ref`.
+
 ## [2.1.42]
 - Solved random messy initialization command lines in `MSR-RUN-CMD` terminal on `MacOS`.
 - Updated doc to use `curl` instead of `wget`.

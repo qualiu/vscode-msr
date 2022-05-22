@@ -7,13 +7,40 @@ import { HomeFolder, IsDebugMode, IsWindows } from './constants';
 import { MyConfig } from './dynamicConfig';
 import { TerminalType } from './enums';
 import { getHomeFolderForLinuxTerminalOnWindows, getTerminalShellExePath, isToolExistsInPath } from './otherUtils';
-import { checkIfSupported, clearOutputChannel, outputDebug, outputError, outputInfo, outputKeyInfo } from './outputUtils';
+import { checkIfSupported, clearOutputChannel, outputDebug, outputError, outputInfo, outputInfoByDebugMode, outputKeyInfo, outputWarn } from './outputUtils';
 import { checkAddFolderToPath, DefaultTerminalType, getTimeCostToNow, isLinuxTerminalOnWindows, isNullOrEmpty, isWindowsTerminalOnWindows, nowText, PathEnvName, quotePaths, runCommandGetOutput, toCygwinPath, toOsPath, toOsPaths } from './utils';
 
 export const MsrExe = 'msr';
 const Is64BitOS = process.arch.includes('64');
-const SourceExeHomeUrl = 'https://raw.githubusercontent.com/qualiu/msr/master/tools/';
-const SourceMd5FileUrl = SourceExeHomeUrl + 'md5.txt';
+
+const SourceHomeUrlArray = [
+	'https://raw.githubusercontent.com/qualiu/msr/master/tools/',
+	'https://gitlab.com/lqm678/msr/-/raw/master/tools/',
+	'https://master.dl.sourceforge.net/project/avasattva/'
+];
+
+function getHomeUrl(sourceHomeUrl: string): string {
+	if (sourceHomeUrl.includes('gitlab')) {
+		return 'https://gitlab.com/lqm678/msr/';
+	} else if (sourceHomeUrl.includes('sourceforge')) {
+		return 'https://sourceforge.net/projects/avasattva/files/'
+	} else {
+		return 'https://github.com/qualiu/msr';
+	}
+}
+
+let GoodSourceUrlIndex = 0; // use it if succeeded
+
+function getDownloadUrl(sourceExeName: string, useUrlIndex: number = 0): string {
+	const parentUrl = SourceHomeUrlArray[useUrlIndex % SourceHomeUrlArray.length];
+	if (parentUrl.includes('sourceforge')) {
+		return parentUrl + sourceExeName + '?viasf=1';
+	} else if (parentUrl.includes('gitlab')) {
+		return parentUrl + sourceExeName + '?inline=false';
+	}
+	return parentUrl + sourceExeName;
+}
+
 export const TerminalTypeToSourceExtensionMap = new Map<TerminalType, string>()
 	.set(TerminalType.CMD, '.exe')
 	.set(TerminalType.PowerShell, IsWindows ? '.exe' : '.gcc48')
@@ -32,7 +59,6 @@ const CheckForwardingSlashSupportOnWindowsText = "Support '/' on Windows";
 export let IsTimeoutSupported: boolean = false;
 export let IsForwardingSlashSupportedOnWindows = false;
 
-let SourceMd5Text = '';
 let TerminalTypeToToolNamePathMap = new Map<TerminalType, Map<string, string>>();
 
 export function setTimeoutInCommandLine(command: string, timeoutSeconds = MyConfig.MaxWaitSecondsForSearchDefinition) {
@@ -86,33 +112,25 @@ function updateToolNameToPathMap(terminalType: TerminalType, toolName: string, t
 
 export function getSetToolEnvCommand(terminalType: TerminalType, addTailTextIfNotEmpty: string = '', foldersToAddPath: string[] = []): string {
 	let toolFolderSet = new Set<string>();
-	if (terminalType === TerminalType.CygwinBash || TerminalType.WslBash === terminalType) {
-		if (foldersToAddPath && foldersToAddPath.length > 0) {
-			foldersToAddPath.forEach((folder) => toolFolderSet.add(folder));
-		} else {
-			return '';
-		}
-	}
-
 	const toolNameToPathMap = TerminalTypeToToolNamePathMap.get(terminalType);
-	if (!toolNameToPathMap || toolNameToPathMap.size < 1) {
-		if (foldersToAddPath && foldersToAddPath.length > 0) {
-			foldersToAddPath.forEach((folder) => toolFolderSet.add(folder));
-		} else {
-			return '';
-		}
-	}
-
 	if (toolNameToPathMap) {
 		toolNameToPathMap.forEach((value, _key, _m) => {
 			toolFolderSet.add(path.dirname(value));
 		});
 	}
 
+	if (foldersToAddPath && foldersToAddPath.length > 0) {
+		foldersToAddPath.filter(d => !isNullOrEmpty(d)).forEach((folder) => toolFolderSet.add(folder));
+	}
+
+	if (toolFolderSet.size === 0) {
+		return '';
+	}
+
 	const toolFolders = Array.from(toOsPaths(toolFolderSet, terminalType));
 	switch (terminalType) {
 		case TerminalType.CMD:
-			return 'SET "PATH=' + toolFolders.join(';') + ';%PATH%;"' + addTailTextIfNotEmpty;
+			return 'SET "PATH=%PATH%;' + toolFolders.join(';') + ';"' + addTailTextIfNotEmpty;
 		case TerminalType.PowerShell:
 		case TerminalType.Pwsh:
 			return "$env:Path += ';" + toolFolders.join(';') + "'" + addTailTextIfNotEmpty;
@@ -183,16 +201,12 @@ export class ToolChecker {
 			}
 		}
 
-		const [downloadCmd, targetExePath] = this.getDownloadCommandAndSavePath(exeName64bit, '~/');
+		const [downloadCmd, targetExePath] = this.getDownloadCommandAndSavePath(exeName64bit, '~/', GoodSourceUrlIndex);
 		const exportCommand = 'export PATH=~:$PATH';
 		const checkExistCommand = 'ls -al ' + targetExePath + ' 2>/dev/null | egrep -e "^-[rw-]*?x.*?/' + exeName64bit + '\\s*$"';
 		const firstCheck = 'which ' + exeName64bit + ' 2>/dev/null | egrep -e "/' + exeName64bit + '"';
 		const lastCheck = '( ' + checkExistCommand + ' || ( ' + downloadCmd + ' && ' + exportCommand + ' ) )';
 		return firstCheck + ' || ' + lastCheck;
-	}
-
-	private getDownloadUrl(sourceExeName: string): string {
-		return SourceExeHomeUrl + sourceExeName;
 	}
 
 	private getSourceExeName(exeName64bit: string): string {
@@ -210,9 +224,9 @@ export class ToolChecker {
 		return this.isTerminalOfWindows ? savePath : savePath.replace(/\\/g, '/');
 	}
 
-	private getDownloadCommandAndSavePath(exeName64bit: string, saveExePath: string = ''): [string, string] {
+	private getDownloadCommandAndSavePath(exeName64bit: string, saveExePath: string = '', useUrlIndex: number = 0): [string, string] {
 		const sourceExeName = this.getSourceExeName(exeName64bit);
-		const sourceUrl = this.getDownloadUrl(sourceExeName);
+		const sourceUrl = getDownloadUrl(sourceExeName, useUrlIndex);
 		const [IsExistIcacls] = this.isTerminalOfWindows ? isToolExistsInPath('icacls', this.terminalType) : [false, ''];
 		if (isNullOrEmpty(saveExePath)) {
 			saveExePath = this.getTempSaveExePath(exeName64bit);
@@ -222,19 +236,28 @@ export class ToolChecker {
 				: saveExePath.replace(/\/$/, '') + "/" + exeName64bit;
 		}
 
-		const tmpSaveExePath = quotePaths(saveExePath + '.tmp');
+		const tmpSaveExePath = saveExePath + '.tmp';
+		const quotedTmpSavePath = quotePaths(tmpSaveExePath);
 		saveExePath = saveExePath.startsWith('"') ? saveExePath : quotePaths(saveExePath);
 
+		const [isWgetExists] = isToolExistsInPath(this.isTerminalOfWindows ? "wget.exe" : "wget", this.terminalType);
 		const [isCurlExists] = isToolExistsInPath(this.isTerminalOfWindows ? "curl.exe" : "curl", this.terminalType);
+		const wgetHelpText = isWgetExists ? runCommandGetOutput('wget --help') : '';
+		const wgetArgs = wgetHelpText.includes('--no-check-certificate') ? ' --no-check-certificate' : '';
+		const commonDownloadCommand = isWgetExists
+			? 'wget --quiet "' + sourceUrl + '" -O ' + quotedTmpSavePath + wgetArgs // + ' --timeout 30'
+			: 'curl --silent --show-error --fail "' + sourceUrl + '" -o ' + quotedTmpSavePath;
+		const PowerShellExeName = this.isTerminalOfWindows ? 'Powershell' : 'pwsh';
+		const lastResortCommand = PowerShellExeName + ' -Command "' + (this.isTerminalOfWindows ? '' : "\\") + '$ProgressPreference = \'SilentlyContinue\'; [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; '
+			+ "Invoke-WebRequest -Uri '" + sourceUrl + "' -OutFile " + quotePaths(tmpSaveExePath, "'") + '"';
 
-		const downloadCommand = this.isTerminalOfWindows && !isCurlExists
-			? 'Powershell -Command "$ProgressPreference = \'SilentlyContinue\'; [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; '
-			+ "Invoke-WebRequest -Uri '" + sourceUrl + "' -OutFile " + quotePaths(tmpSaveExePath, "'") + '"'
-			: 'curl --silent --show-error --fail "' + sourceUrl + '" -o ' + tmpSaveExePath;
+		const downloadCommand = isWgetExists || isCurlExists
+			? commonDownloadCommand
+			: lastResortCommand;
 
 		const renameFileCommand = this.isTerminalOfWindows
-			? 'move /y ' + tmpSaveExePath + ' ' + saveExePath
-			: 'mv -f ' + tmpSaveExePath + ' ' + saveExePath;
+			? 'move /y ' + quotedTmpSavePath + ' ' + saveExePath
+			: 'mv -f ' + quotedTmpSavePath + ' ' + saveExePath;
 
 		const setExecutableCommand = this.isTerminalOfWindows
 			? (IsExistIcacls ? 'icacls ' + saveExePath + ' /grant %USERNAME%:RX' : '')
@@ -293,34 +316,48 @@ export class ToolChecker {
 		const sourceExeName = this.getSourceExeName(exeName64bit);
 		const targetExePath = path.join(path.dirname(tmpSaveExePath), isWindowsTerminalOnWindows(this.terminalType) ? exeName64bit + '.exe' : exeName64bit);
 		if (!fs.existsSync(tmpSaveExePath)) {
-			outputKeyInfo('\n' + nowText() + 'Will try to download the tiny tool "' + sourceExeName + '" by command:');
-			const [downloadCommand, _] = this.getDownloadCommandAndSavePath(exeName64bit, tmpSaveExePath);
-			outputKeyInfo(downloadCommand);
-			const saveFolder = path.dirname(tmpSaveExePath);
-			try {
-				if (saveFolder !== '~' && !fs.existsSync(saveFolder)) {
-					fs.mkdirSync(saveFolder);
+			for (let tryTimes = 0; tryTimes < SourceHomeUrlArray.length; tryTimes++) {
+				outputKeyInfo('\n' + nowText() + 'Will try to download the tiny tool "' + sourceExeName + '" by command:');
+				const tryUrlIndex = GoodSourceUrlIndex + tryTimes;
+				const [downloadCommand, _] = this.getDownloadCommandAndSavePath(exeName64bit, tmpSaveExePath, tryUrlIndex);
+				outputKeyInfo(downloadCommand);
+				const saveFolder = path.dirname(tmpSaveExePath);
+				try {
+					if (saveFolder !== '~' && !fs.existsSync(saveFolder)) {
+						fs.mkdirSync(saveFolder);
+					}
+				} catch (err) {
+					outputError('\`n' + nowText() + 'Failed to create save folder: ' + saveFolder + ' for ' + sourceExeName);
+					continue;
 				}
-			} catch (err) {
-				outputError('\`n' + nowText() + 'Failed to create save folder: ' + saveFolder + ' for ' + sourceExeName);
-				// return [false, ''];
-			}
 
-			try {
-				let output = ChildProcess.execSync(downloadCommand).toString();
-				outputKeyInfo(output);
-			} catch (err) {
-				outputError('\n' + nowText() + 'Failed to download ' + sourceExeName + ' : ' + err);
-				outputError('\n' + nowText() + 'Please manually download ' + sourceExeName + ' and add its folder to ' + PathEnvName + ': ' + this.getDownloadUrl(sourceExeName));
-				outputError('\n' + nowText() + '如果在中国无法从github下载 ' + sourceExeName + ' 可从另两处试下载：https://gitee.com/qualiu/msr/tree/master/tools 或者 https://sourceforge.net/projects/avasattva/files/');
-				return [false, ''];
-			}
+				const beginDownloadTime = new Date();
+				try {
+					let output = ChildProcess.execSync(downloadCommand, { timeout: 30 * 1000 }).toString();
+					outputKeyInfo(output);
+				} catch (err) {
+					const costSeconds = (((new Date()).valueOf() - beginDownloadTime.valueOf()) / 1000).toFixed(3);
+					outputError('\n' + nowText() + 'Cost ' + costSeconds + 's: Failed to download ' + sourceExeName + ' : ' + err);
+					outputError('\n' + nowText() + 'Please manually download ' + sourceExeName + ' and add its folder to ' + PathEnvName + ': ' + getDownloadUrl(sourceExeName));
+					const otherSources = SourceHomeUrlArray.filter(a => !downloadCommand.includes(a)).map(a => getHomeUrl(a)).join(" 或者 ");
+					outputError('\n' + nowText() + '如果无法从github下载 ' + sourceExeName + ' 可试别处下载：' + otherSources + ' 或者 https://gitee.com/qualiu/msr/tree/master/tools/');
+					if (tryTimes > 0) {
+						return [false, ''];
+					}
+					continue;
+				}
 
-			if (!fs.existsSync(targetExePath)) {
-				outputError(nowText() + 'Downloading completed but not found tmp tool "' + sourceExeName + '": ' + targetExePath);
-				return [false, ''];
-			} else {
-				outputKeyInfo(nowText() + 'Successfully downloaded tmp tool "' + sourceExeName + '": ' + targetExePath);
+				if (!fs.existsSync(targetExePath)) {
+					outputError(nowText() + 'Downloading completed but not found tmp tool "' + sourceExeName + '": ' + targetExePath);
+					if (tryTimes > 0) {
+						return [false, ''];
+					}
+				} else {
+					const costSeconds = (((new Date()).valueOf() - beginDownloadTime.valueOf()) / 1000).toFixed(3);
+					outputKeyInfo(nowText() + 'Cost ' + costSeconds + ' s: Successfully downloaded tmp tool "' + sourceExeName + '": ' + targetExePath);
+					GoodSourceUrlIndex = tryUrlIndex % SourceHomeUrlArray.length;
+					break;
+				}
 			}
 		} else {
 			outputInfo(nowText() + 'Found existing tmp tool "' + sourceExeName + '": ' + targetExePath + ' , skip downloading.');
@@ -358,7 +395,10 @@ export class ToolChecker {
 		}
 	}
 
-	private checkToolNewVersion() {
+	private checkToolNewVersion(tryUrlIndex: number = 0) {
+		if (tryUrlIndex >= SourceHomeUrlArray.length) {
+			return;
+		}
 		if (this.MsrExePath.length < 1) {
 			return;
 		}
@@ -372,33 +412,33 @@ export class ToolChecker {
 			}
 		}
 
-		if (!isNullOrEmpty(SourceMd5Text)) {
-			this.compareToolVersions(SourceMd5Text, new Date());
-			return;
-		}
-
 		const trackCheckBeginTime = new Date();
 		const checker = this;
-		const request = https.get(SourceMd5FileUrl, function (response) {
+		const sourceMd5FileUrl = getDownloadUrl('md5.txt', tryUrlIndex + GoodSourceUrlIndex);
+		outputInfoByDebugMode(`Checking version with: ${sourceMd5FileUrl}`);
+		const request = https.get(sourceMd5FileUrl, function (response) {
 			response.on('data', function (data) {
 				if (data) {
 					const sourceMd5Lines = data.toString();
-					if (!isNullOrEmpty(sourceMd5Lines)) {
-						SourceMd5Text = sourceMd5Lines;
+					if (!isNullOrEmpty(sourceMd5Lines) && /^\w+\s+(msr|nin)/i.test(sourceMd5Lines)) {
+						GoodSourceUrlIndex = tryUrlIndex % SourceHomeUrlArray.length;
+						checker.compareToolVersions(sourceMd5Lines, sourceMd5FileUrl, trackCheckBeginTime);
+					} else if (tryUrlIndex < SourceHomeUrlArray.length) {
+						checker.checkToolNewVersion(tryUrlIndex + 1);
 					}
-					checker.compareToolVersions(sourceMd5Lines, trackCheckBeginTime);
 				}
 			});
 		});
-
 		request.end();
-
 		request.on('error', (err) => {
-			outputDebug(nowText() + 'Failed to read source md5 from ' + SourceMd5FileUrl + '. Cost ' + getTimeCostToNow(trackCheckBeginTime) + ' seconds. Error: ' + err.message);
+			outputDebug(nowText() + 'Failed to read source md5 from ' + sourceMd5FileUrl + '. Cost ' + getTimeCostToNow(trackCheckBeginTime) + ' seconds. Error: ' + err.message);
+			if (tryUrlIndex < SourceHomeUrlArray.length) {
+				this.checkToolNewVersion(tryUrlIndex + 1);
+			}
 		});
 	}
 
-	private compareToolVersions(allMd5Text: string, trackCheckBeginTime: Date) {
+	private compareToolVersions(allMd5Text: string, sourceMd5FileUrl: string, trackCheckBeginTime: Date) {
 		const [hasNin, ninExePath] = isToolExistsInPath('nin', this.terminalType);
 		const currentMsrMd5 = getFileMd5(this.MsrExePath);
 		let currentExeNameToMd5Map = new Map<string, string>().set('msr', currentMsrMd5);
@@ -413,7 +453,7 @@ export class ToolChecker {
 		while (foundCount < currentExeNameToMd5Map.size) {
 			const matchInfo = this.MatchExeMd5Regex.exec(allMd5Text);
 			if (!matchInfo) {
-				outputError(nowText() + 'Cannot match source MD5 text with Regex: "' + this.MatchExeMd5Regex.source + '" , remained text = ' + allMd5Text);
+				outputWarn(nowText() + 'Not match source MD5 text with Regex: "' + this.MatchExeMd5Regex.source + '" , remained text = ' + allMd5Text);
 				break;
 			}
 
@@ -423,12 +463,17 @@ export class ToolChecker {
 			const exeName64bit = matchInfo[2];
 			const sourceExeName = this.getSourceExeName(exeName64bit);
 			const currentMd5 = currentExeNameToMd5Map.get(exeName64bit) || '';
+
+			if (isNullOrEmpty(currentMd5)) { // Skip other EXEs in source URL.
+				continue;
+			}
+
 			if (currentMd5.toLowerCase() !== latestMd5.toLowerCase()) {
 				oldExeNames.add(sourceExeName);
-				outputKeyInfo(nowText() + 'Found new version of ' + sourceExeName + ' which md5 = ' + latestMd5 + ' , source-info = ' + SourceMd5FileUrl);
+				outputKeyInfo(nowText() + 'Found new version of ' + sourceExeName + ' which md5 = ' + latestMd5 + ' , source-info = ' + sourceMd5FileUrl);
 				outputKeyInfo(nowText() + 'Current ' + sourceExeName + ' md5 = ' + currentMd5 + ' , path = ' + exeName64bitToPathMap.get(exeName64bit));
 			} else {
-				outputDebug(nowText() + 'Great! Your ' + sourceExeName + ' is latest! md5 = ' + latestMd5 + ' , exe = ' + exeName64bitToPathMap.get(exeName64bit) + ' , sourceMD5 = ' + SourceMd5FileUrl);
+				outputInfoByDebugMode(nowText() + 'Great! Your ' + sourceExeName + ' is latest! md5 = ' + latestMd5 + ' , exe = ' + exeName64bitToPathMap.get(exeName64bit) + ' , sourceMD5 = ' + sourceMd5FileUrl);
 			}
 		}
 
@@ -440,11 +485,11 @@ export class ToolChecker {
 				if (TerminalType.CygwinBash === this.terminalType) {
 					currentExeSavePath = toCygwinPath(currentExeSavePath);
 				}
-				const [downloadCommand, _] = this.getDownloadCommandAndSavePath(exeName64bit, currentExeSavePath);
+				const [downloadCommand, _] = this.getDownloadCommandAndSavePath(exeName64bit, currentExeSavePath, GoodSourceUrlIndex);
 				outputKeyInfo(downloadCommand + '\n');
 			});
 		}
 
-		outputDebug(nowText() + 'Finished to check tool versions. Cost ' + getTimeCostToNow(trackCheckBeginTime) + ' seconds.');
+		outputInfoByDebugMode(nowText() + 'Finished to check tool versions. Cost ' + getTimeCostToNow(trackCheckBeginTime) + ' seconds.');
 	}
 }

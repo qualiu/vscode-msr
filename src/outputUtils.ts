@@ -5,18 +5,18 @@ import { IsDebugMode, IsSupportedSystem, IsWindows, OutputChannelName, RunCmdTer
 import { cookCmdShortcutsOrFile, CookCmdTimesForRunCmdTerminal } from './cookCommandAlias';
 import { getConfig, MyConfig } from './dynamicConfig';
 import { getDefaultRootFolder, getDefaultRootFolderByActiveFile, IsLinuxTerminalOnWindows, nowText, replaceTextByRegex } from './utils';
-var AsyncLock = require('async-lock');
-var Locker = new AsyncLock();
 
-export let RunCmdTerminalRootFolder = '';
+export let RunCmdTerminalRootFolder: string = '';
 
 // When searching plain text, powershell requires extra escaping (like '$').
 const UsePowershell = false;
 const WindowsShell = UsePowershell ? 'powershell' : 'cmd.exe';
 export const ShellPath = IsWindows ? WindowsShell : 'bash';
 const ClearCmd = IsWindows && !UsePowershell ? 'cls' : "clear";
-
 const ShowColorHideCmdRegex = /\s+-[Cc](\s+|$)/g;
+
+// Skip using lock/concurrent-queue + library for simple scenario:
+let CommandQueue: string[] = [];
 
 export enum MessageLevel {
 	None = 0,
@@ -65,9 +65,19 @@ let _messageChannel: vscode.OutputChannel;
 
 // MSR-RUN-CMD terminal
 let _runCmdTerminal: vscode.Terminal | undefined;
+export let HasCreatedRunCmdTerminal: boolean = false;
 
 export function getRunCmdTerminal(): vscode.Terminal {
+	if (!_runCmdTerminal && vscode.window.terminals && vscode.window.terminals.length > 0) {
+		for (let k = 0; k < vscode.window.terminals.length; k++) {
+			if (vscode.window.terminals[k].name === RunCmdTerminalName) {
+				_runCmdTerminal = vscode.window.terminals[k];
+				return _runCmdTerminal;
+			}
+		}
+	}
 	if (!_runCmdTerminal) {
+		HasCreatedRunCmdTerminal = true;
 		_runCmdTerminal = vscode.window.createTerminal(RunCmdTerminalName, ShellPath);
 		if (vscode.workspace.getConfiguration('msr').get('initProjectCmdAliasForNewTerminals') as boolean) {
 			const rootFolder = getDefaultRootFolderByActiveFile() || getDefaultRootFolder();
@@ -86,19 +96,19 @@ export function disposeTerminal() {
 	_runCmdTerminal = undefined;
 }
 
-export function runCommandInTerminal(cmd: string, showTerminal = false, clearAtFirst = true, isLinuxOnWindows = IsLinuxTerminalOnWindows) {
-	cmd = enableColorAndHideCommandLine(cmd);
-	sendCmdToTerminal(cmd, getRunCmdTerminal(), showTerminal, clearAtFirst, isLinuxOnWindows);
+export function runCommandInTerminal(command: string, showTerminal = false, clearAtFirst = true, isLinuxOnWindows = IsLinuxTerminalOnWindows) {
+	command = enableColorAndHideCommandLine(command);
+	sendCommandToTerminal(command, getRunCmdTerminal(), showTerminal, clearAtFirst, isLinuxOnWindows);
 }
 
-export function runRawCommandInTerminal(cmd: string, showTerminal = true, clearAtFirst = false, isLinuxOnWindows = IsLinuxTerminalOnWindows) {
-	sendCmdToTerminal(cmd, getRunCmdTerminal(), showTerminal, clearAtFirst, isLinuxOnWindows);
+export function runRawCommandInTerminal(command: string, showTerminal = true, clearAtFirst = false, isLinuxOnWindows = IsLinuxTerminalOnWindows) {
+	sendCommandToTerminal(command, getRunCmdTerminal(), showTerminal, clearAtFirst, isLinuxOnWindows);
 }
 
-export function sendCmdToTerminal(cmd: string, terminal: vscode.Terminal, showTerminal = false, clearAtFirst = true, isLinuxOnWindows = IsLinuxTerminalOnWindows) {
+export function sendCommandToTerminal(command: string, terminal: vscode.Terminal, showTerminal = false, clearAtFirst = true, isLinuxOnWindows = IsLinuxTerminalOnWindows) {
 	const searchAndListPattern = /\s+(-i?[tx]|-l)\s+/;
-	if (cmd.startsWith("msr") && !cmd.match(searchAndListPattern)) {
-		outputDebug(nowText() + "Skip running command due to not found none of matching names of -x or -t, command = " + cmd);
+	if (command.startsWith("msr") && !command.match(searchAndListPattern)) {
+		outputDebug(nowText() + "Skip running command due to not found none of matching names of -x or -t, command = " + command);
 		return;
 	}
 
@@ -106,26 +116,33 @@ export function sendCmdToTerminal(cmd: string, terminal: vscode.Terminal, showTe
 		terminal.show();
 	}
 
-	const lockName = 'RUN-CMD-LOCK' + terminal.name;
-	Locker.acquire(lockName, function () {
+	CommandQueue.push(command.trim());
+	let commands: string[] = [];
+	while (true) {
+		const text = CommandQueue.pop();
+		if (!text) {
+			break;
+		}
+		commands.push(text)
+	}
+
+	for (let k = 0; k < commands.length; k++) {
 		if (clearAtFirst) {
 			// vscode.commands.executeCommand('workbench.action.terminal.clear');
-			terminal.sendText(isLinuxOnWindows ? 'clear' : ClearCmd);
+			terminal.sendText((isLinuxOnWindows ? 'clear' : ClearCmd) + os.EOL);
 		} else {
 			terminal.sendText(os.EOL);
 		}
-		terminal.sendText(cmd.trim());
+		terminal.sendText(commands[k].trim());
 		// Promise.resolve(new Promise((resolve) => { setTimeout(resolve, 200); }));
 		if (!IsWindows || isLinuxOnWindows) {
 			try {
 				execSync('sleep 0.3');
 			} catch (error) {
-				outputWarn(`"Failed to run sleep for terminal:${terminal.name}: ${error}"`)
+				outputWarn(`Failed to run sleep for terminal:${terminal.name}: ${error}`)
 			}
 		}
-	}, function (err: any) {
-		console.log(`"Caught error when running command in terminal ${terminal.name}: ${err}"`)
-	});
+	};
 }
 
 export function outputWarn(message: string, showWindow: boolean = true) {

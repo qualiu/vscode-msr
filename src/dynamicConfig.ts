@@ -125,6 +125,7 @@ export class DynamicConfig {
 
     public ReRunCmdInTerminalIfCostLessThan: number = 3.3;
     public ReRunSearchInTerminalIfResultsMoreThan: number = 1;
+    public DisableReRunSearch: boolean = true;
     public OnlyFindDefinitionForKnownLanguages: boolean = true;
 
     public GetSearchTextHolderInCommandLine: RegExp = /\s+-c\s+.*?%~?1/;
@@ -278,6 +279,7 @@ export class DynamicConfig {
         this.NeedSortResults = getConfigValue('sortResults') === 'true';
         this.ReRunCmdInTerminalIfCostLessThan = Number(getConfigValue('reRunSearchInTerminalIfCostLessThan') || '3.3');
         this.ReRunSearchInTerminalIfResultsMoreThan = Number(getConfigValue('reRunSearchInTerminalIfResultsMoreThan') || '1');
+        this.DisableReRunSearch = getConfigValue("disableReRunSearch") === 'true';
         this.DefaultConstantsRegex = new RegExp(getConfigValue('isFindConstant'));
 
         this.DisabledRootFolderNameRegex = createRegex(getConfigValue('disable.projectRootFolderNamePattern'));

@@ -3,7 +3,7 @@
 	"displayName": "Code mining + Replace file + Find definition and reference for all types.",
 	"description": "Code mining + Replace file + Find definition and reference in multiple repository paths by msr for all coding languages + configuration + doc files.",
 	"author": "qualiu@microsoft.com",
-	"version": "2.1.43",
+	"version": "2.1.44",
 	"icon": "images/vscode-msr-icon.png",
 	"license": "completely free",
 	"publisher": "qualiu",
@@ -1088,6 +1088,11 @@
 					"type": "boolean",
 					"default": false,
 					"description": "Descending sort result for console output channel at bottom of `Visual Studio Code`."
+				},
+				"msr.disableReRunSearch": {
+					"type": "boolean",
+					"description": "Disable automatic re-running searches to avoid noise on terminals.",
+					"default": true
 				},
 				"msr.reRunSearchInTerminalIfResultsMoreThan": {
 					"type": "number",

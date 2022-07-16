@@ -2,6 +2,10 @@
 
 All notable changes to this "vscode-msr" extension will be documented in this file.
 
+## [2.1.44]
+- Added `msr.disableReRunSearch` as default to suppress re-running commands in `MSR-RUN-CMD` terminal.
+- Removed improper shortcuts.
+
 ## [2.1.43]
 - Added alternative sources to fix downloading failures from GitHub.
 - Reused `MSR-RUN-CMD` terminal when reload window or load previous sessions.

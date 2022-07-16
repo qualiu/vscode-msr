@@ -341,26 +341,28 @@ function findAndProcessSummary(filteredResultCount: number, skipIfNotMatch: bool
     const costSeconds = parseFloat(match[3]);
     outputDebug(nowText() + 'Got matched count = ' + matchCount + ' and time cost = ' + costSeconds + ' from summary, search word = ' + ranker.searchChecker.currentWord);
     sumTimeCost(findType, costSeconds, lineCount);
-    if (matchCount < 1 && MyConfig.RootConfig.get('enable.useGeneralFindingWhenNoResults') as boolean) {
-      const findCmd = findType === FindType.Definition ? FindCommandType.RegexFindAsClassOrMethodDefinitionInCodeFiles : FindCommandType.RegexFindAsClassOrMethodDefinitionInCodeFiles;
-      if (!HasAlreadyReRunSearch && !ranker.isOneFileOrFolder && ranker.canRunCommandInTerminalWhenNoResult) {
-        HasAlreadyReRunSearch = true;
-        const forceSearchPaths = getSearchPathInCommand(cmd);
-        runFindingCommandByCurrentWord(findCmd, ranker.searchChecker.currentWord, ranker.searchChecker.currentFile, '', true, forceSearchPaths);
-        outputInfo(nowText() + 'Will run general search, please check results in `MSR-RUN-CMD` in `TERMINAL` tab. Set `msr.quiet` to avoid switching tabs; Disable `msr.enable.useGeneralFindingWhenNoResults` to disable re-running.');
-        outputInfo(nowText() + 'Try extensive search if still no results. Use context menu or: Click a word or select a text  --> Press `F12` --> Type `msr` + `find` and choose to search.');
+    if (!MyConfig.DisableReRunSearch) {
+      if (matchCount < 1 && MyConfig.RootConfig.get('enable.useGeneralFindingWhenNoResults') as boolean) {
+        const findCmd = findType === FindType.Definition ? FindCommandType.RegexFindAsClassOrMethodDefinitionInCodeFiles : FindCommandType.RegexFindAsClassOrMethodDefinitionInCodeFiles;
+        if (!HasAlreadyReRunSearch && !ranker.isOneFileOrFolder && ranker.canRunCommandInTerminalWhenNoResult) {
+          HasAlreadyReRunSearch = true;
+          const forceSearchPaths = getSearchPathInCommand(cmd);
+          runFindingCommandByCurrentWord(findCmd, ranker.searchChecker.currentWord, ranker.searchChecker.currentFile, '', true, forceSearchPaths);
+          outputInfo(nowText() + 'Will run general search, please check results in `MSR-RUN-CMD` in `TERMINAL` tab. Set `msr.quiet` to avoid switching tabs; Disable `msr.enable.useGeneralFindingWhenNoResults` to disable re-running.');
+          outputInfo(nowText() + 'Try extensive search if still no results. Use context menu or: Click a word or select a text  --> Press `F12` --> Type `msr` + `find` and choose to search.');
+        }
       }
-    }
-    else if (!HasAlreadyReRunSearch && filteredResultCount > 1 && ranker.canRunCommandInTerminalWhenManyResults && matchCount > MyConfig.ReRunSearchInTerminalIfResultsMoreThan && costSeconds <= MyConfig.ReRunCmdInTerminalIfCostLessThan) {
-      HasAlreadyReRunSearch = true;
-      outputInfo(nowText() + 'Will re-run and show clickable + colorful results in `MSR-RUN-CMD` in `TERMINAL` tab. Set `msr.quiet` to avoid switching tabs; Decrease `msr.reRunSearchInTerminalIfCostLessThan` value for re-running.');
-      cmd = changeFindingCommandForLinuxTerminalOnWindows(cmd);
-      const gitIgnore = getGitIgnore(ranker.searchChecker.currentFilePath);
-      cmd = gitIgnore.replaceToSkipPathVariable(cmd);
-      cmd = RunCommandChecker.toRunnableToolPath(cmd);
-      // cmd = cmd.replace(SkipJumpOutForHeadResultsRegex, ' ').trim();
-      cmd = cmd.replace(RemoveJumpRegex, ' ').trim();
-      runCommandInTerminal(cmd, false, getConfig().ClearTerminalBeforeExecutingCommands);
+      else if (!HasAlreadyReRunSearch && filteredResultCount > 1 && ranker.canRunCommandInTerminalWhenManyResults && matchCount > MyConfig.ReRunSearchInTerminalIfResultsMoreThan && costSeconds <= MyConfig.ReRunCmdInTerminalIfCostLessThan) {
+        HasAlreadyReRunSearch = true;
+        outputInfo(nowText() + 'Will re-run and show clickable + colorful results in `MSR-RUN-CMD` in `TERMINAL` tab. Set `msr.quiet` to avoid switching tabs; Decrease `msr.reRunSearchInTerminalIfCostLessThan` value for re-running.');
+        cmd = changeFindingCommandForLinuxTerminalOnWindows(cmd);
+        const gitIgnore = getGitIgnore(ranker.searchChecker.currentFilePath);
+        cmd = gitIgnore.replaceToSkipPathVariable(cmd);
+        cmd = RunCommandChecker.toRunnableToolPath(cmd);
+        // cmd = cmd.replace(SkipJumpOutForHeadResultsRegex, ' ').trim();
+        cmd = cmd.replace(RemoveJumpRegex, ' ').trim();
+        runCommandInTerminal(cmd, false, getConfig().ClearTerminalBeforeExecutingCommands);
+      }
     }
   } else if (!ranker.isOneFileOrFolder) {
     outputDebug(nowText() + 'Failed to get time cost in summary. Search word = ' + ranker.searchChecker.currentWord);

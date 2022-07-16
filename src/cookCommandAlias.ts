@@ -251,11 +251,11 @@ export function cookCmdShortcutsOrFile(
   const outRelativePathsBody = getPathCmdAliasBody(false, cmdAliasFile, true, false);
   cmdAliasMap.set('out-rp', getCommandAliasText('out-rp', outRelativePathsBody, false, isWindowsTerminal, writeToEachFile, false, false));
 
-  // Duplicate find-xxx to git ls-file & find-xxx
+  // Duplicate find-xxx to git ls-file & find-xxx; except find-nd / find-ndp
   const sortedCmdKeys = Array.from(cmdAliasMap.keys()).sort();
   sortedCmdKeys.forEach(key => {
     const value = cmdAliasMap.get(key) || '';
-    if (key.match(/^(find|sort)-/) && value.includes('msr -rp')) {
+    if (key.match(/^(find|sort)-/) && !key.startsWith('find-nd') && value.includes('msr -rp')) {
       const tmpListFile = quotePaths((isWindowsTerminal ? '%tmp%\\' : '/tmp/') + 'tmp-listed-git-repo-file-paths');
       const listFileCommand = 'git ls-files > ' + tmpListFile;
       let newCommand = value.replace(/msr -rp\s+(".+?"|\S+)/, listFileCommand + ' && msr -w ' + tmpListFile)
@@ -750,7 +750,7 @@ function getCommandAliasMap(
 
   let commands: string[] = [];
   fileExtensionMapTypes.forEach(ext => {
-    if (ext === 'default') {
+    if (ext === 'default' || isNullOrEmpty(ext)) {
       return;
     }
 

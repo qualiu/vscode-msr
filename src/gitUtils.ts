@@ -29,6 +29,7 @@ export class GitIgnore {
   private SetSkipPathEnvFile: string = '';
   private IsCmdTerminal: boolean;
   private MaxCommandLength: number;
+  private LastPrintSkipExportingTime: Date = new Date();
 
   constructor(ignoreFilePath: string, useGitIgnoreFile: boolean = false, omitGitIgnoreExemptions: boolean = false,
     skipDotFolders: boolean = true, terminalType = DefaultTerminalType, checkUseForwardingSlashForCmd = true) {
@@ -41,6 +42,7 @@ export class GitIgnore {
     this.ExportLongSkipGitPathsLength = Number(getConfigValue('exportLongSkipGitPathsLength'));
     this.IsCmdTerminal = isWindowsTerminalOnWindows(this.Terminal);
     this.MaxCommandLength = this.IsCmdTerminal ? 8163 : 131072;
+    this.LastPrintSkipExportingTime.setFullYear(this.LastPrintSkipExportingTime.getFullYear() - 1);
 
     if (isNullOrEmpty(ignoreFilePath)) {
       return;
@@ -84,7 +86,12 @@ export class GitIgnore {
   private exportSkipPathVariable(): boolean {
     const runCmdTerminalFolder = this.changeToForwardSlash(RunCmdTerminalRootFolder);
     if (runCmdTerminalFolder !== this.RootFolder) {
-      outputInfoByDebugMode(nowText() + `Skip exporting ${SkipPathVariableName} due to workspace = ${this.RootFolder} != ${runCmdTerminalFolder} of ${RunCmdTerminalName} terminal.`);
+      const passedSeconds = (new Date().getTime() - this.LastPrintSkipExportingTime.getTime()) / 1000;
+      if (passedSeconds > 5) {
+        this.LastPrintSkipExportingTime = new Date();
+        outputInfoByDebugMode(nowText() + `Skip exporting ${SkipPathVariableName} due to workspace = ${this.RootFolder} != ${runCmdTerminalFolder} of ${RunCmdTerminalName} terminal.`);
+      }
+
       return false;
     }
 

@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import { getSetToolEnvCommand, ToolChecker } from "./checkTool";
 import { getFindTopDistributionCommand, getSortCommandText } from "./commands";
 import { getConfigValueByRoot, getOverrideConfigByPriority } from "./configUtils";
-import { HomeFolder, IsLinux, IsWindows, IsWSL, RunCmdTerminalName } from "./constants";
+import { HomeFolder, IsLinux, IsMacOS, IsWindows, IsWSL, RunCmdTerminalName } from "./constants";
 import { DefaultRootFolder, getConfig, getGitIgnore, getSearchPathOptions, MappedExtToCodeFilePatternMap, MyConfig } from "./dynamicConfig";
 import { FindCommandType, TerminalType } from "./enums";
 import { getTerminalInitialPath, getTerminalNameOrShellExeName, getTerminalShellExePath, saveTextToFile } from './otherUtils';
@@ -435,7 +435,8 @@ export function cookCmdShortcutsOrFile(
     }
 
     if (shellExeName !== 'pwsh') {
-      runCmdInTerminal(`msr -p ${shellSettingsFile} 2>/dev/null -x 'source ${defaultAliasPathForBash}' -M; (($? == 0 || $? == 255 )) && echo 'source ${defaultAliasPathForBash}' >> ${shellSettingsFile}`);
+      // If file not found: Windows = -1; MinGW = 127; Linux = 255
+      runCmdInTerminal(`msr -p ${shellSettingsFile} 2>/dev/null -x 'source ${defaultAliasPathForBash}' -M; (($? == 0 || $? == -1 || $? == 255 || $? == 127)) && echo 'source ${defaultAliasPathForBash}' >> ${shellSettingsFile}`);
     }
   }
 
@@ -447,6 +448,8 @@ export function cookCmdShortcutsOrFile(
     }
   }
 
+  // MacBook terminal messy with long tip
+  const showLongTip = isFromMenu || !isRunCmdTerminal || !IsMacOS;
   if (TerminalType.PowerShell === terminalType && MyConfig.ChangePowerShellTerminalToCmdOrBash) {
     const setEnvCmd = getSetToolEnvCommand(terminalType, '; ');
     const colorPatternForCmdEscape = colorPattern.replace(/\|/g, '^|');
@@ -454,7 +457,9 @@ export function cookCmdShortcutsOrFile(
     const cmd = setEnvCmd + 'cmd /k ' + '"doskey /MACROFILE=' + quotedFileForPS // + ' && doskey /macros | msr -t find-def -x msr --nx use- --nt out- -e \\s+-+\\w+\\S* -PM'
       + ' & echo. & echo Type exit if you want to back to PowerShell. '
       + finalGuide + ' | msr -aPA -e .+ -x exit -it ' + colorPatternForCmdEscape + '"';
-    runCmdInTerminal(cmd, true);
+    if (showLongTip) {
+      runCmdInTerminal(cmd, true);
+    }
   } else if (TerminalType.Pwsh === terminalType && MyConfig.ChangePowerShellTerminalToCmdOrBash) {
     runPowerShellTip()
     runCmdInTerminal('bash --init-file ' + quotedCmdAliasFile);
@@ -467,24 +472,23 @@ export function cookCmdShortcutsOrFile(
       }
     }
     const cmd = 'msr -aPA -z "' + finalGuide + '" -e .+ -x ' + cmdAliasMap.size + ' -it "' + colorPattern + '"';
-    runCmdInTerminal(cmd, true);
+    if (showLongTip) {
+      runCmdInTerminal(cmd, true);
+    }
   }
 
   outputDebug(nowText() + 'Finished to cook command shortcuts. Cost ' + getTimeCostToNow(trackBeginTime) + ' seconds.');
 
   function runPowerShellShowFindCmdLocation() {
-    runCmdInTerminal('msr -l --wt --sz -p ' + quotePaths(generalScriptFilesFolder) + ' -f "^g?find-" -H 2 -T 2');
-    // Use extra PowerShell + msr to run command to avoid CMD terminal case.
-    const exampleCmd = TerminalType.PowerShell === terminalType
-      ? 'PowerShell -Command "Get-Command gfind-def" | msr --nt "^\\s*$" -e "\\w*find-\\w+" -PM'
-      : 'pwsh -Command "Get-Command gfind-def" | msr --nt "^\\s*$" -e "\\w*find-\\w+" -PM';
-    runCmdInTerminal(exampleCmd);
+    runCmdInTerminal('msr -l --wt --sz -p ' + quotePaths(generalScriptFilesFolder) + ' -f "^g?find-\\w+-def" -H 2 -T 2');
   }
 
   function runPowerShellTip() {
     runPowerShellShowFindCmdLocation();
-    const cmdToRun = 'msr -aPA -z "' + finalGuide + '" -e .+ -x ' + cmdAliasMap.size + ' -it "' + colorPattern + '"';
-    runCmdInTerminal(cmdToRun);
+    if (showLongTip) {
+      const cmdToRun = 'msr -aPA -z "' + finalGuide + '" -e .+ -x ' + cmdAliasMap.size + ' -it "' + colorPattern + '"';
+      runCmdInTerminal(cmdToRun);
+    }
   }
 
   function prepareEnvForLinuxTerminal(terminalType: TerminalType) {

@@ -2,6 +2,8 @@
 
 All notable changes to this "vscode-msr" extension will be documented in this file.
 
+## [2.1.45]
+- Improved terminal initialization of MSR-RUN-CMD for MinGW + MacBook.
 ## [2.1.44]
 - Added `msr.disableReRunSearch` as default to suppress re-running commands in `MSR-RUN-CMD` terminal.
 - Removed improper shortcuts.

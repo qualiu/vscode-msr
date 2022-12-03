@@ -22,7 +22,10 @@ export const IsWSL = !IsWindows && (
   /Microsoft/i.test(ChildProcess.execSync('uname -v').toString())
 );
 
-export const IsLinux = !IsWindows && !IsWSL;
+export const IsMacOS = !IsWindows
+  && /Darwin|Mac|\biOS\b|macOS|Apple/.test(ChildProcess.execSync('uname -smr').toString());
+
+export const IsLinux = !IsWindows && !IsMacOS && !IsWSL;
 
 export const ShouldQuotePathRegex = IsWindows ? /[^\w,\.\\/:~-]/ : /[^\w,\.\\/~-]/;
 export const HomeFolder = IsWindows ? path.join(process.env['USERPROFILE'] || '.') : process.env['HOME'] || '.';

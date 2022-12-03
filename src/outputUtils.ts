@@ -1,7 +1,7 @@
 import os = require('os');
 import { execSync } from 'child_process';
 import * as vscode from 'vscode';
-import { IsDebugMode, IsSupportedSystem, IsWindows, OutputChannelName, RunCmdTerminalName } from './constants';
+import { IsDebugMode, IsMacOS, IsSupportedSystem, IsWindows, OutputChannelName, RunCmdTerminalName } from './constants';
 import { cookCmdShortcutsOrFile, CookCmdTimesForRunCmdTerminal } from './cookCommandAlias';
 import { getConfig, MyConfig } from './dynamicConfig';
 import { getDefaultRootFolder, getDefaultRootFolderByActiveFile, IsLinuxTerminalOnWindows, nowText, replaceTextByRegex } from './utils';
@@ -14,9 +14,6 @@ const WindowsShell = UsePowershell ? 'powershell' : 'cmd.exe';
 export const ShellPath = IsWindows ? WindowsShell : 'bash';
 const ClearCmd = IsWindows && !UsePowershell ? 'cls' : "clear";
 const ShowColorHideCmdRegex = /\s+-[Cc](\s+|$)/g;
-
-// Skip using lock/concurrent-queue + library for simple scenario:
-let CommandQueue: string[] = [];
 
 export enum MessageLevel {
 	None = 0,
@@ -115,34 +112,12 @@ export function sendCommandToTerminal(command: string, terminal: vscode.Terminal
 	if (showTerminal) {
 		terminal.show();
 	}
-
-	CommandQueue.push(command.trim());
-	let commands: string[] = [];
-	while (true) {
-		const text = CommandQueue.pop();
-		if (!text) {
-			break;
-		}
-		commands.push(text)
+	if (clearAtFirst) {
+		// vscode.commands.executeCommand('workbench.action.terminal.clear');
+		terminal.sendText((isLinuxOnWindows || IsMacOS ? 'clear' : ClearCmd) + os.EOL, true);
 	}
 
-	for (let k = 0; k < commands.length; k++) {
-		if (clearAtFirst) {
-			// vscode.commands.executeCommand('workbench.action.terminal.clear');
-			terminal.sendText((isLinuxOnWindows ? 'clear' : ClearCmd) + os.EOL);
-		} else {
-			terminal.sendText(os.EOL);
-		}
-		terminal.sendText(commands[k].trim());
-		// Promise.resolve(new Promise((resolve) => { setTimeout(resolve, 200); }));
-		if (!IsWindows || isLinuxOnWindows) {
-			try {
-				execSync('sleep 0.3');
-			} catch (error) {
-				outputWarn(`Failed to run sleep for terminal:${terminal.name}: ${error}`)
-			}
-		}
-	};
+	terminal.sendText(command.trim() + os.EOL, true);
 }
 
 export function outputWarn(message: string, showWindow: boolean = true) {

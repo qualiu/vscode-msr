@@ -8,7 +8,7 @@ import { GitIgnore } from './gitUtils';
 import { getRunCmdTerminal, outputDebug, outputError, outputInfo, outputInfoClear } from './outputUtils';
 import { createRegex, escapeRegExp } from './regexUtils';
 import { SearchConfig } from './searchConfig';
-import { DefaultTerminalType, getDefaultRootFolderByActiveFile, getDefaultRootFolderName, getExtensionNoHeadDot, getRootFolder, getRootFolderName, getRootFolders, getUniqueStringSetNoCase, IsLinuxTerminalOnWindows, isLinuxTerminalOnWindows, isNullOrEmpty, IsWindowsTerminalOnWindows, nowText, quotePaths, toOsPath, toOsPaths, toOsPathsForText, toWSLPaths } from './utils';
+import { DefaultTerminalType, getDefaultRootFolderByActiveFile, getDefaultRootFolderName, getExtensionNoHeadDot, getRootFolder, getRootFolderName, getRootFolders, getUniqueStringSetNoCase, IsLinuxTerminalOnWindows, isLinuxTerminalOnWindows, isNullOrEmpty, IsWindowsTerminalOnWindows, nowText, quotePaths, toTerminalPath, toTerminalPaths, toTerminalPathsText, toWSLPaths } from './utils';
 
 const SplitPathsRegex = /\s*[,;]\s*/;
 const SplitPathGroupsRegex = /\s*;\s*/;
@@ -490,10 +490,10 @@ export function getSearchPathOptions(
     const shouldSearchExtraPaths = isFindingDefinition && useExtraSearchPathsForDefinition || !isFindingDefinition && useExtraSearchPathsForReference;
     if (!shouldSearchExtraPaths) {
         if (isNullOrEmpty(rootPaths)) { // files not in project
-            const searchPaths = quotePaths(isFindingDefinition ? toOsPath(replaceToRelativeSearchPath(toRunInTerminal, path.dirname(codeFilePath), rootFolder), terminalType) : codeFilePath);
+            const searchPaths = quotePaths(isFindingDefinition ? toTerminalPath(replaceToRelativeSearchPath(toRunInTerminal, path.dirname(codeFilePath), rootFolder), terminalType) : codeFilePath);
             return '-p ' + searchPaths;
         } else {
-            const searchPaths = quotePaths(toOsPathsForText(replaceToRelativeSearchPath(toRunInTerminal, rootPaths, rootFolder), terminalType));
+            const searchPaths = quotePaths(toTerminalPathsText(replaceToRelativeSearchPath(toRunInTerminal, rootPaths, rootFolder), terminalType));
             return recursiveOption + searchPaths + skipFolderOptions;
         }
     }
@@ -504,7 +504,7 @@ export function getSearchPathOptions(
 
     let searchPathSet = new Set<string>((rootPaths || (isFindingDefinition ? path.dirname(codeFilePath) : codeFilePath)).split(','));
     extraSearchPathSet.forEach(a => searchPathSet.add(a));
-    searchPathSet = toOsPaths(getUniqueStringSetNoCase(searchPathSet), terminalType);
+    searchPathSet = toTerminalPaths(getUniqueStringSetNoCase(searchPathSet), terminalType);
 
     let pathsText = Array.from(searchPathSet).join(',').replace(/"/g, '');
     pathsText = quotePaths(pathsText);
@@ -512,7 +512,7 @@ export function getSearchPathOptions(
         pathsText = '.';
     }
 
-    const pathListFileSet = toOsPaths(getUniqueStringSetNoCase(extraSearchPathFileListSet), terminalType);
+    const pathListFileSet = toTerminalPaths(getUniqueStringSetNoCase(extraSearchPathFileListSet), terminalType);
     let pathFilesText = Array.from(pathListFileSet).join(',').replace(/"/g, '');
     pathFilesText = quotePaths(pathFilesText);
 

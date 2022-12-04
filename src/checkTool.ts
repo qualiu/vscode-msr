@@ -8,7 +8,7 @@ import { MyConfig } from './dynamicConfig';
 import { TerminalType } from './enums';
 import { getHomeFolderForLinuxTerminalOnWindows, getTerminalShellExePath, isToolExistsInPath } from './otherUtils';
 import { checkIfSupported, clearOutputChannel, outputDebug, outputError, outputInfo, outputInfoByDebugMode, outputKeyInfo, outputWarn } from './outputUtils';
-import { checkAddFolderToPath, DefaultTerminalType, getTimeCostToNow, isLinuxTerminalOnWindows, isNullOrEmpty, isWindowsTerminalOnWindows, nowText, PathEnvName, quotePaths, runCommandGetOutput, toCygwinPath, toOsPath, toOsPaths } from './utils';
+import { checkAddFolderToPath, DefaultTerminalType, getElapsedSecondsToNow, isLinuxTerminalOnWindows, isNullOrEmpty, isWindowsTerminalOnWindows, nowText, PathEnvName, quotePaths, runCommandGetOutput, toCygwinPath, toTerminalPath, toTerminalPaths } from './utils';
 
 export const MsrExe = 'msr';
 const Is64BitOS = process.arch.includes('64');
@@ -127,7 +127,7 @@ export function getSetToolEnvCommand(terminalType: TerminalType, addTailTextIfNo
 		return '';
 	}
 
-	const toolFolders = Array.from(toOsPaths(toolFolderSet, terminalType));
+	const toolFolders = Array.from(toTerminalPaths(toolFolderSet, terminalType));
 	switch (terminalType) {
 		case TerminalType.CMD:
 			return 'SET "PATH=%PATH%;' + toolFolders.join(';') + ';"' + addTailTextIfNotEmpty;
@@ -220,7 +220,7 @@ export class ToolChecker {
 	private getTempSaveExePath(exeName64bit: string): string {
 		const saveExeName = this.getSaveExeName(exeName64bit);
 		const folder = isLinuxTerminalOnWindows(this.terminalType) ? getHomeFolderForLinuxTerminalOnWindows() : HomeFolder;
-		const savePath = path.join(toOsPath(folder, this.terminalType), saveExeName);
+		const savePath = path.join(toTerminalPath(folder, this.terminalType), saveExeName);
 		return this.isTerminalOfWindows ? savePath : savePath.replace(/\\/g, '/');
 	}
 
@@ -431,7 +431,7 @@ export class ToolChecker {
 		});
 		request.end();
 		request.on('error', (err) => {
-			outputDebug(nowText() + 'Failed to read source md5 from ' + sourceMd5FileUrl + '. Cost ' + getTimeCostToNow(trackCheckBeginTime) + ' seconds. Error: ' + err.message);
+			outputDebug(nowText() + 'Failed to read source md5 from ' + sourceMd5FileUrl + '. Cost ' + getElapsedSecondsToNow(trackCheckBeginTime) + ' seconds. Error: ' + err.message);
 			if (tryUrlIndex < SourceHomeUrlArray.length) {
 				this.checkToolNewVersion(tryUrlIndex + 1);
 			}
@@ -490,6 +490,6 @@ export class ToolChecker {
 			});
 		}
 
-		outputInfoByDebugMode(nowText() + 'Finished to check tool versions. Cost ' + getTimeCostToNow(trackCheckBeginTime) + ' seconds.');
+		outputInfoByDebugMode(nowText() + 'Finished to check tool versions. Cost ' + getElapsedSecondsToNow(trackCheckBeginTime) + ' seconds.');
 	}
 }

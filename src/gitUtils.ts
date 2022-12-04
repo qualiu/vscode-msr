@@ -6,7 +6,7 @@ import { IsWSL, OutputChannelName, RunCmdTerminalName } from './constants';
 import { TerminalType } from './enums';
 import { saveTextToFile } from './otherUtils';
 import { outputError, outputInfo, outputInfoByDebugMode, outputWarn, RunCmdTerminalRootFolder, runCommandInTerminal, runRawCommandInTerminal } from './outputUtils';
-import { DefaultTerminalType, getTempFolder, IsLinuxTerminalOnWindows, isNullOrEmpty, isWindowsTerminalOnWindows, nowText, quotePaths, toOsPath, toWSLPath } from './utils';
+import { DefaultTerminalType, getTempFolder, IsLinuxTerminalOnWindows, isNullOrEmpty, isWindowsTerminalOnWindows, nowText, quotePaths, toTerminalPath, toWSLPath } from './utils';
 
 // Another solution: (1) git ls-files > project-file-list.txt ; (2) msr -w project-file-list.txt  (3) file watcher + update list.
 // Show junk files: (1) git ls-files --ignored --others --exclude-standard (2) git ls-files --others --ignored -X .gitignore
@@ -106,7 +106,7 @@ export class GitIgnore {
 
     if (pattern !== this.LastExportedSkipPaths) {
       this.LastExportedSkipPaths = pattern;
-      const command = (this.IsCmdTerminal ? 'call ' : 'source ') + quotePaths(toOsPath(this.SetSkipPathEnvFile, this.Terminal));
+      const command = (this.IsCmdTerminal ? 'call ' : 'source ') + quotePaths(toTerminalPath(this.SetSkipPathEnvFile, this.Terminal));
       runCommandInTerminal(command, true, false, IsLinuxTerminalOnWindows);
     }
 

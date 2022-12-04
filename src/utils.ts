@@ -86,7 +86,7 @@ export function changeFindingCommandForLinuxTerminalOnWindows(command: string): 
 
     const paths = match[1].startsWith('"') ? match[2].substr(1, match[2].length - 2) : match[2];
     const newPaths = paths.split(/\s*[,;]/)
-        .map((p, _index, _a) => toOsPath(p)
+        .map((p, _index, _a) => toTerminalPath(p)
         );
 
     return match[1] + ' ' + quotePaths(newPaths.join(',')) + command.substring(match[0].length);
@@ -149,25 +149,25 @@ export function quotePaths(paths: string, quote = '"') {
     }
 }
 
-export function toMinGWPath(winPath: string) {
-    const match = MatchWindowsDiskRegex.exec(winPath);
+export function toMinGWPath(windowsPath: string): string {
+    const match = MatchWindowsDiskRegex.exec(windowsPath);
     if (!match) {
-        return replaceToForwardSlash(winPath);
+        return replaceToForwardSlash(windowsPath);
     }
-    const path = '/' + match[1].toLowerCase() + replaceToForwardSlash(winPath.substring(match.length));
+    const path = '/' + match[1].toLowerCase() + replaceToForwardSlash(windowsPath.substring(match.length));
     return path.replace(' ', '\\ ');
 }
 
-export function toCygwinPath(winPath: string) {
-    const match = MatchWindowsDiskRegex.exec(winPath);
+export function toCygwinPath(windowsPath: string): string {
+    const match = MatchWindowsDiskRegex.exec(windowsPath);
     if (!match) {
-        return replaceToForwardSlash(winPath);
+        return replaceToForwardSlash(windowsPath);
     }
-    const path = '/cygdrive/' + match[1].toLowerCase() + replaceToForwardSlash(winPath.substring(match.length));
+    const path = '/cygdrive/' + match[1].toLowerCase() + replaceToForwardSlash(windowsPath.substring(match.length));
     return path.replace(' ', '\\ ');
 }
 
-export function toOsPath(windowsPath: string, terminalType: TerminalType = DefaultTerminalType): string {
+export function toTerminalPath(windowsPath: string, terminalType: TerminalType = DefaultTerminalType): string {
     if (IsWSL || TerminalType.WslBash === terminalType) {
         return toWSLPath(windowsPath, TerminalType.WslBash === terminalType);
     } else if (TerminalType.CygwinBash === terminalType) {
@@ -179,34 +179,30 @@ export function toOsPath(windowsPath: string, terminalType: TerminalType = Defau
     }
 }
 
-export function toOsPathBySetting(windowsPath: string): string {
-    return toOsPath(windowsPath, DefaultTerminalType);
-}
-
-export function toOsPathsForText(windowsPaths: string, terminalType: TerminalType): string {
-    const paths = windowsPaths.split(/\s*[,;]/).map((p, _index, _a) => toOsPath(p, terminalType));
+export function toTerminalPathsText(windowsPaths: string, terminalType: TerminalType): string {
+    const paths = windowsPaths.split(/\s*[,;]/).map((p, _index, _a) => toTerminalPath(p, terminalType));
     return paths.join(",");
 }
 
-export function toOsPaths(windowsPaths: Set<string>, terminalType: TerminalType): Set<string> {
+export function toTerminalPaths(windowsPaths: Set<string>, terminalType: TerminalType): Set<string> {
     if (!IsWSL && TerminalType.WslBash !== terminalType && TerminalType.CygwinBash !== terminalType && TerminalType.MinGWBash !== terminalType) {
         return windowsPaths;
     }
 
     let pathSet = new Set<string>();
     windowsPaths.forEach(a => {
-        const path = toOsPath(a, terminalType);
+        const path = toTerminalPath(a, terminalType);
         pathSet.add(path);
     });
 
     return pathSet;
 }
 
-export function toPath(parsedPath: ParsedPath) {
+export function toPath(parsedPath: ParsedPath): string {
     return path.join(parsedPath.dir, parsedPath.base);
 }
 
-export function toWSLPath(winPath: string, isWslTerminal: boolean = false) {
+export function toWSLPath(winPath: string, isWslTerminal: boolean = false): string {
     if (!IsWSL && !isWslTerminal) {
         return winPath;
     }
@@ -244,11 +240,11 @@ export function nowText(tailText: string = ' '): string {
     return new Date().toISOString() + tailText;
 }
 
-export function getTimeCost(begin: Date, end: Date): number {
+export function getElapsedSeconds(begin: Date, end: Date): number {
     return (end.valueOf() - begin.valueOf()) / 1000;
 }
 
-export function getTimeCostToNow(begin: Date): number {
+export function getElapsedSecondsToNow(begin: Date): number {
     return (Date.now() - begin.valueOf()) / 1000;
 }
 

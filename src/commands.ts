@@ -8,7 +8,7 @@ import { enableColorAndHideCommandLine, outputDebug, outputInfo, RunCmdTerminalR
 import { Ranker } from './ranker';
 import { escapeRegExp, NormalTextRegex } from './regexUtils';
 import { SearchConfig } from './searchConfig';
-import { changeFindingCommandForLinuxTerminalOnWindows, DefaultTerminalType, getCurrentWordAndText, getDefaultRootFolderByActiveFile, getExtensionNoHeadDot, getRootFolder, getRootFolderName, IsLinuxTerminalOnWindows, isLinuxTerminalOnWindows, isNullOrEmpty, IsWindowsTerminalOnWindows, nowText, quotePaths, replaceSearchTextHolder, replaceTextByRegex, setSearchPathInCommand, toOsPath, toPath } from './utils';
+import { changeFindingCommandForLinuxTerminalOnWindows, DefaultTerminalType, getCurrentWordAndText, getDefaultRootFolderByActiveFile, getExtensionNoHeadDot, getRootFolder, getRootFolderName, IsLinuxTerminalOnWindows, isLinuxTerminalOnWindows, isNullOrEmpty, IsWindowsTerminalOnWindows, nowText, quotePaths, replaceSearchTextHolder, replaceTextByRegex, setSearchPathInCommand, toPath, toTerminalPath } from './utils';
 import path = require('path');
 
 const ReplaceSearchPathRegex = /-r?p\s+\S+|-r?p\s+\".+?\"/g;
@@ -153,7 +153,7 @@ export function getFindingCommandByCurrentWord(toRunInTerminal: boolean, findCmd
     const mappedExt = FileExtensionToMappedExtensionMap.get(extension) || extension;
     const rootFolder = getRootFolder(toPath(parsedFile), true) || '.';
     const rootFolderName = getRootFolderName(rootFolder, true);
-    const rootFolderOsPath = toOsPath(rootFolder);
+    const rootFolderOsPath = toTerminalPath(rootFolder);
     const shouldChangeFolder = rootFolderOsPath.startsWith('/') && toRunInTerminal && IsLinuxTerminalOnWindows && SearchConfig.SearchRelativePathForLinuxTerminalsOnWindows;
     const findCmdText = FindCommandType[findCmd];
     function changeSearchFolderInCommand(command: string): string {
@@ -337,7 +337,7 @@ export function getFindingCommandByCurrentWord(toRunInTerminal: boolean, findCmd
 
     const terminalType = !toRunInTerminal && isLinuxTerminalOnWindows() ? TerminalType.CMD : DefaultTerminalType;
     const parsedFilePath = toPath(parsedFile);
-    const osFilePath = toOsPath(parsedFilePath, terminalType);
+    const osFilePath = toTerminalPath(parsedFilePath, terminalType);
     const useExtraPaths = 'true' === getConfigValueByRoot(rootFolderName, extension, mappedExt, 'findingCommands.useExtraPaths');
     const searchPathsOptions = getSearchPathOptions(toRunInTerminal, true, parsedFilePath, mappedExt, FindCommandType.RegexFindAsClassOrMethodDefinitionInCodeFiles === findCmd, useExtraPaths, useExtraPaths);
 

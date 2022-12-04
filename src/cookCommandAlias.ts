@@ -147,7 +147,7 @@ export function cookCmdShortcutsOrFile(
 
   const [shellExe, terminalType] = getShellExeAndTerminalType(newTerminal);
   const shellExeName = path.basename(shellExe).replace(/\.exe$/i, ''); // Remove .exe for Linux bash on Windows.
-  const shellSettingsFile = "~/." + shellExeName + "rc";
+  const shellSettingsFile = "~/." + (isNullOrEmpty(shellExeName) ? 'bash' : shellExeName) + "rc";
   const loadShellSettingsCommand = `source ${shellSettingsFile}`;
   const shellExeFolder = path.dirname(shellExe);
   const isRunCmdTerminal = newTerminal !== undefined && newTerminal != null && newTerminal.name === RunCmdTerminalName;
@@ -466,9 +466,9 @@ export function cookCmdShortcutsOrFile(
   } else {
     if (!isPowerShellTerminal(terminalType)) {
       if (isWindowsTerminal) {
-        runCmdInTerminal('malias "update-\\S*alias^|open-\\S*alias" -e "(.:.+)" -M', true);
+        runCmdInTerminal('malias "update-\\S*alias^|open-\\S*alias" -e "(.:.+)" -M -H 2 -T2', true);
       } else {
-        runCmdInTerminal('malias "update-\\S*alias|open-\\S*alias" -e "(.:.+|[~/].+\\w+)" -M', true);
+        runCmdInTerminal('malias "update-\\S*alias|open-\\S*alias" -e "(.:.+|[~/].+\\w+)" -M -H 2 -T2', true);
       }
     }
     const cmd = 'msr -aPA -z "' + finalGuide + '" -e .+ -x ' + cmdAliasMap.size + ' -it "' + colorPattern + '"';

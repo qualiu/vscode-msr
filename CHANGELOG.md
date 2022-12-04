@@ -2,6 +2,9 @@
 
 All notable changes to this "vscode-msr" extension will be documented in this file.
 
+## [2.1.47] 
+- Trivial update for MacOS `MSR-RUN-CMD` terminal.
+
 ## [2.1.46]
 - Trivial update for MinGW terminal on Windows.
 

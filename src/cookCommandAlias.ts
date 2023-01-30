@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import { getSetToolEnvCommand, ToolChecker } from "./checkTool";
 import { getFindTopDistributionCommand, getSortCommandText } from "./commands";
 import { getConfigValueByRoot, getOverrideConfigByPriority } from "./configUtils";
-import { HomeFolder, IsLinux, IsMacOS, IsWindows, IsWSL, RunCmdTerminalName } from "./constants";
+import { HomeFolder, IsLinux, IsWindows, IsWSL, RunCmdTerminalName } from "./constants";
 import { DefaultRootFolder, getConfig, getGitIgnore, getSearchPathOptions, MappedExtToCodeFilePatternMap, MyConfig } from "./dynamicConfig";
 import { FindCommandType, TerminalType } from "./enums";
 import { getTerminalInitialPath, getTerminalNameOrShellExeName, getTerminalShellExePath, saveTextToFile } from './otherUtils';
@@ -160,10 +160,10 @@ export function cookCmdShortcutsOrFile(
   const isLinuxTerminalOnWindows = IsWindows && !isWindowsTerminal;
   const generalScriptFilesFolder = path.join(getCmdAliasSaveFolder(true, terminalType), 'cmdAlias');
   if (isPowerShellTerminal(terminalType) && !MyConfig.ChangePowerShellTerminalToCmdOrBash) {
-    const testScriptName = TerminalType.PowerShell === terminalType ? 'gfind-all.cmd' : 'gfind-all';
+    const testScriptName = isWindowsTerminal && IsWindows ? 'gfind-all.cmd' : 'gfind-all';
     const testPath = path.join(generalScriptFilesFolder, testScriptName);
     if (!isSelfLoopCalling && !fs.existsSync(testPath)) {
-      cookCmdShortcutsOrFile(false, currentFilePath, false, true, newTerminal, false, true);
+      cookCmdShortcutsOrFile(isFromMenu, currentFilePath, false, true, newTerminal, false, true);
     }
   }
 
@@ -189,7 +189,7 @@ export function cookCmdShortcutsOrFile(
 
     cmdAliasMap.set('malias', getCommandAliasText('malias', aliasBody, false, true, writeToEachFile));
   } else if (!isWindowsTerminal) {
-    cmdAliasMap.set('malias', getCommandAliasText('malias', 'alias | msr -PI -t "^\\s*alias\\s+($1)"', true, false, writeToEachFile));
+    cmdAliasMap.set('malias', getCommandAliasText('malias', 'alias | msr -PI -t "^(?:alias\\s+)?($1)"', true, false, writeToEachFile));
   }
 
   const defaultCmdAliasFileForTerminal = toTerminalPath(defaultCmdAliasFile, terminalType);
@@ -449,8 +449,8 @@ export function cookCmdShortcutsOrFile(
   }
 
   // MacBook terminal messy with long tip
-  const showLongTip = isFromMenu || !isRunCmdTerminal || !IsMacOS;
-  if (TerminalType.PowerShell === terminalType && MyConfig.ChangePowerShellTerminalToCmdOrBash) {
+  const showLongTip = MyConfig.ShowLongTip; //!IsMacOS || (isFromMenu && !IsMacOS) || (!isRunCmdTerminal && (!isFromMenu || !IsMacOS));
+  if (TerminalType.PowerShell === terminalType && IsWindows && MyConfig.ChangePowerShellTerminalToCmdOrBash) {
     const setEnvCmd = getSetToolEnvCommand(terminalType, '; ');
     const colorPatternForCmdEscape = colorPattern.replace(/\|/g, '^|');
     const quotedFileForPS = quotedCmdAliasFile === cmdAliasFile ? cmdAliasFile : '`"' + cmdAliasFile + '`"';

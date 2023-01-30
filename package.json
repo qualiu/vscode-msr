@@ -3,7 +3,7 @@
 	"displayName": "Code mining + Replace file + Find definition and reference for all types.",
 	"description": "Code mining + Replace file + Find definition and reference in multiple repository paths by msr for all coding languages + configuration + doc files.",
 	"author": "qualiu@microsoft.com",
-	"version": "2.1.47",
+	"version": "2.1.48",
 	"icon": "images/vscode-msr-icon.png",
 	"license": "completely free",
 	"publisher": "qualiu",
@@ -1308,6 +1308,11 @@
 					"type": "string",
 					"default": "",
 					"description": "Add '@SetLocal EnableExtensions EnableDelayedExpansion' or set to empty when cooking each command alias/doskeys to a batch script file named alias.cmd"
+				},
+				"msr.cookCmdAlias.showLongTip": {
+					"type": "boolean",
+					"default": true,
+					"description": "Show long tip guide for command alias in terminals."
 				},
 				"msr.searchRelativePathForLinuxTerminalsOnWindows": {
 					"type": "boolean",

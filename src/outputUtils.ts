@@ -118,6 +118,14 @@ export function sendCommandToTerminal(command: string, terminal: vscode.Terminal
 	}
 
 	terminal.sendText(command.trim() + os.EOL, true);
+	if (IsMacOS) { // MacOS terminal will break if sending command lines to fast.
+		try {
+			const sleepMilliseconds = command.trim().length / 1000;
+			execSync('sleep ' + sleepMilliseconds);
+		} catch (error) {
+			console.log(error);
+		}
+	}
 }
 
 export function outputWarn(message: string, showWindow: boolean = true) {

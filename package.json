@@ -3,7 +3,7 @@
 	"displayName": "Code mining + Replace file + Find definition and reference for all types.",
 	"description": "Code mining + Replace file + Find definition and reference in multiple repository paths by msr for all coding languages + configuration + doc files.",
 	"author": "qualiu@microsoft.com",
-	"version": "2.1.48",
+	"version": "2.1.49",
 	"icon": "images/vscode-msr-icon.png",
 	"license": "completely free",
 	"publisher": "qualiu",
@@ -1078,6 +1078,11 @@
 					"type": "boolean",
 					"default": true,
 					"description": "Find references in all root folders of current vscode workspace (if have multiple root folders)."
+				},
+				"msr.reference.autoChangeSearchWord": {
+					"type": "boolean",
+					"default": true,
+					"description": "Auto change word variations when finding references for languages like Java Spring Boot."
 				},
 				"msr.descendingSortForVSCode": {
 					"type": "boolean",

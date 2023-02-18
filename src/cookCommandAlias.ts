@@ -8,7 +8,8 @@ import { FindCommandType, TerminalType } from "./enums";
 import { getTerminalInitialPath, getTerminalNameOrShellExeName, getTerminalShellExePath, saveTextToFile } from './otherUtils';
 import { clearOutputChannel, enableColorAndHideCommandLine, HasCreatedRunCmdTerminal, outputDebug, outputError, outputInfoQuiet, runCommandInTerminal, sendCommandToTerminal } from "./outputUtils";
 import { escapeRegExp } from "./regexUtils";
-import { DefaultTerminalType, getElapsedSecondsToNow, getRootFolder, getRootFolderName, getUniqueStringSetNoCase, IsLinuxTerminalOnWindows, isLinuxTerminalOnWindows, isNullOrEmpty, isPowerShellTerminal, isWindowsTerminalType, nowText, quotePaths, replaceSearchTextHolder, replaceTextByRegex, toTerminalPath, toTerminalPathsText, toWSLPath } from "./utils";
+import { DefaultTerminalType, getElapsedSecondsToNow, getPowerShellName, getRootFolder, getRootFolderName, getUniqueStringSetNoCase, IsLinuxTerminalOnWindows, isLinuxTerminalOnWindows, isNullOrEmpty, isPowerShellTerminal, isWindowsTerminalType, nowText, quotePaths, replaceSearchTextHolder, replaceTextByRegex, toTerminalPath, toTerminalPathsText, toWSLPath } from "./utils";
+import { FindJavaSpringReferenceCodeInPowerShell } from './wordReferenceUtils';
 import fs = require('fs');
 import os = require('os');
 import path = require('path');
@@ -185,11 +186,11 @@ export function cookCmdShortcutsOrFile(
     const existingOpenDoskey = cmdAliasMap.get('open-doskeys') as string || '';
     const matchTool = /=(\w+\S+|"\w+.*?")/.exec(existingOpenDoskey);
     toolToOpen = isNullOrEmpty(existingOpenDoskey) || !matchTool ? 'code' : matchTool[1];
-    cmdAliasMap.set('alias', getCommandAliasText('alias', aliasBody, false, true, writeToEachFile));
+    cmdAliasMap.set('alias', getCommandAliasText('alias', aliasBody, false, TerminalType.CMD, writeToEachFile));
 
-    cmdAliasMap.set('malias', getCommandAliasText('malias', aliasBody, false, true, writeToEachFile));
+    cmdAliasMap.set('malias', getCommandAliasText('malias', aliasBody, false, TerminalType.CMD, writeToEachFile));
   } else if (!isWindowsTerminal) {
-    cmdAliasMap.set('malias', getCommandAliasText('malias', 'alias | msr -PI -t "^(?:alias\\s+)?($1)"', true, false, writeToEachFile));
+    cmdAliasMap.set('malias', getCommandAliasText('malias', 'alias | msr -PI -t "^(?:alias\\s+)?($1)"', true, TerminalType.WslBash, writeToEachFile));
   }
 
   const defaultCmdAliasFileForTerminal = toTerminalPath(defaultCmdAliasFile, terminalType);
@@ -231,25 +232,25 @@ export function cookCmdShortcutsOrFile(
     const findTopBody = getFindTopDistributionCommand(false, useProjectSpecific, true, findTopCmd, rootFolder);
     let aliasName = replaceTextByRegex(FindCommandType[findTopCmd], /([a-z])([A-Z])/g, '$1-$2');
     aliasName = replaceTextByRegex(aliasName, /^-|-$/g, '').toLowerCase();
-    cmdAliasMap.set(aliasName, getCommandAliasText(aliasName, findTopBody, false, isWindowsTerminal, writeToEachFile, false, false));
+    cmdAliasMap.set(aliasName, getCommandAliasText(aliasName, findTopBody, false, terminalType, writeToEachFile, false, false));
   });
 
   [FindCommandType.SortBySize, FindCommandType.SortByTime, FindCommandType.SortSourceBySize, FindCommandType.SortSourceByTime, FindCommandType.SortCodeBySize, FindCommandType.SortCodeByTime].forEach(sortCmd => {
     const sortBody = getSortCommandText(false, useProjectSpecific, true, sortCmd, rootFolder, true);
     let aliasName = replaceTextByRegex(FindCommandType[sortCmd], /([a-z])([A-Z])/g, '$1-$2');
     aliasName = replaceTextByRegex(aliasName, /^-|-$/g, '').toLowerCase();
-    cmdAliasMap.set(aliasName, getCommandAliasText(aliasName, sortBody, false, isWindowsTerminal, writeToEachFile, false, false));
+    cmdAliasMap.set(aliasName, getCommandAliasText(aliasName, sortBody, false, terminalType, writeToEachFile, false, false));
   });
 
   const useFullPathsBody = getPathCmdAliasBody(true, cmdAliasFile, false);
-  cmdAliasMap.set('use-fp', getCommandAliasText('use-fp', useFullPathsBody, false, isWindowsTerminal, writeToEachFile, false, false));
+  cmdAliasMap.set('use-fp', getCommandAliasText('use-fp', useFullPathsBody, false, terminalType, writeToEachFile, false, false));
   const searchRelativePathsBody = getPathCmdAliasBody(false, cmdAliasFile, false);
-  cmdAliasMap.set('use-rp', getCommandAliasText('use-rp', searchRelativePathsBody, false, isWindowsTerminal, writeToEachFile, false, false));
+  cmdAliasMap.set('use-rp', getCommandAliasText('use-rp', searchRelativePathsBody, false, terminalType, writeToEachFile, false, false));
 
   const outFullPathsBody = getPathCmdAliasBody(true, cmdAliasFile, true, true);
-  cmdAliasMap.set('out-fp', getCommandAliasText('out-fp', outFullPathsBody, false, isWindowsTerminal, writeToEachFile, false, false));
+  cmdAliasMap.set('out-fp', getCommandAliasText('out-fp', outFullPathsBody, false, terminalType, writeToEachFile, false, false));
   const outRelativePathsBody = getPathCmdAliasBody(false, cmdAliasFile, true, false);
-  cmdAliasMap.set('out-rp', getCommandAliasText('out-rp', outRelativePathsBody, false, isWindowsTerminal, writeToEachFile, false, false));
+  cmdAliasMap.set('out-rp', getCommandAliasText('out-rp', outRelativePathsBody, false, terminalType, writeToEachFile, false, false));
 
   // Duplicate find-xxx to git ls-file & find-xxx; except find-nd / find-ndp
   const sortedCmdKeys = Array.from(cmdAliasMap.keys()).sort();
@@ -870,6 +871,24 @@ function getCommandAliasMap(
   const allSmallFilesOptions = addFullPathHideWarningOption(findSmallOptions, writeToEachFile);
   commands.push(getCommandAlias('find-small', 'msr -rp .' + getSkipFolderPatternForCmdAlias() + ' ' + allSmallFilesOptions, false));
 
+  // find-spring-ref
+  let oneLineCode = FindJavaSpringReferenceCodeInPowerShell.split(/[\r\n]+\s*/).join(' ');
+  if (!isWindowsTerminal) {
+    oneLineCode = oneLineCode.replace(/(\$[a-z]\w+)/g, '\\$1');
+  }
+  const javaFilePattern = MappedExtToCodeFilePatternMap.get('java') || "\\.java$";
+  let psCode: string = oneLineCode
+    + '; msr -rp .' + getSkipFolderPatternForCmdAlias() + " -f '" + javaFilePattern + "'"
+    + (isWindowsTerminal ? " -t $pattern " : " -t \\$pattern ") + extraOption;
+  if (isWindowsTerminal) {
+    psCode = psCode.replace(/"/g, "'").trim();
+  } else {
+    psCode = psCode.replace(/'/g, '"').replace(/"/g, '\\"').trim();
+  }
+  const findSpringRefCmd = getCommandAliasText('find-spring-ref', psCode, true, terminalType, writeToEachFile, true, true, true);
+  cmdAliasMap.set('find-spring-ref', findSpringRefCmd);
+  commands.push(findSpringRefCmd);
+
   copyAliasForSpecialShortcuts();
   return [cmdAliasMap, oldCmdCount, commands];
 
@@ -906,7 +925,7 @@ function getCommandAliasMap(
   }
 
   function getCommandAlias(cmdName: string, body: string, useFunction: boolean): string {
-    let text = getCommandAliasText(cmdName, body, useFunction, isWindowsTerminal, writeToEachFile);
+    let text = getCommandAliasText(cmdName, body, useFunction, terminalType, writeToEachFile);
 
     // Workaround for find-def + find-xxx-def
     const hotFixFindDefRegex = /^find(-[\w-]+)?-def$/;
@@ -923,55 +942,72 @@ function getCommandAliasText(
   cmdName: string,
   cmdBody: string,
   useFunction: boolean,
-  isWindowsTerminal: boolean,
+  terminalType: TerminalType,
   writeToEachFile: boolean,
   addTailArgs: boolean = true,
-  hideCmdAddColor: boolean = true): string {
+  hideCmdAddColor: boolean = true,
+  isPowerShellScript: boolean = false): string {
   if (hideCmdAddColor) {
     cmdBody = enableColorAndHideCommandLine(cmdBody);
   }
 
+  const isWindowsTerminal = isWindowsTerminalType(terminalType);
   const hasSearchTextHolder = isWindowsTerminal ? /%~?1/.test(cmdBody) : /\$1|%~?1/.test(cmdBody);
   if (hasSearchTextHolder) {
     cmdBody = replaceSearchTextHolder(cmdBody.trimRight(), '$1');
   }
 
-  const tailArgs = !addTailArgs
-    ? ""
-    : (hasSearchTextHolder
+  let tailArgs = "";
+  if (addTailArgs) {
+    if (hasSearchTextHolder) {
+      if (isPowerShellScript) { // only for find-spring-ref
+        tailArgs = isWindowsTerminal
+          ? ' $2 $3 $4 $5 $6 $7 $8 $9'
+          //: ' $2 $3 $4 $5 $6 $7 $8 $9'.replace(/\$(\d+)/g, "'\\$$$1'"); // good
+          : " '\\${@:2}'";
+      }
       // For Windows must be: ' $2 $3 $4 $5 $6 $7 $8 $9', but msr can ignore duplicate $1, so this tricky way works fine, and avoid truncating long args.
-      ? (isWindowsTerminal ? ' $*' : ' "${@:2}"')
-      : (isWindowsTerminal ? ' $*' : ' "$@"')
-    );
-
-  let commandText = '';
-  if (isWindowsTerminal) {
-    if (writeToEachFile) {
-      commandText = '@' + cmdBody + tailArgs;
-      commandText = replaceArgForWindowsCmdAlias(commandText);
-    } else {
-      commandText = cmdName + '=' + cmdBody + tailArgs;
-    }
-  } else {
-    if (useFunction) {
-      const functionName = '_' + cmdName.replace(/-/g, '_');
-      if (writeToEachFile) {
-        commandText = cmdBody + tailArgs;
-      } else {
-        commandText = 'alias ' + cmdName + "='function " + functionName + '() {'
-          + '\n\t' + cmdBody + tailArgs
-          + '\n' + '}; ' + functionName + "'";
+      else {
+        tailArgs = isWindowsTerminal ? ' $*' : ' "${@:2}"';
       }
     } else {
-      if (writeToEachFile) {
-        commandText = cmdBody + tailArgs;
-      } else {
-        commandText = 'alias ' + cmdName + "='" + cmdBody + tailArgs + "'";
-      }
+      tailArgs = isWindowsTerminal ? ' $*' : ' "$@"';
     }
   }
 
-  return commandText;
+  return getCommandTextByNameAndBody(cmdName, cmdBody, tailArgs, useFunction, terminalType, writeToEachFile, isPowerShellScript);
+}
+
+function getCommandTextByNameAndBody(cmdName: string, cmdBody: string, tailArgs: string, useFunction: boolean, terminalType: TerminalType, writeToEachFile: boolean, isPowerShellScript: boolean = false) {
+  const powerShellCmdText = getPowerShellName(terminalType) + ' -Command "' + cmdBody + tailArgs + '"';
+  if (isWindowsTerminalType(terminalType)) {
+    if (writeToEachFile) {
+      return isPowerShellScript
+        ? powerShellCmdText
+        : replaceArgForWindowsCmdAlias('@' + cmdBody + tailArgs);
+    }
+
+    return isPowerShellScript
+      ? cmdName + '=' + powerShellCmdText
+      : cmdName + '=' + cmdBody + tailArgs;
+  }
+
+  const funBody = isPowerShellScript ? powerShellCmdText : cmdBody + tailArgs;
+  if (useFunction) {
+    const functionName = '_' + cmdName.replace(/-/g, '_');
+    if (writeToEachFile) {
+      return funBody;
+    }
+
+    return 'alias ' + cmdName + "='function " + functionName + '() {'
+      + '\n\t' + funBody
+      + '\n' + '}; ' + functionName + "'";
+  }
+
+  if (writeToEachFile) {
+    return funBody;
+  }
+  return 'alias ' + cmdName + "='" + funBody + "'";
 }
 
 function outputCmdAliasGuide(cmdAliasFile: string, singleScriptFolder: string = '') {

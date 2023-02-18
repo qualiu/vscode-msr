@@ -9,6 +9,7 @@ import { Ranker } from './ranker';
 import { escapeRegExp, NormalTextRegex } from './regexUtils';
 import { SearchConfig } from './searchConfig';
 import { changeFindingCommandForLinuxTerminalOnWindows, DefaultTerminalType, getCurrentWordAndText, getDefaultRootFolderByActiveFile, getExtensionNoHeadDot, getRootFolder, getRootFolderName, IsLinuxTerminalOnWindows, isLinuxTerminalOnWindows, isNullOrEmpty, IsWindowsTerminalOnWindows, nowText, quotePaths, replaceSearchTextHolder, replaceTextByRegex, setSearchPathInCommand, toPath, toTerminalPath } from './utils';
+import { changeToReferencePattern } from './wordReferenceUtils';
 import path = require('path');
 
 const ReplaceSearchPathRegex = /-r?p\s+\S+|-r?p\s+\".+?\"/g;
@@ -31,18 +32,26 @@ export function runFindingCommand(findCmd: FindCommandType, textEditor: vscode.T
         outputDebug(nowText() + 'Your extension "vscode-msr": finding-commands is disabled by setting of `msr.enable.findingCommands`.');
     }
 
+    const parsedFile = path.parse(textEditor.document.fileName);
     const findCmdText = FindCommandType[findCmd];
     let [currentWord] = getCurrentWordAndText(textEditor.document, textEditor.selection.active, textEditor);
     const escapeHolder1 = '-ESCAPE-#-Holder#1-';
     const escapeHolder2 = '-ESCAPE-#-Holder#2-';
     currentWord = currentWord.replace(/%1/g, escapeHolder1).replace(/%~1/g, escapeHolder2);
     const isRegexFinding = findCmdText.match(/Regex/i);
+    const isFindReference = findCmdText.match(/Reference/i);
+    const variedWordForReference = isRegexFinding && isFindReference
+        ? changeToReferencePattern(currentWord, parsedFile)
+        : currentWord;
+
     const rawSearchText = !isRegexFinding && IsWindowsTerminalOnWindows ? currentWord : currentWord.replace(/\\/g, '\\\\');
     const searchText = isRegexFinding
-        ? escapeRegExpForFindingCommand(currentWord)
+        ? (isFindReference && variedWordForReference !== currentWord
+            ? variedWordForReference
+            : escapeRegExpForFindingCommand(currentWord)
+        )
         : rawSearchText;
 
-    const parsedFile = path.parse(textEditor.document.fileName);
     let command = getFindingCommandByCurrentWord(true, findCmd, searchText, parsedFile, rawSearchText, undefined);
     command = command.replace(new RegExp(escapeHolder1, 'g'), '%1').replace(new RegExp(escapeHolder2, 'g'), '%~1');
     if (findCmdText.includes('FindTop')) {
@@ -205,12 +214,17 @@ export function getFindingCommandByCurrentWord(toRunInTerminal: boolean, findCmd
     }
 
     if (isFindReference) {
-        if (/^\W/.test(searchText) && searchPattern.startsWith('\\b')) {
-            searchPattern = searchPattern.substring(2);
+        if (searchText.startsWith('\\b') && searchText.endsWith('\\b')) {
+            searchPattern = searchPattern.substring(2, searchPattern.length - 2);
         }
+        else {
+            if (/^\W/.test(searchText) && searchPattern.startsWith('\\b')) {
+                searchPattern = searchPattern.substring(2);
+            }
 
-        if (/\W$/.test(searchText) && searchPattern.endsWith('\\b')) {
-            searchPattern = searchPattern.substring(0, searchPattern.length - 2);
+            if (/\W$/.test(searchText) && searchPattern.endsWith('\\b')) {
+                searchPattern = searchPattern.substring(0, searchPattern.length - 2);
+            }
         }
     }
 

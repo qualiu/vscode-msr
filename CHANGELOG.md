@@ -2,6 +2,10 @@
 
 All notable changes to this "vscode-msr" extension will be documented in this file.
 
+## [2.1.49]
+- Auto change reference words for Java Spring when finding words from menu.
+- Added `find-spring-ref` alias for `CMD`/`Bash` - requires `PowerShell/pwsh` .
+
 ## [2.1.48]
 - Added `msr.cookCmdAlias.showLongTip` to hide/show long tip for command alias in terminals.
 - Fixed issues in MacOS: Corrected `malias` + Fixed random command line break in `MSR-RUN-CMD` terminal.

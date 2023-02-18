@@ -173,6 +173,7 @@ export class DynamicConfig {
     public ScriptFileExtensionRegex: RegExp = new RegExp('to-load msr.default.scriptFiles');
     public ConfigAndDocFilesRegex: RegExp = new RegExp('to-load msr.default.configAndDocs');
     public ShowLongTip: boolean = true;
+    public AutoChangeSearchWordForReference: boolean = true;
 
     private TmpToggleEnabledExtensionToValueMap = new Map<string, boolean>();
 
@@ -305,6 +306,7 @@ export class DynamicConfig {
         this.OmitGitIgnoreExemptions = getConfigValue('omitGitIgnoreExemptions') === 'true';
         this.SkipDotFolders = getConfigValue('skipDotFoldersIfUseGitIgnoreFile') === 'true';
         this.ShowLongTip = getConfigValue('cookCmdAlias.showLongTip') === 'true';
+        this.AutoChangeSearchWordForReference = getConfigValue('reference.autoChangeSearchWord') === 'true';
 
         SearchConfig.reload();
 

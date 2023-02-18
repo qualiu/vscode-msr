@@ -430,3 +430,7 @@ export function getTempFolder(): string {
 
     return tmpFolder;
 }
+
+export function getPowerShellName(terminalType: TerminalType) {
+    return !IsWindows || TerminalType.WslBash == terminalType ? "pwsh" : "PowerShell";
+}

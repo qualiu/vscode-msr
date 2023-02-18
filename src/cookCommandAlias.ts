@@ -257,9 +257,15 @@ export function cookCmdShortcutsOrFile(
   sortedCmdKeys.forEach(key => {
     const value = cmdAliasMap.get(key) || '';
     if (key.match(/^(find|sort)-/) && !key.startsWith('find-nd') && value.includes('msr -rp')) {
-      const tmpListFile = quotePaths((isWindowsTerminal ? '%tmp%\\' : '/tmp/') + 'tmp-listed-git-repo-file-paths');
+      const isPowerShellScript = key === 'find-spring-ref';
+      const tmpFileName = 'tmp-listed-git-repo-file-paths';
+      const tmpListFile = isPowerShellScript && isWindowsTerminal
+        ? path.join(os.tmpdir(), tmpFileName)
+        : quotePaths((isWindowsTerminal ? '%tmp%\\' : '/tmp/') + tmpFileName);
       const listFileCommand = 'git ls-files > ' + tmpListFile;
-      let newCommand = value.replace(/msr -rp\s+(".+?"|\S+)/, listFileCommand + ' && msr -w ' + tmpListFile)
+      let newCommand = value.replace(/msr -rp\s+(".+?"|\S+)/, listFileCommand
+        + (isPowerShellScript ? '; ' : ' && ')
+        + ' msr -w ' + tmpListFile)
         .replace(/\s+(--nd|--np)\s+".+?"\s*/, ' ');
       if (isWindowsTerminal) {
         newCommand = newCommand.replace(new RegExp('^' + key), 'g' + key);
@@ -877,7 +883,7 @@ function getCommandAliasMap(
     oneLineCode = oneLineCode.replace(/(\$[a-z]\w+)/g, '\\$1');
   }
   const javaFilePattern = MappedExtToCodeFilePatternMap.get('java') || "\\.java$";
-  let psCode: string = oneLineCode
+  let psCode: string = oneLineCode.replace(/;\s*$/g, '').trim()
     + '; msr -rp .' + getSkipFolderPatternForCmdAlias() + " -f '" + javaFilePattern + "'"
     + (isWindowsTerminal ? " -t $pattern " : " -t \\$pattern ") + extraOption;
   if (isWindowsTerminal) {

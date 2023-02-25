@@ -3,7 +3,7 @@
 	"displayName": "Code mining + Replace file + Find definition and reference for all types.",
 	"description": "Code mining + Replace file + Find definition and reference in multiple repository paths by msr for all coding languages + configuration + doc files.",
 	"author": "qualiu@microsoft.com",
-	"version": "2.1.50",
+	"version": "2.1.51",
 	"icon": "images/vscode-msr-icon.png",
 	"license": "completely free",
 	"publisher": "qualiu",
@@ -786,7 +786,7 @@
 				},
 				"msr.skipInitCmdAliasForNewTerminalTitleRegex": {
 					"type": "string",
-					"default": "PowerShell\\s*Integrated\\s*Console|Java|Python|Debug",
+					"default": "Integration|Console|Extension|Java|Python|Debug",
 					"description": "Regex pattern of terminal title to skip initializing command shortcuts for newly opened terminals."
 				},
 				"msr.changePowerShellTerminalToCmdOrBash": {
@@ -1186,7 +1186,7 @@
 				},
 				"msr.default.codeFileExtensionMappingTypes": {
 					"type": "string",
-					"default": "^(cpp|cs|java|py|go|rs|ui)$",
+					"default": "^(cpp|cs|java|py|go|rs|ui|bp)$",
 					"description": "Regex pattern of coding language types. For each value of this, the file extensions defined in `msr.fileExtensionMap.xxx` will be treated as code file type like: msr.default.codeFiles"
 				},
 				"msr.default.codeFiles": {
@@ -1256,7 +1256,7 @@
 				},
 				"msr.allSmallFiles.extraOptions": {
 					"type": "string",
-					"default": "--s1 1B --s2 1.6MB -I -C -c",
+					"default": "--xd --s1 1B --s2 1.6MB -I -C -c",
 					"description": "Default extra searching options for small files. Will merge `msr.{root-folder-name}.extraOptions` if you set in your personal settings file like `%APPDATA%\\Code\\User\\settings.json` on Windows (See doc: https://github.com/qualiu/vscode-msr/blob/master/README.md#specific-extra-search-paths-settings)."
 				},
 				"msr.default.scriptFiles": {
@@ -1331,17 +1331,17 @@
 				},
 				"msr.default.extraOptions": {
 					"type": "string",
-					"default": "--s1 1B --s2 3.6MB -C -c",
+					"default": "--xd --s1 1B --s2 3.6MB -C -c",
 					"description": "Default extra searching options. Like: -W --xd --xf --s1 1B --s2 3.6MB -I -C -c"
 				},
 				"msr.definition.extraOptions": {
 					"type": "string",
-					"default": "--s1 1B --s2 1.6MB -H 10 -J -I -C -c",
+					"default": "--xd --s1 1B --s2 1.6MB -H 10 -J -I -C -c",
 					"description": "Default extra searching options for finding definitions: Get top {N} results and jump out. Will merge `msr.{root-folder-name}.extraOptions` if you set in your personal settings file like `%APPDATA%\\Code\\User\\settings.json` on Windows (See doc: https://github.com/qualiu/vscode-msr/blob/master/README.md#specific-extra-search-paths-settings)."
 				},
 				"msr.reference.extraOptions": {
 					"type": "string",
-					"default": "--s1 1B --s2 3.6MB -H 30 -J -I -C -c",
+					"default": "--xd --s1 1B --s2 3.6MB -H 30 -J -I -C -c",
 					"description": "Default extra searching options for finding references: Get top {N} results and jump out. Will merge `msr.{root-folder-name}.extraOptions` if you set in your personal settings file like `%APPDATA%\\Code\\User\\settings.json` on Windows (See doc: https://github.com/qualiu/vscode-msr/blob/master/README.md#specific-extra-search-paths-settings)."
 				},
 				"msr.default.preferSearchingSpeedOverPrecision": {
@@ -1756,6 +1756,26 @@
 					"description": "Vue file extension.",
 					"type": "string",
 					"default": "vue"
+				},
+				"msr.fileExtensionMap.bond": {
+					"description": "Microsoft Bond file extension.",
+					"type": "string",
+					"default": "bond"
+				},
+				"msr.fileExtensionMap.proto": {
+					"description": "Google Protocol Buffers file extension.",
+					"type": "string",
+					"default": "proto"
+				},
+				"msr.fileExtensionMap.bp": {
+					"description": "Protocol file extensions like Bond + Protocol Buffers + Thrift.",
+					"type": "string",
+					"default": "bond proto thrift"
+				},
+				"msr.fileExtensionMap.proj": {
+					"description": "Project file extension like C# / C++ in Visual Studio",
+					"type": "string",
+					"default": "\\w*proj \\w*proj.filters"
 				},
 				"msr.go.method.definition": {
 					"description": "Regex pattern to search Golang method definition.",

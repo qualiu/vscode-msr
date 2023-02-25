@@ -1,17 +1,19 @@
 import path = require('path');
 import fs = require('fs');
-import { IsForwardingSlashSupportedOnWindows } from './checkTool';
-import { getConfigValue } from './configUtils';
-import { IsWSL, OutputChannelName, RunCmdTerminalName } from './constants';
+import { getConfigValueOfActiveProject } from './configUtils';
+import { OutputChannelName, RunCmdTerminalName } from './constants';
 import { TerminalType } from './enums';
-import { saveTextToFile } from './otherUtils';
-import { outputError, outputInfo, outputInfoByDebugMode, outputWarn, RunCmdTerminalRootFolder, runCommandInTerminal, runRawCommandInTerminal } from './outputUtils';
-import { DefaultTerminalType, getTempFolder, IsLinuxTerminalOnWindows, isNullOrEmpty, isWindowsTerminalOnWindows, nowText, quotePaths, toTerminalPath, toWSLPath } from './utils';
-
-// Another solution: (1) git ls-files > project-file-list.txt ; (2) msr -w project-file-list.txt  (3) file watcher + update list.
-// Show junk files: (1) git ls-files --ignored --others --exclude-standard (2) git ls-files --others --ignored -X .gitignore
+import { saveTextToFile } from './fileUtils';
+import { outputError, outputInfo, outputInfoByDebugMode, outputWarn } from './outputUtils';
+import { runCommandInTerminal, runRawCommandInTerminal } from './runCommandUtils';
+import { DefaultTerminalType, IsLinuxTerminalOnWindows, isWindowsTerminalOnWindows, toTerminalPath } from './terminalUtils';
+import { IsForwardingSlashSupportedOnWindows, RunCommandChecker } from './ToolChecker';
+import { changeToForwardSlash, getTempFolder, isNullOrEmpty, nowText, quotePaths, RunCmdTerminalRootFolder } from './utils';
+// Another solution: (1) git ls-files --recurse-submodules > project-file-list.txt ; (2) msr -w project-file-list.txt  (3) file watcher + update list.
+// Show junk files: (1) git ls-files --recurse-submodules --ignored --others --exclude-standard (2) git ls-files --recurse-submodules --others --ignored -X .gitignore
 
 const SkipPathVariableName: string = 'Skip_Git_Paths';
+const RunCmdFolderWithForwardSlash: string = changeToForwardSlash(RunCmdTerminalRootFolder);
 
 export class GitIgnore {
   public Valid: boolean = false;
@@ -39,7 +41,7 @@ export class GitIgnore {
     this.SkipDotFolders = skipDotFolders;
     this.Terminal = terminalType;
     this.CheckUseForwardingSlashForCmd = checkUseForwardingSlashForCmd;
-    this.ExportLongSkipGitPathsLength = Number(getConfigValue('exportLongSkipGitPathsLength'));
+    this.ExportLongSkipGitPathsLength = Number(getConfigValueOfActiveProject('exportLongSkipGitPathsLength'));
     this.IsCmdTerminal = isWindowsTerminalOnWindows(this.Terminal);
     this.MaxCommandLength = this.IsCmdTerminal ? 8163 : 131072;
     this.LastPrintSkipExportingTime.setFullYear(this.LastPrintSkipExportingTime.getFullYear() - 1);
@@ -48,11 +50,7 @@ export class GitIgnore {
       return;
     }
 
-    if (IsWSL || TerminalType.WslBash === this.Terminal) {
-      this.RootFolder = toWSLPath(this.RootFolder, true);
-    }
-
-    this.RootFolder = this.changeToForwardSlash(path.dirname(ignoreFilePath));
+    this.RootFolder = changeToForwardSlash(path.dirname(ignoreFilePath));
   }
 
   public getSkipPathRegexPattern(toRunInTerminal: boolean, canUseVariable = true): string {
@@ -71,25 +69,17 @@ export class GitIgnore {
       : ' --np "' + pattern + '"';
   }
 
-  private changeToForwardSlash(pathString: string, addTailSlash: boolean = true): string {
-    let newPath = pathString.replace(/\\/g, '/').replace(/\\$/, '');
-    if (addTailSlash && !newPath.endsWith('/')) {
-      newPath += '/';
-    }
-    return newPath;
-  }
-
   private getSkipPathsVariable() {
     return this.IsCmdTerminal ? '"%' + SkipPathVariableName + '%"' : '"$' + SkipPathVariableName + '"';
   }
 
-  private exportSkipPathVariable(): boolean {
-    const runCmdTerminalFolder = this.changeToForwardSlash(RunCmdTerminalRootFolder);
-    if (runCmdTerminalFolder !== this.RootFolder) {
+
+  public exportSkipPathVariable(forceExport: boolean = false): boolean {
+    if (!forceExport && RunCmdFolderWithForwardSlash !== this.RootFolder) {
       const passedSeconds = (new Date().getTime() - this.LastPrintSkipExportingTime.getTime()) / 1000;
       if (passedSeconds > 5) {
         this.LastPrintSkipExportingTime = new Date();
-        outputInfoByDebugMode(nowText() + `Skip exporting ${SkipPathVariableName} due to workspace = ${this.RootFolder} != ${runCmdTerminalFolder} of ${RunCmdTerminalName} terminal.`);
+        outputInfoByDebugMode(nowText() + `Skip exporting ${SkipPathVariableName} due to workspace = ${this.RootFolder} != ${RunCmdFolderWithForwardSlash} of ${RunCmdTerminalName} terminal.`);
       }
 
       return false;
@@ -104,7 +94,7 @@ export class GitIgnore {
       return false;
     }
 
-    if (pattern !== this.LastExportedSkipPaths) {
+    if (forceExport || pattern !== this.LastExportedSkipPaths) {
       this.LastExportedSkipPaths = pattern;
       const command = (this.IsCmdTerminal ? 'call ' : 'source ') + quotePaths(toTerminalPath(this.SetSkipPathEnvFile, this.Terminal));
       runCommandInTerminal(command, true, false, IsLinuxTerminalOnWindows);
@@ -139,7 +129,7 @@ export class GitIgnore {
     const commands = this.IsCmdTerminal
       ? [
         setVariableCommand,
-        String.raw`git ls-files > %tmp%\git-file-list.txt`,
+        String.raw`git ls-files --recurse-submodules > %tmp%\git-file-list.txt`,
         String.raw`msr -rp . --np "%Skip_Git_Paths%" -l -PIC | msr -x \ -o / -aPAC > %tmp%\ext-file-list.txt`,
         String.raw`nin %tmp%\git-file-list.txt %tmp%\ext-file-list.txt --nt "^\.|/\." -H 5 -T 5`,
         String.raw`nin %tmp%\git-file-list.txt %tmp%\ext-file-list.txt --nt "^\.|/\." -S -H 5 -T 5`,
@@ -150,7 +140,7 @@ export class GitIgnore {
       ]
       : [
         setVariableCommand,
-        String.raw`git ls-files > /tmp/git-file-list.txt`,
+        String.raw`git ls-files --recurse-submodules > /tmp/git-file-list.txt`,
         String.raw`msr -rp . --np "$Skip_Git_Paths" -l -PIC > /tmp/ext-file-list.txt`,
         String.raw`nin /tmp/git-file-list.txt /tmp/ext-file-list.txt --nt "^\.|/\." -H 5 -T 5`,
         String.raw`nin /tmp/git-file-list.txt /tmp/ext-file-list.txt --nt "^\.|/\." -S -H 5 -T 5`,
@@ -278,6 +268,11 @@ export class GitIgnore {
       const setEnvCommands = this.getExportCommand(this.SkipPathPattern);
       saveTextToFile(this.SetSkipPathEnvFile, setEnvCommands);
       callbackWhenSucceeded();
+
+      const shouldDisplayTip = this.RootFolder === RunCmdFolderWithForwardSlash;
+      if (!shouldDisplayTip || !RunCommandChecker.IsToolExists) {
+        return;
+      }
 
       const extraColorArgs = '-e "\\d+|' + SkipPathVariableName + '|find-\\w+"';
       const commonErrorPattern = '[1-9]\\d* e\\w+|gfind-\\w+|' + OutputChannelName;

@@ -1,70 +1,13 @@
 import { ParsedPath } from 'path';
 import * as vscode from 'vscode';
-import { IsLinux, IsWindows, IsWSL, ShouldQuotePathRegex, TrimSearchTextRegex } from './constants';
+import { IsWindows, ShouldQuotePathRegex, TrimSearchTextRegex } from './constants';
 import { TerminalType } from './enums';
 import path = require('path');
-import fs = require('fs');
 import os = require('os');
 import ChildProcess = require('child_process');
 
 export const PathEnvName = IsWindows ? '%PATH%' : '$PATH';
 export const MatchWindowsDiskRegex = /^([A-Z]):/i;
-const GetInputPathsRegex: RegExp = /^(msr\s+-[r\s]*-?p)\s+("[^\"]+"|\S+)/;
-
-let HasMountPrefixForWSL: boolean | undefined = undefined;
-
-export function getTerminalExeFromVsCodeSettings(): string {
-    const shellConfig = vscode.workspace.getConfiguration('terminal.integrated.shell');
-    const exePath = shellConfig.get(IsWindows ? 'windows' : 'linux') as string || '';
-    return exePath;
-}
-
-export const TerminalExePath = getTerminalExeFromVsCodeSettings();
-export function getTerminalTypeFromExePath(terminalExePath: string = TerminalExePath): TerminalType {
-    if (IsLinux) {
-        return TerminalType.LinuxBash;
-    } else if (IsWSL) {
-        return TerminalType.WslBash;
-    } else if (/cmd.exe$/i.test(terminalExePath)) {
-        return TerminalType.CMD;
-    } else if (/PowerShell.exe$/i.test(terminalExePath)) {
-        return TerminalType.PowerShell;
-    } else if (/Cygwin.*?bash.exe$/i.test(terminalExePath)) {
-        return TerminalType.CygwinBash;
-    } else if (/System(32)?.bash.exe$/i.test(terminalExePath)) {
-        return TerminalType.WslBash;
-    } else if (/MinGW.*?bash.exe$/i.test(terminalExePath) || /Git.*?bin.*?bash.exe$/i.test(terminalExePath)) {
-        return TerminalType.MinGWBash;
-    } else if (/bash.exe$/.test(terminalExePath)) {
-        return TerminalType.WslBash;
-    } else {
-        return TerminalType.PowerShell; // TerminalType.CMD;
-    }
-}
-
-// Must copy/update extension + Restart vscode if using WSL terminal on Windows:
-export const DefaultTerminalType = getTerminalTypeFromExePath();
-
-export function isWindowsTerminalOnWindows(terminalType = DefaultTerminalType): boolean {
-    return TerminalType.CMD === terminalType || (TerminalType.PowerShell === terminalType && IsWindows);
-}
-
-export function isPowerShellTerminal(terminalType: TerminalType): boolean {
-    return TerminalType.PowerShell === terminalType || TerminalType.Pwsh === terminalType;
-}
-
-export function isWindowsTerminalType(terminalType: TerminalType): boolean {
-    return IsWindows && (TerminalType.CMD === terminalType || TerminalType.PowerShell === terminalType);
-}
-
-export function isLinuxTerminalOnWindows(terminalType: TerminalType = DefaultTerminalType): boolean {
-    return IsWindows && !isWindowsTerminalType(terminalType);
-}
-
-export const IsWindowsTerminalOnWindows: boolean = isWindowsTerminalOnWindows(DefaultTerminalType);
-
-// Must copy/update extension + Restart vscode if using WSL terminal on Windows:
-export const IsLinuxTerminalOnWindows: boolean = isLinuxTerminalOnWindows(DefaultTerminalType);
 
 export function runCommandGetOutput(command: string): string {
     try {
@@ -72,24 +15,6 @@ export function runCommandGetOutput(command: string): string {
     } catch (err) {
         return '';
     }
-}
-
-export function changeFindingCommandForLinuxTerminalOnWindows(command: string): string {
-    if (!IsLinuxTerminalOnWindows) {
-        return command;
-    }
-
-    const match = GetInputPathsRegex.exec(command);
-    if (!match) {
-        return command;
-    }
-
-    const paths = match[1].startsWith('"') ? match[2].substr(1, match[2].length - 2) : match[2];
-    const newPaths = paths.split(/\s*[,;]/)
-        .map((p, _index, _a) => toTerminalPath(p)
-        );
-
-    return match[1] + ' ' + quotePaths(newPaths.join(',')) + command.substring(match[0].length);
 }
 
 export function getSearchPathInCommand(commandLine: string, matchRegex: RegExp = /\s+(-r?p)\s+(".+?"|\S+)/): string {
@@ -103,38 +28,12 @@ export function setSearchPathInCommand(commandLine: string, newSearchPaths: stri
         return commandLine;
     }
 
-    return commandLine.substr(0, match.index) + ' ' + match[1] + ' ' + quotePaths(newSearchPaths) + commandLine.substring(match.index + match[0].length);
-}
-
-export function getPathEnvSeparator(terminalType: TerminalType) {
-    return isWindowsTerminalOnWindows(terminalType) ? ";" : ":";
-}
-
-export function checkAddFolderToPath(exeFolder: string, terminalType: TerminalType, prepend = true) {
-    const oldPathValue = process.env['PATH'] || (IsWindows ? '%PATH%' : '$PATH');
-    const paths = oldPathValue.split(IsWindows ? ';' : ':');
-    const trimTailRegex = IsWindows ? new RegExp('[\\s\\\\]+$') : new RegExp('/$');
-    const foundFolders = IsWindows
-        ? paths.filter(a => a.trim().replace(trimTailRegex, '').toLowerCase() === exeFolder.toLowerCase())
-        : paths.filter(a => a.replace(trimTailRegex, '') === exeFolder);
-
-    if (foundFolders.length > 0) {
-        return false;
-    }
-
-    const separator = getPathEnvSeparator(terminalType);
-    const newValue = prepend
-        ? exeFolder + separator + oldPathValue
-        : oldPathValue + separator + exeFolder;
-
-    process.env['PATH'] = newValue;
-
-    return true;
+    return commandLine.substring(0, match.index) + ' ' + match[1] + ' ' + quotePaths(newSearchPaths) + commandLine.substring(match.index + match[0].length);
 }
 
 export function removeQuotesForPath(paths: string) {
     if (paths.startsWith('"') || paths.startsWith("'")) {
-        return paths.substr(1, paths.length - 2);
+        return paths.substring(1, paths.length - 2);
     } else {
         return paths;
     }
@@ -149,91 +48,8 @@ export function quotePaths(paths: string, quote = '"') {
     }
 }
 
-export function toMinGWPath(windowsPath: string): string {
-    const match = MatchWindowsDiskRegex.exec(windowsPath);
-    if (!match) {
-        return replaceToForwardSlash(windowsPath);
-    }
-    const path = '/' + match[1].toLowerCase() + replaceToForwardSlash(windowsPath.substring(match.length));
-    return path.replace(' ', '\\ ');
-}
-
-export function toCygwinPath(windowsPath: string): string {
-    const match = MatchWindowsDiskRegex.exec(windowsPath);
-    if (!match) {
-        return replaceToForwardSlash(windowsPath);
-    }
-    const path = '/cygdrive/' + match[1].toLowerCase() + replaceToForwardSlash(windowsPath.substring(match.length));
-    return path.replace(' ', '\\ ');
-}
-
-export function toTerminalPath(windowsPath: string, terminalType: TerminalType = DefaultTerminalType): string {
-    if (IsWSL || TerminalType.WslBash === terminalType) {
-        return toWSLPath(windowsPath, TerminalType.WslBash === terminalType);
-    } else if (TerminalType.CygwinBash === terminalType) {
-        return toCygwinPath(windowsPath);
-    } else if (TerminalType.MinGWBash === terminalType) {
-        return toMinGWPath(windowsPath);
-    } else {
-        return windowsPath;
-    }
-}
-
-export function toTerminalPathsText(windowsPaths: string, terminalType: TerminalType): string {
-    const paths = windowsPaths.split(/\s*[,;]/).map((p, _index, _a) => toTerminalPath(p, terminalType));
-    return paths.join(",");
-}
-
-export function toTerminalPaths(windowsPaths: Set<string>, terminalType: TerminalType): Set<string> {
-    if (!IsWSL && TerminalType.WslBash !== terminalType && TerminalType.CygwinBash !== terminalType && TerminalType.MinGWBash !== terminalType) {
-        return windowsPaths;
-    }
-
-    let pathSet = new Set<string>();
-    windowsPaths.forEach(a => {
-        const path = toTerminalPath(a, terminalType);
-        pathSet.add(path);
-    });
-
-    return pathSet;
-}
-
 export function toPath(parsedPath: ParsedPath): string {
     return path.join(parsedPath.dir, parsedPath.base);
-}
-
-export function toWSLPath(winPath: string, isWslTerminal: boolean = false): string {
-    if (!IsWSL && !isWslTerminal) {
-        return winPath;
-    }
-
-    const match = MatchWindowsDiskRegex.exec(winPath);
-    if (!match) {
-        return winPath;
-    }
-
-    const disk = match[1].toLowerCase();
-    const tail = replaceToForwardSlash(winPath.substring(match.length));
-
-    // https://docs.microsoft.com/en-us/windows/wsl/wsl-config#configure-per-distro-launch-settings-with-wslconf
-    const shortPath = '/' + disk + tail;
-    if (HasMountPrefixForWSL === false) {
-        return shortPath;
-    } else if (HasMountPrefixForWSL === undefined) {
-        if (fs.existsSync(shortPath)) {
-            HasMountPrefixForWSL = false;
-            return shortPath;
-        }
-    }
-
-    const longPath = '/mnt/' + disk + tail;
-    if (fs.existsSync(longPath)) {
-        HasMountPrefixForWSL = true;
-        return longPath;
-    } else {
-        HasMountPrefixForWSL = false;
-        return shortPath;
-    }
 }
 
 export function nowText(tailText: string = ' '): string {
@@ -246,18 +62,6 @@ export function getElapsedSeconds(begin: Date, end: Date): number {
 
 export function getElapsedSecondsToNow(begin: Date): number {
     return (Date.now() - begin.valueOf()) / 1000;
-}
-
-export function toWSLPaths(winPaths: Set<string>, isWslTerminal: boolean = false): Set<string> {
-    if (!IsWSL && !isWslTerminal) {
-        return winPaths;
-    }
-
-    let pathSet = new Set<string>();
-    winPaths.forEach(p => {
-        pathSet.add(toWSLPath(p, isWslTerminal));
-    });
-    return pathSet;
 }
 
 export function isNullOrEmpty(obj: string | undefined): boolean {
@@ -392,15 +196,29 @@ export function getActiveFilePath() {
     }
 }
 
+export function changeToForwardSlash(pathString: string, addTailSlash: boolean = true): string {
+    let newPath = pathString.replace(/\\/g, '/').replace(/\\$/, '');
+    if (addTailSlash && !newPath.endsWith('/')) {
+        newPath += '/';
+    }
+    return newPath;
+}
+
 export function getDefaultRootFolderByActiveFile(useDefaultProjectIfEmpty = false) {
     const activePath = getActiveFilePath();
-    const folder = isNullOrEmpty(activePath) ? getDefaultRootFolder() : getRootFolder(activePath);
+    let folder = !isNullOrEmpty(activePath) ? getRootFolder(activePath) : getDefaultRootFolder();
     if (useDefaultProjectIfEmpty && isNullOrEmpty(folder) && !isNullOrEmpty(activePath)) {
-        return getDefaultRootFolder();
-    } else {
-        return folder;
+        folder = getDefaultRootFolder();
     }
+
+    // if (appendSlash && !folder.endsWith(path.sep)) {
+    //     folder += path.sep;
+    // }
+
+    return folder;
 }
+
+export const RunCmdTerminalRootFolder: string = getDefaultRootFolderByActiveFile(true);
 
 export function getRootFolderName(filePath: string, useFirstFolderIfNotFound = false): string {
     const folder = getRootFolder(filePath, useFirstFolderIfNotFound);

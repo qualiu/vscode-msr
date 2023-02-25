@@ -2,6 +2,13 @@
 
 All notable changes to this "vscode-msr" extension will be documented in this file.
 
+## [2.1.51]
+- Improved initializing `doskey`/`alias` when reloading or recovering terminals.
+- Reset project specific alias after cooking general alias/files.
+- Added `--xd` to skip link folders as default extraOption.
+- Added `list-alias` + `use-alias` + `msr.fileExtensionMap.bond` + `msr.fileExtensionMap.proj`.
+- Show backend trying when downloading search tool.
+
 ## [2.1.50]
 - Supported `gfind-spring-ref` as counter part of `find-spring-ref`.
 

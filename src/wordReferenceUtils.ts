@@ -1,7 +1,7 @@
 import { ParsedPath } from "path";
 import { FileExtensionToMappedExtensionMap, MyConfig } from "./dynamicConfig";
 
-export const FindJavaSpringReferenceCodeInPowerShell = `
+export const FindJavaSpringReferenceByPowerShellAlias = `
   $word = '%1';
   $pure = msr -z $word -t '^(is|get|set)([A-Z])' -o \\2 -aPAC;
   $cap = [Char]::ToUpper($pure[0]) + $pure.Substring(1);
@@ -19,6 +19,9 @@ export const FindJavaSpringReferenceCodeInPowerShell = `
   [void] $set.Add('get' + $cap);
   [void] $set.Add('set' + $cap);
   $pattern = '\\b(' + [String]::Join('|', $set) +  ')\\b';
+  if ([regex]::IsMatch($word, '^[A-Z_]+$')) {
+    $pattern = '\\b' + $word + '\\b';
+  }
   `.trim();
 
 export function changeToReferencePattern(rawWord: string, parsedFile: ParsedPath): string {
@@ -26,7 +29,8 @@ export function changeToReferencePattern(rawWord: string, parsedFile: ParsedPath
     return rawWord;
   }
 
-  if (!rawWord.match(/^\w+$/)) {
+  // skip if contains non-alphabetic char, or whole word is upper case:
+  if (!rawWord.match(/^\w+$/) || rawWord.match(/^[A-Z_]+$/)) {
     return rawWord;
   }
 

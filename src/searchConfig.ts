@@ -1,5 +1,5 @@
-import { getConfigValue } from "./configUtils";
-import { IsLinuxTerminalOnWindows } from "./utils";
+import { getConfigValueOfActiveProject } from "./configUtils";
+import { IsLinuxTerminalOnWindows } from "./terminalUtils";
 
 export class SearchConfiguration {
   public SearchRelativePathForLinuxTerminalsOnWindows: boolean = true;
@@ -10,8 +10,8 @@ export class SearchConfiguration {
   }
 
   public reload() {
-    this.SearchRelativePathForLinuxTerminalsOnWindows = getConfigValue('searchRelativePathForLinuxTerminalsOnWindows') === 'true';
-    this.SearchRelativePathForNativeTerminals = getConfigValue('searchRelativePathForNativeTerminals') === 'true';
+    this.SearchRelativePathForLinuxTerminalsOnWindows = getConfigValueOfActiveProject('searchRelativePathForLinuxTerminalsOnWindows') === 'true';
+    this.SearchRelativePathForNativeTerminals = getConfigValueOfActiveProject('searchRelativePathForNativeTerminals') === 'true';
   }
 
   public shouldUseRelativeSearchPath(toRunInTerminal: boolean) {

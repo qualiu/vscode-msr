@@ -1,22 +1,27 @@
 // The module 'vscode' contains the VS Code extensibility API
 // Import the module and reference it with the alias vscode in your code below
 import * as vscode from 'vscode';
-import { MsrExe } from './checkTool';
 import { getFindingCommandByCurrentWord, runFindingCommand } from './commands';
-import { getConfigValueByRoot } from './configUtils';
+import { getConfigValueByProjectAndExtension } from './configUtils';
 import { IsWindows, RunCmdTerminalName } from './constants';
 import { cookCmdShortcutsOrFile } from './cookCommandAlias';
 import { FileExtensionToMappedExtensionMap, getConfig, getExtraSearchPaths, getGitIgnore, MappedExtToCodeFilePatternMap, MyConfig, printConfigInfo } from './dynamicConfig';
 import { FindCommandType, FindType, ForceFindType } from './enums';
-import { getRootFolderFromTerminalCreation, getTerminalInitialPath, getTerminalNameOrShellExeName } from './otherUtils';
-import { clearOutputChannel, disposeTerminal, outputDebug, outputInfoByDebugMode } from './outputUtils';
+import { clearOutputChannel, outputDebug, outputInfoByDebugMode } from './outputUtils';
 import { Ranker } from './ranker';
+import { disposeTerminal } from './runCommandUtils';
 import { SearchChecker } from './searchChecker';
-import { createCommandSearcher, createSearcher, getCurrentFileSearchInfo, PlatformToolChecker, Searcher, setReRunMark, stopAllSearchers } from './searcher';
+import { createCommandSearcher, createSearcher, getCurrentFileSearchInfo, Searcher, setReRunMark, stopAllSearchers } from './searcher';
+import { getRootFolderFromTerminalCreation, getTerminalInitialPath, getTerminalNameOrShellExeName } from './terminalUtils';
+import { RunCommandChecker } from './ToolChecker';
+import { MsrExe } from './toolSource';
 import { getDefaultRootFolder, getDefaultRootFolderByActiveFile, getExtensionNoHeadDot, getRootFolder, getRootFolderName, getRootFolders, isNullOrEmpty, nowText, quotePaths, replaceSearchTextHolder, toPath } from './utils';
 import path = require('path');
 
 outputDebug(nowText() + 'Start loading extension and initialize ...');
+
+// avoid prompting 'cmd.exe exit error'
+RunCommandChecker.checkToolAndInitRunCmdTerminal();
 
 // vscode.languages.getLanguages().then((languages: string[]) => { console.log("Known languages: " + languages); });
 
@@ -50,7 +55,7 @@ export function registerExtension(context: vscode.ExtensionContext) {
 
 	context.subscriptions.push(vscode.languages.registerDefinitionProvider(selector, new DefinitionFinder));
 
-	if (!MyConfig.DisableFindReferenceFileExtensionRegex.source.match(/(^|\|)\.\*/)) {
+	if (!getConfig().DisableFindReferenceFileExtensionRegex.source.match(/(^|\|)\.\*/)) {
 		context.subscriptions.push(vscode.languages.registerReferenceProvider(selector, new ReferenceFinder));
 	}
 
@@ -59,8 +64,11 @@ export function registerExtension(context: vscode.ExtensionContext) {
 			return;
 		}
 
+		const folders = vscode.workspace.workspaceFolders;
+		const firstFolder = folders && folders.length > 0 ? folders[0].uri.fsPath : '';
 		const initialPath = getTerminalInitialPath(terminal);
-		const workspaceFolder = getRootFolderFromTerminalCreation(terminal) || getRootFolder(initialPath);
+		const workspaceFolder = getRootFolderFromTerminalCreation(terminal) || getDefaultRootFolderByActiveFile()
+			|| initialPath || firstFolder;
 		const exeNameByInitPath = isNullOrEmpty(initialPath) ? '' : path.basename(initialPath);
 		const terminalName = !isNullOrEmpty(exeNameByInitPath) ? exeNameByInitPath : getTerminalNameOrShellExeName(terminal);
 		const terminalTitle = !isNullOrEmpty(terminal.name) ? terminal.name : terminalName;
@@ -76,9 +84,7 @@ export function registerExtension(context: vscode.ExtensionContext) {
 				initialPath === workspaceFolder // default shell, no value set.
 				|| (!IsWindows || isNullOrEmpty(terminalName) || matchNameRegex.test(terminalName) || matchNameRegex.test(initialPath))
 			)) {
-			const folders = vscode.workspace.workspaceFolders;
-			const currentPath = folders && folders.length > 0 ? (workspaceFolder || folders[0].uri.fsPath) : '.';
-			cookCmdShortcutsOrFile(false, currentPath, true, false, terminal);
+			cookCmdShortcutsOrFile(false, workspaceFolder || '.', true, false, terminal, true);
 		} else {
 			outputInfoByDebugMode(`Skip cooking alias: terminalName = ${terminalName}, title = ${terminalTitle}, initialPath = ${initialPath}, matchNameRegex = ${matchNameRegex.source}`);
 		}
@@ -205,13 +211,13 @@ export function registerExtension(context: vscode.ExtensionContext) {
 	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.cookCmdAliasDumpWithOthersToFiles',
 		(textEditor: vscode.TextEditor, _edit: vscode.TextEditorEdit, ..._args: any[]) => {
 			cookCmdShortcutsOrFile(true, textEditor.document.uri.fsPath, false, false);
-			cookCmdShortcutsOrFile(true, textEditor.document.uri.fsPath, false, true, undefined, true);
+			cookCmdShortcutsOrFile(true, textEditor.document.uri.fsPath, false, true, undefined, false, true);
 		}));
 
 	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.cookCmdAliasDumpWithOthersToFilesByProject',
 		(textEditor: vscode.TextEditor, _edit: vscode.TextEditorEdit, ..._args: any[]) => {
 			cookCmdShortcutsOrFile(true, textEditor.document.uri.fsPath, true, false);
-			cookCmdShortcutsOrFile(true, textEditor.document.uri.fsPath, true, true, undefined, true);
+			cookCmdShortcutsOrFile(true, textEditor.document.uri.fsPath, true, true, undefined, false, true);
 		}));
 
 	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.tmpToggleEnableFindingDefinition',
@@ -294,7 +300,7 @@ export class DefinitionFinder implements vscode.DefinitionProvider {
 
 		stopAllSearchers();
 		const [parsedFile, extension, currentWord, currentWordRange, currentText] = getCurrentFileSearchInfo(document, position);
-		if (!PlatformToolChecker.checkSearchToolExists() || currentWord.length < 2 || !currentWordRange) {
+		if (!RunCommandChecker.checkSearchToolExists() || currentWord.length < 2 || !currentWordRange) {
 			return Promise.resolve([]);
 		}
 
@@ -350,7 +356,7 @@ export class DefinitionFinder implements vscode.DefinitionProvider {
 		}
 
 		// check and add same name file for class searching:
-		const preferSearchingSpeedOverPrecision = getConfigValueByRoot(rootFolderName, extension, mappedExt, 'preferSearchingSpeedOverPrecision') === 'true';
+		const preferSearchingSpeedOverPrecision = getConfigValueByProjectAndExtension(rootFolderName, extension, mappedExt, 'preferSearchingSpeedOverPrecision') === 'true';
 		function addClassNameFileSearcher(searcherGroup: (Searcher | null)[], searcherToClone: Searcher | null): Searcher | null {
 			if (!preferSearchingSpeedOverPrecision || !searcherToClone || isNullOrEmpty(searchChecker.classFileNamePattern)) {
 				return null;
@@ -620,7 +626,7 @@ function getCommandToSearchLocalVariableOrConstant(searchChecker: SearchChecker,
 	let ranker = new Ranker(searchChecker, true, ForceFindType.FindLocalVariable);
 	const pattern = isVariableInit || isSimpleDefineAndInit
 		? getSearchPatternForLocalVariableOrConstant(currentWord, isSimpleDefineAndInit)
-		: getConfigValueByRoot(getRootFolderName(searchChecker.Document.fileName), extension, mappedExt, 'definition') + '|^\\w*[^;]{0,120}\\s+' + currentWord + '\\s*;\\s*$';
+		: getConfigValueByProjectAndExtension(getRootFolderName(searchChecker.Document.fileName), extension, mappedExt, 'definition') + '|^\\w*[^;]{0,120}\\s+' + currentWord + '\\s*;\\s*$';
 
 	const filePath = quotePaths(searchChecker.Document.fileName);
 	let command = MsrExe + ' -p ' + filePath + ' -t "' + pattern + '"' + ' -N ' + searchChecker.Position.line + ' -T 1 -I -C';

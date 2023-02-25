@@ -1,19 +1,20 @@
-import os = require('os');
 import { execSync } from 'child_process';
 import * as vscode from 'vscode';
-import { IsDebugMode, IsMacOS, IsSupportedSystem, IsWindows, OutputChannelName, RunCmdTerminalName } from './constants';
-import { cookCmdShortcutsOrFile, CookCmdTimesForRunCmdTerminal } from './cookCommandAlias';
-import { getConfig, MyConfig } from './dynamicConfig';
-import { getDefaultRootFolder, getDefaultRootFolderByActiveFile, IsLinuxTerminalOnWindows, nowText, replaceTextByRegex } from './utils';
-
-export let RunCmdTerminalRootFolder: string = '';
+import { IsDebugMode, IsSupportedSystem, IsWindows, OutputChannelName } from './constants';
+import { nowText, replaceTextByRegex } from './utils';
 
 // When searching plain text, powershell requires extra escaping (like '$').
-const UsePowershell = false;
+export const UsePowershell = false;
 const WindowsShell = UsePowershell ? 'powershell' : 'cmd.exe';
 export const ShellPath = IsWindows ? WindowsShell : 'bash';
-const ClearCmd = IsWindows && !UsePowershell ? 'cls' : "clear";
 const ShowColorHideCmdRegex = /\s+-[Cc](\s+|$)/g;
+
+let ShowInfo = true;
+let IsQuiet = true;
+export function setOutputChannel(showInfo: boolean, isQuiet: boolean) {
+	ShowInfo = showInfo;
+	IsQuiet = isQuiet;
+}
 
 export enum MessageLevel {
 	None = 0,
@@ -58,75 +59,7 @@ export function outputMessage(level: MessageLevel, message: string, showWindow: 
 }
 
 // MSR-Def-Ref output channel
-let _messageChannel: vscode.OutputChannel;
-
-// MSR-RUN-CMD terminal
-let _runCmdTerminal: vscode.Terminal | undefined;
-export let HasCreatedRunCmdTerminal: boolean = false;
-
-export function getRunCmdTerminal(): vscode.Terminal {
-	if (!_runCmdTerminal && vscode.window.terminals && vscode.window.terminals.length > 0) {
-		for (let k = 0; k < vscode.window.terminals.length; k++) {
-			if (vscode.window.terminals[k].name === RunCmdTerminalName) {
-				_runCmdTerminal = vscode.window.terminals[k];
-				return _runCmdTerminal;
-			}
-		}
-	}
-	if (!_runCmdTerminal) {
-		HasCreatedRunCmdTerminal = true;
-		_runCmdTerminal = vscode.window.createTerminal(RunCmdTerminalName, ShellPath);
-		if (vscode.workspace.getConfiguration('msr').get('initProjectCmdAliasForNewTerminals') as boolean) {
-			const rootFolder = getDefaultRootFolderByActiveFile() || getDefaultRootFolder();
-			RunCmdTerminalRootFolder = rootFolder.includes('/') ? rootFolder + '/' : rootFolder + '\\';
-			const workspaceCount = !vscode.workspace.workspaceFolders ? 0 : vscode.workspace.workspaceFolders.length;
-			if (!MyConfig.UseGitIgnoreFile && workspaceCount > 1 && CookCmdTimesForRunCmdTerminal < 1) {
-				cookCmdShortcutsOrFile(false, rootFolder, true, false, _runCmdTerminal);
-			}
-		}
-	}
-
-	return _runCmdTerminal;
-}
-
-export function disposeTerminal() {
-	_runCmdTerminal = undefined;
-}
-
-export function runCommandInTerminal(command: string, showTerminal = false, clearAtFirst = true, isLinuxOnWindows = IsLinuxTerminalOnWindows) {
-	command = enableColorAndHideCommandLine(command);
-	sendCommandToTerminal(command, getRunCmdTerminal(), showTerminal, clearAtFirst, isLinuxOnWindows);
-}
-
-export function runRawCommandInTerminal(command: string, showTerminal = true, clearAtFirst = false, isLinuxOnWindows = IsLinuxTerminalOnWindows) {
-	sendCommandToTerminal(command, getRunCmdTerminal(), showTerminal, clearAtFirst, isLinuxOnWindows);
-}
-
-export function sendCommandToTerminal(command: string, terminal: vscode.Terminal, showTerminal = false, clearAtFirst = true, isLinuxOnWindows = IsLinuxTerminalOnWindows) {
-	const searchAndListPattern = /\s+(-i?[tx]|-l)\s+/;
-	if (command.startsWith("msr") && !command.match(searchAndListPattern)) {
-		outputDebug(nowText() + "Skip running command due to not found none of matching names of -x or -t, command = " + command);
-		return;
-	}
-
-	if (showTerminal) {
-		terminal.show();
-	}
-	if (clearAtFirst) {
-		// vscode.commands.executeCommand('workbench.action.terminal.clear');
-		terminal.sendText((isLinuxOnWindows || IsMacOS ? 'clear' : ClearCmd) + os.EOL, true);
-	}
-
-	terminal.sendText(command.trim() + os.EOL, true);
-	if (IsMacOS) { // MacOS terminal will break if sending command lines to fast.
-		try {
-			const sleepMilliseconds = command.trim().length / 1000;
-			execSync('sleep ' + sleepMilliseconds);
-		} catch (error) {
-			console.log(error);
-		}
-	}
-}
+let MessageChannel: vscode.OutputChannel;
 
 export function outputWarn(message: string, showWindow: boolean = true) {
 	showOutputChannel(showWindow);
@@ -149,14 +82,14 @@ export function outputKeyInfo(text: string) {
 }
 
 export function outputInfo(message: string, showWindow: boolean = true) {
-	if (getConfig().ShowInfo) {
+	if (ShowInfo) {
 		getOutputChannel().appendLine(message);
 		showOutputChannel(showWindow);
 	}
 }
 
 export function outputInfoClear(message: string, showWindow: boolean = true) {
-	if (getConfig().ShowInfo) {
+	if (ShowInfo) {
 		clearOutputChannel();
 		getOutputChannel().appendLine(message);
 		showOutputChannel(showWindow);
@@ -164,7 +97,7 @@ export function outputInfoClear(message: string, showWindow: boolean = true) {
 }
 
 export function outputInfoQuiet(message: string, showWindow: boolean = false) {
-	if (getConfig().ShowInfo) {
+	if (ShowInfo) {
 		getOutputChannel().appendLine(message);
 		showOutputChannel(showWindow, false);
 	}
@@ -183,7 +116,7 @@ export function outputInfoByDebugMode(message: string, showWindow: boolean = tru
 }
 
 export function outputDebug(message: string, showWindow: boolean = false) {
-	if (getConfig().IsDebug) {
+	if (ShowInfo) {
 		getOutputChannel().appendLine(message);
 		showOutputChannel(showWindow);
 	}
@@ -213,15 +146,15 @@ export function checkIfSupported(): boolean {
 }
 
 export function showOutputChannel(showWindow: boolean = true, ignoreQuiet: boolean = false) {
-	if (showWindow && (ignoreQuiet || !getConfig().IsQuiet)) {
+	if (showWindow && (ignoreQuiet || !IsQuiet)) {
 		getOutputChannel().show(true);
 	}
 }
 
 function getOutputChannel(): vscode.OutputChannel {
-	if (!_messageChannel) {
-		_messageChannel = vscode.window.createOutputChannel(OutputChannelName);
+	if (!MessageChannel) {
+		MessageChannel = vscode.window.createOutputChannel(OutputChannelName);
 	}
 
-	return _messageChannel;
+	return MessageChannel;
 }

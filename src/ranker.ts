@@ -1,6 +1,6 @@
 import { ParsedPath } from 'path';
 import * as vscode from 'vscode';
-import { GetConfigPriorityPrefixes, getConfigValueByRoot, getOverrideConfigByPriority, getSubConfigValue } from './configUtils';
+import { GetConfigPriorityPrefixes, getConfigValueByAllParts, getConfigValueByPriorityList, getConfigValueByProjectAndExtension, getConfigValueOfProject } from './configUtils';
 import { SearchTextHolder } from './constants';
 import { addExtensionToPattern, getConfig, MappedExtToCodeFilePatternMap, MyConfig } from './dynamicConfig';
 import { FindType, ForceFindType } from './enums';
@@ -128,11 +128,11 @@ export class Ranker {
 		return scoreText.trim();
 	}
 
-	public getConfigValue(configKeyTail: string, addDefault: boolean = true, allowEmpty: boolean = true): string {
+	public getConfigValueOfActiveProject(configKeyTail: string, addDefault: boolean = true, allowEmpty: boolean = true): string {
 		let prefixes = this.searchChecker.ForceUseDefaultFindingDefinition
 			? GetConfigPriorityPrefixes(this.rootFolderName, '', '', true)
 			: GetConfigPriorityPrefixes(this.rootFolderName, this.searchChecker.extension, this.searchChecker.mappedExt, addDefault);
-		const pattern = getOverrideConfigByPriority(prefixes, configKeyTail, allowEmpty) as string || '';
+		const pattern = getConfigValueByPriorityList(prefixes, configKeyTail, allowEmpty) as string || '';
 		if (!isNullOrEmpty(pattern) && configKeyTail.includes('definition') && !configKeyTail.includes('skip') && pattern.indexOf(SearchTextHolder) < 0) {
 			const keys = prefixes.join('.' + configKeyTail + ' or ');
 			outputError(nowText() + 'Not found word-holder: "' + SearchTextHolder + '" in search option, please check configuration of ' + keys + ', searchPattern = ' + pattern);
@@ -142,10 +142,10 @@ export class Ranker {
 		return pattern;
 	}
 
-	public getSubConfigValue(subKey: string, configKeyTail: string, _addDefault: boolean = true, allowEmpty: boolean = true): string {
+	public getConfigValueByAllParts(subKey: string, configKeyTail: string, _addDefault: boolean = true, allowEmpty: boolean = true): string {
 		const pattern = this.searchChecker.ForceUseDefaultFindingDefinition
-			? getSubConfigValue(this.rootFolderName, '', '', subKey, configKeyTail, allowEmpty)
-			: getSubConfigValue(this.rootFolderName, this.searchChecker.extension, this.searchChecker.mappedExt, subKey, configKeyTail, allowEmpty);
+			? getConfigValueByAllParts(this.rootFolderName, '', '', subKey, configKeyTail, allowEmpty)
+			: getConfigValueByAllParts(this.rootFolderName, this.searchChecker.extension, this.searchChecker.mappedExt, subKey, configKeyTail, allowEmpty);
 		if (!isNullOrEmpty(pattern) && configKeyTail.includes('definition') && !configKeyTail.includes('skip') && pattern.indexOf(SearchTextHolder) < 0) {
 			const keys = subKey + '.' + configKeyTail;
 			outputError(nowText() + 'Not found word-holder: "' + SearchTextHolder + '" in search option, please check configuration of ' + keys + ', searchPattern = ' + pattern);
@@ -167,41 +167,41 @@ export class Ranker {
 			}
 
 			if (this.isFindConstant) {
-				specificPatterns.add(this.getSubConfigValue('constant', 'definition'));
+				specificPatterns.add(this.getConfigValueByAllParts('constant', 'definition'));
 				if (this.searchChecker.currentText.indexOf(this.currentWord + '.') >= 0) {
-					specificPatterns.add(this.getSubConfigValue('class', 'definition'));
+					specificPatterns.add(this.getConfigValueByAllParts('class', 'definition'));
 				}
 			} else {
 				if (this.isFindClass || this.isFindClassOrEnum) {
-					specificPatterns.add(this.getSubConfigValue('class', 'definition'));
+					specificPatterns.add(this.getConfigValueByAllParts('class', 'definition'));
 				}
 
 				if (this.isFindEnum || this.searchChecker.maybeEnum) {
-					specificPatterns.add(this.getSubConfigValue('enum', 'definition'));
+					specificPatterns.add(this.getConfigValueByAllParts('enum', 'definition'));
 				}
 
 				if (this.isFindMember) {
-					specificPatterns.add(this.getSubConfigValue('member', 'definition'));
+					specificPatterns.add(this.getConfigValueByAllParts('member', 'definition'));
 
 					// For languages that can omit quotes for methods:
 					if (this.searchChecker.extension.match(/py|scala/)) {
-						specificPatterns.add(this.getSubConfigValue('method', 'definition'));
+						specificPatterns.add(this.getConfigValueByAllParts('method', 'definition'));
 					}
 				}
 
 				if (this.isFindMethod) {
-					specificPatterns.add(this.getSubConfigValue('method', 'definition'));
+					specificPatterns.add(this.getConfigValueByAllParts('method', 'definition'));
 				}
 
 				if (this.isFindClassOrMethod && (!this.isFindClassOrEnum && !this.isFindMethod)) {
-					specificPatterns.add(this.getSubConfigValue('class', 'definition'));
-					specificPatterns.add(this.getSubConfigValue('method', 'definition'));
+					specificPatterns.add(this.getConfigValueByAllParts('class', 'definition'));
+					specificPatterns.add(this.getConfigValueByAllParts('method', 'definition'));
 				}
 			}
 
 			specificPatterns.delete('');
 			if (specificPatterns.size < 1) {
-				specificPatterns.add(this.getConfigValue('definition', false, false));
+				specificPatterns.add(this.getConfigValueOfActiveProject('definition', false, false));
 
 				// Default: Will be slower if more items.
 				// specificPatterns.add(this.getSpecificConfigValue('class.definition'));
@@ -216,13 +216,13 @@ export class Ranker {
 			specificPatterns.delete('');
 		}
 
-		let searchPattern = this.getConfigValue(configKeyName, this.searchChecker.findType !== FindType.Definition, false);
+		let searchPattern = this.getConfigValueOfActiveProject(configKeyName, this.searchChecker.findType !== FindType.Definition, false);
 
 		const rootConfig = vscode.workspace.getConfiguration('msr');
 		const codeFilesPattern = this.searchChecker.mappedExt === 'ui' ? MyConfig.CodeFilesPlusUIRegex.source : MyConfig.CodeFilesRegex.source;
 		let filePattern = MappedExtToCodeFilePatternMap.get(this.searchChecker.mappedExt) || '\\.' + extension + '$';
-		const searchAllFilesForReferences = getConfigValueByRoot(this.rootFolderName, extension, this.searchChecker.mappedExt, 'searchAllFilesForReferences') === 'true';
-		const searchAllFilesForDefinition = getConfigValueByRoot(this.rootFolderName, extension, this.searchChecker.mappedExt, 'searchAllFilesForDefinitions') === 'true';
+		const searchAllFilesForReferences = getConfigValueByProjectAndExtension(this.rootFolderName, extension, this.searchChecker.mappedExt, 'searchAllFilesForReferences') === 'true';
+		const searchAllFilesForDefinition = getConfigValueByProjectAndExtension(this.rootFolderName, extension, this.searchChecker.mappedExt, 'searchAllFilesForDefinitions') === 'true';
 		if (searchAllFilesForReferences && configKeyName === 'reference') {
 			filePattern = config.AllFilesRegex.source;
 			const defaultFindRef = rootConfig.get('default.reference') as string;
@@ -252,7 +252,7 @@ export class Ranker {
 
 			if (configKeyName === 'definition') {
 				if (specificPatterns.size < 1) {
-					const generalPattern = getOverrideConfigByPriority(['', 'default'], configKeyName, false);
+					const generalPattern = getConfigValueOfProject('', configKeyName, false);
 					if (!isNullOrEmpty(generalPattern)) {
 						specificPatterns.add(generalPattern);
 					}
@@ -292,26 +292,26 @@ export class Ranker {
 		let skipPatternSet = new Set<string>();
 		if (!this.isFindConstant) {
 			if (this.isFindClass && !this.isFindMember && !this.isFindMethod && !this.isFindClassOrMethod) {
-				skipPatternSet.add(this.getSubConfigValue('class', 'skip.definition'));
+				skipPatternSet.add(this.getConfigValueByAllParts('class', 'skip.definition'));
 			}
 
 			if (this.isFindMember && !this.isFindEnum && !this.isFindMethod && !this.isFindClass && !this.isFindClassOrEnum && !this.isFindClassOrMethod) {
-				skipPatternSet.add(this.getSubConfigValue('member', 'skip.definition'));
+				skipPatternSet.add(this.getConfigValueByAllParts('member', 'skip.definition'));
 			}
 
 			if (this.isFindEnum && !this.isFindClass && !this.isFindMethod && !this.isFindMember && !this.isFindClassOrMethod) {
-				skipPatternSet.add(this.getSubConfigValue('enum', 'skip.definition'));
+				skipPatternSet.add(this.getConfigValueByAllParts('enum', 'skip.definition'));
 			}
 
 			if (this.isFindMethod && !this.isFindClass && !this.isFindClassOrEnum && !this.isFindMember && !this.isFindEnum && !this.isFindClassOrMethod) {
-				skipPatternSet.add(this.getSubConfigValue('method', 'skip.definition'));
+				skipPatternSet.add(this.getConfigValueByAllParts('method', 'skip.definition'));
 			}
 		}
 
 		skipPatternSet.delete('');
 
 		if (skipPatternSet.size < 1) {
-			skipPatternSet.add(this.getConfigValue('skip.definition'));
+			skipPatternSet.add(this.getConfigValueOfActiveProject('skip.definition'));
 		}
 
 		skipPatternSet.delete('');

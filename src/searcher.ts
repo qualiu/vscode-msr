@@ -1,18 +1,20 @@
 import { exec, ExecException, ExecOptions } from 'child_process';
 import * as vscode from 'vscode';
-import { IsForwardingSlashSupportedOnWindows, setSearchDepthInCommandLine, setTimeoutInCommandLine, ToolChecker } from './checkTool';
 import { runFindingCommandByCurrentWord } from './commands';
-import { getConfigValueByRoot, getSubConfigValue } from './configUtils';
+import { getConfigValueByAllParts, getConfigValueByProjectAndExtension } from './configUtils';
 import { IsWindows, RemoveJumpRegex } from './constants';
 import { FileExtensionToMappedExtensionMap, getConfig, getGitIgnore, getSearchPathOptions, MyConfig } from './dynamicConfig';
-import { FindCommandType, FindType, ForceFindType, TerminalType } from './enums';
+import { FindCommandType, FindType, ForceFindType } from './enums';
 import { filterClassResults } from './filter/filterClassResults';
-import { outputDebug, outputDebugOrInfo, outputError, outputInfo, outputInfoByDebugMode, outputResult, outputWarn, runCommandInTerminal, runRawCommandInTerminal } from './outputUtils';
+import { outputDebug, outputDebugOrInfo, outputError, outputInfo, outputInfoByDebugMode, outputResult, outputWarn } from './outputUtils';
 import { Ranker } from './ranker';
 import { escapeRegExp } from './regexUtils';
+import { runCommandInTerminal } from './runCommandUtils';
 import { ResultType, ScoreTypeResult } from './ScoreTypeResult';
 import { SearchChecker } from './searchChecker';
-import { changeFindingCommandForLinuxTerminalOnWindows, DefaultTerminalType, getCurrentWordAndText, getDefaultRootFolder, getExtensionNoHeadDot, getRootFolder, getRootFolderName, getSearchPathInCommand, IsLinuxTerminalOnWindows, isNullOrEmpty, nowText, quotePaths, replaceSearchTextHolder, toPath } from './utils';
+import { changeFindingCommandForLinuxTerminalOnWindows } from './terminalUtils';
+import { RunCommandChecker, setSearchDepthInCommandLine, setTimeoutInCommandLine } from './ToolChecker';
+import { getCurrentWordAndText, getExtensionNoHeadDot, getRootFolder, getRootFolderName, getSearchPathInCommand, isNullOrEmpty, nowText, quotePaths, replaceSearchTextHolder, toPath } from './utils';
 import ChildProcess = require('child_process');
 import path = require('path');
 
@@ -55,25 +57,6 @@ export function stopAllSearchers() {
 
   CurrentSearchPidSet.clear();
 }
-
-const LinuxToolChecker = new ToolChecker(DefaultTerminalType, false);
-if (IsLinuxTerminalOnWindows && TerminalType.CygwinBash === DefaultTerminalType) {
-  LinuxToolChecker.checkSearchToolExists();
-}
-
-export const PlatformToolChecker = new ToolChecker(IsWindows ? TerminalType.CMD : TerminalType.LinuxBash);
-if (PlatformToolChecker.checkSearchToolExists()) {
-  // avoid prompting 'cmd.exe exit error'
-  const shouldActivate = !MyConfig.UseGitIgnoreFile || isNullOrEmpty(getDefaultRootFolder());// || !getGitIgnore(getDefaultRootFolder()).Valid;
-  if (shouldActivate) {
-    // to ease running command later (like: using git-ignore to export/set variables)
-    runRawCommandInTerminal('echo TerminalType = ' + TerminalType[DefaultTerminalType] + ', Universal slash = ' + IsForwardingSlashSupportedOnWindows);
-  }
-}
-
-PlatformToolChecker.checkAndDownloadTool('nin');
-
-const RunCommandChecker = TerminalType.CygwinBash === DefaultTerminalType ? LinuxToolChecker : PlatformToolChecker;
 
 export class Searcher {
   public Name: string;
@@ -153,7 +136,7 @@ function getSearchCommandLineAndRanker(searchChecker: SearchChecker, findType: F
   const document = searchChecker.Document;
   const position = searchChecker.Position;
   const [parsedFile, extension, currentWord, currentWordRange] = getCurrentFileSearchInfo(document, position);
-  if (!PlatformToolChecker.checkSearchToolExists() || currentWord.length < 2 || !currentWordRange) {
+  if (!RunCommandChecker.checkSearchToolExists() || currentWord.length < 2 || !currentWordRange) {
     return ['', null];
   }
 
@@ -182,17 +165,17 @@ function getSearchCommandLineAndRanker(searchChecker: SearchChecker, findType: F
   if (isSearchOneFile) {
     extraOptions = "-I -C " + (isFindDefinition ? '-J -H 60' : '-J -H 360');
   } else {
-    extraOptions = getSubConfigValue(rootFolderName, extension, mappedExt, configKeyName, 'extraOptions', true);
+    extraOptions = getConfigValueByAllParts(rootFolderName, extension, mappedExt, configKeyName, 'extraOptions', true);
     // if (skipTestPathFiles && /test/i.test(document.fileName) === false && /\s+--np\s+/.test(extraOptions) === false) {
     // 	extraOptions = '--np test ' + extraOptions;
     // }
   }
 
   const useExtraPathsForDefinition = isNullOrEmpty(forceSetSearchPath)
-    && getConfigValueByRoot(rootFolderName, extension, mappedExt, 'findDefinition.useExtraPaths') === "true";
+    && getConfigValueByProjectAndExtension(rootFolderName, extension, mappedExt, 'findDefinition.useExtraPaths') === "true";
 
   const useExtraPathsForReference = isNullOrEmpty(forceSetSearchPath)
-    && getConfigValueByRoot(rootFolderName, extension, mappedExt, 'findReference.useExtraPaths') === "true";
+    && getConfigValueByProjectAndExtension(rootFolderName, extension, mappedExt, 'findReference.useExtraPaths') === "true";
 
   const useSkipFolders = forceSetSearchPath !== document.uri.fsPath;
   const usePathListFiles = isNullOrEmpty(forceSetSearchPath);
@@ -226,7 +209,7 @@ export function getCurrentFileSearchInfo(document: vscode.TextDocument, position
   const parsedFile = path.parse(document.fileName);
   const extension = getExtensionNoHeadDot(parsedFile.ext);
   let [currentWord, currentWordRange, currentText] = getCurrentWordAndText(document, position);
-  if (currentWord.length < 2 || !currentWordRange || !PlatformToolChecker.checkSearchToolExists()) {
+  if (currentWord.length < 2 || !currentWordRange || !RunCommandChecker.checkSearchToolExists()) {
     return [parsedFile, extension, '', new vscode.Range(new vscode.Position(0, 0), new vscode.Position(0, 0)), ''];
   }
 
@@ -277,7 +260,7 @@ export function getMatchedLocationsAsync(findType: FindType, cmd: string, ranker
       if (stderr) {
         if (!findAndProcessSummary(allResults.length, false, stderr, findType, cmd, ranker)) {
           if (/\bmsr\b.*?\s+not\s+/.test(stderr)) {
-            PlatformToolChecker.checkSearchToolExists(true, false);
+            RunCommandChecker.checkSearchToolExists(true, false);
           }
         }
       }
@@ -422,8 +405,8 @@ function parseCommandOutput(stdout: string, findType: FindType, cmd: string, ran
   }
 
   const rootFolderName = getRootFolderName(toPath(ranker.searchChecker.currentFile));
-  const removeLowScoreResultsFactor = Number(getConfigValueByRoot(rootFolderName, ranker.searchChecker.extension, ranker.searchChecker.mappedExt, 'removeLowScoreResultsFactor') || 0.8);
-  const keepHighScoreResultCount = Number(getConfigValueByRoot(rootFolderName, ranker.searchChecker.extension, ranker.searchChecker.mappedExt, 'keepHighScoreResultCount') || -1);
+  const removeLowScoreResultsFactor = Number(getConfigValueByProjectAndExtension(rootFolderName, ranker.searchChecker.extension, ranker.searchChecker.mappedExt, 'removeLowScoreResultsFactor') || 0.8);
+  const keepHighScoreResultCount = Number(getConfigValueByProjectAndExtension(rootFolderName, ranker.searchChecker.extension, ranker.searchChecker.mappedExt, 'keepHighScoreResultCount') || -1);
 
   let scoreSum = 0;
   let scoreList: number[] = [];

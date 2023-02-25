@@ -6,6 +6,7 @@ export const OutputChannelName = 'MSR-Def-Ref';
 
 export const IsDebugMode = process.execArgv && process.execArgv.length > 0 && process.execArgv.some((arg) => /^--debug=?/.test(arg) || /^--(debug|inspect)-brk=?/.test(arg));
 export const SearchTextHolder = '%1';
+export const Is64BitOS = process.arch.includes('64');
 
 export const IsSupportedSystem = /win32|Windows|Linux/i.test(process.platform)
   || (/^Darwin/i.test(process.platform) && process.arch === 'arm64')

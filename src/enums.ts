@@ -1,4 +1,3 @@
-
 export enum FindType {
     None = 0,
     Definition = 1,

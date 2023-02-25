@@ -1,6 +1,6 @@
 import { ParsedPath } from 'path';
 import * as vscode from 'vscode';
-import { GetConfigPriorityPrefixes, getConfigValueByRoot, getOverrideConfigByPriority } from './configUtils';
+import { GetConfigPriorityPrefixes, getConfigValueByPriorityList, getConfigValueByProjectAndExtension } from './configUtils';
 import { SearchTextHolder } from './constants';
 import { getConfig, MyConfig } from './dynamicConfig';
 import { FindType, ForceFindType } from './enums';
@@ -324,19 +324,19 @@ export class SearchChecker {
 		const enumPattern = replaceSearchTextHolder(this.getSpecificConfigValue('enum.definition', false), currentWord);
 		this.enumDefinitionRegex = enumPattern.length < 1 ? EmptyRegex : new RegExp(enumPattern);
 
-		const promoteFolderPattern = getConfigValueByRoot(this.rootFolderName, this.extension, mappedExt, 'promoteFolderPattern');
-		const promotePathPattern = getConfigValueByRoot(this.rootFolderName, this.extension, mappedExt, 'promotePathPattern');
+		const promoteFolderPattern = getConfigValueByProjectAndExtension(this.rootFolderName, this.extension, mappedExt, 'promoteFolderPattern');
+		const promotePathPattern = getConfigValueByProjectAndExtension(this.rootFolderName, this.extension, mappedExt, 'promotePathPattern');
 		this.promoteFolderRegex = createRegex(promoteFolderPattern, 'i');
 		this.promotePathRegex = createRegex(promotePathPattern, 'i');
-		this.promoteFolderScore = parseInt(getConfigValueByRoot(this.rootFolderName, this.extension, mappedExt, 'promoteFolderScore') || '200');
-		this.promotePathScore = parseInt(getConfigValueByRoot(this.rootFolderName, this.extension, mappedExt, 'promotePathScore') || '200');
+		this.promoteFolderScore = parseInt(getConfigValueByProjectAndExtension(this.rootFolderName, this.extension, mappedExt, 'promoteFolderScore') || '200');
+		this.promotePathScore = parseInt(getConfigValueByProjectAndExtension(this.rootFolderName, this.extension, mappedExt, 'promotePathScore') || '200');
 
-		const demoteFolderPattern = getConfigValueByRoot(this.rootFolderName, this.extension, mappedExt, 'demoteFolderPattern');
-		const demotePathPattern = getConfigValueByRoot(this.rootFolderName, this.extension, mappedExt, 'demotePathPattern');
+		const demoteFolderPattern = getConfigValueByProjectAndExtension(this.rootFolderName, this.extension, mappedExt, 'demoteFolderPattern');
+		const demotePathPattern = getConfigValueByProjectAndExtension(this.rootFolderName, this.extension, mappedExt, 'demotePathPattern');
 		this.demoteFolderRegex = createRegex(demoteFolderPattern, 'i');
 		this.demotePathRegex = createRegex(demotePathPattern, 'i');
-		this.demoteFolderScore = parseInt(getConfigValueByRoot(this.rootFolderName, this.extension, mappedExt, 'demoteFolderScore') || '200');
-		this.demotePathScore = parseInt(getConfigValueByRoot(this.rootFolderName, this.extension, mappedExt, 'demotePathScore') || '200');
+		this.demoteFolderScore = parseInt(getConfigValueByProjectAndExtension(this.rootFolderName, this.extension, mappedExt, 'demoteFolderScore') || '200');
+		this.demotePathScore = parseInt(getConfigValueByProjectAndExtension(this.rootFolderName, this.extension, mappedExt, 'demotePathScore') || '200');
 	}
 
 	public getDefaultForceSettings(): ForceSetting {
@@ -391,8 +391,8 @@ export class SearchChecker {
 	public getCheckingRegex(configKeyTail: string, allowEmpty: boolean, matchAnyIfEmpty: boolean = false): RegExp {
 		const useDefault = configKeyTail === 'isFindClass' && MyConfig.UseDefaultFindingClassCheckExtensionRegex.test(this.currentFile.ext);
 		const rawPattern = useDefault
-			? getConfigValueByRoot(this.rootFolderName, '', 'default', configKeyTail, allowEmpty)
-			: getConfigValueByRoot(this.rootFolderName, this.extension, this.mappedExt, configKeyTail, allowEmpty);
+			? getConfigValueByProjectAndExtension(this.rootFolderName, '', 'default', configKeyTail, allowEmpty)
+			: getConfigValueByProjectAndExtension(this.rootFolderName, this.extension, this.mappedExt, configKeyTail, allowEmpty);
 		const pattern = replaceSearchTextHolder(rawPattern, this.currentWord);
 		return matchAnyIfEmpty && isNullOrEmpty(pattern) ? new RegExp(".?") : createRegex(pattern);
 	}
@@ -401,7 +401,7 @@ export class SearchChecker {
 		let prefixes = this.ForceUseDefaultFindingDefinition
 			? GetConfigPriorityPrefixes(this.rootFolderName, '', '', true)
 			: GetConfigPriorityPrefixes(this.rootFolderName, this.extension, this.mappedExt, addDefault);
-		const pattern = getOverrideConfigByPriority(prefixes, configKeyTail, allowEmpty) as string || '';
+		const pattern = getConfigValueByPriorityList(prefixes, configKeyTail, allowEmpty) as string || '';
 		if (!isNullOrEmpty(pattern) && configKeyTail.includes('definition') && !configKeyTail.includes('skip') && pattern.indexOf(SearchTextHolder) < 0) {
 			const keys = prefixes.join('.' + configKeyTail + ' or ');
 			outputError(nowText() + 'Not found word-holder: "' + SearchTextHolder + '" in search option, please check configuration of ' + keys + ', searchPattern = ' + pattern);

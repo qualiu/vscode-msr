@@ -1,14 +1,16 @@
 import path = require('path');
 import * as vscode from 'vscode';
-import { GetConfigPriorityPrefixes, getConfigValue, getConfigValueByRoot, getOverrideConfigByPriority, getOverrideOrDefaultConfig, getSubConfigValue } from './configUtils';
+import { GetConfigPriorityPrefixes, getConfigValueByAllParts, getConfigValueByProjectAndExtension, getConfigValueOfActiveProject, getConfigValueOfProject } from './configUtils';
 import { IsLinux, IsSupportedSystem, IsWindows, IsWSL } from './constants';
 import { cookCmdShortcutsOrFile, mergeSkipFolderPattern } from './cookCommandAlias';
 import { FindType, TerminalType } from './enums';
 import { GitIgnore } from './gitUtils';
-import { getRunCmdTerminal, outputDebug, outputError, outputInfo, outputInfoClear } from './outputUtils';
-import { createRegex, escapeRegExp } from './regexUtils';
+import { outputDebug, outputError, outputInfo, outputInfoClear, setOutputChannel } from './outputUtils';
+import { createRegex } from './regexUtils';
+import { getRunCmdTerminalWithInfo } from './runCommandUtils';
 import { SearchConfig } from './searchConfig';
-import { DefaultTerminalType, getDefaultRootFolderByActiveFile, getDefaultRootFolderName, getExtensionNoHeadDot, getRootFolder, getRootFolderName, getRootFolders, getUniqueStringSetNoCase, IsLinuxTerminalOnWindows, isLinuxTerminalOnWindows, isNullOrEmpty, IsWindowsTerminalOnWindows, nowText, quotePaths, toTerminalPath, toTerminalPaths, toTerminalPathsText, toWSLPaths } from './utils';
+import { DefaultTerminalType, isLinuxTerminalOnWindows, IsLinuxTerminalOnWindows, IsWindowsTerminalOnWindows, toStoragePaths, toTerminalPath, toTerminalPaths, toTerminalPathsText } from './terminalUtils';
+import { getDefaultRootFolderByActiveFile, getDefaultRootFolderName, getExtensionNoHeadDot, getRootFolder, getRootFolderName, getRootFolders, getUniqueStringSetNoCase, isNullOrEmpty, nowText, quotePaths } from './utils';
 
 const SplitPathsRegex = /\s*[,;]\s*/;
 const SplitPathGroupsRegex = /\s*;\s*/;
@@ -54,29 +56,38 @@ export function updateGitIgnoreUsage() {
         const workspaceFolder = vscode.workspace.workspaceFolders[k].uri.fsPath;
         const rootFolder = getRootFolder(workspaceFolder);
         const projectName = path.basename(rootFolder);
-        const useGitIgnoreFile = getOverrideOrDefaultConfig(projectName, 'useGitIgnoreFile') === 'true';
-        const omitGitIgnoreExemptions = getOverrideOrDefaultConfig(projectName, 'omitGitIgnoreExemptions') === 'true';
-        const skipDotFolders = getOverrideOrDefaultConfig(projectName, 'skipDotFoldersIfUseGitIgnoreFile') === 'true';
+        const useGitIgnoreFile = getConfigValueOfProject(projectName, 'useGitIgnoreFile') === 'true';
+        const omitGitIgnoreExemptions = getConfigValueOfProject(projectName, 'omitGitIgnoreExemptions') === 'true';
+        const skipDotFolders = getConfigValueOfProject(projectName, 'skipDotFoldersIfUseGitIgnoreFile') === 'true';
         const gitIgnore = new GitIgnore(path.join(rootFolder, '.gitignore'), useGitIgnoreFile, omitGitIgnoreExemptions, skipDotFolders);
         WorkspaceToGitIgnoreMap.set(rootFolder, gitIgnore);
+
+        // TODD: record in file or env when creating terminal
         const canInitGitIgnore = workspaceFolder === DefaultRootFolder;
+        const onlyCookFile = !canInitGitIgnore;
         function actionWhenSuccessfullyParsedGitIgnore() {
             if (!canInitGitIgnore) {
                 return;
             }
 
-            MyConfig.setChangePowerShellToCmdOnWindows(gitIgnore.ExemptionCount < 1);
-            const terminal = getRunCmdTerminal();
-            cookCmdShortcutsOrFile(false, DefaultRootFolder, true, false, terminal, false);
-            const autoCompare = getConfigValue('autoCompareFileListsIfUsedGitIgnore') === 'true';
+            MyConfig.setGitIgnoreStatus(rootFolder, gitIgnore.ExemptionCount < 1);
+            const [runCmdTerminal, isNewlyCreated] = getRunCmdTerminalWithInfo(false);
+            if (!isNewlyCreated) {
+                cookCmdShortcutsOrFile(false, rootFolder, true, false, runCmdTerminal, false, false, false, onlyCookFile);
+            }
+            gitIgnore.exportSkipPathVariable(true);
+            const autoCompare = getConfigValueOfActiveProject('autoCompareFileListsIfUsedGitIgnore') === 'true';
             if (autoCompare) {
                 gitIgnore.compareFileList();
             }
         }
 
         function actionWhenFailedToParseGitIgnore() {
-            cookCmdShortcutsOrFile(false, DefaultRootFolder, true, false, getRunCmdTerminal(), false);
-            MyConfig.setChangePowerShellToCmdOnWindows(false);
+            const [runCmdTerminal, isNewlyCreated] = getRunCmdTerminalWithInfo(false);
+            if (!isNewlyCreated) {
+                cookCmdShortcutsOrFile(false, rootFolder, true, false, runCmdTerminal, false, false, false, onlyCookFile);
+            }
+            MyConfig.setGitIgnoreStatus(rootFolder, false);
         }
 
         gitIgnore.parse(actionWhenSuccessfullyParsedGitIgnore, actionWhenFailedToParseGitIgnore);
@@ -106,9 +117,6 @@ export function addExtensionToPattern(ext: string, fileExtensionsRegex: RegExp) 
 
 export class DynamicConfig {
     public RootConfig: vscode.WorkspaceConfiguration = vscode.workspace.getConfiguration('msr');
-
-    public ChangePowerShellTerminalToCmdOrBash: boolean = false;
-    private ChangePowerShellTerminalToCmdOrBashConfig: string = "auto";
 
     // Temp toggle enable/disable finding definition and reference
     public IsEnabledFindingDefinition: boolean = true;
@@ -174,8 +182,9 @@ export class DynamicConfig {
     public ConfigAndDocFilesRegex: RegExp = new RegExp('to-load msr.default.configAndDocs');
     public ShowLongTip: boolean = true;
     public AutoChangeSearchWordForReference: boolean = true;
-
     private TmpToggleEnabledExtensionToValueMap = new Map<string, boolean>();
+    private ProjectToGitIgnoreStatusMap = new Map<String, boolean>();
+    private ChangePowerShellTerminalToCmdOrBashConfig: string = "auto";
 
     public isKnownLanguage(extension: string): boolean {
         return FileExtensionToMappedExtensionMap.has(extension) || this.RootConfig.get(extension) !== undefined;
@@ -221,28 +230,29 @@ export class DynamicConfig {
     public update() {
         this.RootConfig = vscode.workspace.getConfiguration('msr');
         const rootFolderName = getDefaultRootFolderName();
-        this.ConfigAndDocFilesRegex = new RegExp(getOverrideConfigByPriority([rootFolderName, '', 'default'], 'configAndDocs') || '\\.(json|xml|ini|ya?ml|md)|readme', 'i');
+        this.ConfigAndDocFilesRegex = new RegExp(getConfigValueOfProject(rootFolderName, 'configAndDocs') || '\\.(json|xml|ini|ya?ml|md)|readme', 'i');
 
-        const codeFileExtensionMappingTypes = getOverrideConfigByPriority([rootFolderName, '', 'default'], 'codeFileExtensionMappingTypes') || '^(cpp|cs|java|py|go|rs|ui)$';
+        const codeFileExtensionMappingTypes = getConfigValueOfProject(rootFolderName, 'codeFileExtensionMappingTypes') || '^(cpp|cs|java|py|go|rs|ui)$';
         this.CodeFileExtensionMappingTypesRegex = new RegExp(codeFileExtensionMappingTypes.trim(), 'i');
 
-        this.AllFilesRegex = new RegExp(getOverrideConfigByPriority([rootFolderName, '', 'default'], 'allFiles') || '\.(cp*|hp*|cs|java|scala|py|go|tsx?)$', 'i');
-        this.AllFilesDefaultRegex = new RegExp(getOverrideConfigByPriority(['', 'default'], 'allFiles') || '\.(cp*|hp*|cs|java|scala|py|go|tsx?)$', 'i');
-        this.CodeFilesRegex = new RegExp(getOverrideConfigByPriority([rootFolderName, '', 'default'], 'codeFiles') || '\.(cp*|hp*|cs|java|scala|py|go)$', 'i');
-        this.CodeFilesDefaultRegex = new RegExp(getOverrideConfigByPriority(['', 'default'], 'codeFiles') || '\.(cp*|hp*|cs|java|scala|py|go)$', 'i');
-        this.CodeAndConfigRegex = new RegExp(getOverrideConfigByPriority([rootFolderName, '', 'default'], 'codeAndConfig') || '\.(cp*|hp*|cs|java|scala|py|go|md)$', 'i');
-        this.CodeAndConfigDefaultRegex = new RegExp(getOverrideConfigByPriority(['', 'default'], 'codeAndConfig') || '\.(cp*|hp*|cs|java|scala|py|go|md)$', 'i');
-        this.CodeFilesPlusUIRegex = new RegExp(getOverrideConfigByPriority([rootFolderName, '', 'default'], 'codeFilesPlusUI') || '\.(cp*|hp*|cs|java|scala|py|go|tsx?)$', 'i');
-        this.CodeFilesPlusUIDefaultRegex = new RegExp(getOverrideConfigByPriority(['', 'default'], 'codeFilesPlusUI') || '\.(cp*|hp*|cs|java|scala|py|go|tsx?)$', 'i');
-        this.CodeAndConfigDocsRegex = new RegExp(getOverrideConfigByPriority([rootFolderName, '', 'default'], 'codeAndConfigDocs') || '\\.(cs\\w*|nuspec|config|c[px]*|h[px]*|java|scala|py|go|php|vue|tsx?|jsx?|json|ya?ml|xml|ini|md)$|readme', 'i');
-        this.CodeAndConfigDocsDefaultRegex = new RegExp(getOverrideConfigByPriority(['', 'default'], 'codeAndConfigDocs') || '\\.(cs\\w*|nuspec|config|c[px]*|h[px]*|java|scala|py|go|php|vue|tsx?|jsx?|json|ya?ml|xml|ini|md)$|readme', 'i');
+        this.AllFilesRegex = new RegExp(getConfigValueOfProject(rootFolderName, 'allFiles') || '\.(cp*|hp*|cs|java|scala|py|go|tsx?)$', 'i');
+        this.AllFilesDefaultRegex = new RegExp(getConfigValueOfProject('', 'allFiles') || '\.(cp*|hp*|cs|java|scala|py|go|tsx?)$', 'i');
+        this.CodeFilesRegex = new RegExp(getConfigValueOfProject(rootFolderName, 'codeFiles') || '\.(cp*|hp*|cs|java|scala|py|go)$', 'i');
+        this.CodeFilesDefaultRegex = new RegExp(getConfigValueOfProject('', 'codeFiles') || '\.(cp*|hp*|cs|java|scala|py|go)$', 'i');
+        this.CodeAndConfigRegex = new RegExp(getConfigValueOfProject(rootFolderName, 'codeAndConfig') || '\.(cp*|hp*|cs|java|scala|py|go|md)$', 'i');
+        this.CodeAndConfigDefaultRegex = new RegExp(getConfigValueOfProject('', 'codeAndConfig') || '\.(cp*|hp*|cs|java|scala|py|go|md)$', 'i');
+        this.CodeFilesPlusUIRegex = new RegExp(getConfigValueOfProject(rootFolderName, 'codeFilesPlusUI') || '\.(cp*|hp*|cs|java|scala|py|go|tsx?)$', 'i');
+        this.CodeFilesPlusUIDefaultRegex = new RegExp(getConfigValueOfProject('', 'codeFilesPlusUI') || '\.(cp*|hp*|cs|java|scala|py|go|tsx?)$', 'i');
+        this.CodeAndConfigDocsRegex = new RegExp(getConfigValueOfProject(rootFolderName, 'codeAndConfigDocs') || '\\.(cs\\w*|nuspec|config|c[px]*|h[px]*|java|scala|py|go|php|vue|tsx?|jsx?|json|ya?ml|xml|ini|md)$|readme', 'i');
+        this.CodeAndConfigDocsDefaultRegex = new RegExp(getConfigValueOfProject('', 'codeAndConfigDocs') || '\\.(cs\\w*|nuspec|config|c[px]*|h[px]*|java|scala|py|go|php|vue|tsx?|jsx?|json|ya?ml|xml|ini|md)$|readme', 'i');
 
         this.AllFileExtensionMappingRegexList = [];
         const fileExtensionMapInConfig = this.RootConfig.get('fileExtensionMap') as {};
         if (fileExtensionMapInConfig) {
             Object.keys(fileExtensionMapInConfig).forEach((mapExt) => {
                 const extensions = (this.RootConfig.get('fileExtensionMap.' + mapExt) as string).split(/\s+/);
-                const regexExtensions = extensions.map(ext => escapeRegExp(ext));
+                // exempt \w* case // const regexExtensions = extensions.map(ext => escapeRegExp(ext));
+                const regexExtensions = extensions.map(ext => ext.replace(/[.+?^${}()|[\]]/g, '\\$&').replace(/"/g, '\\"'));
                 const extensionsRegex = new RegExp('\\.(' + regexExtensions.join('|') + ')$', 'i');
                 this.AllFileExtensionMappingRegexList.push(extensionsRegex);
                 MappedExtToCodeFilePatternMap.set(mapExt, extensionsRegex.source);
@@ -264,49 +274,49 @@ export class DynamicConfig {
             });
         }
 
-        this.OnlyFindDefinitionForKnownLanguages = getConfigValue('enable.onlyFindDefinitionForKnownLanguages') === 'true';
-        this.ClearTerminalBeforeExecutingCommands = getConfigValue('clearTerminalBeforeExecutingCommands') === 'true';
-        this.InitProjectCmdAliasForNewTerminals = getConfigValue('initProjectCmdAliasForNewTerminals') === 'true';
-        this.ChangePowerShellTerminalToCmdOrBashConfig = getConfigValue('changePowerShellTerminalToCmdOrBash');
-        this.ChangePowerShellTerminalToCmdOrBash = /auto|true/i.test(this.ChangePowerShellTerminalToCmdOrBashConfig);
-        this.SkipInitCmdAliasForNewTerminalTitleRegex = createRegex(getConfigValue('skipInitCmdAliasForNewTerminalTitleRegex'), 'i');
-        this.OverwriteProjectCmdAliasForNewTerminals = getConfigValue('overwriteProjectCmdAliasForNewTerminals') === 'true';
-        this.AutoMergeSkipFolders = getConfigValue('autoMergeSkipFolders') === 'true';
-        this.ShowInfo = getConfigValue('showInfo') === 'true';
-        this.IsQuiet = getConfigValue('quiet') === 'true';
-        this.IsDebug = getConfigValue('debug') === 'true';
-        this.DescendingSortForConsoleOutput = getConfigValue('descendingSortForConsoleOutput') === 'true';
-        this.DescendingSortForVSCode = getConfigValue('descendingSortForVSCode') === 'true';
-        this.MaxSearchDepth = parseInt(getConfigValue('maxSearchDepth') || '0');
-        this.NeedSortResults = getConfigValue('sortResults') === 'true';
-        this.ReRunCmdInTerminalIfCostLessThan = Number(getConfigValue('reRunSearchInTerminalIfCostLessThan') || '3.3');
-        this.ReRunSearchInTerminalIfResultsMoreThan = Number(getConfigValue('reRunSearchInTerminalIfResultsMoreThan') || '1');
-        this.DisableReRunSearch = getConfigValue("disableReRunSearch") === 'true';
-        this.DefaultConstantsRegex = new RegExp(getConfigValue('isFindConstant'));
+        this.OnlyFindDefinitionForKnownLanguages = getConfigValueOfActiveProject('enable.onlyFindDefinitionForKnownLanguages') === 'true';
+        this.ClearTerminalBeforeExecutingCommands = getConfigValueOfActiveProject('clearTerminalBeforeExecutingCommands') === 'true';
+        this.InitProjectCmdAliasForNewTerminals = getConfigValueOfActiveProject('initProjectCmdAliasForNewTerminals') === 'true';
+        this.ChangePowerShellTerminalToCmdOrBashConfig = getConfigValueOfActiveProject('changePowerShellTerminalToCmdOrBash');
+        this.SkipInitCmdAliasForNewTerminalTitleRegex = createRegex(getConfigValueOfActiveProject('skipInitCmdAliasForNewTerminalTitleRegex'), 'i');
+        this.OverwriteProjectCmdAliasForNewTerminals = getConfigValueOfActiveProject('overwriteProjectCmdAliasForNewTerminals') === 'true';
+        this.AutoMergeSkipFolders = getConfigValueOfActiveProject('autoMergeSkipFolders') === 'true';
+        this.ShowInfo = getConfigValueOfActiveProject('showInfo') === 'true';
+        this.IsQuiet = getConfigValueOfActiveProject('quiet') === 'true';
+        this.IsDebug = getConfigValueOfActiveProject('debug') === 'true';
+        setOutputChannel(this.ShowInfo, this.IsQuiet);
+        this.DescendingSortForConsoleOutput = getConfigValueOfActiveProject('descendingSortForConsoleOutput') === 'true';
+        this.DescendingSortForVSCode = getConfigValueOfActiveProject('descendingSortForVSCode') === 'true';
+        this.MaxSearchDepth = parseInt(getConfigValueOfActiveProject('maxSearchDepth') || '0');
+        this.NeedSortResults = getConfigValueOfActiveProject('sortResults') === 'true';
+        this.ReRunCmdInTerminalIfCostLessThan = Number(getConfigValueOfActiveProject('reRunSearchInTerminalIfCostLessThan') || '3.3');
+        this.ReRunSearchInTerminalIfResultsMoreThan = Number(getConfigValueOfActiveProject('reRunSearchInTerminalIfResultsMoreThan') || '1');
+        this.DisableReRunSearch = getConfigValueOfActiveProject("disableReRunSearch") === 'true';
+        this.DefaultConstantsRegex = new RegExp(getConfigValueOfActiveProject('isFindConstant'));
 
-        this.DisabledRootFolderNameRegex = createRegex(getConfigValue('disable.projectRootFolderNamePattern'));
+        this.DisabledRootFolderNameRegex = createRegex(getConfigValueOfActiveProject('disable.projectRootFolderNamePattern'));
 
-        this.DisabledFileExtensionRegex = createRegex(getConfigValue('disable.extensionPattern'), 'i', true);
-        this.DisableFindDefinitionFileExtensionRegex = createRegex(getConfigValue('disable.findDef.extensionPattern'), 'i', true);
-        this.DisableFindReferenceFileExtensionRegex = createRegex(getConfigValue('disable.findRef.extensionPattern'), 'i', true);
+        this.DisabledFileExtensionRegex = createRegex(getConfigValueOfActiveProject('disable.extensionPattern'), 'i', true);
+        this.DisableFindDefinitionFileExtensionRegex = createRegex(getConfigValueOfActiveProject('disable.findDef.extensionPattern'), 'i', true);
+        this.DisableFindReferenceFileExtensionRegex = createRegex(getConfigValueOfActiveProject('disable.findRef.extensionPattern'), 'i', true);
 
-        this.HideWarningsAndExtraInfoWhenCookingCommandAlias = getConfigValue('cookCmdAlias.hideWarningsAndExtraInfo') === 'true';
-        this.OutputFullPathWhenCookingCommandAlias = getConfigValue('cookCmdAlias.outputFullPath') === 'true';
-        this.OutputFullPathWhenCookAndDumpingAliasFiles = getConfigValue('cookCmdAlias.outputFullPathForDumpingScriptFiles') === 'true';
-        this.OutputRelativePathForLinuxTerminalsOnWindows = getConfigValue('cookCmdAlias.outputRelativePathForLinuxTerminalsOnWindows') === 'true';
-        this.AddEchoOffWhenCookingWindowsCommandAlias = getConfigValue('cookCmdAlias.addEchoOff', true);
-        this.SetVariablesToLocalScopeWhenCookingWindowsCommandAlias = getConfigValue('cookCmdAlias.setVariablesToLocalScope', true);
+        this.HideWarningsAndExtraInfoWhenCookingCommandAlias = getConfigValueOfActiveProject('cookCmdAlias.hideWarningsAndExtraInfo') === 'true';
+        this.OutputFullPathWhenCookingCommandAlias = getConfigValueOfActiveProject('cookCmdAlias.outputFullPath') === 'true';
+        this.OutputFullPathWhenCookAndDumpingAliasFiles = getConfigValueOfActiveProject('cookCmdAlias.outputFullPathForDumpingScriptFiles') === 'true';
+        this.OutputRelativePathForLinuxTerminalsOnWindows = getConfigValueOfActiveProject('cookCmdAlias.outputRelativePathForLinuxTerminalsOnWindows') === 'true';
+        this.AddEchoOffWhenCookingWindowsCommandAlias = getConfigValueOfActiveProject('cookCmdAlias.addEchoOff', true);
+        this.SetVariablesToLocalScopeWhenCookingWindowsCommandAlias = getConfigValueOfActiveProject('cookCmdAlias.setVariablesToLocalScope', true);
 
-        this.UseDefaultFindingClassCheckExtensionRegex = createRegex(getConfigValue('useDefaultFindingClass.extensions'));
+        this.UseDefaultFindingClassCheckExtensionRegex = createRegex(getConfigValueOfActiveProject('useDefaultFindingClass.extensions'));
 
-        this.MaxWaitSecondsForSearchDefinition = Number(getConfigValue('searchDefinition.timeoutSeconds'));
-        this.MaxWaitSecondsForAutoReSearchDefinition = Number(getConfigValue('autoRunSearchDefinition.timeoutSeconds'));
+        this.MaxWaitSecondsForSearchDefinition = Number(getConfigValueOfActiveProject('searchDefinition.timeoutSeconds'));
+        this.MaxWaitSecondsForAutoReSearchDefinition = Number(getConfigValueOfActiveProject('autoRunSearchDefinition.timeoutSeconds'));
         this.ScriptFileExtensionRegex = createRegex(this.RootConfig.get('default.scriptFiles') || '\\.(bat|cmd|psm?1|sh|bash|[kzct]sh)$', 'i');
-        this.UseGitIgnoreFile = getConfigValue('useGitIgnoreFile') === 'true';
-        this.OmitGitIgnoreExemptions = getConfigValue('omitGitIgnoreExemptions') === 'true';
-        this.SkipDotFolders = getConfigValue('skipDotFoldersIfUseGitIgnoreFile') === 'true';
-        this.ShowLongTip = getConfigValue('cookCmdAlias.showLongTip') === 'true';
-        this.AutoChangeSearchWordForReference = getConfigValue('reference.autoChangeSearchWord') === 'true';
+        this.UseGitIgnoreFile = getConfigValueOfActiveProject('useGitIgnoreFile') === 'true';
+        this.OmitGitIgnoreExemptions = getConfigValueOfActiveProject('omitGitIgnoreExemptions') === 'true';
+        this.SkipDotFolders = getConfigValueOfActiveProject('skipDotFoldersIfUseGitIgnoreFile') === 'true';
+        this.ShowLongTip = getConfigValueOfActiveProject('cookCmdAlias.showLongTip') === 'true';
+        this.AutoChangeSearchWordForReference = getConfigValueOfActiveProject('reference.autoChangeSearchWord') === 'true';
 
         SearchConfig.reload();
 
@@ -318,10 +328,20 @@ export class DynamicConfig {
     }
 
     // If has git-exemptions, should not use git-ignore and thus better to use PowerShell (general search).
-    public setChangePowerShellToCmdOnWindows(shouldChange: boolean) {
-        if (/auto/i.test(MyConfig.ChangePowerShellTerminalToCmdOrBashConfig)) {
-            MyConfig.ChangePowerShellTerminalToCmdOrBash = shouldChange;
+    public setGitIgnoreStatus(rootFolder: string, isGood: boolean) {
+        MyConfig.ProjectToGitIgnoreStatusMap.set(rootFolder, isGood);
+    }
+
+    public canUseGoodGitIgnore(rootFolder: string) {
+        if (/false/i.test(MyConfig.ChangePowerShellTerminalToCmdOrBashConfig)) {
+            return false;
         }
+
+        if (MyConfig.ProjectToGitIgnoreStatusMap.get(rootFolder)) {
+            return true;
+        }
+
+        return false;
     }
 
     public isScriptFile(extension: string): boolean {
@@ -457,7 +477,7 @@ export function replaceToRelativeSearchPath(toRunInTerminal: boolean, searchPath
 
 export function getSearchPathOptions(
     toRunInTerminal: boolean,
-    useProjectSpecific: boolean,
+    isForProjectCmdAlias: boolean,
     codeFilePath: string,
     mappedExt: string,
     isFindingDefinition: boolean,
@@ -471,23 +491,23 @@ export function getSearchPathOptions(
     const rootFolder = allRootFolders.includes(forceSetSearchPath) ? getRootFolder(forceSetSearchPath) : getRootFolder(codeFilePath);
     const extension = getExtensionNoHeadDot(path.parse(codeFilePath).ext, '');
     const rootFolderName = getRootFolderName(codeFilePath, true);
-    const findDefinitionInAllFolders = getConfigValueByRoot(rootFolderName, extension, mappedExt, 'definition.searchAllRootFolders') === "true";
-    const findReferencesInAllRootFolders = getConfigValueByRoot(rootFolderName, extension, mappedExt, 'reference.searchAllRootFolders') === "true";
+    const findDefinitionInAllFolders = getConfigValueByProjectAndExtension(rootFolderName, extension, mappedExt, 'definition.searchAllRootFolders') === "true";
+    const findReferencesInAllRootFolders = getConfigValueByProjectAndExtension(rootFolderName, extension, mappedExt, 'reference.searchAllRootFolders') === "true";
     const findAllFolders = isFindingDefinition ? findDefinitionInAllFolders : findReferencesInAllRootFolders;
     const rootPaths = !isNullOrEmpty(forceSetSearchPath)
         ? forceSetSearchPath
         : (findAllFolders ? getRootFolders(codeFilePath).join(',') : getRootFolder(codeFilePath));
 
     const recursiveOption = isRecursive || isNullOrEmpty(rootPaths) ? '-rp ' : '-p ';
-    const folderKey = useProjectSpecific ? rootFolderName : '';
+    const folderKey = isForProjectCmdAlias ? rootFolderName : '';
 
     const subName = isFindingDefinition ? 'definition' : 'reference';
-    let skipFoldersPattern = getSubConfigValue(folderKey, extension, mappedExt, subName, 'skipFolders');
+    let skipFoldersPattern = getConfigValueByAllParts(folderKey, extension, mappedExt, subName, 'skipFolders');
     skipFoldersPattern = mergeSkipFolderPattern(skipFoldersPattern);
 
     const terminalType = !toRunInTerminal && isLinuxTerminalOnWindows() ? TerminalType.CMD : DefaultTerminalType;
     const gitIgnoreInfo = getGitIgnore(rootFolder);
-    const skipFolderOptions = useProjectSpecific && gitIgnoreInfo.Valid && (!toRunInTerminal || allRootFolders.length < 2)
+    const skipFolderOptions = isForProjectCmdAlias && gitIgnoreInfo.Valid && (!toRunInTerminal || allRootFolders.length < 2)
         ? gitIgnoreInfo.getSkipPathRegexPattern(toRunInTerminal)
         : (useSkipFolders && skipFoldersPattern.length > 1 ? ' --nd "' + skipFoldersPattern + '"' : '');
 
@@ -581,7 +601,7 @@ export function getExtraSearchPathsOrFileLists(configKeyTailName: string, rootFo
 
     const specificPaths = folderNameToPathMap.get(rootFolderName) || '';
     splitPathList(specificPaths).forEach(a => extraSearchPaths.add(a));
-    return toWSLPaths(getUniqueStringSetNoCase(extraSearchPaths));
+    return toStoragePaths(getUniqueStringSetNoCase(extraSearchPaths));
 }
 
 function splitPathList(pathListText: string) {
@@ -594,7 +614,7 @@ function splitPathList(pathListText: string) {
         extraSearchPaths.add(a.trim());
     });
 
-    extraSearchPaths = toWSLPaths(getUniqueStringSetNoCase(extraSearchPaths));
+    extraSearchPaths = toStoragePaths(getUniqueStringSetNoCase(extraSearchPaths));
     return extraSearchPaths;
 }
 

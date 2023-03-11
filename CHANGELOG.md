@@ -2,6 +2,10 @@
 
 All notable changes to this "vscode-msr" extension will be documented in this file.
 
+## [2.1.53]
+- Improved `gfind-spring-ref` / `gfind-cpp-member-ref`.
+- Improved output full path `out-fp` and relative path `out-rp`.
+
 ## [2.1.52]
 - Auto disable finding definition if found language extension running by config `utoDisableFindDefinitionPattern`.
 - Supported auto updating search tool - (change default `autoUpdateSearchTool` = `true`).

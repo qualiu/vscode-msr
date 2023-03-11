@@ -291,8 +291,9 @@ export function cookCmdShortcutsOrFile(
   const sortedCmdKeys = Array.from(cmdAliasMap.keys()).sort();
   sortedCmdKeys.forEach(key => {
     const value = cmdAliasMap.get(key) || '';
+    const powerShellCmd = getPowerShellName(terminalType) + ' -Command';
     if (key.match(/^(find|sort)-/) && !key.startsWith('find-nd') && value.includes('msr -rp')) {
-      const isPowerShellScript = key === 'find-spring-ref';
+      const isPowerShellScript = value.includes(powerShellCmd); // like find-spring-ref
       const tmpListFile = isPowerShellScript && isWindowsTerminal
         ? path.join(os.tmpdir(), tmpFileName)
         : quotePaths((isWindowsTerminal ? '%tmp%\\' : '/tmp/') + tmpFileName);
@@ -302,10 +303,17 @@ export function cookCmdShortcutsOrFile(
       const refreshDuration = MyConfig.RefreshTmpGitFileListDuration;
       if (isForProjectCmdAlias && IsFileTimeOffsetSupported) {
         const checkTime = `msr -l --w1 ${refreshDuration} -p ${tmpListFile}`;
-        if (isWindowsTerminal) {
-          checkAndListCommand = '( ' + checkTime + ' 2>nul | msr -t "Matched 1" >nul && ' + listFileCommand + ' ) & ';
+        if (isPowerShellScript) {
+          checkAndListCommand = '$foundFile = ' + checkTime + ' -PAC 2>$null; if ([string]::IsNullOrEmpty($foundFile)) { ' + listFileCommand + ' }';
+          if (!isWindowsTerminal) {
+            checkAndListCommand = checkAndListCommand.replace(/\$(\w+)/g, '\\$$$1');
+          }
         } else {
-          checkAndListCommand = checkTime + ' 2>/dev/null -PAC ; [ $? -ne 1 ] && ' + listFileCommand + '; '
+          if (isWindowsTerminal) {
+            checkAndListCommand = '( ' + checkTime + ' 2>nul | msr -t "^Matched 1" >nul && ' + listFileCommand + ' ) & ';
+          } else {
+            checkAndListCommand = checkTime + ' 2>/dev/null -PAC ; [ $? -ne 1 ] && ' + listFileCommand + '; '
+          }
         }
       }
 
@@ -368,11 +376,11 @@ export function cookCmdShortcutsOrFile(
   // If use echo command, should use '\\~' instead of '~'
   const defaultAliasPathForBash = getDisplayPathForBash(defaultCmdAliasFileDisplayPath, '~'); // '\\~');
   const createCmdAliasTip = `You can create shortcuts in ${defaultAliasPathForBash}${isWindowsTerminal ? '' : ' or other files'} . `;
-  const shortcutsExample = 'Now you can use ' + cmdAliasMap.size + ' shortcuts like find-all gfind-all find-def gfind-ref find-doc gfind-small , use-rp use-fp out-fp out-rp'
+  const shortcutsExample = 'Now you can use ' + cmdAliasMap.size + ' shortcuts like find-all gfind-all find-def gfind-ref find-doc gfind-small find-spring-ref, list-alias out-fp out-rp'
     + ' , find-top-folder gfind-top-type sort-code-by-time etc. See detail like: alias find-def or malias find-top or malias use-fp or malias sort-.+?= etc.';
   const finalGuide = createCmdAliasTip + warnCookNewCmdAliasTip + shortcutsExample + ' You can change msr.skipInitCmdAliasForNewTerminalTitleRegex in user settings.'
     + ' Toggle-Enable/Disable finding definition + Speed-Up-if-Slowdown-by-Windows-Security + Adjust-Color + Fuzzy-Code-Mining + Preview-And-Replace-Files + Hide/Show-Menus'
-    + ' + Use git-ignore + More functions + details see doc like: ' + CookCmdDocUrl;
+    + ' + Use git-ignore + Use in external terminals/IDEs: use-this-alias / out-fp / out-rp + More functions/details see doc like: ' + CookCmdDocUrl;
 
   const colorPattern = 'PowerShell|re-cook|\\d+|m*alias|doskey|find-\\S+|sort-\\S+|out-\\S+|use-\\S+|msr.skip\\S+|\\S*msr-cmd-alias\\S*|other'
     + '|Toggle|Enable|Disable|Speed-Up|Adjust-Color|Code-Mining|Preview-|-Replace-|git-ignore|Menus|functions|details';
@@ -636,17 +644,18 @@ export function cookCmdShortcutsOrFile(
     const tailLoadCmd = andText + loadCmdAliasCmd;
 
     if (onlyForOutput) {
+      // linux function is complex, but it's in a separate tmp alias file, so it's safe.
+      const extraCheck = isWindowsTerminal ? ` -x find-` : '';
       if (outputFullPath) {
         return headCopyCmd
-          + replaceHead
-          + ` -x find-` + commonSkipToUseFullPath
+          + replaceHead + commonSkipToUseFullPath + extraCheck
           + ` -t "\\bmsr (-w|-rp)"`
           + ` -o "msr -W \\1"`
           + ` -R -c Output full path.`
           + tailLoadCmd;
       } else {
         return headCopyCmd
-          + replaceHead + ` -x find-` + commonSkipToUseRelativePath
+          + replaceHead + commonSkipToUseRelativePath + extraCheck
           + ` -t "\\bmsr -W (-w|-rp)"`
           + ` -o "msr \\1"`
           + ` -R -c Output relative path.`

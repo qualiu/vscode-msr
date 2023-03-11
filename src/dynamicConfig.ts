@@ -435,7 +435,7 @@ export class DynamicConfig {
 
         if (!needCheckLanguageProcess(mappedExt)) {
             const lastCheckTime = LastCheckLanguageProcessTimeMap.get(mappedExt) || new Date();
-            outputInfoByTime(`Skip finding definition for ${mappedExt} since found language process. Last check time = ${lastCheckTime.toISOString()}. Current autoDisableFindDefinitionPattern = "${checkProcessPattern}"`);
+            outputInfoClearByTime(`Skip finding definition for ${mappedExt} since found language process. Last check time = ${lastCheckTime.toISOString()}. Current autoDisableFindDefinitionPattern = "${checkProcessPattern}"`);
             return true;
         }
 

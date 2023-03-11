@@ -14,10 +14,13 @@ import ChildProcess = require('child_process');
 
 const TipUrl = "https://marketplace.visualstudio.com/items?itemName=qualiu.vscode-msr";
 
-
 const DefaultNonWindowsSuffix = IsWindows ? '' : ('-' + GetCommandOutput('uname -m') + '.' + GetCommandOutput('uname -s')).toLowerCase();
-const DefaultNameSuffix = IsWindows ? '.exe' : (IsLinuxArm64 ? DefaultNonWindowsSuffix : '.gcc48');
-export const TerminalTypeToSourceExtensionMap = new Map<TerminalType, string>()
+const DefaultNameSuffix = IsWindows ? (Is64BitOS ? '.exe' : '-Win32.exe')
+  : (IsLinuxArm64 || IsDarwinArm64
+    ? DefaultNonWindowsSuffix
+    : (Is64BitOS ? '.gcc48' : '-i386.gcc48') // legacy naming
+  );
+const TerminalTypeToSourceExtensionMap = new Map<TerminalType, string>()
   .set(TerminalType.CMD, '.exe')
   .set(TerminalType.PowerShell, DefaultNameSuffix)
   .set(TerminalType.MinGWBash, '.exe')
@@ -25,6 +28,20 @@ export const TerminalTypeToSourceExtensionMap = new Map<TerminalType, string>()
   .set(TerminalType.LinuxBash, DefaultNameSuffix)
   .set(TerminalType.WslBash, '.gcc48')
   ;
+
+function getToolNameTail(terminalType: TerminalType): string {
+  if (IsLinuxArm64 || IsDarwinArm64) {
+    //return '-' + process.arch.toLowerCase() + '.' + process.platform.toLowerCase();
+    return DefaultNameSuffix;
+  }
+
+  return TerminalTypeToSourceExtensionMap.get(terminalType) || '.exe';
+}
+
+// input msr / nin 
+function getToolName(pureExeName: string, terminalType: TerminalType): string {
+  return pureExeName + getToolNameTail(terminalType);
+}
 
 let GoodSourceUrlIndex = 0; // use it if succeeded
 let MsrHelpText = '';
@@ -85,39 +102,25 @@ export class ToolChecker {
     this.terminalType = terminalType;
     this.autoDownload = autoDownload;
     this.isTerminalOfWindows = isWindowsTerminalOnWindows(this.terminalType);
-    this.MatchExeMd5Regex = new RegExp('^(\\S+)\\s+(\\w+)' + this.getSourceExeNameTail() + '\\s*$', 'm');
+    this.MatchExeMd5Regex = new RegExp('^(\\S+)\\s+(\\w+)'
+      + getToolNameTail(this.terminalType) + '\\s*$', 'm');
   }
 
-  private getSourceExeNameTail() {
-    if (IsLinuxArm64 || IsDarwinArm64) {
-      //return '-' + process.arch.toLowerCase() + '.' + process.platform.toLowerCase();
-      return DefaultNameSuffix;
-    }
-
-    const suffix = TerminalTypeToSourceExtensionMap.get(this.terminalType);
-    if (IsWindows) {
-      return (Is64BitOS ? '' : '-Win32') + suffix;
-    }
-
-    // for Linux
-    return (Is64BitOS ? '' : '-i386') + suffix;
-  }
-
-  public checkAndDownloadTool(exeName64bit: string): [boolean, string] {
-    const [isExisted, exePath] = isToolExistsInPath(exeName64bit, this.terminalType);
-    const exeName = this.getSourceExeName(exeName64bit);
+  public checkAndDownloadTool(pureExeName: string): [boolean, string] {
+    const [isExisted, exePath] = isToolExistsInPath(pureExeName, this.terminalType);
+    const exeName = this.getSourceExeName(pureExeName);
     outputDebugByTime((isExisted ? 'Found ' + exeName + ' = ' + exePath : 'Not found ' + exeName + ', will download it.'));
     if (isExisted) {
       this.setEnvironmentForTool();
-      this.updateHelpText(exeName64bit, exePath);
+      this.updateHelpText(pureExeName, exePath);
       return [isExisted, exePath];
     }
 
-    return this.autoDownloadTool(exeName64bit);
+    return this.autoDownloadTool(pureExeName);
   }
 
-  private updateHelpText(exeName64bit: string, exePath: string) {
-    if (exeName64bit === 'msr') {
+  private updateHelpText(pureExeName: string, exePath: string) {
+    if (pureExeName === 'msr') {
       MsrHelpText = runCommandGetOutput(exePath + ' -h -C');
       IsForwardingSlashSupportedOnWindows = MsrHelpText.includes(CheckForwardingSlashSupportOnWindowsText);
       IsTimeoutSupported = isArgSupported('--timeout', 'msr');
@@ -128,7 +131,7 @@ export class ToolChecker {
     }
   }
 
-  public getCheckDownloadCommandsForLinuxBashOnWindows(exeName64bit: string = 'msr', forceCheckDownload: boolean = false): string {
+  public getCheckDownloadCommandsForLinuxBashOnWindows(pureExeName: string = 'msr', forceCheckDownload: boolean = false): string {
     // others have already checked and downloaded.
     if (TerminalType.CygwinBash !== this.terminalType && TerminalType.WslBash !== this.terminalType) {
       if (!forceCheckDownload) {
@@ -136,39 +139,39 @@ export class ToolChecker {
       }
     }
 
-    const [downloadCmd, targetExePath] = this.getDownloadCommandAndSavePath(exeName64bit, '~/', GoodSourceUrlIndex);
+    const [downloadCmd, targetExePath] = this.getDownloadCommandAndSavePath(pureExeName, '~/', GoodSourceUrlIndex);
     const exportCommand = 'export PATH=~:$PATH';
-    const checkExistCommand = 'ls -al ' + targetExePath + ' 2>/dev/null | egrep -e "^-[rw-]*?x.*?/' + exeName64bit + '\\s*$"';
-    const firstCheck = 'which ' + exeName64bit + ' 2>/dev/null | egrep -e "/' + exeName64bit + '"';
+    const checkExistCommand = 'ls -al ' + targetExePath + ' 2>/dev/null | egrep -e "^-[rw-]*?x.*?/' + pureExeName + '\\s*$"';
+    const firstCheck = 'which ' + pureExeName + ' 2>/dev/null | egrep -e "/' + pureExeName + '"';
     const lastCheck = '( ' + checkExistCommand + ' || ( ' + downloadCmd + ' && ' + exportCommand + ' ) )';
     return firstCheck + ' || ' + lastCheck;
   }
 
-  private getSourceExeName(exeName64bit: string): string {
-    return exeName64bit + this.getSourceExeNameTail();
+  private getSourceExeName(pureExeName: string): string {
+    return getToolName(pureExeName, this.terminalType);
   }
 
-  private getSaveExeName(exeName64bit: string) {
-    return exeName64bit + (this.isTerminalOfWindows ? '.exe' : '');
+  private getSaveExeName(pureExeName: string) {
+    return pureExeName + (this.isTerminalOfWindows ? '.exe' : '');
   }
 
-  private getTempSaveExePath(exeName64bit: string): string {
-    const saveExeName = this.getSaveExeName(exeName64bit);
+  private getTempSaveExePath(pureExeName: string): string {
+    const saveExeName = this.getSaveExeName(pureExeName);
     const folder = isLinuxTerminalOnWindows(this.terminalType) ? getHomeFolderForLinuxTerminalOnWindows() : HomeFolder;
     const savePath = path.join(toTerminalPath(folder, this.terminalType), saveExeName);
     return this.isTerminalOfWindows ? savePath : savePath.replace(/\\/g, '/');
   }
 
-  private getDownloadCommandAndSavePath(exeName64bit: string, saveExePath: string = '', useUrlIndex: number = 0): [string, string] {
-    const sourceExeName = this.getSourceExeName(exeName64bit);
+  private getDownloadCommandAndSavePath(pureExeName: string, saveExePath: string = '', useUrlIndex: number = 0): [string, string] {
+    const sourceExeName = this.getSourceExeName(pureExeName);
     const sourceUrl = getDownloadUrl(sourceExeName, useUrlIndex);
     const [IsExistIcacls] = this.isTerminalOfWindows ? isToolExistsInPath('icacls', this.terminalType) : [false, ''];
     if (isNullOrEmpty(saveExePath)) {
-      saveExePath = this.getTempSaveExePath(exeName64bit);
+      saveExePath = this.getTempSaveExePath(pureExeName);
     } else if (saveExePath.endsWith('/') || saveExePath === '~') {
       saveExePath = this.isTerminalOfWindows
-        ? path.join(saveExePath, exeName64bit)
-        : saveExePath.replace(/\/$/, '') + "/" + exeName64bit;
+        ? path.join(saveExePath, pureExeName)
+        : saveExePath.replace(/\/$/, '') + "/" + pureExeName;
     }
 
     const tmpSaveExePath = saveExePath + '.tmp';
@@ -273,32 +276,32 @@ export class ToolChecker {
     return this.IsToolExists;
   }
 
-  private autoDownloadTool(exeName64bit: string): [boolean, string] {
-    const tmpSaveExePath = this.getTempSaveExePath(exeName64bit);
-    const sourceExeName = this.getSourceExeName(exeName64bit);
-    const saveExeName = isWindowsTerminalOnWindows(this.terminalType) ? exeName64bit + '.exe' : exeName64bit;
+  private autoDownloadTool(pureExeName: string): [boolean, string] {
+    const tmpSaveExePath = this.getTempSaveExePath(pureExeName);
+    const sourceExeName = this.getSourceExeName(pureExeName);
+    const saveExeName = isWindowsTerminalOnWindows(this.terminalType) ? pureExeName + '.exe' : pureExeName;
     const targetExePath = path.join(path.dirname(tmpSaveExePath), saveExeName);
 
     if (!isFileExists(tmpSaveExePath)) {
       updateOutputChannel(MessageLevel.WARN);
-      if (!this.tryAllSourcesToDownload(exeName64bit, sourceExeName, tmpSaveExePath, targetExePath)) {
+      if (!this.tryAllSourcesToDownload(pureExeName, sourceExeName, tmpSaveExePath, targetExePath)) {
         runRawCommandInTerminal(`echo "Tried ${SourceHomeUrlArray.length} sources, please download ${sourceExeName} follow: ${TipUrl}"`)
         return [false, ''];
       }
     }
     updateOutputChannel(DefaultMessageLevel, getConfig().IsQuiet);
     outputInfoByTime('Found existing tmp tool "' + sourceExeName + '": ' + targetExePath + ' , skip downloading.');
-    this.addTmpExeToPath(exeName64bit);
+    this.addTmpExeToPath(pureExeName);
     return [true, targetExePath];
   }
 
 
-  private tryAllSourcesToDownload(exeName64bit: string, sourceExeName: string, tmpSaveExePath: string, targetExePath: string): boolean {
+  private tryAllSourcesToDownload(pureExeName: string, sourceExeName: string, tmpSaveExePath: string, targetExePath: string): boolean {
     for (let tryTimes = 0; tryTimes < SourceHomeUrlArray.length; tryTimes++) {
       outputKeyInfoByTime('Will try to download the tiny tool "' + sourceExeName + '" by command:');
-      runRawCommandInTerminal(`echo Times-${tryTimes + 1}: Try to download ${exeName64bit} from source-${tryTimes + 1}, see: "${TipUrl}"`)
+      runRawCommandInTerminal(`echo Times-${tryTimes + 1}: Try to download ${sourceExeName} from source-${tryTimes + 1}, see: "${TipUrl}"`)
       const tryUrlIndex = GoodSourceUrlIndex + tryTimes;
-      const [downloadCommand, _] = this.getDownloadCommandAndSavePath(exeName64bit, tmpSaveExePath, tryUrlIndex);
+      const [downloadCommand, _] = this.getDownloadCommandAndSavePath(pureExeName, tmpSaveExePath, tryUrlIndex);
       outputKeyInfo(downloadCommand);
       if (isDirectory(tmpSaveExePath)) {
         const errorText = `echo "Found name conflict with directory: ${tmpSaveExePath} , please move the directory, or download ${sourceExeName} with command in ${OutputChannelName} in OUTPUT tab."`;
@@ -343,22 +346,22 @@ export class ToolChecker {
     return false;
   }
 
-  private addTmpExeToPath(exeName64bit: string) {
-    const saveExeName = this.getSaveExeName(exeName64bit);
-    const tmpSaveExePath = this.getTempSaveExePath(exeName64bit);
-    if (exeName64bit === 'msr') {
+  private addTmpExeToPath(pureExeName: string) {
+    const saveExeName = this.getSaveExeName(pureExeName);
+    const tmpSaveExePath = this.getTempSaveExePath(pureExeName);
+    if (pureExeName === 'msr') {
       this.MsrExePath = tmpSaveExePath;
       updateToolNameToPathMap(this.terminalType, 'msr', tmpSaveExePath);
-    } else if (exeName64bit === 'nin') {
+    } else if (pureExeName === 'nin') {
       updateToolNameToPathMap(this.terminalType, 'nin', tmpSaveExePath);
     }
 
-    this.updateHelpText(exeName64bit, tmpSaveExePath);
+    this.updateHelpText(pureExeName, tmpSaveExePath);
 
     const exeFolder = path.dirname(tmpSaveExePath);
     if (checkAddFolderToPath(exeFolder, this.terminalType)) {
       outputKeyInfoByTime('Temporarily added ' + saveExeName + ' folder: ' + exeFolder + ' to ' + PathEnvName);
-      outputKeyInfoByTime('Suggest that add the folder to ' + PathEnvName + ' to freely use/call ' + exeName64bit + ' everywhere (you can also copy/move "' + tmpSaveExePath + '" to a folder already in ' + PathEnvName + ').');
+      outputKeyInfoByTime('Suggest that add the folder to ' + PathEnvName + ' to freely use/call ' + pureExeName + ' everywhere (you can also copy/move "' + tmpSaveExePath + '" to a folder already in ' + PathEnvName + ').');
     }
   }
 
@@ -436,9 +439,9 @@ export class ToolChecker {
       foundCount++;
       allMd5Text = allMd5Text.substring(matchInfo.index + matchInfo[0].length);
       const latestMd5 = matchInfo[1];
-      const exeName64bit = matchInfo[2];
-      const sourceExeName = this.getSourceExeName(exeName64bit);
-      const currentMd5 = currentExeNameToMd5Map.get(exeName64bit) || '';
+      const pureExeName = matchInfo[2];
+      const sourceExeName = this.getSourceExeName(pureExeName);
+      const currentMd5 = currentExeNameToMd5Map.get(pureExeName) || '';
 
       if (isNullOrEmpty(currentMd5)) { // Skip other EXEs in source URL.
         continue;
@@ -447,9 +450,9 @@ export class ToolChecker {
       if (currentMd5.toLowerCase() !== latestMd5.toLowerCase()) {
         oldExeNames.add(sourceExeName);
         outputKeyInfoByTime('Found new version of ' + sourceExeName + ' which md5 = ' + latestMd5 + ' , source-info = ' + sourceMd5FileUrl);
-        outputKeyInfoByTime('Current ' + sourceExeName + ' md5 = ' + currentMd5 + ' , path = ' + exeName64bitToPathMap.get(exeName64bit));
+        outputKeyInfoByTime('Current ' + sourceExeName + ' md5 = ' + currentMd5 + ' , path = ' + exeName64bitToPathMap.get(pureExeName));
       } else {
-        outputInfoByTime('Great! Your ' + sourceExeName + ' is latest! md5 = ' + latestMd5 + ' , exe = ' + exeName64bitToPathMap.get(exeName64bit) + ' , sourceMD5 = ' + sourceMd5FileUrl);
+        outputInfoByTime('Great! Your ' + sourceExeName + ' is latest! md5 = ' + latestMd5 + ' , exe = ' + exeName64bitToPathMap.get(pureExeName) + ' , sourceMD5 = ' + sourceMd5FileUrl);
       }
     }
 
@@ -459,12 +462,12 @@ export class ToolChecker {
         outputKeyInfoByTime(`Found 'msr.autoUpdateSearchTool' = 'false', please manually update ${Array.from(oldExeNames).join(' + ')} by command below for ${TerminalType[this.terminalType]} terminal:`);
       }
       oldExeNames.forEach(exeName => {
-        const exeName64bit = exeName.replace(/^(\w+).*/, '$1');
-        let currentExeSavePath = exeName64bitToPathMap.get(exeName64bit) || '';
+        const pureExeName = exeName.replace(/^(\w+).*/, '$1');
+        let currentExeSavePath = exeName64bitToPathMap.get(pureExeName) || '';
         if (TerminalType.CygwinBash === this.terminalType) {
           currentExeSavePath = toCygwinPath(currentExeSavePath);
         }
-        const [downloadCommand, _] = this.getDownloadCommandAndSavePath(exeName64bit, currentExeSavePath, GoodSourceUrlIndex);
+        const [downloadCommand, _] = this.getDownloadCommandAndSavePath(pureExeName, currentExeSavePath, GoodSourceUrlIndex);
         if (!canAutoUpdateTool) {
           outputKeyInfo(downloadCommand + '\n');
           return;

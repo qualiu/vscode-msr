@@ -142,7 +142,7 @@ export function outputInfoByDebugMode(message: string, showWindow: boolean = tru
 }
 
 export function outputInfoByDebugModeByTime(message: string, showWindow: boolean = true) {
-	outputDebugOrInfo(!IsDebugMode, '\n' + nowText() + message, showWindow);
+	outputDebugOrInfo(!IsDebugMode, nowText() + message, showWindow);
 }
 
 export function outputDebug(message: string, showWindow: boolean = false) {

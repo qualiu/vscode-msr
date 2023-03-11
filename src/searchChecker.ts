@@ -5,9 +5,9 @@ import { SearchTextHolder } from './constants';
 import { getConfig, MyConfig } from './dynamicConfig';
 import { FindType, ForceFindType } from './enums';
 import { ForceSetting } from './forceSettings';
-import { outputDebug, outputError } from './outputUtils';
+import { outputDebug, outputDebugByTime, outputErrorByTime } from './outputUtils';
 import { createRegex, EmptyRegex, getAllSingleWords } from './regexUtils';
-import { getExtensionNoHeadDot, getRootFolderName, isNullOrEmpty, nowText, replaceSearchTextHolder, toPath } from './utils';
+import { getExtensionNoHeadDot, getRootFolderName, isNullOrEmpty, replaceSearchTextHolder, toPath } from './utils';
 
 export class SearchChecker {
 	public currentFile: ParsedPath;
@@ -385,7 +385,7 @@ export class SearchChecker {
 		outputDebug('methodDefinitionRegex = "' + this.methodDefinitionRegex.source + '"');
 		outputDebug('memberDefinitionRegex = "' + this.memberDefinitionRegex.source + '"');
 		outputDebug('enumDefinitionRegex = "' + this.enumDefinitionRegex.source + '"');
-		outputDebug(nowText() + 'Final-Check: isFindMember = ' + this.isFindMember + ', isFindClass = ' + this.isFindClass + ' , isFindMethod = ' + this.isFindMethod + ' , isFindEnum = ' + this.isFindEnum);
+		outputDebugByTime('Final-Check: isFindMember = ' + this.isFindMember + ', isFindClass = ' + this.isFindClass + ' , isFindMethod = ' + this.isFindMethod + ' , isFindEnum = ' + this.isFindEnum);
 	}
 
 	public getCheckingRegex(configKeyTail: string, allowEmpty: boolean, matchAnyIfEmpty: boolean = false): RegExp {
@@ -404,7 +404,7 @@ export class SearchChecker {
 		const pattern = getConfigValueByPriorityList(prefixes, configKeyTail, allowEmpty) as string || '';
 		if (!isNullOrEmpty(pattern) && configKeyTail.includes('definition') && !configKeyTail.includes('skip') && pattern.indexOf(SearchTextHolder) < 0) {
 			const keys = prefixes.join('.' + configKeyTail + ' or ');
-			outputError(nowText() + 'Not found word-holder: "' + SearchTextHolder + '" in search option, please check configuration of ' + keys + ', searchPattern = ' + pattern);
+			outputErrorByTime('Not found word-holder: "' + SearchTextHolder + '" in search option, please check configuration of ' + keys + ', searchPattern = ' + pattern);
 			return '';
 		}
 

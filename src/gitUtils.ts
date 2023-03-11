@@ -4,11 +4,11 @@ import { getConfigValueOfActiveProject } from './configUtils';
 import { OutputChannelName, RunCmdTerminalName } from './constants';
 import { TerminalType } from './enums';
 import { saveTextToFile } from './fileUtils';
-import { outputError, outputInfo, outputInfoByDebugMode, outputWarn } from './outputUtils';
+import { outputError, outputErrorByTime, outputInfoByDebugMode, outputInfoByTime, outputWarnByTime } from './outputUtils';
 import { runCommandInTerminal, runRawCommandInTerminal } from './runCommandUtils';
 import { DefaultTerminalType, IsLinuxTerminalOnWindows, isWindowsTerminalOnWindows, toTerminalPath } from './terminalUtils';
 import { IsForwardingSlashSupportedOnWindows, RunCommandChecker } from './ToolChecker';
-import { changeToForwardSlash, getTempFolder, isNullOrEmpty, nowText, quotePaths, RunCmdTerminalRootFolder } from './utils';
+import { changeToForwardSlash, getTempFolder, isNullOrEmpty, quotePaths, RunCmdTerminalRootFolder } from './utils';
 // Another solution: (1) git ls-files --recurse-submodules > project-file-list.txt ; (2) msr -w project-file-list.txt  (3) file watcher + update list.
 // Show junk files: (1) git ls-files --recurse-submodules --ignored --others --exclude-standard (2) git ls-files --recurse-submodules --others --ignored -X .gitignore
 
@@ -79,7 +79,7 @@ export class GitIgnore {
       const passedSeconds = (new Date().getTime() - this.LastPrintSkipExportingTime.getTime()) / 1000;
       if (passedSeconds > 5) {
         this.LastPrintSkipExportingTime = new Date();
-        outputInfoByDebugMode(nowText() + `Skip exporting ${SkipPathVariableName} due to workspace = ${this.RootFolder} != ${RunCmdFolderWithForwardSlash} of ${RunCmdTerminalName} terminal.`);
+        outputInfoByTime(`Skip exporting ${SkipPathVariableName} due to workspace = ${this.RootFolder} != ${RunCmdFolderWithForwardSlash} of ${RunCmdTerminalName} terminal.`);
       }
 
       return false;
@@ -166,7 +166,7 @@ export class GitIgnore {
     }
 
     if (!fs.existsSync(this.IgnoreFilePath)) {
-      outputWarn(nowText() + 'Not exist git ignore file: ' + this.IgnoreFilePath);
+      outputWarnByTime('Not exist git ignore file: ' + this.IgnoreFilePath);
       callbackWhenFailed();
       return;
     }
@@ -175,7 +175,7 @@ export class GitIgnore {
     fs.readFile(this.IgnoreFilePath, 'utf8', (err, text) => {
       if (err) {
         const message = 'Failed to read file: ' + this.IgnoreFilePath + ' , error: ' + err;
-        outputError(nowText() + message);
+        outputErrorByTime(message);
         this.showErrorInRunCmdTerminal(message);
         callbackWhenFailed();
         return;
@@ -183,7 +183,7 @@ export class GitIgnore {
 
       if (isNullOrEmpty(text)) {
         const message = 'Read empty content from file: ' + this.IgnoreFilePath;
-        outputError(nowText() + message);
+        outputErrorByTime(message);
         this.showErrorInRunCmdTerminal(message);
         callbackWhenFailed();
         return;
@@ -214,11 +214,11 @@ export class GitIgnore {
         if (exemptionRegex.test(line)) {
           if (this.OmitGitIgnoreExemptions) {
             this.ExemptionCount++;
-            outputWarn(nowText() + 'Ignore exemption: "' + line + '" at ' + this.IgnoreFilePath + ':' + (row + 1) + ' while msr.omitGitIgnoreExemptions = true.');
+            outputWarnByTime('Ignore exemption: "' + line + '" at ' + this.IgnoreFilePath + ':' + (row + 1) + ' while msr.omitGitIgnoreExemptions = true.');
             continue;
           } else {
             const message = 'Skip using git-ignore due to found exemption: "' + line + '" at ' + this.IgnoreFilePath + ':' + (row + 1) + ' while msr.omitGitIgnoreExemptions = false.';
-            outputError(nowText() + message);
+            outputErrorByTime(message);
             this.showErrorInRunCmdTerminal(message);
             callbackWhenFailed();
             return;
@@ -235,7 +235,7 @@ export class GitIgnore {
           const message = 'Error[' + (errorList.length + 1) + ']:' + ' at ' + this.IgnoreFilePath + ':' + row + ' : Input_Git_Ignore = ' + line
             + ' , Skip_Paths_Regex = ' + pattern + ' , error = ' + err;
           errorList.push(message);
-          outputError('\n' + nowText() + message + '\n');
+          outputErrorByTime(message + '\n');
         }
       }
 
@@ -261,7 +261,7 @@ export class GitIgnore {
 
       const message = 'Cost ' + (cost / 1000).toFixed(3) + ' s: ' + parsedInfo;
 
-      outputInfo(nowText() + message);
+      outputInfoByTime(message);
       const saveFolder = getTempFolder();
       const tmpScriptName = path.basename(this.RootFolder).replace(/[^\w\.-]/g, '-') + '.set-git-skip-paths-env.tmp';
       this.SetSkipPathEnvFile = path.join(saveFolder, tmpScriptName + (this.IsCmdTerminal ? '.cmd' : '.sh'));
@@ -280,7 +280,7 @@ export class GitIgnore {
       if (!isInMaxLength) {
         let warning = 'Will not use git-ignore: ' + parsedInfo + ' setVariableCommandLength = ' + setVarCmdLength + ' exceeds ' + this.MaxCommandLength
           + ' which is max command length of ' + TerminalType[this.Terminal] + ' terminal.';
-        outputError(nowText() + warning);
+        outputErrorByTime(warning);
         warning = IsLinuxTerminalOnWindows ? warning.replace(this.IgnoreFilePath, this.IgnoreFilePath.replace(/\\/g, '/')) : warning;
         runRawCommandInTerminal(tipHead + warning + '" -t "(not use \\S+)|' + commonErrorPattern + '" ' + extraColorArgs + ' -x ' + this.MaxCommandLength);
       } else { // if (errorList.length > 0 || this.ExemptionCount > 0) {

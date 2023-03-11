@@ -9,13 +9,6 @@ const WindowsShell = UsePowershell ? 'powershell' : 'cmd.exe';
 export const ShellPath = IsWindows ? WindowsShell : 'bash';
 const ShowColorHideCmdRegex = /\s+-[Cc](\s+|$)/g;
 
-let ShowInfo = true;
-let IsQuiet = true;
-export function setOutputChannel(showInfo: boolean, isQuiet: boolean) {
-	ShowInfo = showInfo;
-	IsQuiet = isQuiet;
-}
-
 export enum MessageLevel {
 	None = 0,
 	DEBUG = 1,
@@ -25,18 +18,13 @@ export enum MessageLevel {
 	FATAL = 5
 }
 
-export function runCommandGetInfo(command: string, showCmdLevel: MessageLevel = MessageLevel.INFO, errorOutputLevel: MessageLevel = MessageLevel.ERROR, outputLevel: MessageLevel = MessageLevel.INFO): [string, any] {
-	try {
-		outputMessage(showCmdLevel, command);
-		const output = execSync(command).toString();
-		if (output.length > 0) {
-			outputMessage(outputLevel, output);
-		}
-		return [output, null];
-	} catch (err) {
-		outputMessage(errorOutputLevel, '\n' + err);
-		return ['', err];
-	}
+export const DefaultMessageLevel = IsDebugMode ? MessageLevel.DEBUG : MessageLevel.INFO;
+let LogLevel = MessageLevel.INFO;
+let IsQuiet = true;
+
+export function updateOutputChannel(messageLevel: MessageLevel = DefaultMessageLevel, isQuiet: boolean = true) {
+	LogLevel = messageLevel;
+	IsQuiet = isQuiet;
 }
 
 export function outputMessage(level: MessageLevel, message: string, showWindow: boolean = true) {
@@ -58,17 +46,43 @@ export function outputMessage(level: MessageLevel, message: string, showWindow: 
 	}
 }
 
+export function runCommandGetInfo(command: string, showCmdLevel: MessageLevel = MessageLevel.INFO, errorOutputLevel: MessageLevel = MessageLevel.ERROR, outputLevel: MessageLevel = MessageLevel.INFO): [string, any] {
+	try {
+		outputMessage(showCmdLevel, command);
+		const output = execSync(command).toString();
+		if (output.length > 0) {
+			outputMessage(outputLevel, output);
+		}
+		return [output, null];
+	} catch (err) {
+		outputMessage(errorOutputLevel, '\n' + err);
+		return ['', err];
+	}
+}
+
 // MSR-Def-Ref output channel
 let MessageChannel: vscode.OutputChannel;
 
 export function outputWarn(message: string, showWindow: boolean = true) {
-	showOutputChannel(showWindow);
-	getOutputChannel().appendLine(message);
+	if (MessageLevel.WARN >= LogLevel) {
+		showOutputChannel(showWindow);
+		getOutputChannel().appendLine(message);
+	}
+}
+
+export function outputWarnByTime(message: string, showWindow: boolean = true) {
+	outputWarn(nowText() + message, showWindow);
 }
 
 export function outputError(message: string, showWindow: boolean = true) {
-	showOutputChannel(showWindow);
-	getOutputChannel().appendLine(message);
+	if (MessageLevel.ERROR >= LogLevel) {
+		showOutputChannel(showWindow);
+		getOutputChannel().appendLine(message);
+	}
+}
+
+export function outputErrorByTime(message: string, showWindow: boolean = true) {
+	outputError(nowText() + message, showWindow);
 }
 
 export function outputResult(text: string, showWindow: boolean = true) {
@@ -81,26 +95,38 @@ export function outputKeyInfo(text: string) {
 	getOutputChannel().appendLine(text);
 }
 
+export function outputKeyInfoByTime(text: string) {
+	outputKeyInfo(nowText() + text);
+}
+
 export function outputInfo(message: string, showWindow: boolean = true) {
-	if (ShowInfo) {
+	if (MessageLevel.INFO >= LogLevel) {
 		getOutputChannel().appendLine(message);
 		showOutputChannel(showWindow);
 	}
 }
 
-export function outputInfoClear(message: string, showWindow: boolean = true) {
-	if (ShowInfo) {
+export function outputInfoByTime(message: string, showWindow: boolean = true) {
+	outputInfo(nowText() + message, showWindow);
+}
+
+export function outputInfoClearByTime(message: string, showWindow: boolean = true) {
+	if (MessageLevel.INFO >= LogLevel) {
 		clearOutputChannel();
-		getOutputChannel().appendLine(message);
+		getOutputChannel().appendLine(nowText() + message);
 		showOutputChannel(showWindow);
 	}
 }
 
 export function outputInfoQuiet(message: string, showWindow: boolean = false) {
-	if (ShowInfo) {
+	if (MessageLevel.INFO >= LogLevel) {
 		getOutputChannel().appendLine(message);
 		showOutputChannel(showWindow, false);
 	}
+}
+
+export function outputInfoQuietByTime(message: string, showWindow: boolean = false) {
+	outputInfoQuiet(nowText() + message, showWindow);
 }
 
 export function outputDebugOrInfo(isDebug: boolean, message: string, showWindow: boolean = true) {
@@ -115,11 +141,19 @@ export function outputInfoByDebugMode(message: string, showWindow: boolean = tru
 	outputDebugOrInfo(!IsDebugMode, message, showWindow);
 }
 
+export function outputInfoByDebugModeByTime(message: string, showWindow: boolean = true) {
+	outputDebugOrInfo(!IsDebugMode, '\n' + nowText() + message, showWindow);
+}
+
 export function outputDebug(message: string, showWindow: boolean = false) {
-	if (ShowInfo) {
+	if (MessageLevel.DEBUG >= LogLevel) {
 		getOutputChannel().appendLine(message);
 		showOutputChannel(showWindow);
 	}
+}
+
+export function outputDebugByTime(message: string, showWindow: boolean = false) {
+	outputDebug('\n' + nowText(message), showWindow);
 }
 
 export function clearOutputChannel() {
@@ -140,8 +174,8 @@ export function checkIfSupported(): boolean {
 		return true;
 	}
 
-	outputError(nowText() + 'Sorry, "' + process.platform + ' ' + process.arch + ' " is not supported yet: Support 64-bit + 32-bit : Windows + Linux (Ubuntu / CentOS / Fedora which gcc/g++ version >= 4.8).');
-	outputError(nowText() + 'https://github.com/qualiu/vscode-msr/blob/master/README.md');
+	outputErrorByTime('Sorry, "' + process.platform + ' ' + process.arch + ' " is not supported yet.');
+	outputErrorByTime('https://github.com/qualiu/vscode-msr/blob/master/README.md');
 	return false;
 }
 

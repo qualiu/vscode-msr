@@ -1,18 +1,30 @@
 import path = require('path');
-import fs = require('fs');
-import crypto = require('crypto');
+import * as vscode from 'vscode';
 import { IsWindows } from './constants';
 import { TerminalType } from './enums';
 import { toTerminalPaths } from './terminalUtils';
 import { isNullOrEmpty } from './utils';
+import fs = require('fs');
+import crypto = require('crypto');
 
-let TerminalTypeToToolNamePathMap = new Map<TerminalType, Map<string, string>>();
 export const MsrExe = 'msr';
-export const SourceHomeUrlArray = [
-	'https://raw.githubusercontent.com/qualiu/msr/master/tools/',
-	'https://gitlab.com/lqm678/msr/-/raw/master/tools/',
-	'https://master.dl.sourceforge.net/project/avasattva/'
-];
+let TerminalTypeToToolNamePathMap = new Map<TerminalType, Map<string, string>>();
+
+const DefaultCheckingUrlFromConfig: string = vscode.workspace.getConfiguration('msr').get('default.checkingToolUrl') as string || '';
+function getSourceUrls(): string[] {
+	let urlSet = new Set<string>()
+		.add(DefaultCheckingUrlFromConfig.replace(/[/]$/, '').trim() + '/')
+		.add('https://raw.githubusercontent.com/qualiu/msr/master/tools/')
+		.add('https://gitlab.com/lqm678/msr/-/raw/master/tools/')
+		.add('https://master.dl.sourceforge.net/project/avasattva/')
+		;
+
+	urlSet.delete('');
+	urlSet.delete('/');
+	return Array.from(urlSet);
+}
+
+export const SourceHomeUrlArray = getSourceUrls();
 
 export function getDownloadUrl(sourceExeName: string, useUrlIndex: number = 0): string {
 	const parentUrl = SourceHomeUrlArray[useUrlIndex % SourceHomeUrlArray.length];

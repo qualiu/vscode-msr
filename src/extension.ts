@@ -7,7 +7,7 @@ import { IsWindows, RunCmdTerminalName } from './constants';
 import { cookCmdShortcutsOrFile } from './cookCommandAlias';
 import { FileExtensionToMappedExtensionMap, getConfig, getExtraSearchPaths, getGitIgnore, MappedExtToCodeFilePatternMap, MyConfig, printConfigInfo } from './dynamicConfig';
 import { FindCommandType, FindType, ForceFindType } from './enums';
-import { clearOutputChannel, outputDebug, outputInfoByDebugMode } from './outputUtils';
+import { clearOutputChannel, outputDebugByTime, outputInfoByDebugMode, outputInfoByDebugModeByTime } from './outputUtils';
 import { Ranker } from './ranker';
 import { disposeTerminal } from './runCommandUtils';
 import { SearchChecker } from './searchChecker';
@@ -15,10 +15,10 @@ import { createCommandSearcher, createSearcher, getCurrentFileSearchInfo, Search
 import { getRootFolderFromTerminalCreation, getTerminalInitialPath, getTerminalNameOrShellExeName } from './terminalUtils';
 import { RunCommandChecker } from './ToolChecker';
 import { MsrExe } from './toolSource';
-import { getDefaultRootFolder, getDefaultRootFolderByActiveFile, getExtensionNoHeadDot, getRootFolder, getRootFolderName, getRootFolders, isNullOrEmpty, nowText, quotePaths, replaceSearchTextHolder, toPath } from './utils';
+import { getDefaultRootFolder, getDefaultRootFolderByActiveFile, getExtensionNoHeadDot, getRootFolder, getRootFolderName, getRootFolders, isNullOrEmpty, quotePaths, replaceSearchTextHolder, toPath } from './utils';
 import path = require('path');
 
-outputDebug(nowText() + 'Start loading extension and initialize ...');
+outputDebugByTime('Start loading extension and initialize ...');
 
 // avoid prompting 'cmd.exe exit error'
 RunCommandChecker.checkToolAndInitRunCmdTerminal();
@@ -278,7 +278,7 @@ class SearchTimeInfo {
 			&& Math.abs(this.Time.getTime() - other.Time.getTime()) <= 800
 			&& this.Document.uri === other.Document.uri && this.Document.fileName === other.Document.fileName;
 		if (this && other) {
-			outputDebug(nowText() + "UseLastSearch = " + useLast + ": this time = " + this.Time.toISOString() + ", other time = " + other.Time.toISOString() + ", diff = " + (this.Time.getTime() - other.Time.getTime()) + " ms.");
+			outputDebugByTime("UseLastSearch = " + useLast + ": this time = " + this.Time.toISOString() + ", other time = " + other.Time.toISOString() + ", diff = " + (this.Time.getTime() - other.Time.getTime()) + " ms.");
 		}
 		return useLast;
 	}
@@ -515,7 +515,7 @@ export class DefinitionFinder implements vscode.DefinitionProvider {
 				const currentResults = await results[index];
 				if (currentResults && currentResults.length > 0) {
 					const resultSearcher = searchers[index];
-					outputInfoByDebugMode(nowText() + "Found by searcher: " + resultSearcher);
+					outputInfoByDebugModeByTime("Found by searcher: " + resultSearcher);
 					const beginStopTime = new Date();
 					if (searchers && resultSearcher) {
 						searchers.forEach(a => {
@@ -525,7 +525,7 @@ export class DefinitionFinder implements vscode.DefinitionProvider {
 						});
 					}
 					const stopCost = (new Date()).valueOf() - beginStopTime.valueOf();
-					outputInfoByDebugMode(nowText() + 'Cost ' + stopCost + ' ms to stop all searchers.');
+					outputInfoByDebugModeByTime('Cost ' + stopCost + ' ms to stop all searchers.');
 					return Promise.resolve(currentResults);
 				} else if (index + 1 < results.length) {
 					return Promise.resolve(returnSearcherResult(index + 1));

@@ -1,12 +1,12 @@
-import { HomeFolder, Is64BitOS, IsDebugMode, IsWindows } from "./constants";
+import { GetCommandOutput, HomeFolder, Is64BitOS, IsDarwinArm64, IsDebugMode, IsLinuxArm64, IsWindows, OutputChannelName } from "./constants";
 import { cookCmdShortcutsOrFile } from "./cookCommandAlias";
-import { MyConfig } from "./dynamicConfig";
+import { getConfig } from "./dynamicConfig";
 import { TerminalType } from "./enums";
-import { checkIfSupported, clearOutputChannel, outputDebug, outputError, outputInfo, outputInfoByDebugMode, outputKeyInfo, outputWarn } from "./outputUtils";
+import { checkIfSupported, clearOutputChannel, DefaultMessageLevel, MessageLevel, outputDebugByTime, outputErrorByTime, outputInfoByDebugMode, outputInfoByDebugModeByTime, outputInfoByTime, outputKeyInfo, outputKeyInfoByTime, outputWarnByTime, updateOutputChannel } from "./outputUtils";
 import { getRunCmdTerminal, runRawCommandInTerminal } from "./runCommandUtils";
-import { checkAddFolderToPath, DefaultTerminalType, getHomeFolderForLinuxTerminalOnWindows, getTerminalShellExePath, isLinuxTerminalOnWindows, IsLinuxTerminalOnWindows, isToolExistsInPath, isWindowsTerminalOnWindows, toCygwinPath, toTerminalPath } from "./terminalUtils";
+import { checkAddFolderToPath, DefaultTerminalType, getHomeFolderForLinuxTerminalOnWindows, getTerminalShellExePath, isBashTerminalType, isLinuxTerminalOnWindows, IsLinuxTerminalOnWindows, isToolExistsInPath, isWindowsTerminalOnWindows, toCygwinPath, toTerminalPath } from "./terminalUtils";
 import { getDownloadUrl, getFileMd5, getHomeUrl, SourceHomeUrlArray, updateToolNameToPathMap } from "./toolSource";
-import { getActiveFilePath, getDefaultRootFolder, getElapsedSecondsToNow, isNullOrEmpty, nowText, PathEnvName, quotePaths, runCommandGetOutput } from "./utils";
+import { getActiveFilePath, getDefaultRootFolder, getElapsedSecondsToNow, isDirectory, isFileExists, isNullOrEmpty, PathEnvName, quotePaths, runCommandGetOutput } from "./utils";
 import path = require('path');
 import fs = require('fs');
 import https = require('https');
@@ -14,12 +14,15 @@ import ChildProcess = require('child_process');
 
 const TipUrl = "https://marketplace.visualstudio.com/items?itemName=qualiu.vscode-msr";
 
+
+const DefaultNonWindowsSuffix = IsWindows ? '' : ('-' + GetCommandOutput('uname -m') + '.' + GetCommandOutput('uname -s')).toLowerCase();
+const DefaultNameSuffix = IsWindows ? '.exe' : (IsLinuxArm64 ? DefaultNonWindowsSuffix : '.gcc48');
 export const TerminalTypeToSourceExtensionMap = new Map<TerminalType, string>()
   .set(TerminalType.CMD, '.exe')
-  .set(TerminalType.PowerShell, IsWindows ? '.exe' : '.gcc48')
+  .set(TerminalType.PowerShell, DefaultNameSuffix)
   .set(TerminalType.MinGWBash, '.exe')
   .set(TerminalType.CygwinBash, '.cygwin')
-  .set(TerminalType.LinuxBash, '.gcc48')
+  .set(TerminalType.LinuxBash, DefaultNameSuffix)
   .set(TerminalType.WslBash, '.gcc48')
   ;
 
@@ -32,13 +35,21 @@ const CheckForwardingSlashSupportOnWindowsText = "Support '/' on Windows";
 
 export let IsTimeoutSupported: boolean = false;
 export let IsForwardingSlashSupportedOnWindows = false;
+export let IsOutputColumnSupported = false;
+export let IsFileTimeOffsetSupported = false;
 
 export function setTimeoutInCommandLine(command: string, timeoutSeconds: number) {
   if (timeoutSeconds > 0 && IsTimeoutSupported) {
     return setArgValueInCommandLine(command, GetTimeoutRegex, '--timeout', timeoutSeconds.toString());
-  } else {
-    return command;
   }
+  return command;
+}
+
+export function setOutputColumnIndexInCommandLine(command: string) {
+  if (IsOutputColumnSupported && !command.includes(' --out-index')) {
+    command = command.trimRight() + " --out-index"
+  }
+  return command;
 }
 
 export function setSearchDepthInCommandLine(command: string, maxDepth: number) {
@@ -68,6 +79,7 @@ export class ToolChecker {
   private autoDownload: boolean;
   private MatchExeMd5Regex: RegExp = /to-load/;
   private isTerminalOfWindows: boolean;
+  private hasDownloaded: boolean = false;
 
   constructor(terminalType: TerminalType = DefaultTerminalType, autoDownload = true) {
     this.terminalType = terminalType;
@@ -77,8 +89,9 @@ export class ToolChecker {
   }
 
   private getSourceExeNameTail() {
-    if (process.platform.match(/Darwin/i)) {
-      return '-' + process.arch.toLowerCase() + '.' + process.platform.toLowerCase();
+    if (IsLinuxArm64 || IsDarwinArm64) {
+      //return '-' + process.arch.toLowerCase() + '.' + process.platform.toLowerCase();
+      return DefaultNameSuffix;
     }
 
     const suffix = TerminalTypeToSourceExtensionMap.get(this.terminalType);
@@ -93,7 +106,7 @@ export class ToolChecker {
   public checkAndDownloadTool(exeName64bit: string): [boolean, string] {
     const [isExisted, exePath] = isToolExistsInPath(exeName64bit, this.terminalType);
     const exeName = this.getSourceExeName(exeName64bit);
-    outputDebug(nowText() + (isExisted ? 'Found ' + exeName + ' = ' + exePath : 'Not found ' + exeName + ', will download it.'));
+    outputDebugByTime((isExisted ? 'Found ' + exeName + ' = ' + exePath : 'Not found ' + exeName + ', will download it.'));
     if (isExisted) {
       this.setEnvironmentForTool();
       this.updateHelpText(exeName64bit, exePath);
@@ -108,6 +121,8 @@ export class ToolChecker {
       MsrHelpText = runCommandGetOutput(exePath + ' -h -C');
       IsForwardingSlashSupportedOnWindows = MsrHelpText.includes(CheckForwardingSlashSupportOnWindowsText);
       IsTimeoutSupported = isArgSupported('--timeout', 'msr');
+      IsOutputColumnSupported = MsrHelpText.includes('--out-index');
+      IsFileTimeOffsetSupported = MsrHelpText.includes('time or ago');
     } else {
       NinHelpText = runCommandGetOutput(exePath + ' -h -C');
     }
@@ -160,11 +175,12 @@ export class ToolChecker {
     const quotedTmpSavePath = quotePaths(tmpSaveExePath);
     saveExePath = saveExePath.startsWith('"') ? saveExePath : quotePaths(saveExePath);
 
+    const isBashTerminal = isBashTerminalType(this.terminalType);
     const [isWgetExists] = isToolExistsInPath(this.isTerminalOfWindows ? "wget.exe" : "wget", this.terminalType);
-    const [isCurlExists] = isToolExistsInPath(this.isTerminalOfWindows ? "curl.exe" : "curl", this.terminalType);
+    const [isCurlExists] = isBashTerminal && IsWindows ? [true] : isToolExistsInPath(this.isTerminalOfWindows ? "curl.exe" : "curl", this.terminalType);
     const wgetHelpText = isWgetExists ? runCommandGetOutput('wget --help') : '';
     const wgetArgs = wgetHelpText.includes('--no-check-certificate') ? ' --no-check-certificate' : '';
-    const commonDownloadCommand = isCurlExists
+    const commonDownloadCommand = isCurlExists || TerminalType.CygwinBash === this.terminalType
       ? 'curl --silent --show-error --fail "' + sourceUrl + '" -o ' + quotedTmpSavePath
       : 'wget --quiet "' + sourceUrl + '" -O ' + quotedTmpSavePath + wgetArgs // + ' --timeout 30'
       ;
@@ -201,10 +217,20 @@ export class ToolChecker {
       return;
     }
 
-    const shouldActivate = !MyConfig.UseGitIgnoreFile || isNullOrEmpty(getDefaultRootFolder());// || !getGitIgnore(getDefaultRootFolder()).Valid;
+    const config = getConfig();
+    const shouldActivate = config.UseGitIgnoreFile || isNullOrEmpty(getDefaultRootFolder());// || !getGitIgnore(getDefaultRootFolder()).Valid;
     if (shouldActivate) {
       // to ease running command later (like: using git-ignore to export/set variables)
-      runRawCommandInTerminal('echo TerminalType = ' + TerminalType[DefaultTerminalType] + ', Universal slash = ' + IsForwardingSlashSupportedOnWindows);
+      let tip = 'echo Auto disable finding definition = true. Default terminal = ' + TerminalType[DefaultTerminalType]
+        + '. Universal slash for --np/pp/xp/sp = ' + IsForwardingSlashSupportedOnWindows
+        + '. Locate to column = ' + IsOutputColumnSupported
+        + '.  Time offset support for --w1/--w2 = ' + IsFileTimeOffsetSupported
+        + '. Auto update search tool = ' + getConfig().AutoUpdateSearchTool
+        + '.';
+      if (PlatformToolChecker.IsToolExists) {
+        tip += ' | msr -aPA -i -e true -t false';
+      }
+      runRawCommandInTerminal(tip);
     }
 
     this.checkAndDownloadTool('nin');
@@ -228,8 +254,8 @@ export class ToolChecker {
       }
 
       const sourceExeName = this.getSourceExeName('msr');
-      outputError(nowText() + 'Not found ' + sourceExeName + ' in ' + PathEnvName + ' for ' + TerminalType[this.terminalType] + ' terminal:');
-      outputError(nowText() + 'Please download it (just copy + paste the command line) follow: https://github.com/qualiu/vscode-msr/blob/master/README.md#more-freely-to-use-and-help-you-more');
+      outputErrorByTime('Not found ' + sourceExeName + ' in ' + PathEnvName + ' for ' + TerminalType[this.terminalType] + ' terminal:');
+      outputErrorByTime('Please download it (just copy + paste the command line) follow: https://github.com/qualiu/vscode-msr/blob/master/README.md#more-freely-to-use-and-help-you-more');
 
       if (this.autoDownload) {
         [this.IsToolExists, this.MsrExePath] = this.autoDownloadTool('msr');
@@ -237,8 +263,10 @@ export class ToolChecker {
     }
     if (this.IsToolExists) {
       this.updateHelpText('msr', this.MsrExePath);
-      outputDebug(nowText() + 'Found msr = ' + this.MsrExePath + ' , will check new version ...');
-      cookCmdShortcutsOrFile(false, getActiveFilePath(), true, false, getRunCmdTerminal(false), true);
+      outputDebugByTime('Found msr = ' + this.MsrExePath + ' , will check new version ...');
+      if (this.hasDownloaded) {
+        cookCmdShortcutsOrFile(false, getActiveFilePath(), true, false, getRunCmdTerminal(false), true);
+      }
       this.checkToolNewVersion();
     }
 
@@ -250,15 +278,16 @@ export class ToolChecker {
     const sourceExeName = this.getSourceExeName(exeName64bit);
     const saveExeName = isWindowsTerminalOnWindows(this.terminalType) ? exeName64bit + '.exe' : exeName64bit;
     const targetExePath = path.join(path.dirname(tmpSaveExePath), saveExeName);
-    if (!fs.existsSync(tmpSaveExePath)) {
+
+    if (!isFileExists(tmpSaveExePath)) {
+      updateOutputChannel(MessageLevel.WARN);
       if (!this.tryAllSourcesToDownload(exeName64bit, sourceExeName, tmpSaveExePath, targetExePath)) {
-        runRawCommandInTerminal(`echo "Tried ${SourceHomeUrlArray.length} sources, please download ${exeName64bit} follow here: "`)
+        runRawCommandInTerminal(`echo "Tried ${SourceHomeUrlArray.length} sources, please download ${sourceExeName} follow: ${TipUrl}"`)
         return [false, ''];
       }
-    } else {
-      outputInfo(nowText() + 'Found existing tmp tool "' + sourceExeName + '": ' + targetExePath + ' , skip downloading.');
     }
-
+    updateOutputChannel(DefaultMessageLevel, getConfig().IsQuiet);
+    outputInfoByTime('Found existing tmp tool "' + sourceExeName + '": ' + targetExePath + ' , skip downloading.');
     this.addTmpExeToPath(exeName64bit);
     return [true, targetExePath];
   }
@@ -266,18 +295,25 @@ export class ToolChecker {
 
   private tryAllSourcesToDownload(exeName64bit: string, sourceExeName: string, tmpSaveExePath: string, targetExePath: string): boolean {
     for (let tryTimes = 0; tryTimes < SourceHomeUrlArray.length; tryTimes++) {
-      outputKeyInfo('\n' + nowText() + 'Will try to download the tiny tool "' + sourceExeName + '" by command:');
+      outputKeyInfoByTime('Will try to download the tiny tool "' + sourceExeName + '" by command:');
       runRawCommandInTerminal(`echo Times-${tryTimes + 1}: Try to download ${exeName64bit} from source-${tryTimes + 1}, see: "${TipUrl}"`)
       const tryUrlIndex = GoodSourceUrlIndex + tryTimes;
       const [downloadCommand, _] = this.getDownloadCommandAndSavePath(exeName64bit, tmpSaveExePath, tryUrlIndex);
       outputKeyInfo(downloadCommand);
+      if (isDirectory(tmpSaveExePath)) {
+        const errorText = `echo "Found name conflict with directory: ${tmpSaveExePath} , please move the directory, or download ${sourceExeName} with command in ${OutputChannelName} in OUTPUT tab."`;
+        runRawCommandInTerminal(errorText);
+        outputErrorByTime(errorText);
+        return false;
+      }
+
       const saveFolder = path.dirname(tmpSaveExePath);
       try {
         if (saveFolder !== '~' && !fs.existsSync(saveFolder)) {
           fs.mkdirSync(saveFolder);
         }
       } catch (err) {
-        outputError('\`n' + nowText() + 'Failed to create save folder: ' + saveFolder + ' for ' + sourceExeName);
+        outputErrorByTime('Failed to create save folder: ' + saveFolder + ' for ' + sourceExeName);
         continue;
       }
 
@@ -287,20 +323,21 @@ export class ToolChecker {
         outputKeyInfo(output);
       } catch (err) {
         const costSeconds = (((new Date()).valueOf() - beginDownloadTime.valueOf()) / 1000).toFixed(3);
-        outputError('\n' + nowText() + 'Cost ' + costSeconds + 's: Failed to download ' + sourceExeName + ' : ' + err);
-        outputError('\n' + nowText() + 'Please manually download ' + sourceExeName + ' and add its folder to ' + PathEnvName + ': ' + getDownloadUrl(sourceExeName));
+        outputErrorByTime('Cost ' + costSeconds + 's: Failed to download ' + sourceExeName + ' : ' + err);
+        outputErrorByTime('Please manually download ' + sourceExeName + ' and add its folder to ' + PathEnvName + ': ' + getDownloadUrl(sourceExeName));
         const otherSources = SourceHomeUrlArray.filter(a => !downloadCommand.includes(a)).map(a => getHomeUrl(a)).join(" 或者 ");
-        outputError('\n' + nowText() + '如果无法从github下载 ' + sourceExeName + ' 可试别处下载：' + otherSources + ' 或者 https://gitee.com/qualiu/msr/tree/master/tools/');
+        outputErrorByTime('如果无法从github下载 ' + sourceExeName + ' 可试别处下载：' + otherSources + ' 或者 https://gitee.com/qualiu/msr/tree/master/tools/');
         continue;
       }
 
       if (!fs.existsSync(targetExePath)) {
-        outputError(nowText() + 'Downloading completed but not found tmp tool "' + sourceExeName + '": ' + targetExePath);
+        outputErrorByTime('Downloading completed but not found tmp tool "' + sourceExeName + '": ' + targetExePath);
         continue;
       }
       const costSeconds = (((new Date()).valueOf() - beginDownloadTime.valueOf()) / 1000).toFixed(3);
-      outputKeyInfo(nowText() + 'Cost ' + costSeconds + ' s: Successfully downloaded tmp tool "' + sourceExeName + '": ' + targetExePath);
+      outputKeyInfoByTime('Cost ' + costSeconds + ' s: Successfully downloaded tmp tool "' + sourceExeName + '": ' + targetExePath);
       GoodSourceUrlIndex = tryUrlIndex % SourceHomeUrlArray.length;
+      this.hasDownloaded = true;
       return true;
     }
     return false;
@@ -320,8 +357,8 @@ export class ToolChecker {
 
     const exeFolder = path.dirname(tmpSaveExePath);
     if (checkAddFolderToPath(exeFolder, this.terminalType)) {
-      outputKeyInfo(nowText() + 'Temporarily added ' + saveExeName + ' folder: ' + exeFolder + ' to ' + PathEnvName);
-      outputKeyInfo(nowText() + 'Suggest that add the folder to ' + PathEnvName + ' to freely use/call ' + exeName64bit + ' everywhere (you can also copy/move "' + tmpSaveExePath + '" to a folder already in ' + PathEnvName + ').');
+      outputKeyInfoByTime('Temporarily added ' + saveExeName + ' folder: ' + exeFolder + ' to ' + PathEnvName);
+      outputKeyInfoByTime('Suggest that add the folder to ' + PathEnvName + ' to freely use/call ' + exeName64bit + ' everywhere (you can also copy/move "' + tmpSaveExePath + '" to a folder already in ' + PathEnvName + ').');
     }
   }
 
@@ -346,7 +383,7 @@ export class ToolChecker {
       const now = new Date();
       const hour = now.getHours();
       if (now.getDay() !== 2 || hour < 7 || hour > 12) {
-        outputDebug(nowText() + 'Skip checking for now. Only check at every Tuesday 07:00 ~ 12:00.');
+        outputDebugByTime('Skip checking for now. Only check at every Tuesday 07:00 ~ 12:00.');
         return;
       }
     }
@@ -370,7 +407,7 @@ export class ToolChecker {
     });
     request.end();
     request.on('error', (err) => {
-      outputDebug(nowText() + 'Failed to read source md5 from ' + sourceMd5FileUrl + '. Cost ' + getElapsedSecondsToNow(trackCheckBeginTime) + ' seconds. Error: ' + err.message);
+      outputDebugByTime('Failed to read source md5 from ' + sourceMd5FileUrl + '. Cost ' + getElapsedSecondsToNow(trackCheckBeginTime) + ' seconds. Error: ' + err.message);
       if (tryUrlIndex < SourceHomeUrlArray.length) {
         this.checkToolNewVersion(tryUrlIndex + 1);
       }
@@ -392,7 +429,7 @@ export class ToolChecker {
     while (foundCount < currentExeNameToMd5Map.size) {
       const matchInfo = this.MatchExeMd5Regex.exec(allMd5Text);
       if (!matchInfo) {
-        outputWarn(nowText() + 'Not match source MD5 text with Regex: "' + this.MatchExeMd5Regex.source + '" , remained text = ' + allMd5Text);
+        outputWarnByTime('Not match source MD5 text with Regex: "' + this.MatchExeMd5Regex.source + '" , remained text = ' + allMd5Text);
         break;
       }
 
@@ -409,15 +446,18 @@ export class ToolChecker {
 
       if (currentMd5.toLowerCase() !== latestMd5.toLowerCase()) {
         oldExeNames.add(sourceExeName);
-        outputKeyInfo(nowText() + 'Found new version of ' + sourceExeName + ' which md5 = ' + latestMd5 + ' , source-info = ' + sourceMd5FileUrl);
-        outputKeyInfo(nowText() + 'Current ' + sourceExeName + ' md5 = ' + currentMd5 + ' , path = ' + exeName64bitToPathMap.get(exeName64bit));
+        outputKeyInfoByTime('Found new version of ' + sourceExeName + ' which md5 = ' + latestMd5 + ' , source-info = ' + sourceMd5FileUrl);
+        outputKeyInfoByTime('Current ' + sourceExeName + ' md5 = ' + currentMd5 + ' , path = ' + exeName64bitToPathMap.get(exeName64bit));
       } else {
-        outputInfoByDebugMode(nowText() + 'Great! Your ' + sourceExeName + ' is latest! md5 = ' + latestMd5 + ' , exe = ' + exeName64bitToPathMap.get(exeName64bit) + ' , sourceMD5 = ' + sourceMd5FileUrl);
+        outputInfoByTime('Great! Your ' + sourceExeName + ' is latest! md5 = ' + latestMd5 + ' , exe = ' + exeName64bitToPathMap.get(exeName64bit) + ' , sourceMD5 = ' + sourceMd5FileUrl);
       }
     }
 
+    const canAutoUpdateTool = getConfig().AutoUpdateSearchTool;
     if (oldExeNames.size > 0) {
-      outputKeyInfo('\n' + nowText() + 'You can download + update (if not link files) "' + Array.from(oldExeNames).join(' + ') + '" like below for your ' + TerminalType[this.terminalType] + ' terminal:');
+      if (!canAutoUpdateTool) {
+        outputKeyInfoByTime(`Found 'msr.autoUpdateSearchTool' = 'false', please manually update ${Array.from(oldExeNames).join(' + ')} by command below for ${TerminalType[this.terminalType]} terminal:`);
+      }
       oldExeNames.forEach(exeName => {
         const exeName64bit = exeName.replace(/^(\w+).*/, '$1');
         let currentExeSavePath = exeName64bitToPathMap.get(exeName64bit) || '';
@@ -425,11 +465,28 @@ export class ToolChecker {
           currentExeSavePath = toCygwinPath(currentExeSavePath);
         }
         const [downloadCommand, _] = this.getDownloadCommandAndSavePath(exeName64bit, currentExeSavePath, GoodSourceUrlIndex);
+        if (!canAutoUpdateTool) {
+          outputKeyInfo(downloadCommand + '\n');
+          return;
+        }
+        outputKeyInfoByTime(`Found 'msr.autoUpdateSearchTool' = true, will auto update ${currentExeSavePath}`);
         outputKeyInfo(downloadCommand + '\n');
+        try {
+          const stat = fs.lstatSync(currentExeSavePath);
+          if (stat.isSymbolicLink()) {
+            outputKeyInfoByTime('Skip auto updating link file: ' + currentExeSavePath);
+            return;
+          }
+        } catch (err) {
+          outputKeyInfoByTime('Failed to check if it is a link file: ' + currentExeSavePath);
+          console.log(err);
+          return;
+        }
+        runRawCommandInTerminal(downloadCommand);
       });
     }
 
-    outputInfoByDebugMode(nowText() + 'Finished to check tool versions. Cost ' + getElapsedSecondsToNow(trackCheckBeginTime) + ' seconds.');
+    outputInfoByDebugModeByTime('Finished to check tool versions. Cost ' + getElapsedSecondsToNow(trackCheckBeginTime) + ' seconds.');
   }
 }
 

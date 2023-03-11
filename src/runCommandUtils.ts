@@ -1,9 +1,11 @@
 import { execSync } from 'child_process';
 import * as vscode from 'vscode';
 import { IsMacOS, IsWindows, RunCmdTerminalName } from './constants';
-import { enableColorAndHideCommandLine, outputDebug, ShellPath, UsePowershell } from "./outputUtils";
+import { cookCmdShortcutsOrFile } from './cookCommandAlias';
+import { WorkspaceToGitIgnoreMap } from './dynamicConfig';
+import { enableColorAndHideCommandLine, outputDebugByTime, ShellPath, UsePowershell } from "./outputUtils";
 import { IsLinuxTerminalOnWindows } from './terminalUtils';
-import { getDefaultRootFolderByActiveFile, nowText } from "./utils";
+import { getDefaultRootFolderByActiveFile } from "./utils";
 import os = require('os');
 
 const ClearCmd = IsWindows && !UsePowershell ? 'cls' : "clear";
@@ -45,12 +47,12 @@ export function getRunCmdTerminalWithInfo(autoInitTerminal: boolean = true): [vs
     return [RunCmdTerminal, hasCreated];
   }
 
-  // // init command alias for MSR-RUN-CMD terminal if it's recovered or just created.
-  // cookCmdShortcutsOrFile(false, currentProjectFolder, true, false, RunCmdTerminal, hasCreated);
-  // const gitIgnore = WorkspaceToGitIgnoreMap.get(currentProjectFolder);
-  // if (gitIgnore) {
-  //   gitIgnore.exportSkipPathVariable(true);
-  // }
+  // init command alias for MSR-RUN-CMD terminal if it's recovered or just created.
+  cookCmdShortcutsOrFile(false, currentProjectFolder, true, false, RunCmdTerminal, hasCreated);
+  const gitIgnore = WorkspaceToGitIgnoreMap.get(currentProjectFolder);
+  if (gitIgnore) {
+    gitIgnore.exportSkipPathVariable(true);
+  }
 
   return [RunCmdTerminal, hasCreated];
 }
@@ -71,7 +73,7 @@ export function runRawCommandInTerminal(command: string, showTerminal = true, cl
 export function sendCommandToTerminal(command: string, terminal: vscode.Terminal, showTerminal = false, clearAtFirst = true, isLinuxOnWindows = IsLinuxTerminalOnWindows) {
   const searchAndListPattern = /\s+(-i?[tx]|-l)\s+/;
   if (command.startsWith("msr") && !command.match(searchAndListPattern)) {
-    outputDebug(nowText() + "Skip running command due to not found none of matching names of -x or -t, command = " + command);
+    outputDebugByTime("Skip running command due to not found none of matching names of -x or -t, command = " + command);
     return;
   }
 

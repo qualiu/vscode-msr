@@ -3,7 +3,7 @@
 	"displayName": "Code mining + Replace file + Find definition and reference for all types.",
 	"description": "Code mining + Replace file + Find definition and reference in multiple repository paths by msr for all coding languages + configuration + doc files.",
 	"author": "qualiu@microsoft.com",
-	"version": "2.1.51",
+	"version": "2.1.52",
 	"icon": "images/vscode-msr-icon.png",
 	"license": "completely free",
 	"publisher": "qualiu",
@@ -334,7 +334,7 @@
 			},
 			{
 				"command": "msr.tmpToggleEnableFindingDefinition",
-				"title": "Temporarily toggle enable/disable finding definition.",
+				"title": "Temp enable/disable find-definition.",
 				"category": "msr",
 				"icon": {
 					"dark": "images/vscode-msr-small.svg",
@@ -801,8 +801,8 @@
 				},
 				"msr.tmpToggleEnableFindingDefinition.menu.visible": {
 					"type": "boolean",
-					"default": false,
-					"description": "Temporarily toggle enable/disable finding definition for current live vscode."
+					"default": true,
+					"description": "Temp enable/disable find-definition."
 				},
 				"msr.findTopFolder.menu.visible": {
 					"type": "boolean",
@@ -882,7 +882,7 @@
 				},
 				"msr.regexFindInAllSourceFiles.menu.visible": {
 					"type": "boolean",
-					"default": true
+					"default": false
 				},
 				"msr.regexFindInSameTypeFiles.menu.visible": {
 					"type": "boolean",
@@ -894,7 +894,7 @@
 				},
 				"msr.regexFindAsClassOrMethodDefinitionInCodeFiles.menu.visible": {
 					"type": "boolean",
-					"default": true
+					"default": false
 				},
 				"msr.regexFindReferencesInCodeFiles.menu.visible": {
 					"type": "boolean",
@@ -1082,7 +1082,7 @@
 				"msr.reference.autoChangeSearchWord": {
 					"type": "boolean",
 					"default": true,
-					"description": "Auto change word variations when finding references for languages like Java Spring Boot."
+					"description": "Auto change word variations when finding references for languages like C++ and Java Spring Boot."
 				},
 				"msr.descendingSortForVSCode": {
 					"type": "boolean",
@@ -1806,6 +1806,61 @@
 					"description": "Regex pattern to skip folders for GoLang. You can set each project's additional skip patterns: `msr.{root-folder-name}.definition.skipFolders` or `msr.{root-folder-name}.reference.skipFolders` in your personal settings file like `%APPDATA%\\Code\\User\\settings.json` on Windows (See doc: https://github.com/qualiu/vscode-msr/blob/master/README.md#specific-extra-search-paths-settings).",
 					"type": "string",
 					"default": "^([\\.\\$]|(github.com|golang.com|golang.org|pkg|Release|Debug|objd?|bin|node_modules|static|dist|target|(Js)?Packages|\\w+-packages?|wwwroot)$|__pycache__)"
+				},
+				"msr.default.checkingToolUrl": {
+					"description": "Default source tool Url.",
+					"type": "string",
+					"default": "https://raw.githubusercontent.com/qualiu/msr/master/tools/"
+				},
+				"msr.refreshTmpGitFileListDuration": {
+					"description": "Time duration to write git file list before running gfind-xxx commands. Value like: 1day, 3hours, 5minutes, 7seconds.",
+					"type": "string",
+					"default": "20minutes"
+				},
+				"msr.autoUpdateSearchTool": {
+					"description": "Auto update search tool when weekly checking and found new version.",
+					"type": "boolean",
+					"default": false
+				},
+				"msr.default.autoDisableFindDefinitionPattern": {
+					"description": "Set non-empty Regex to auto disable finding definition if found language extension running, like: 'vscode\\S*extension\\S*java' (You can temporarily toggle enable/disable - check MSR-Def-Ref in OUTPUT tab).",
+					"type": "string",
+					"default": "vscode\\S*extension\\S*\\b#_MappedExtName_#"
+				},
+				"msr.cs.autoDisableFindDefinitionPattern": {
+					"description": "Set non-empty Regex to auto disable finding C# definition if found language extension running, like: 'vscode\\S*extension\\S*java' (You can temporarily toggle enable/disable - check MSR-Def-Ref in OUTPUT tab).",
+					"type": "string",
+					"default": "vscode\\S*extension\\S*\\bcsharp\\b"
+				},
+				"msr.checkLanguageProcessIntervalMinutes": {
+					"description": "Interval (minutes) to check language process.",
+					"type": "number",
+					"default": 15
+				},
+				"msr.cs.languageProcessName": {
+					"description": "C# language process name, to fast check and disable finding definition.",
+					"type": "string",
+					"default": "dotnet"
+				},
+				"msr.java.languageProcessName": {
+					"description": "Java language process name, to fast check and disable finding definition.",
+					"type": "string",
+					"default": "java"
+				},
+				"msr.cpp.languageProcessName": {
+					"description": "C++ language process name, to fast check and disable finding definition.",
+					"type": "string",
+					"default": "cpptools"
+				},
+				"msr.rs.languageProcessName": {
+					"description": "Rust language process name, to fast check and disable finding definition.",
+					"type": "string",
+					"default": "rust-analyzer"
+				},
+				"msr.rs.autoDisableFindDefinitionPattern": {
+					"description": "Set non-empty Regex to auto disable finding Rust definition if found language extension running, like: 'vscode\\S*extension\\S*java' (You can temporarily toggle enable/disable - check MSR-Def-Ref in OUTPUT tab).",
+					"type": "string",
+					"default": "vscode\\S*extension\\S*\\brust\\b"
 				}
 			}
 		}

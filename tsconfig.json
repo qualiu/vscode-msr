@@ -8,11 +8,11 @@
     ],
     "sourceMap": true,
     "rootDir": "src",
-    "strict": true
+    "strict": true,
     /*AdditionalChecks*/
     //"noImplicitReturns":true,
-    //"noFallthroughCasesInSwitch":true,/*Reporterrorsforfallthroughcasesinswitchstatement.*/
-    //"noUnusedParameters":true,
+    "noFallthroughCasesInSwitch": true,
+    "noUnusedParameters": true,
   },
   "exclude": [
     "node_modules",

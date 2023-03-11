@@ -2,17 +2,83 @@ import { ParsedPath } from 'path';
 import * as vscode from 'vscode';
 import { IsWindows, ShouldQuotePathRegex, TrimSearchTextRegex } from './constants';
 import { TerminalType } from './enums';
+import { outputInfoByDebugModeByTime } from './outputUtils';
 import path = require('path');
 import os = require('os');
+import fs = require('fs');
 import ChildProcess = require('child_process');
 
 export const PathEnvName = IsWindows ? '%PATH%' : '$PATH';
 export const MatchWindowsDiskRegex = /^([A-Z]):/i;
 
-export function runCommandGetOutput(command: string): string {
+export function getErrorMessage(error: unknown): string {
+    if (!error) {
+        return '';
+    }
+
+    if (error instanceof Error) {
+        return error.message;
+    }
+
+    const text = String(error);
+    const nonObject = text.replace(/[Object \[\],]+/g, '');
+    if (!isNullOrEmpty(nonObject)) {
+        return text;
+    }
+    try {
+        return JSON.stringify(error);
+    } catch (err) {
+        console.log(error);
+        console.log('Failed to stringify error message.');
+        console.log(err);
+        return 'Unknown error';
+    }
+}
+
+export function isSymbolicLink(path: string): boolean {
+    try {
+        const stat = fs.lstatSync(path);
+        return stat.isSymbolicLink();
+    } catch (err) {
+        outputInfoByDebugModeByTime('Failed to check link of file: ' + path + ', error: ' + getErrorMessage(err));
+        return false;
+    }
+}
+
+export function isDirectory(path: string): boolean {
+    try {
+        const stat = fs.lstatSync(path);
+        return stat.isDirectory();
+    } catch (err) {
+        outputInfoByDebugModeByTime('Failed to check link of file: ' + path + ', error: ' + getErrorMessage(err));
+        return false;
+    }
+}
+
+export function isFileExists(path: string): boolean {
+    try {
+        const stat = fs.lstatSync(path);
+        return stat.isFile();
+    } catch (err) {
+        outputInfoByDebugModeByTime('Failed to check link of file: ' + path + ', error: ' + getErrorMessage(err));
+        return false;
+    }
+}
+
+export function runCommandGetOutput(command: string, fetchError = false): string {
     try {
         return ChildProcess.execSync(command).toString();
     } catch (err) {
+        if (fetchError && err) {
+            const keys = Object.keys(err);
+            const stdoutIndex = !keys ? -1 : keys.indexOf('stdout');
+            if (stdoutIndex >= 0) {
+                const values = Object.values(err);
+                const stdout = values[stdoutIndex];
+                return !stdout ? '' : String(stdout);
+            }
+        }
+        console.log(err);
         return '';
     }
 }
@@ -53,7 +119,7 @@ export function toPath(parsedPath: ParsedPath): string {
 }
 
 export function nowText(tailText: string = ' '): string {
-    return new Date().toISOString() + tailText;
+    return new Date().toISOString() + ' ' + tailText.trimLeft();
 }
 
 export function getElapsedSeconds(begin: Date, end: Date): number {

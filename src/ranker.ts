@@ -5,11 +5,11 @@ import { SearchTextHolder } from './constants';
 import { addExtensionToPattern, getConfig, MappedExtToCodeFilePatternMap, MyConfig } from './dynamicConfig';
 import { FindType, ForceFindType } from './enums';
 import { ForceSetting } from './forceSettings';
-import { outputDebug, outputError } from './outputUtils';
+import { outputDebug, outputDebugByTime, outputErrorByTime } from './outputUtils';
 import { EmptyRegex, getAllSingleWords } from './regexUtils';
 import { ResultType } from './ScoreTypeResult';
 import { SearchChecker } from './searchChecker';
-import { getRootFolderName, isNullOrEmpty, nowText } from './utils';
+import { getRootFolderName, isNullOrEmpty } from './utils';
 import path = require('path');
 
 export class Ranker {
@@ -85,8 +85,8 @@ export class Ranker {
 			outputDebug('scoreWordsText = ' + this.scoreWordsText);
 		}
 
-		outputDebug(nowText() + 'scoreWordSet[' + this.scoreWordSet.size + '] = ' + Array.from(this.scoreWordSet).join(' '));
-		outputDebug(nowText() + 'Final-Check: isFindMember = ' + this.isFindMember + ', isFindClass = ' + this.isFindClass + ' , isFindMethod = ' + this.isFindMethod + ' , isFindEnum = ' + this.isFindEnum);
+		outputDebugByTime('scoreWordSet[' + this.scoreWordSet.size + '] = ' + Array.from(this.scoreWordSet).join(' '));
+		outputDebugByTime('Final-Check: isFindMember = ' + this.isFindMember + ', isFindClass = ' + this.isFindClass + ' , isFindMethod = ' + this.isFindMethod + ' , isFindEnum = ' + this.isFindEnum);
 	}
 
 	private getScoreText(): string {
@@ -135,7 +135,7 @@ export class Ranker {
 		const pattern = getConfigValueByPriorityList(prefixes, configKeyTail, allowEmpty) as string || '';
 		if (!isNullOrEmpty(pattern) && configKeyTail.includes('definition') && !configKeyTail.includes('skip') && pattern.indexOf(SearchTextHolder) < 0) {
 			const keys = prefixes.join('.' + configKeyTail + ' or ');
-			outputError(nowText() + 'Not found word-holder: "' + SearchTextHolder + '" in search option, please check configuration of ' + keys + ', searchPattern = ' + pattern);
+			outputErrorByTime('Not found word-holder: "' + SearchTextHolder + '" in search option, please check configuration of ' + keys + ', searchPattern = ' + pattern);
 			return '';
 		}
 
@@ -148,7 +148,7 @@ export class Ranker {
 			: getConfigValueByAllParts(this.rootFolderName, this.searchChecker.extension, this.searchChecker.mappedExt, subKey, configKeyTail, allowEmpty);
 		if (!isNullOrEmpty(pattern) && configKeyTail.includes('definition') && !configKeyTail.includes('skip') && pattern.indexOf(SearchTextHolder) < 0) {
 			const keys = subKey + '.' + configKeyTail;
-			outputError(nowText() + 'Not found word-holder: "' + SearchTextHolder + '" in search option, please check configuration of ' + keys + ', searchPattern = ' + pattern);
+			outputErrorByTime('Not found word-holder: "' + SearchTextHolder + '" in search option, please check configuration of ' + keys + ', searchPattern = ' + pattern);
 			return '';
 		}
 
@@ -268,7 +268,7 @@ export class Ranker {
 
 		if (isNullOrEmpty(searchPattern)) {
 			searchPattern = "-t Not-Found-SearchPattern";
-			outputError(nowText() + 'Not found search pattern for search word: ' + this.currentWord);
+			outputErrorByTime('Not found search pattern for search word: ' + this.currentWord);
 		} else {
 			searchPattern = '-t "' + searchPattern + '"';
 		}

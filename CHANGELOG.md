@@ -2,6 +2,11 @@
 
 All notable changes to this "vscode-msr" extension will be documented in this file.
 
+## [2.1.52]
+- Auto disable finding definition if found language extension running by config `utoDisableFindDefinitionPattern`.
+- Supported auto updating search tool - (change default `autoUpdateSearchTool` = `true`).
+- Reduced writing temp file when using `gfind-xxx` (default `refreshTmpGitFileListDuration` = `20 minutes`).
+
 ## [2.1.51]
 - Improved initializing `doskey`/`alias` when reloading or recovering terminals.
 - Reset project specific alias after cooking general alias/files.

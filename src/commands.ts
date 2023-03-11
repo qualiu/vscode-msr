@@ -3,15 +3,15 @@ import { getConfigValueByAllParts, getConfigValueByProjectAndExtension, getConfi
 import { HomeFolder, RemoveJumpRegex, SkipJumpOutForHeadResultsRegex } from './constants';
 import { FileExtensionToMappedExtensionMap, getConfig, getGitIgnore, getSearchPathOptions, MappedExtToCodeFilePatternMap, MyConfig, removeSearchTextForCommandLine, replaceToRelativeSearchPath } from './dynamicConfig';
 import { FindCommandType, TerminalType } from './enums';
-import { enableColorAndHideCommandLine, outputDebug, outputInfo } from './outputUtils';
+import { enableColorAndHideCommandLine, outputDebugByTime, outputInfoByTime } from './outputUtils';
 import { Ranker } from './ranker';
 import { escapeRegExp, NormalTextRegex } from './regexUtils';
 import { runCommandInTerminal } from './runCommandUtils';
 import { SearchConfig } from './searchConfig';
 import { changeFindingCommandForLinuxTerminalOnWindows, DefaultTerminalType, IsLinuxTerminalOnWindows, isLinuxTerminalOnWindows, IsWindowsTerminalOnWindows, toTerminalPath } from './terminalUtils';
-import { setTimeoutInCommandLine, ToolChecker } from './ToolChecker';
+import { setOutputColumnIndexInCommandLine, setTimeoutInCommandLine, ToolChecker } from './ToolChecker';
 import { MsrExe } from './toolSource';
-import { getCurrentWordAndText, getDefaultRootFolderByActiveFile, getExtensionNoHeadDot, getRootFolder, getRootFolderName, isNullOrEmpty, nowText, quotePaths, replaceSearchTextHolder, replaceTextByRegex, RunCmdTerminalRootFolder, setSearchPathInCommand, toPath } from './utils';
+import { getCurrentWordAndText, getDefaultRootFolderByActiveFile, getExtensionNoHeadDot, getRootFolder, getRootFolderName, isNullOrEmpty, quotePaths, replaceSearchTextHolder, replaceTextByRegex, RunCmdTerminalRootFolder, setSearchPathInCommand, toPath } from './utils';
 import { changeToReferencePattern } from './wordReferenceUtils';
 import path = require('path');
 
@@ -32,7 +32,7 @@ export function escapeRegExpForFindingCommand(text: string): string {
 export function runFindingCommand(findCmd: FindCommandType, textEditor: vscode.TextEditor) {
     const rootConfig = vscode.workspace.getConfiguration('msr');
     if (rootConfig.get('enable.findingCommands') as boolean !== true) {
-        outputDebug(nowText() + 'Your extension "vscode-msr": finding-commands is disabled by setting of `msr.enable.findingCommands`.');
+        outputDebugByTime('Your extension "vscode-msr": finding-commands is disabled by setting of `msr.enable.findingCommands`.');
     }
 
     const parsedFile = path.parse(textEditor.document.fileName);
@@ -60,7 +60,7 @@ export function runFindingCommand(findCmd: FindCommandType, textEditor: vscode.T
     if (findCmdText.includes('FindTop')) {
         const [hasGotExe, ninExePath] = new ToolChecker().checkAndDownloadTool('nin');
         if (!hasGotExe) {
-            outputInfo(nowText() + 'Not found nin to run ' + findCmdText + ' command:\n' + command, true);
+            outputInfoByTime('Not found nin to run ' + findCmdText + ' command:\n' + command, true);
             return;
         } else if (!isNullOrEmpty(ninExePath)) {
             const folder = path.dirname(ninExePath);
@@ -370,6 +370,7 @@ export function getFindingCommandByCurrentWord(toRunInTerminal: boolean, findCmd
     }
 
     if (!isNullOrEmpty(extraOptions)) {
+        extraOptions = setOutputColumnIndexInCommandLine(extraOptions);
         extraOptions = ' ' + extraOptions.trimLeft();
     }
 

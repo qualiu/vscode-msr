@@ -261,14 +261,15 @@ find-def MyClass -x AndPlainText --np "unit|test" --xp src\ext,src\common -c sho
 find-ref MyClass --pp "unit|test" -U 3 -D 3 -H 20 -T 10 :  Preview Up/Down lines + Set Head/Tail lines in test.
 find-ref OldClassOrMethod -o NewName -j : Just preview changes only.
 find-ref OldClassOrMethod -o NewName -R : Replace files.
+find-spring-ref - find variations of Java Spring member like: ABC / isABC / setABC / getABC.
 alias find-pure-ref
 malias find -x all -H 9
-malias "find[\w-]*ref"
+malias "g?find[\w-]*ref"
 malias ".*?(find-\S+)=.*" -o "\2"  :  To see all find-xxx alias/doskeys.
-malias use-rp :  To see matched alias/doskeys like 'use-rp', 'out-rp', 'use-fp' and 'out-fp' etc.
-use-rp  - Search relative path(.) as input path: Output relative paths if no -W.
-use-fp  - Search workspace root paths: Output absolute/full paths (regardless of -W).
-out-rp  - Output relative path. This will not effect if use-fp which input full paths of current workspace.
+list-alias  - list all alias/doskey files of projects.
+update-alias - reload common alias/doskeys.
+use-this-alias - reload this project alias/doskeys when in vscode; or load by current folder(project) name (see list-alias).
+out-rp  - Output relative path for result files.
 out-fp  - Output full path.
 Add -W to output full path; -I to suppress warnings; -o to replace text, -j to preview changes, -R to replace files.
 You can also create your own command shortcuts in the file: {msr.cmdAlias.saveFolder}\msr-cmd-alias.doskeys
@@ -592,7 +593,23 @@ Only `explicitly set terminal` on Windows **when you caught problems** like unab
 
 ```cpp
 // Cygwin Bash. One command to install Cygwin (into a folder no pollution): https://github.com/qualiu/msrTools/blob/master/system/install-cygwin.bat
+For Cygwin as main terminal (may obsolete):
 "terminal.integrated.shell.windows": "D:\\cygwin64\\bin\\bash.exe"
+
+For Cygwin integration:
+"terminal.integrated.profiles.windows": {
+        "Cygwin": {
+            // "path": "D:\\cygwin64\\Cygwin.bat" // Unable to auto init command alias
+            "path": "D:\\my-tools\\cygwin-bash.bat" // Any path contains word 'cygwin' to help identify Cygwin terminal
+        }
+    }
+}
+
+The cygwin-bash.bat content example like below (assume your cygwin at D:\cygwin64):
+@REM call d:\my-tools\msrTools\disable-exe-in-PATH.bat grep.exe || exit /b -1
+@set CYGWIN_ROOT=D:\cygwin64
+@set "PATH=D:\cygwin64\bin;%PATH%"
+@bash %*
 ```
 
 #### Use Short Mount Paths for WSL Bash Terminal on Windows

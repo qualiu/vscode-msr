@@ -2,8 +2,8 @@ import * as vscode from 'vscode';
 import { Terminal } from 'vscode';
 import { IsLinux, IsWindows, IsWSL } from './constants';
 import { TerminalType } from './enums';
-import { outputDebug, outputError } from './outputUtils';
-import { isNullOrEmpty, MatchWindowsDiskRegex, nowText, quotePaths, replaceToForwardSlash, runCommandGetOutput } from './utils';
+import { outputDebugByTime, outputErrorByTime } from './outputUtils';
+import { getErrorMessage, isNullOrEmpty, MatchWindowsDiskRegex, quotePaths, replaceToForwardSlash, runCommandGetOutput } from './utils';
 import fs = require('fs');
 import path = require('path');
 import os = require('os');
@@ -61,6 +61,10 @@ export const IsWindowsTerminalOnWindows: boolean = isWindowsTerminalOnWindows(De
 // Must copy/update extension + Restart vscode if using WSL terminal on Windows:
 export const IsLinuxTerminalOnWindows: boolean = isLinuxTerminalOnWindows(DefaultTerminalType);
 
+export function isBashTerminalType(terminalType: TerminalType) {
+  return TerminalType.CygwinBash === terminalType || TerminalType.LinuxBash === terminalType || TerminalType.WslBash === terminalType || TerminalType.MinGWBash === terminalType;
+}
+
 let BashExePath = '';
 let PowershellExePath = '';
 export function getTerminalInitialPath(terminal: vscode.Terminal | null | undefined): string {
@@ -116,7 +120,7 @@ export function getTerminalShellExePath(): string {
         newShellExePath = text.startsWith('[') || valueType !== 'string' && valueType.length > 0 ? pathValueObj[0] : pathValueObj;
       } catch (err) {
         console.log(err);
-        outputError(nowText() + 'Failed to get path value from terminal.integrated.profiles.' + suffix + '.path , error: ' + err);
+        outputErrorByTime('Failed to get path value from terminal.integrated.profiles.' + suffix + '.path , error: ' + err);
       }
     }
   }
@@ -190,7 +194,7 @@ export function isToolExistsInPath(exeToolName: string, terminalType: TerminalTy
         if (fs.existsSync(homeExe)) {
           return [true, homeExe];
         }
-        outputError(nowText() + 'Not found any of: ' + binExe + ' + ' + homeExe + ' for ' + TerminalType[terminalType] + ' terminal.');
+        outputErrorByTime('Not found any of: ' + binExe + ' + ' + homeExe + ' for ' + TerminalType[terminalType] + ' terminal.');
       } else {
         const exePaths = /\.exe$/i.test(exeToolName)
           ? output.split(/[\r\n]+/)
@@ -207,7 +211,7 @@ export function isToolExistsInPath(exeToolName: string, terminalType: TerminalTy
       }
     }
   } catch (err) {
-    outputDebug(nowText() + err);
+    outputDebugByTime(getErrorMessage(err));
   }
 
   return [false, ''];

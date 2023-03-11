@@ -1,20 +1,31 @@
 import path = require('path');
 import * as vscode from 'vscode';
 import { GetConfigPriorityPrefixes, getConfigValueByAllParts, getConfigValueByProjectAndExtension, getConfigValueOfActiveProject, getConfigValueOfProject } from './configUtils';
-import { IsLinux, IsSupportedSystem, IsWindows, IsWSL } from './constants';
+import { IsDebugMode, IsLinux, IsSupportedSystem, IsWindows, IsWSL } from './constants';
 import { cookCmdShortcutsOrFile, mergeSkipFolderPattern } from './cookCommandAlias';
 import { FindType, TerminalType } from './enums';
 import { GitIgnore } from './gitUtils';
-import { outputDebug, outputError, outputInfo, outputInfoClear, setOutputChannel } from './outputUtils';
+import { MessageLevel, outputDebug, outputDebugByTime, outputErrorByTime, outputInfoByTime, outputInfoClearByTime, outputKeyInfoByTime, updateOutputChannel } from './outputUtils';
 import { createRegex } from './regexUtils';
 import { getRunCmdTerminalWithInfo } from './runCommandUtils';
 import { SearchConfig } from './searchConfig';
 import { DefaultTerminalType, isLinuxTerminalOnWindows, IsLinuxTerminalOnWindows, IsWindowsTerminalOnWindows, toStoragePaths, toTerminalPath, toTerminalPaths, toTerminalPathsText } from './terminalUtils';
-import { getDefaultRootFolderByActiveFile, getDefaultRootFolderName, getExtensionNoHeadDot, getRootFolder, getRootFolderName, getRootFolders, getUniqueStringSetNoCase, isNullOrEmpty, nowText, quotePaths } from './utils';
+import { getDefaultRootFolderByActiveFile, getDefaultRootFolderName, getElapsedSecondsToNow, getExtensionNoHeadDot, getRootFolder, getRootFolderName, getRootFolders, getUniqueStringSetNoCase, isNullOrEmpty, nowText, quotePaths, runCommandGetOutput } from './utils';
 
 const SplitPathsRegex = /\s*[,;]\s*/;
 const SplitPathGroupsRegex = /\s*;\s*/;
 const FolderToPathPairRegex = /(\w+\S+?)\s*=\s*(\S+.+)$/;
+
+let LanguageProcessExistsMap = new Map<string, boolean>();
+let LastCheckLanguageProcessTimeMap = new Map<string, Date>();
+function needCheckLanguageProcess(mappedExt: string): boolean {
+    const lastCheckTime = LastCheckLanguageProcessTimeMap.get(mappedExt);
+    if (!lastCheckTime) {
+        return true;
+    }
+    const elapsedMinutes = getElapsedSecondsToNow(lastCheckTime) / 60;
+    return elapsedMinutes >= MyConfig.CheckLanguageProcessIntervalMinutes;
+}
 
 export const DefaultRootFolder = getDefaultRootFolderByActiveFile(true);
 
@@ -109,7 +120,7 @@ export function addExtensionToPattern(ext: string, fileExtensionsRegex: RegExp) 
     try {
         fileExtensionsRegex = new RegExp(newPattern, 'i');
     } catch (err) {
-        outputError(nowText() + 'Failed to add extension: "' + ext + '" to AllFilesRegex, error: ' + err);
+        outputErrorByTime('Failed to add extension: "' + ext + '" to AllFilesRegex, error: ' + err);
     }
 
     return fileExtensionsRegex;
@@ -182,6 +193,10 @@ export class DynamicConfig {
     public ConfigAndDocFilesRegex: RegExp = new RegExp('to-load msr.default.configAndDocs');
     public ShowLongTip: boolean = true;
     public AutoChangeSearchWordForReference: boolean = true;
+    public RefreshTmpGitFileListDuration: string = '10m';
+    public AutoUpdateSearchTool: boolean = false;
+    public CheckLanguageProcessIntervalMinutes = 15;
+
     private TmpToggleEnabledExtensionToValueMap = new Map<string, boolean>();
     private ProjectToGitIgnoreStatusMap = new Map<String, boolean>();
     private ChangePowerShellTerminalToCmdOrBashConfig: string = "auto";
@@ -223,8 +238,9 @@ export class DynamicConfig {
             }
         }
 
+        const hasFoundLanguageProcess = LanguageProcessExistsMap.get(mappedExt);
         this.TmpToggleEnabledExtensionToValueMap.set(mappedExt, !isEnabled);
-        outputInfo(nowText() + 'Toggle to `' + (isEnabled ? 'disabled' : 'enabled') + '` for `' + mappedExt + '` files to find definition.');
+        outputKeyInfoByTime(`Status = '${(isEnabled ? 'disabled' : 'enabled')}' for finding ${mappedExt} definition. HasFoundLanguageProcess = ${hasFoundLanguageProcess}.`);
     }
 
     public update() {
@@ -284,7 +300,7 @@ export class DynamicConfig {
         this.ShowInfo = getConfigValueOfActiveProject('showInfo') === 'true';
         this.IsQuiet = getConfigValueOfActiveProject('quiet') === 'true';
         this.IsDebug = getConfigValueOfActiveProject('debug') === 'true';
-        setOutputChannel(this.ShowInfo, this.IsQuiet);
+        updateOutputChannel(IsDebugMode ? MessageLevel.DEBUG : MessageLevel.INFO, this.IsQuiet);
         this.DescendingSortForConsoleOutput = getConfigValueOfActiveProject('descendingSortForConsoleOutput') === 'true';
         this.DescendingSortForVSCode = getConfigValueOfActiveProject('descendingSortForVSCode') === 'true';
         this.MaxSearchDepth = parseInt(getConfigValueOfActiveProject('maxSearchDepth') || '0');
@@ -317,6 +333,9 @@ export class DynamicConfig {
         this.SkipDotFolders = getConfigValueOfActiveProject('skipDotFoldersIfUseGitIgnoreFile') === 'true';
         this.ShowLongTip = getConfigValueOfActiveProject('cookCmdAlias.showLongTip') === 'true';
         this.AutoChangeSearchWordForReference = getConfigValueOfActiveProject('reference.autoChangeSearchWord') === 'true';
+        this.RefreshTmpGitFileListDuration = (getConfigValueOfActiveProject('refreshTmpGitFileListDuration', true) || '10m').replace(/\s+/g, '');
+        this.AutoUpdateSearchTool = getConfigValueOfActiveProject('autoUpdateSearchTool') === 'true';
+        this.CheckLanguageProcessIntervalMinutes = Math.max(5, Number(getConfigValueOfActiveProject('checkLanguageProcessIntervalMinutes') || '20'));
 
         SearchConfig.reload();
 
@@ -361,16 +380,16 @@ export class DynamicConfig {
         const toggleTip = FindType.Reference === findType ? '' : 'Change it or temporarily toggle `enable/disable`.';
         const toggleStatus = this.TmpToggleEnabledExtensionToValueMap.get(mappedExt);
 
-        // don't enable finding references:
+        // Skip finding definition if toggled to disabled:
         if (toggleStatus !== undefined && FindType.Reference !== findType) {
-            const status = true === toggleStatus ? '`enabled`' : '`disabled`';
-            outputInfoClear(nowText() + 'Toggle status = ' + status + ' for ' + findTypeText + ' because menu or hot key of `msr.tmpToggleEnableFindingDefinition` had been triggered.');
+            const status = true === toggleStatus ? 'enabled' : 'disabled';
+            outputInfoClearByTime('Status = ' + status + ' for ' + findTypeText + ' as menu or hot key of msr.tmpToggleEnableFindingDefinition had been triggered, or not empty autoDisableFindDefinitionPattern. HasFoundLanguageProcess = ' + LanguageProcessExistsMap.get(mappedExt) + ".");
             return false === toggleStatus;
         }
 
         if (this.OnlyFindDefinitionForKnownLanguages) {
             if (isNullOrEmpty(mappedExt) || !this.isKnownLanguage(extension)) {
-                outputInfoClear(nowText() + 'Disabled ' + findTypeText + '` files due to `msr.enable.onlyFindDefinitionForKnownLanguages` = true'
+                outputInfoClearByTime('Disabled ' + findTypeText + '` files due to `msr.enable.onlyFindDefinitionForKnownLanguages` = true'
                     + ' + Not exist `msr.fileExtensionMap.' + extension + '` nor `msr.' + extension + '.xxx`. ' + toggleTip);
                 return true;
             }
@@ -381,20 +400,67 @@ export class DynamicConfig {
             : this.DisableFindReferenceFileExtensionRegex;
 
         if (MyConfig.DisabledFileExtensionRegex.test(extension)) {
-            outputInfoClear(nowText() + 'Disabled ' + findTypeText + ' by `msr.disable.extensionPattern` = "' + this.DisabledFileExtensionRegex.source + '". ' + toggleTip);
+            outputInfoClearByTime('Disabled ' + findTypeText + ' by `msr.disable.extensionPattern` = "' + this.DisabledFileExtensionRegex.source + '". ' + toggleTip);
             return true;
         }
 
         if (checkRegex.test(extension)) {
             const configName = FindType.Definition === findType ? 'disable.findDef.extensionPattern' : 'disable.findRef.extensionPattern';
-            outputInfoClear(nowText() + 'Disabled ' + findTypeText + '` by `' + configName + '` = "' + this.RootConfig.get(configName) + '". ' + toggleTip);
+            outputInfoClearByTime('Disabled ' + findTypeText + '` by `' + configName + '` = "' + this.RootConfig.get(configName) + '". ' + toggleTip);
             return true;
         }
 
         const rootFolderName = getRootFolderName(currentFilePath, true);
         if (MyConfig.DisabledRootFolderNameRegex.test(rootFolderName)) {
-            outputInfoClear(nowText() + 'Disabled ' + findTypeText + ' by `msr.disable.projectRootFolderNamePattern` = "' + MyConfig.DisabledRootFolderNameRegex.source + '". ' + toggleTip);
+            outputInfoClearByTime('Disabled ' + findTypeText + ' by `msr.disable.projectRootFolderNamePattern` = "' + MyConfig.DisabledRootFolderNameRegex.source + '". ' + toggleTip);
             return true;
+        }
+
+        // Skip finding definition if set to disabled when found language extensions running:
+        if (this.shouldSkipFindingDefinitionByLanguageProcess(currentFilePath, extension, mappedExt)) {
+            return true;
+        }
+
+        return false;
+    }
+
+    private shouldSkipFindingDefinitionByLanguageProcess(currentFilePath: string, extension: string, mappedExt: string): boolean {
+        const rootFolderName = getRootFolderName(currentFilePath, true);
+        const checkProcessPattern = getConfigValueByProjectAndExtension(rootFolderName, extension, mappedExt, 'autoDisableFindDefinitionPattern', true)
+            .replace('#_MappedExtName_#', mappedExt)
+            .trim();
+        if (isNullOrEmpty(checkProcessPattern)) {
+            return false;
+        }
+
+        if (!needCheckLanguageProcess(mappedExt)) {
+            const lastCheckTime = LastCheckLanguageProcessTimeMap.get(mappedExt) || new Date();
+            outputInfoByTime(`Skip finding definition for ${mappedExt} since found language process. Last check time = ${lastCheckTime.toISOString()}. Current autoDisableFindDefinitionPattern = "${checkProcessPattern}"`);
+            return true;
+        }
+
+        try {
+            new RegExp(checkProcessPattern); // to catch Regex error.
+            const languageProcessName = getConfigValueByProjectAndExtension(rootFolderName, extension, mappedExt, 'languageProcessName')
+                .replace(/\.exe$/i, '');
+            // const fastFilter = isNullOrEmpty(languageProcessName) ? '' : `-ProcessName '${languageProcessName}'`;
+            const fastFilter = isNullOrEmpty(languageProcessName) ? '' : `where "Name = '${languageProcessName}.exe'"`;
+            const checkCommand = IsWindows
+                // ? `PowerShell -Command "Get-Process ${fastFilter} | Where-Object { $_.Path -imatch '${checkProcessPattern}'} | Select-Object -Property Id, ProcessName, Path"`
+                ? `wmic process ${fastFilter} get ProcessId,CommandLine | msr -it "${checkProcessPattern}" -PAC`
+                : `ps -ef | grep -iE '${checkProcessPattern}' | grep -v grep`
+                ;
+            const output = runCommandGetOutput(checkCommand, IsWindows).trim().replace(/\s+(\d+)/g, ' $1');
+            const hasFoundLanguageProcess = !isNullOrEmpty(output);
+            LanguageProcessExistsMap.set(mappedExt, hasFoundLanguageProcess);
+            LastCheckLanguageProcessTimeMap.set(mappedExt, new Date());
+            if (hasFoundLanguageProcess) {
+                outputInfoByTime(`Skip finding definition for ${mappedExt} as found language process by autoDisableFindDefinitionPattern = "${checkProcessPattern}" as below:\n${output}`);
+                return true;
+            }
+        } catch (err) {
+            outputErrorByTime(`Failed to check/disable finding definition for ${mappedExt}: Regex = "${checkProcessPattern}", Error = ${String(err)}`);
+            console.log(err);
         }
 
         return false;
@@ -419,10 +485,10 @@ export class DynamicConfig {
                 }
             });
         } catch (error) {
-            outputDebug(nowText() + 'Failed to get exclude folder from `' + keyName + '.exclude`: ' + error);
+            outputDebugByTime('Failed to get exclude folder from `' + keyName + '.exclude`: ' + error);
         }
 
-        outputDebug(nowText() + 'Got ' + textSet.size + ' folders of `' + keyName + '.exclude`: ' + Array.from(textSet).join(' , '));
+        outputDebugByTime('Got ' + textSet.size + ' folders of `' + keyName + '.exclude`: ' + Array.from(textSet).join(' , '));
         return textSet;
     }
 }
@@ -445,16 +511,6 @@ export function getConfig(reload: boolean = false): DynamicConfig {
 
     return MyConfig;
 }
-
-export function getRootFolderExtraOptions(rootFolderName: string): string {
-    let folderExtraOptions = (MyConfig.RootConfig.get(rootFolderName + '.extraOptions') as string || '').trim();
-    if (folderExtraOptions.length > 0) {
-        folderExtraOptions += ' ';
-    }
-
-    return folderExtraOptions;
-}
-
 
 export function replaceToRelativeSearchPath(toRunInTerminal: boolean, searchPaths: string, rootFolder: string) {
     if (!SearchConfig.shouldUseRelativeSearchPath(toRunInTerminal)

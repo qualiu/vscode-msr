@@ -32,8 +32,8 @@ export const IsLinuxArm64 = !IsWindows && !IsMacOS && !IsWSL && /aarch64/i.test(
 export const IsLinux86x64 = !IsWindows && !IsMacOS && !IsWSL && !IsLinuxArm64 && /x86_64/.test(SystemInfo) && /Linux/i.test(SystemInfo);
 export const IsLinux = IsLinuxArm64 || IsLinux86x64;
 
-export const IsSupportedSystem = /win32|Windows|Linux/i.test(process.platform) || IsDarwinArm64;
+export const IsSupportedSystem = /Win32|Windows|Linux/i.test(process.platform) || IsDarwinArm64;
 
 export const ShouldQuotePathRegex = IsWindows ? /[^\w,\.\\/:~-]/ : /[^\w,\.\\/~-]/;
 export const HomeFolder = IsWindows ? path.join(process.env['USERPROFILE'] || '.') : process.env['HOME'] || '.';
-export const SystemBinFolder = IsWindows ? (process.env['SystemRoot'] || `C:\WINDOWS\system32`) : '/usr/bin/';
+export const SystemBinFolder = IsWindows ? (process.env['SystemRoot'] || String.raw`C:\WINDOWS\system32`) : (IsMacOS ? '/usr/local/bin/' : '/usr/bin/');

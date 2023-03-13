@@ -372,6 +372,8 @@ This extension is **disabled** for some languages which has good official/profes
 
 - Temporarily enable: See [temporarily toggle](#get-the-best-combined-power)(just press `Alt+F2` or menu or command palette).
 - Permanently enable: Change **msr.disable.extensionPattern** value.
+- New config **msr.default.autoDisableFindDefinitionPattern** will help you do it by checking professional language process running.
+  - If you don't wan to use this auto-disabling feature, like `cpp`, set value to null for `msr.cpp.autoDisableFindDefinitionPattern`.
 
 Other languages use a rough support: When click `"Go To Definition"` just like click the **right-pop-menu**: `"Regex find as 'class' or 'method' definition roughly"`.
 

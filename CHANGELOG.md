@@ -2,12 +2,16 @@
 
 All notable changes to this "vscode-msr" extension will be documented in this file.
 
+## [2.1.54]
+- Hide tmp file on Linux/MacOS when running `gfind-xxx` alias.
+- Skip showing alias list if not cooked `cmdAlias` folder.
+
 ## [2.1.53]
 - Improved `gfind-spring-ref` / `gfind-cpp-member-ref`.
 - Improved output full path `out-fp` and relative path `out-rp`.
 
 ## [2.1.52]
-- Auto disable finding definition if found language extension running by config `utoDisableFindDefinitionPattern`.
+- Auto disable finding definition if found language extension running by config `autoDisableFindDefinitionPattern`.
 - Supported auto updating search tool - (change default `autoUpdateSearchTool` = `true`).
 - Reduced writing temp file when using `gfind-xxx` (default `refreshTmpGitFileListDuration` = `20 minutes`).
 

@@ -1,6 +1,7 @@
+import { getConfigValueOfActiveProject } from "./configUtils";
 import { GetCommandOutput, HomeFolder, Is64BitOS, IsDarwinArm64, IsDebugMode, IsLinuxArm64, IsWindows, OutputChannelName } from "./constants";
 import { cookCmdShortcutsOrFile } from "./cookCommandAlias";
-import { getConfig } from "./dynamicConfig";
+import { FileExtensionToMappedExtensionMap, getConfig } from "./dynamicConfig";
 import { TerminalType } from "./enums";
 import { checkIfSupported, clearOutputChannel, DefaultMessageLevel, MessageLevel, outputDebugByTime, outputErrorByTime, outputInfoByDebugMode, outputInfoByDebugModeByTime, outputInfoByTime, outputKeyInfo, outputKeyInfoByTime, outputWarnByTime, updateOutputChannel } from "./outputUtils";
 import { getRunCmdTerminal, runRawCommandInTerminal } from "./runCommandUtils";
@@ -223,15 +224,20 @@ export class ToolChecker {
     const config = getConfig();
     const shouldActivate = config.UseGitIgnoreFile || isNullOrEmpty(getDefaultRootFolder());// || !getGitIgnore(getDefaultRootFolder()).Valid;
     if (shouldActivate) {
-      // to ease running command later (like: using git-ignore to export/set variables)
-      let tip = 'echo Auto disable finding definition = true. Default terminal = ' + TerminalType[DefaultTerminalType]
+      const activePath = getActiveFilePath() || '';
+      const extension = isNullOrEmpty(activePath) ? '' : path.parse(activePath).ext;
+      const mappedExt = isNullOrEmpty(extension) ? '' : (FileExtensionToMappedExtensionMap.get(extension.substring(1)) || '');
+      const findType = ('finding ' + mappedExt + ' definition').replace('  ', ' ');
+      const checkProcessPattern = getConfigValueOfActiveProject('autoDisableFindDefinitionPattern', true);
+      let tip = 'echo Auto disable ' + findType + ' = ' + !isNullOrEmpty(checkProcessPattern)
+        + '. Default terminal = ' + TerminalType[DefaultTerminalType]
         + '. Universal slash for --np/pp/xp/sp = ' + IsForwardingSlashSupportedOnWindows
-        + '. Locate to column = ' + IsOutputColumnSupported
-        + '.  Time offset support for --w1/--w2 = ' + IsFileTimeOffsetSupported
+        + '. Locate results to column = ' + IsOutputColumnSupported
+        + '. Time offset support for --w1/w2 = ' + IsFileTimeOffsetSupported
         + '. Auto update search tool = ' + getConfig().AutoUpdateSearchTool
         + '.';
       if (PlatformToolChecker.IsToolExists) {
-        tip += ' | msr -aPA -i -e true -t false';
+        tip += ' | msr -aPA -i -e true -t "false|Auto.*?(disable).*?definition"';
       }
       runRawCommandInTerminal(tip);
     }

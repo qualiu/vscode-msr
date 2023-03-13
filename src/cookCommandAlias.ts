@@ -312,7 +312,7 @@ export function cookCmdShortcutsOrFile(
           if (isWindowsTerminal) {
             checkAndListCommand = '( ' + checkTime + ' 2>nul | msr -t "^Matched 1" >nul && ' + listFileCommand + ' ) & ';
           } else {
-            checkAndListCommand = checkTime + ' 2>/dev/null -PAC ; [ $? -ne 1 ] && ' + listFileCommand + '; '
+            checkAndListCommand = checkTime + ' 2>/dev/null -PAC 1>&2; [ $? -ne 1 ] && ' + listFileCommand + '; '
           }
         }
       }
@@ -502,11 +502,7 @@ export function cookCmdShortcutsOrFile(
   }
 
   if (isPowerShellTerminal(terminalType) && RunCommandChecker.IsToolExists) {
-    if (!MyConfig.canUseGoodGitIgnore(rootFolder)) {
-      runCmdInTerminal('msr -l --wt -f "^(update|open|use)-\\S*alias" -p ' + quotePaths(generalScriptFilesFolder) + ' -M -H 3 -T3');
-    } else {
-      runPowerShellShowFindCmdLocation();
-    }
+    runPowerShellShowFindCmdLocation(MyConfig.canUseGoodGitIgnore(rootFolder) ? "^g?find-\\w+-def" : "^(update|open|use)-\\S*alias");
   }
 
   if (!RunCommandChecker.IsToolExists) {
@@ -549,8 +545,12 @@ export function cookCmdShortcutsOrFile(
     }
   }
 
-  function runPowerShellShowFindCmdLocation() {
-    runCmdInTerminal('msr -l --wt --sz -p ' + quotePaths(generalScriptFilesFolder) + ' -f "^g?find-\\w+-def" -H 2 -T 2');
+  function runPowerShellShowFindCmdLocation(searchFileNamePattern = "^g?find-\\w+-def") {
+    if (fs.existsSync(generalScriptFilesFolder)) {
+      runCmdInTerminal('msr -l --wt --sz -p ' + quotePaths(generalScriptFilesFolder) + ` -f "${searchFileNamePattern}" -H 3 -T3 -M`);
+    } else {
+      runCmdInTerminal('echo "Please cook command alias/doskeys (by menu of right-click) to generate and use find-xxx in external IDEs or terminals."');
+    }
   }
 
   function runPowerShellTip() {

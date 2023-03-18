@@ -1,5 +1,6 @@
 import path = require('path');
 import ChildProcess = require('child_process');
+import os = require('os');
 
 export function GetCommandOutput(command: string): string {
   try {
@@ -37,3 +38,13 @@ export const IsSupportedSystem = /Win32|Windows|Linux/i.test(process.platform) |
 export const ShouldQuotePathRegex = IsWindows ? /[^\w,\.\\/:~-]/ : /[^\w,\.\\/~-]/;
 export const HomeFolder = IsWindows ? path.join(process.env['USERPROFILE'] || '.') : process.env['HOME'] || '.';
 export const SystemBinFolder = IsWindows ? (process.env['SystemRoot'] || String.raw`C:\WINDOWS\system32`) : (IsMacOS ? '/usr/local/bin/' : '/usr/bin/');
+export const TempStorageFolder = IsWindows ? os.tmpdir() : '/tmp/';
+const GitInfoTemplate = "Skip_Git_Paths length = $L. Parsed $P patterns, omitted $E errors, ignored $X exemptions: see MSR-Def-Ref in OUTPUT tab.";
+export function getGitInfoTipTemplate(isCmdTerminal: boolean): string {
+  return isCmdTerminal ? GitInfoTemplate.replace(/\$([A-Z])\b/g, '%$1%') : GitInfoTemplate; //.replace(/%([A-Z])%/, '$1')
+}
+export function getCommandToSetGitInfoVar(isCmdTerminal: boolean, skipGitRegexLength: number, parsedPatterns: number, errors: number, exemptions: number): string {
+  return isCmdTerminal
+    ? `set L=${skipGitRegexLength} & set P=${parsedPatterns} & set E=${errors} & set X=${exemptions} &`.replace(/ &/g, '&')
+    : `export L=${skipGitRegexLength}; export P=${parsedPatterns}; export E=${errors}; export X=${exemptions};`; //.replace(/export ([A-Z])/g, '$1');
+}

@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { Terminal } from 'vscode';
-import { IsLinux, IsWindows, IsWSL } from './constants';
+import { IsLinux, IsWindows, IsWSL, TempStorageFolder } from './constants';
 import { TerminalType } from './enums';
 import { outputDebugByTime, outputErrorByTime } from './outputUtils';
 import { getErrorMessage, isNullOrEmpty, MatchWindowsDiskRegex, quotePaths, replaceToForwardSlash, runCommandGetOutput } from './utils';
@@ -15,8 +15,19 @@ export function getTerminalExeFromVsCodeSettings(): string {
   return exePath;
 }
 
-export const TerminalExePath = getTerminalExeFromVsCodeSettings();
+export function getTipFileStoragePath(terminalType: TerminalType): string {
+  const name = isWindowsTerminalOnWindows(terminalType) ? 'tip-guide.cmd' : 'tip-guide.sh';
+  return path.join(TempStorageFolder, name);
+}
 
+export function getTipFileDisplayPath(terminalType: TerminalType): string {
+  const displayPath = toTerminalPath(getTipFileStoragePath(terminalType));
+  return isWindowsTerminalOnWindows(terminalType)
+    ? displayPath.replace(os.tmpdir(), '%TMP%')
+    : displayPath;
+}
+
+export const TerminalExePath = getTerminalExeFromVsCodeSettings();
 export function getTerminalTypeFromExePath(terminalExePath: string = TerminalExePath): TerminalType {
   if (IsLinux) {
     return TerminalType.LinuxBash;
@@ -72,17 +83,20 @@ export function getTerminalInitialPath(terminal: vscode.Terminal | null | undefi
     return '';
   }
 
+  const creationOptions = Reflect.get(terminal, 'creationOptions');
+  const terminalCwd = Reflect.get(creationOptions, 'cwd');
+  let fsPath = '';
+  let shellPath = '';
   try {
-    const creationOptions = Reflect.get(terminal, 'creationOptions');
-    const terminalCwd = Reflect.get(creationOptions, 'cwd');
-    const fsPath = !terminalCwd ? '' : Reflect.get(terminalCwd, 'fsPath') as string || '';
-    const shellPath = !creationOptions ? '' : Reflect.get(creationOptions, 'shellPath') as string || '';
-    const terminalPath = fsPath && fsPath.match(/bash$|\w+\.exe$/i) ? fsPath : (shellPath ? shellPath : fsPath);
-    return terminalPath;
-  } catch (err) {
-    console.error('Cannot get creationOptions.cwd.fsPath from terminal: ' + terminal.name + ' in getTerminalInitialPath.');
-    return '';
-  }
+    fsPath = !terminalCwd ? '' : Reflect.get(terminalCwd, 'fsPath') as string || '';
+  } catch { }
+
+  try {
+    shellPath = !creationOptions ? '' : Reflect.get(creationOptions, 'shellPath') as string || '';
+  } catch { }
+
+  const terminalPath = fsPath && fsPath.match(/bash$|\w+\.exe$/i) ? fsPath : (shellPath ? shellPath : fsPath);
+  return terminalPath;
 }
 
 export function getRootFolderFromTerminalCreation(terminal: Terminal): string {

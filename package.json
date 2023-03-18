@@ -3,7 +3,7 @@
 	"displayName": "Code mining + Replace file + Find definition and reference for all types.",
 	"description": "Code mining + Replace file + Find definition and reference in multiple repository paths by msr for all coding languages + configuration + doc files.",
 	"author": "qualiu@microsoft.com",
-	"version": "2.1.54",
+	"version": "2.1.55",
 	"icon": "images/vscode-msr-icon.png",
 	"license": "completely free",
 	"publisher": "qualiu",
@@ -1181,7 +1181,7 @@
 				},
 				"msr.default.allFiles": {
 					"type": "string",
-					"default": "\\.(cs(html)?|cpp|cxx|h|hpp|cc?|c\\+{2}|\\w+proj|sln|nuspec|config|conf|properties|resx|props|java|scala|py|go|rs|php|vue|tsx?|jsx?|json|ya?ml|xml|ini|sql|md|ipynb|rst|sh|bat|cmd|psm?1)$|^readme|^make\\w+$",
+					"default": "\\.(cs(html)?|cpp|cxx|h|hpp|hxx|cc?|c\\+{2}|\\w+proj|sln|nuspec|config|conf|properties|resx|props|java|scala|py|go|rs|php|vue|tsx?|jsx?|json|ya?ml|xml|ini|sql|md|ipynb|rst|sh|bat|cmd|psm?1)$|^readme|^make\\w+$",
 					"description": "Default Regex pattern for files to search."
 				},
 				"msr.default.codeFileExtensionMappingTypes": {
@@ -1191,12 +1191,12 @@
 				},
 				"msr.default.codeFiles": {
 					"type": "string",
-					"default": "\\.(cs(html)?|cpp|cxx|h|hpp|cc?|c\\+{2}|java|scala|py|go|rs|php)$",
+					"default": "\\.(cs(html)?|cpp|cxx|h|hpp|hxx|cc?|c\\+{2}|java|scala|py|go|rs|php)$",
 					"description": "Default Regex pattern for all code files."
 				},
 				"msr.default.codeFilesPlusUI": {
 					"type": "string",
-					"default": "\\.(cs(html)?|cpp|cxx|h|hpp|cc?|c\\+{2}|java|scala|py|go|rs|php|vue|tsx?|jsx?)$",
+					"default": "\\.(cs(html)?|cpp|cxx|h|hpp|hxx|cc?|c\\+{2}|java|scala|py|go|rs|php|vue|tsx?|jsx?)$",
 					"description": "Default Regex pattern for all UI (front-end) code files."
 				},
 				"msr.default.configFiles": {
@@ -1211,12 +1211,12 @@
 				},
 				"msr.default.codeAndConfig": {
 					"type": "string",
-					"default": "\\.(cs(html)?|cpp|cxx|h|hpp|cc?|c\\+{2}|vcx?proj|sln|nuspec|config|conf|properties|resx|props|java|scala|py|go|rs|php|vue|tsx?|jsx?|json|ya?ml|xml|ini)$|^make\\w+$",
+					"default": "\\.(cs(html)?|cpp|cxx|h|hpp|hxx|cc?|c\\+{2}|vcx?proj|sln|nuspec|config|conf|properties|resx|props|java|scala|py|go|rs|php|vue|tsx?|jsx?|json|ya?ml|xml|ini)$|^make\\w+$",
 					"description": "Default Regex pattern for code + configuration files."
 				},
 				"msr.default.codeAndConfigDocs": {
 					"type": "string",
-					"default": "\\.(cs(html)?|cpp|cxx|h|hpp|cc?|c\\+{2}|vcx?proj|sln|nuspec|config|conf|properties|resx|props|java|scala|py|go|rs|php|vue|tsx?|jsx?|json|ya?ml|xml|ini|sql|md|ipynb|rst)$|^readme|^make\\w+$",
+					"default": "\\.(cs(html)?|cpp|cxx|h|hpp|hxx|cc?|c\\+{2}|vcx?proj|sln|nuspec|config|conf|properties|resx|props|java|scala|py|go|rs|php|vue|tsx?|jsx?|json|ya?ml|xml|ini|sql|md|ipynb|rst)$|^readme|^make\\w+$",
 					"description": "Default Regex pattern for code + configuration + document files."
 				},
 				"msr.default.configAndDocs": {
@@ -1546,7 +1546,7 @@
 				},
 				"msr.cpp.codeAndConfigDocs": {
 					"type": "string",
-					"default": "\\.(cpp|cxx|h|hpp|cc?|c\\+{2}|vcx?proj|sln|nuspec|config|props|json|ya?ml|xml|ini|sql|md|ipynb|rst)$|^make\\w+$",
+					"default": "\\.(cpp|cxx|h|hpp|hxx|cc?|c\\+{2}|vcx?proj|sln|nuspec|config|props|json|ya?ml|xml|ini|sql|md|ipynb|rst)$|^make\\w+$",
 					"description": "Regex pattern for C++ or C code + configuration + document files."
 				},
 				"msr.cpp.isFindClass": {
@@ -1705,7 +1705,7 @@
 				"msr.fileExtensionMap.cpp": {
 					"description": "C++/C file extensions.",
 					"type": "string",
-					"default": "c++ cpp cxx cc c hpp h"
+					"default": "c++ cpp cxx cc c hpp h hxx"
 				},
 				"msr.fileExtensionMap.java": {
 					"description": "Java/Scala file extensions.",
@@ -1773,9 +1773,14 @@
 					"default": "bond proto thrift"
 				},
 				"msr.fileExtensionMap.proj": {
-					"description": "Project file extension like C# / C++ in Visual Studio",
+					"description": "Project file extension like C# / C++ in Visual Studio.",
 					"type": "string",
 					"default": "\\w*proj \\w*proj.filters"
+				},
+				"msr.fileExtensionMap.docx": {
+					"description": "Office + UML document extensions.",
+					"type": "string",
+					"default": "pptx? docx? ppsx? vsdx? rtf uml"
 				},
 				"msr.go.method.definition": {
 					"description": "Regex pattern to search Golang method definition.",
@@ -1815,7 +1820,7 @@
 				"msr.refreshTmpGitFileListDuration": {
 					"description": "Time duration to write git file list before running gfind-xxx commands. Value like: 1day, 3hours, 5minutes, 7seconds.",
 					"type": "string",
-					"default": "20minutes"
+					"default": "2minutes"
 				},
 				"msr.autoUpdateSearchTool": {
 					"description": "Auto update search tool when weekly checking and found new version.",

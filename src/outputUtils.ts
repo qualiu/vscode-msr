@@ -8,6 +8,7 @@ export const UsePowershell = false;
 const WindowsShell = UsePowershell ? 'powershell' : 'cmd.exe';
 export const ShellPath = IsWindows ? WindowsShell : 'bash';
 const ShowColorHideCmdRegex = /\s+-[Cc](\s+|$)/g;
+let OutputTimes: number = 0;
 
 export enum MessageLevel {
 	None = 0,
@@ -112,7 +113,7 @@ export function outputInfoByTime(message: string, showWindow: boolean = true) {
 
 export function outputInfoClearByTime(message: string, showWindow: boolean = true) {
 	if (MessageLevel.INFO >= LogLevel) {
-		clearOutputChannel();
+		clearOutputChannelByTimes();
 		getOutputChannel().appendLine(nowText() + message);
 		showOutputChannel(showWindow);
 	}
@@ -158,6 +159,14 @@ export function outputDebugByTime(message: string, showWindow: boolean = false) 
 
 export function clearOutputChannel() {
 	getOutputChannel().clear();
+}
+
+export function clearOutputChannelByTimes(circle: number = 1000) {
+	if (OutputTimes % circle == 0) {
+		clearOutputChannel();
+	}
+
+	OutputTimes++;
 }
 
 export function enableColorAndHideCommandLine(cmd: string, removeSearchWordHint: boolean = true): string {

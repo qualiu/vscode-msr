@@ -19,3 +19,27 @@ export function saveTextToFile(filePath: string, text: string, info: string = 'f
 
   return false;
 }
+
+export function readTextFile(filePath: string): string {
+  try {
+    const text = fs.readFileSync(filePath);
+    return !text ? '' : text.toString();
+  } catch (err) {
+    outputErrorByTime('Failed to read file: ' + filePath + ', error: ' + err);
+    return '';
+  }
+}
+
+export function createDirectory(folder: string): boolean {
+  if (fs.existsSync(folder)) {
+    return true;
+  }
+
+  try {
+    fs.mkdirSync(folder);
+    return true;
+  } catch (err) {
+    outputErrorByTime('Failed to make single script folder: ' + folder + ' Error: ' + err);
+    return false;
+  }
+}

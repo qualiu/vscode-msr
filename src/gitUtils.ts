@@ -1,14 +1,14 @@
 import path = require('path');
 import fs = require('fs');
 import { getConfigValueOfActiveProject } from './configUtils';
-import { OutputChannelName, RunCmdTerminalName } from './constants';
+import { getCommandToSetGitInfoVar, OutputChannelName, RunCmdTerminalName } from './constants';
 import { TerminalType } from './enums';
 import { saveTextToFile } from './fileUtils';
 import { outputError, outputErrorByTime, outputInfoByDebugMode, outputInfoByTime, outputWarnByTime } from './outputUtils';
 import { runCommandInTerminal, runRawCommandInTerminal } from './runCommandUtils';
-import { DefaultTerminalType, IsLinuxTerminalOnWindows, isWindowsTerminalOnWindows, toTerminalPath } from './terminalUtils';
+import { DefaultTerminalType, getTipFileDisplayPath, IsLinuxTerminalOnWindows, isWindowsTerminalOnWindows, toTerminalPath } from './terminalUtils';
 import { IsForwardingSlashSupportedOnWindows, RunCommandChecker } from './ToolChecker';
-import { changeToForwardSlash, getTempFolder, isNullOrEmpty, quotePaths, RunCmdTerminalRootFolder } from './utils';
+import { changeToForwardSlash, getElapsedSecondsToNow, getTempFolder, isNullOrEmpty, quotePaths, RunCmdTerminalRootFolder } from './utils';
 // Another solution: (1) git ls-files --recurse-submodules > project-file-list.txt ; (2) msr -w project-file-list.txt  (3) file watcher + update list.
 // Show junk files: (1) git ls-files --recurse-submodules --ignored --others --exclude-standard (2) git ls-files --recurse-submodules --others --ignored -X .gitignore
 
@@ -243,25 +243,19 @@ export class GitIgnore {
       const setVarCmdLength = this.SkipPathPattern.length + (this.IsCmdTerminal ? '@set "="'.length : 'export =""'.length) + SkipPathVariableName.length;
       const isInMaxLength = setVarCmdLength < this.MaxCommandLength;
       this.Valid = this.SkipPathPattern.length > 0 && isInMaxLength;
-      const cost = (new Date()).valueOf() - beginTime.valueOf();
-
       if (errorList.length > 0) {
         outputError(errorList.join('\n'));
       }
 
-      let parsedInfo = 'Parsed ' + skipPatterns.size + ' patterns, omitted ' + errorList.length + ' errors, ignored '
-        + this.ExemptionCount + ' exemptions from: ' + this.IgnoreFilePath;
-
+      let parsedInfo = `Parsed ${skipPatterns.size} patterns, omitted ${errorList.length} errors, ignored ${this.ExemptionCount} exemptions in ${this.IgnoreFilePath}`;
       if (this.ExemptionCount > 0) {
-        parsedInfo += ` , see ${OutputChannelName} in OUTPUT tab above.`
-          + ` Use gfind-xxx instead of find-xxx like gfind-all to solve git-exemptions`;
+        parsedInfo += ` - see ${OutputChannelName} in OUTPUT. Use gfind-xxx instead of find-xxx for git-exemptions`;
       }
 
-      parsedInfo += ' ; env-var ' + SkipPathVariableName + ' length = ' + this.SkipPathPattern.length + '.';
-
-      const message = 'Cost ' + (cost / 1000).toFixed(3) + ' s: ' + parsedInfo;
-
+      parsedInfo += ' ; ' + SkipPathVariableName + ' length = ' + this.SkipPathPattern.length + '.';
+      const message = 'Cost ' + getElapsedSecondsToNow(beginTime).toFixed(3) + ' s: ' + parsedInfo;
       outputInfoByTime(message);
+
       const saveFolder = getTempFolder();
       const tmpScriptName = path.basename(this.RootFolder).replace(/[^\w\.-]/g, '-') + '.set-git-skip-paths-env.tmp';
       this.SetSkipPathEnvFile = path.join(saveFolder, tmpScriptName + (this.IsCmdTerminal ? '.cmd' : '.sh'));
@@ -274,18 +268,17 @@ export class GitIgnore {
         return;
       }
 
-      const extraColorArgs = '-e "\\d+|' + SkipPathVariableName + '|find-\\w+"';
-      const commonErrorPattern = '[1-9]\\d* e\\w+|gfind-\\w+|' + OutputChannelName;
-      const tipHead = 'msr -aPA -z "TerminalType = ' + TerminalType[DefaultTerminalType] + ', Universal slash = ' + IsForwardingSlashSupportedOnWindows + '. ';
+      const tipFileDisplayPath = getTipFileDisplayPath(this.Terminal);
+      const setVarCmd = getCommandToSetGitInfoVar(this.IsCmdTerminal, this.SkipPathPattern.length, skipPatterns.size, errorList.length, this.ExemptionCount);
+      const replaceCmd = (this.IsCmdTerminal ? `-x ::` : `-x '#'`) + ` -o echo ` + (this.ExemptionCount > 0 ? `-L 3` : `-L 2 -N 2`);
+      const command = `msr -XA -z "${setVarCmd} msr -p ${tipFileDisplayPath} ${replaceCmd} -XA"` // change -XA to -XMI for debug
+        + (this.IsCmdTerminal ? ' & use-this-alias -A' : '');
+      runRawCommandInTerminal(command);
       if (!isInMaxLength) {
-        let warning = 'Will not use git-ignore: ' + parsedInfo + ' setVariableCommandLength = ' + setVarCmdLength + ' exceeds ' + this.MaxCommandLength
-          + ' which is max command length of ' + TerminalType[this.Terminal] + ' terminal.';
+        let warning = 'Will not use git-ignore due to setVariableCommandLength = ' + setVarCmdLength + ' exceeds ' + this.MaxCommandLength;
         outputErrorByTime(warning);
         warning = IsLinuxTerminalOnWindows ? warning.replace(this.IgnoreFilePath, this.IgnoreFilePath.replace(/\\/g, '/')) : warning;
-        runRawCommandInTerminal(tipHead + warning + '" -t "(not use \\S+)|' + commonErrorPattern + '" ' + extraColorArgs + ' -x ' + this.MaxCommandLength);
-      } else { // if (errorList.length > 0 || this.ExemptionCount > 0) {
-        parsedInfo = IsLinuxTerminalOnWindows ? parsedInfo.replace(this.IgnoreFilePath, this.IgnoreFilePath.replace(/\\/g, '/')) : parsedInfo;
-        runRawCommandInTerminal(tipHead + parsedInfo + '" ' + extraColorArgs + ' -t "' + commonErrorPattern + '" -x ignored');
+        runRawCommandInTerminal(`msr -aPA -z "${warning}" -t "(not use \\S+)" -x ${this.MaxCommandLength}`);
       }
     });
   }

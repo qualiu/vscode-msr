@@ -29,9 +29,14 @@ Then it's the **light** and **right** tool for you(just **2~3 MB** storage + **1
 **Note**: ([**Temp-toggle**](#get-the-best-combined-power) or [**change settings**](#disable-finding-definition-and-references-for-specific-file-types) for languages disabled by default settings.)
 
 ### Supported Platforms
-- **Windows** `x86_64`: 64-bit + 32-bit Windows (including **WSL** + **Cygwin** + **MinGW**).
-- **Linux** `x86_64`: 64-bit + 32-bit **Ubuntu** + **CentOS** + **Fedora** (`kernel` >= `2.6.32` , `gcc/g++` >= `4.8`).
-- **MacOS** `arm64`: **Darwin Arm64**.
+- **Windows** 
+  - `x86_64`: 64-bit + 32-bit Windows (including **WSL** + **Cygwin** + **MinGW**).
+  - `Arm64`: `WinVersion` >= `8.1`.
+- **Linux**
+  - `x86_64`: `kernel` >= `2.6.32` 64-bit + 32-bit **Ubuntu** + **CentOS** + **Fedora**.
+  - `Arm64`: `kernel` >= `4.15` (**Ubuntu 18.04**, others not verified).
+- **MacOS**
+  - `arm64`: **Darwin Arm64**.
 
 ### **You Can Start Using this without Doing Anything**
 
@@ -202,6 +207,12 @@ You can generate the command shortcuts (alias/doskey) to directly use for search
 ### Try to use gfind-xxx instead of find-xxx alias/doskey
 
 Try **gfind-xxx** alias/doskey/scripts which uses **accurate** source file paths by "`git ls-files`", though a bit slower than **find-xxx**.
+- You can change set `msr.refreshTmpGitFileListDuration` (default = `2 minutes`) to avoid writing temp file too frequently.
+  - It's very fast to run `git ls-files` for most projects.
+  - You can also set a big value but delete the tmp listing file after git update.
+    - Easy to add alias like:
+      - Windows: `git-pull=git branch | msr -t "^\s*\*\s*(\S+).*" -o "git pull origin \1 $*" -XM && del %tmp%\tmp-list-*`.
+      - Linux/MacOs: `alias git-pull='git branch | msr -t "^\s*\*\s*(\S+).*" -o "git pull origin \1 $*" -XM && rm /tmp/tmp-list-*'`.
 
 This's helpful if got [**git-exemption-warnings**](#use-git-ignore) when initializing new terminals.
 
@@ -372,8 +383,7 @@ This extension is **disabled** for some languages which has good official/profes
 
 - Temporarily enable: See [temporarily toggle](#get-the-best-combined-power)(just press `Alt+F2` or menu or command palette).
 - Permanently enable: Change **msr.disable.extensionPattern** value.
-- New config **msr.default.autoDisableFindDefinitionPattern** will help you do it by checking professional language process running.
-  - If you don't wan to use this auto-disabling feature, like `cpp`, set value to null for `msr.cpp.autoDisableFindDefinitionPattern`.
+- Auto disabling: **msr.default.autoDisableFindDefinitionPattern** will help you do it by checking professional language process running.
 
 Other languages use a rough support: When click `"Go To Definition"` just like click the **right-pop-menu**: `"Regex find as 'class' or 'method' definition roughly"`.
 
@@ -441,8 +451,22 @@ Set `msr.menu.visible` = `false` to hide all context menus of `Regex find xxx` +
 
 ## Get the Best Combined Power
 
-For 2 cases when **`"Go To Definition"`** by menu or key(**`F12`**) or **`"Ctrl + Mouse Left Click"`**:
+- Most time the professional language extension of vscode works well, so vscode-msr will disable itself to find definition by checking language extension process.
+- You can still leverage vscode-msr to find definition temporarily, or permanently by changing the user settings.
 
+### Auto Disable Finding Definition as Default
+- Default config = `msr.cpp.autoDisableFindDefinitionPattern` , values is a Regex pattern of process name of professional language extension (like `vscode-java`).
+- If you don't want to use this auto-disabling feature, like below (update user settings):
+  - For `C++`, add/set empty value  `msr.cpp.autoDisableFindDefinitionPattern` = `""`.
+- Accelerate/accurate checking language process like below:
+  - `msr.cs.languageProcessName` = `dotnet`
+  - `msr.rs.languageProcessName` = `rust-analyzer`
+- For mapped extension (like: `cs`/`rs`/`py`/`cpp`/`java`): 
+  - Check `msr.fileExtensionMap.xxx` like `msr.fileExtensionMap.cs`.
+  - You can add more `msr.fileExtensionMap.xxx`.
+
+### Empower You Temporarily Toggle Finding Definition
+For 2 cases when **`"Go To Definition"`** by menu or key(**`F12`**) or **`"Ctrl + Mouse Left Click"`**:
 - Got duplicate results (from both `vscode-msr` + official extension like `vscode-python`).
 - No results found if you disabled `vscode-msr` via menu or hot-key of `"Toggle enable/disable msr"`.
 

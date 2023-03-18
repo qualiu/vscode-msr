@@ -7,7 +7,7 @@ import { IsWindows, RunCmdTerminalName } from './constants';
 import { cookCmdShortcutsOrFile } from './cookCommandAlias';
 import { FileExtensionToMappedExtensionMap, getConfig, getExtraSearchPaths, getGitIgnore, MappedExtToCodeFilePatternMap, MyConfig, printConfigInfo } from './dynamicConfig';
 import { FindCommandType, FindType, ForceFindType } from './enums';
-import { clearOutputChannel, outputDebugByTime, outputInfoByDebugMode, outputInfoByDebugModeByTime } from './outputUtils';
+import { clearOutputChannelByTimes, outputDebugByTime, outputInfoByDebugMode, outputInfoByDebugModeByTime } from './outputUtils';
 import { Ranker } from './ranker';
 import { disposeTerminal } from './runCommandUtils';
 import { SearchChecker } from './searchChecker';
@@ -15,7 +15,7 @@ import { createCommandSearcher, createSearcher, getCurrentFileSearchInfo, Search
 import { getRootFolderFromTerminalCreation, getTerminalInitialPath, getTerminalNameOrShellExeName } from './terminalUtils';
 import { RunCommandChecker } from './ToolChecker';
 import { MsrExe } from './toolSource';
-import { getDefaultRootFolder, getDefaultRootFolderByActiveFile, getExtensionNoHeadDot, getRootFolder, getRootFolderName, getRootFolders, isNullOrEmpty, quotePaths, replaceSearchTextHolder, toPath } from './utils';
+import { getDefaultRootFolder, getDefaultRootFolderByActiveFile, getElapsedSecondsToNow, getExtensionNoHeadDot, getRootFolder, getRootFolderName, getRootFolders, isNullOrEmpty, quotePaths, replaceSearchTextHolder, toPath } from './utils';
 import path = require('path');
 
 outputDebugByTime('Start loading extension and initialize ...');
@@ -78,8 +78,9 @@ export function registerExtension(context: vscode.ExtensionContext) {
 			return;
 		}
 
-		const matchNameRegex = /^(PowerShell|CMD|Command(\s+Prompt)?)|bash|pwsh|\w*sh.exe$|cmd.exe|wsl.exe/i;
+		const matchNameRegex = /^(PowerShell|CMD|Command(\s+Prompt)?)|bash|\w*sh.exe$|cmd.exe|wsl.exe/i;
 		if (MyConfig.InitProjectCmdAliasForNewTerminals
+			&& !initialPath.endsWith('/pwsh') // skip PowerShell on Linux/MacOS
 			&& (
 				initialPath === workspaceFolder // default shell, no value set.
 				|| (!IsWindows || isNullOrEmpty(terminalName) || matchNameRegex.test(terminalName) || matchNameRegex.test(initialPath))
@@ -305,7 +306,7 @@ export class DefinitionFinder implements vscode.DefinitionProvider {
 		}
 
 		LastSearchInfo = new SearchTimeInfo(document, position);
-		clearOutputChannel();
+		clearOutputChannelByTimes();
 
 		const mappedExt = FileExtensionToMappedExtensionMap.get(extension) || extension;
 
@@ -524,8 +525,8 @@ export class DefinitionFinder implements vscode.DefinitionProvider {
 							}
 						});
 					}
-					const stopCost = (new Date()).valueOf() - beginStopTime.valueOf();
-					outputInfoByDebugModeByTime('Cost ' + stopCost + ' ms to stop all searchers.');
+					const stopCost = getElapsedSecondsToNow(beginStopTime);
+					outputInfoByDebugModeByTime('Cost ' + stopCost + ' s to stop all searchers.');
 					return Promise.resolve(currentResults);
 				} else if (index + 1 < results.length) {
 					return Promise.resolve(returnSearcherResult(index + 1));

@@ -2,6 +2,10 @@
 
 All notable changes to this "vscode-msr" extension will be documented in this file.
 
+## [2.1.55]
+- Improved terminal initialization + Add `msr.fileExtensionMap.docx` + Added `.hxx` for C++.
+- Reduced `msr.refreshTmpGitFileListDuration` to `2 minutes`.
+
 ## [2.1.54]
 - Hide tmp file on Linux/MacOS when running `gfind-xxx` alias.
 - Skip showing alias list if not cooked `cmdAlias` folder.
@@ -13,7 +17,7 @@ All notable changes to this "vscode-msr" extension will be documented in this fi
 ## [2.1.52]
 - Auto disable finding definition if found language extension running by config `autoDisableFindDefinitionPattern`.
 - Supported auto updating search tool - (change default `autoUpdateSearchTool` = `true`).
-- Reduced writing temp file when using `gfind-xxx` (default `refreshTmpGitFileListDuration` = `20 minutes`).
+- Reduced writing temp file when using `gfind-xxx` (default `refreshTmpGitFileListDuration` = `2 minutes`).
 
 ## [2.1.51]
 - Improved initializing `doskey`/`alias` when reloading or recovering terminals.

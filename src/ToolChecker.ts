@@ -3,7 +3,7 @@ import { GetCommandOutput, HomeFolder, Is64BitOS, IsDarwinArm64, IsDebugMode, Is
 import { cookCmdShortcutsOrFile } from "./cookCommandAlias";
 import { FileExtensionToMappedExtensionMap, getConfig } from "./dynamicConfig";
 import { TerminalType } from "./enums";
-import { checkIfSupported, clearOutputChannel, DefaultMessageLevel, MessageLevel, outputDebugByTime, outputErrorByTime, outputInfoByDebugMode, outputInfoByDebugModeByTime, outputInfoByTime, outputKeyInfo, outputKeyInfoByTime, outputWarnByTime, updateOutputChannel } from "./outputUtils";
+import { checkIfSupported, DefaultMessageLevel, MessageLevel, outputDebugByTime, outputErrorByTime, outputInfoByDebugMode, outputInfoByDebugModeByTime, outputInfoByTime, outputKeyInfo, outputKeyInfoByTime, outputWarnByTime, updateOutputChannel } from "./outputUtils";
 import { getRunCmdTerminal, runRawCommandInTerminal } from "./runCommandUtils";
 import { checkAddFolderToPath, DefaultTerminalType, getHomeFolderForLinuxTerminalOnWindows, getTerminalShellExePath, isBashTerminalType, isLinuxTerminalOnWindows, IsLinuxTerminalOnWindows, isToolExistsInPath, isWindowsTerminalOnWindows, toCygwinPath, toTerminalPath } from "./terminalUtils";
 import { getDownloadUrl, getFileMd5, getHomeUrl, SourceHomeUrlArray, updateToolNameToPathMap } from "./toolSource";
@@ -246,7 +246,7 @@ export class ToolChecker {
   }
 
   // Always check tool exists if not exists in previous check, avoid need reloading.
-  public checkSearchToolExists(forceCheck: boolean = false, clearOutputBeforeWarning: boolean = false): boolean {
+  public checkSearchToolExists(forceCheck: boolean = false): boolean {
     if (this.IsToolExists && !forceCheck) {
       return true;
     }
@@ -258,9 +258,6 @@ export class ToolChecker {
     }
 
     if (!this.IsToolExists) {
-      if (clearOutputBeforeWarning) {
-        clearOutputChannel();
-      }
 
       const sourceExeName = this.getSourceExeName('msr');
       outputErrorByTime('Not found ' + sourceExeName + ' in ' + PathEnvName + ' for ' + TerminalType[this.terminalType] + ' terminal:');
@@ -331,7 +328,7 @@ export class ToolChecker {
         let output = ChildProcess.execSync(downloadCommand, { timeout: 30 * 1000 }).toString();
         outputKeyInfo(output);
       } catch (err) {
-        const costSeconds = (((new Date()).valueOf() - beginDownloadTime.valueOf()) / 1000).toFixed(3);
+        const costSeconds = getElapsedSecondsToNow(beginDownloadTime).toFixed(3);
         outputErrorByTime('Cost ' + costSeconds + 's: Failed to download ' + sourceExeName + ' : ' + err);
         outputErrorByTime('Please manually download ' + sourceExeName + ' and add its folder to ' + PathEnvName + ': ' + getDownloadUrl(sourceExeName));
         const otherSources = SourceHomeUrlArray.filter(a => !downloadCommand.includes(a)).map(a => getHomeUrl(a)).join(" 或者 ");
@@ -343,7 +340,7 @@ export class ToolChecker {
         outputErrorByTime('Downloading completed but not found tmp tool "' + sourceExeName + '": ' + targetExePath);
         continue;
       }
-      const costSeconds = (((new Date()).valueOf() - beginDownloadTime.valueOf()) / 1000).toFixed(3);
+      const costSeconds = getElapsedSecondsToNow(beginDownloadTime).toFixed(3);
       outputKeyInfoByTime('Cost ' + costSeconds + ' s: Successfully downloaded tmp tool "' + sourceExeName + '": ' + targetExePath);
       GoodSourceUrlIndex = tryUrlIndex % SourceHomeUrlArray.length;
       this.hasDownloaded = true;
@@ -384,7 +381,8 @@ export class ToolChecker {
     if (tryUrlIndex >= SourceHomeUrlArray.length) {
       return;
     }
-    if (this.MsrExePath.length < 1) {
+
+    if (isNullOrEmpty(this.MsrExePath)) {
       return;
     }
 
@@ -475,11 +473,11 @@ export class ToolChecker {
         }
         const [downloadCommand, _] = this.getDownloadCommandAndSavePath(pureExeName, currentExeSavePath, GoodSourceUrlIndex);
         if (!canAutoUpdateTool) {
-          outputKeyInfo(downloadCommand + '\n');
+          outputKeyInfo(downloadCommand);
           return;
         }
         outputKeyInfoByTime(`Found 'msr.autoUpdateSearchTool' = true, will auto update ${currentExeSavePath}`);
-        outputKeyInfo(downloadCommand + '\n');
+        outputKeyInfo(downloadCommand);
         try {
           const stat = fs.lstatSync(currentExeSavePath);
           if (stat.isSymbolicLink()) {

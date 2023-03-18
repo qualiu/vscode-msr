@@ -261,7 +261,7 @@ export function getMatchedLocationsAsync(findType: FindType, cmd: string, ranker
       if (stderr) {
         if (!findAndProcessSummary(allResults.length, false, stderr, findType, cmd, ranker)) {
           if (/\bmsr\b.*?\s+not\s+/.test(stderr)) {
-            RunCommandChecker.checkSearchToolExists(true, false);
+            RunCommandChecker.checkSearchToolExists(true);
           }
         }
       }

@@ -436,8 +436,10 @@ export class DynamicConfig {
         if (!needCheckLanguageProcess(mappedExt)) {
             const lastCheckTime = LastCheckLanguageProcessTimeMap.get(mappedExt) || new Date();
             clearOutputChannelByTimes();
-            outputInfoByTime(`Skip finding definition for '${mappedExt}' since found language process. Last check time = ${lastCheckTime.toISOString()}. Current 'msr.${mappedExt}.autoDisableFindDefinitionPattern' = "${checkProcessPattern}"`);
-            return true;
+            if (LanguageProcessExistsMap.get(mappedExt)) {
+                outputInfoByTime(`Skip finding definition for '${mappedExt}' since found language process. Last check time = ${lastCheckTime.toISOString()}. Current 'msr.${mappedExt}.autoDisableFindDefinitionPattern' = "${checkProcessPattern}"`);
+                return true;
+            }
         }
 
         try {

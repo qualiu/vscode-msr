@@ -2,6 +2,9 @@
 
 All notable changes to this "vscode-msr" extension will be documented in this file.
 
+## [2.1.56]
+- Improved checking professional language process and stop vscode-msr finding definition.
+
 ## [2.1.55]
 - Improved terminal initialization + Add `msr.fileExtensionMap.docx` + Added `.hxx` for C++.
 - Reduced `msr.refreshTmpGitFileListDuration` to `2 minutes`.

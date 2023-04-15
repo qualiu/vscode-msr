@@ -2,7 +2,7 @@ import path = require('path');
 import * as vscode from 'vscode';
 import { IsWindows } from './constants';
 import { TerminalType } from './enums';
-import { toTerminalPaths } from './terminalUtils';
+import { isWindowsTerminalOnWindows, toTerminalPaths } from './terminalUtils';
 import { isNullOrEmpty } from './utils';
 import fs = require('fs');
 import crypto = require('crypto');
@@ -58,6 +58,11 @@ export function updateToolNameToPathMap(terminalType: TerminalType, toolName: st
 	if (!toolNameToPathMap) {
 		toolNameToPathMap = new Map<string, string>();
 		TerminalTypeToToolNamePathMap.set(terminalType, toolNameToPathMap);
+		if (isWindowsTerminalOnWindows(terminalType)) {
+			TerminalTypeToToolNamePathMap.set(TerminalType.PowerShell, toolNameToPathMap);
+			TerminalTypeToToolNamePathMap.set(TerminalType.CMD, toolNameToPathMap);
+			TerminalTypeToToolNamePathMap.set(TerminalType.MinGWBash, toolNameToPathMap);
+		}
 	}
 
 	toolNameToPathMap.set(toolName, toolPath);
@@ -67,9 +72,19 @@ export function updateToolNameToPathMap(terminalType: TerminalType, toolName: st
 	}
 }
 
-export function getSetToolEnvCommand(terminalType: TerminalType, addTailTextIfNotEmpty: string = '', foldersToAddPath: string[] = []): string {
+export function getToolExportFolder(terminalType: TerminalType): string {
+	const toolNameToPathMap = TerminalTypeToToolNamePathMap.get(terminalType);
+	if (toolNameToPathMap) {
+		const toolPath = toolNameToPathMap.get(MsrExe) || '';
+		return isNullOrEmpty(toolPath) ? '' : path.dirname(toolPath);
+	}
+	return '';
+}
+
+export function getSetToolEnvCommand(terminalType: TerminalType, foldersToAddPath: string[] = []): string {
 	let toolFolderSet = new Set<string>();
 	const toolNameToPathMap = TerminalTypeToToolNamePathMap.get(terminalType);
+	const isToolInPath = !toolNameToPathMap;
 	if (toolNameToPathMap) {
 		toolNameToPathMap.forEach((value, _key, _m) => {
 			toolFolderSet.add(path.dirname(value));
@@ -85,15 +100,26 @@ export function getSetToolEnvCommand(terminalType: TerminalType, addTailTextIfNo
 	}
 
 	const toolFolders = Array.from(toTerminalPaths(toolFolderSet, terminalType));
+	const pathEnv = TerminalType.CMD === terminalType ? `"%PATH%;"` : `"$PATH"`;
+	const checkPathsPattern = TerminalType.CMD === terminalType
+		? `-it "^(${toolFolders.join('|').replace(/[\\]/g, '\\\\')})$"`
+		: `-t "^(${toolFolders.join('|')})$"`;
+	const splitPattern = TerminalType.CMD === terminalType || TerminalType.MinGWBash === terminalType
+		? String.raw`\\*\s*;\s*`
+		: String.raw`\s*:\s*`;
+	const checkCountPattern = "^Matched [" + toolFolders.length + "-9]";
+	const checkDuplicate = isToolInPath
+		? `msr -z ${pathEnv} -t "${splitPattern}" -o "\\n" -aPAC | msr ${checkPathsPattern} -H 0 -C | msr -t "${checkCountPattern}" -M -H 0 && `
+		: '';
 	switch (terminalType) {
 		case TerminalType.CMD:
-			return 'SET "PATH=%PATH%;' + toolFolders.join(';') + ';"' + addTailTextIfNotEmpty;
+			return checkDuplicate + 'SET "PATH=%PATH%;' + toolFolders.join(';') + ';"';
 		case TerminalType.PowerShell:
 		case TerminalType.Pwsh:
-			return "$env:Path += ';" + toolFolders.join(';') + "'" + addTailTextIfNotEmpty;
+			return `$env:Path += ";${toolFolders.join(';')};"`;
 		case TerminalType.LinuxBash:
 		case TerminalType.MinGWBash:
 		default:
-			return 'export PATH=$PATH:' + toolFolders.join(':').replace(' ', '\\ ') + addTailTextIfNotEmpty;
+			return checkDuplicate + 'export PATH="$PATH:' + toolFolders.join(':').replace(/ /g, '\\ ') + '"';
 	}
 }

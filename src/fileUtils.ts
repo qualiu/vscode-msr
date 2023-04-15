@@ -1,5 +1,7 @@
 import fs = require('fs');
-import { outputErrorByTime, outputInfoByTime } from "./outputUtils";
+import path = require('path');
+
+import { outputErrorByTime, outputInfoByDebugModeByTime, outputInfoByTime } from "./outputUtils";
 
 export function saveTextToFile(filePath: string, text: string, info: string = 'file', tryTimes: number = 3): boolean {
   for (let k = 1; k <= tryTimes; k++) {
@@ -22,6 +24,10 @@ export function saveTextToFile(filePath: string, text: string, info: string = 'f
 
 export function readTextFile(filePath: string): string {
   try {
+    if (!fs.existsSync(filePath)) {
+      outputInfoByDebugModeByTime(`Not found file: ${filePath}`);
+      return '';
+    }
     const text = fs.readFileSync(filePath);
     return !text ? '' : text.toString();
   } catch (err) {
@@ -36,6 +42,8 @@ export function createDirectory(folder: string): boolean {
   }
 
   try {
+    const parentDir = path.dirname(folder);
+    createDirectory(parentDir);
     fs.mkdirSync(folder);
     return true;
   } catch (err) {

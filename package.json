@@ -3,7 +3,7 @@
 	"displayName": "Code mining + Replace file + Find definition and reference for all types.",
 	"description": "Code mining + Replace file + Find definition and reference in multiple repository paths by msr for all coding languages + configuration + doc files.",
 	"author": "qualiu@microsoft.com",
-	"version": "2.1.56",
+	"version": "2.1.57",
 	"icon": "images/vscode-msr-icon.png",
 	"license": "completely free",
 	"publisher": "qualiu",
@@ -762,7 +762,7 @@
 		],
 		"configuration": {
 			"type": "object",
-			"title": "All msr settings",
+			"title": "All vscode-msr Settings",
 			"properties": {
 				"msr.menu.visible": {
 					"type": "boolean",
@@ -1818,7 +1818,7 @@
 					"default": "https://raw.githubusercontent.com/qualiu/msr/master/tools/"
 				},
 				"msr.refreshTmpGitFileListDuration": {
-					"description": "Time duration to write git file list before running gfind-xxx commands. Value like: 1day, 3hours, 5minutes, 7seconds.",
+					"description": "Time duration to refresh tmp-git-list-file (only refresh when running gfind-xxx commands). Value like: 1day, 3hours, 5minutes, 7seconds. It's not useful for most projects - it's very fast (less than 1s) to run git command `git ls-files`. Here just a config to avoid frequent writing tmp file.",
 					"type": "string",
 					"default": "2minutes"
 				},
@@ -1838,7 +1838,7 @@
 					"default": "vscode\\S*extension\\S*\\bcsharp\\b"
 				},
 				"msr.checkLanguageProcessIntervalMinutes": {
-					"description": "Interval (minutes) to check language process.",
+					"description": "Interval (minutes) to check language process (only check when finding definition).",
 					"type": "number",
 					"default": 15
 				},

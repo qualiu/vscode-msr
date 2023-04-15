@@ -1,21 +1,21 @@
 // The module 'vscode' contains the VS Code extensibility API
 // Import the module and reference it with the alias vscode in your code below
 import * as vscode from 'vscode';
+import { RunCommandChecker } from './ToolChecker';
 import { getFindingCommandByCurrentWord, runFindingCommand } from './commands';
 import { getConfigValueByProjectAndExtension } from './configUtils';
 import { IsWindows, RunCmdTerminalName } from './constants';
 import { cookCmdShortcutsOrFile } from './cookCommandAlias';
-import { FileExtensionToMappedExtensionMap, getConfig, getExtraSearchPaths, getGitIgnore, MappedExtToCodeFilePatternMap, MyConfig, printConfigInfo } from './dynamicConfig';
+import { FileExtensionToMappedExtensionMap, MappedExtToCodeFilePatternMap, MyConfig, getConfig, getExtraSearchPaths, getGitIgnore, printConfigInfo } from './dynamicConfig';
 import { FindCommandType, FindType, ForceFindType } from './enums';
 import { clearOutputChannelByTimes, outputDebugByTime, outputInfoByDebugMode, outputInfoByDebugModeByTime } from './outputUtils';
 import { Ranker } from './ranker';
 import { disposeTerminal } from './runCommandUtils';
 import { SearchChecker } from './searchChecker';
-import { createCommandSearcher, createSearcher, getCurrentFileSearchInfo, Searcher, setReRunMark, stopAllSearchers } from './searcher';
+import { Searcher, createCommandSearcher, createSearcher, getCurrentFileSearchInfo, setReRunMark, stopAllSearchers } from './searcher';
 import { getRootFolderFromTerminalCreation, getTerminalInitialPath, getTerminalNameOrShellExeName } from './terminalUtils';
-import { RunCommandChecker } from './ToolChecker';
 import { MsrExe } from './toolSource';
-import { getDefaultRootFolder, getDefaultRootFolderByActiveFile, getElapsedSecondsToNow, getExtensionNoHeadDot, getRootFolder, getRootFolderName, getRootFolders, isNullOrEmpty, quotePaths, replaceSearchTextHolder, toPath } from './utils';
+import { getDefaultRootFolder, getDefaultRootFolderByActiveFile, getElapsedSecondsToNow, getRootFolder, getRootFolderName, getRootFolders, isNullOrEmpty, quotePaths, replaceSearchTextHolder, toPath } from './utils';
 import path = require('path');
 
 outputDebugByTime('Start loading extension and initialize ...');
@@ -223,8 +223,7 @@ export function registerExtension(context: vscode.ExtensionContext) {
 
 	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.tmpToggleEnableFindingDefinition',
 		(textEditor: vscode.TextEditor, _edit: vscode.TextEditorEdit, ..._args: any[]) => {
-			const extension = getExtensionNoHeadDot(path.parse(textEditor.document.uri.fsPath).ext);
-			getConfig().toggleEnableFindingDefinition(extension);
+			getConfig().toggleEnableFindingDefinition(textEditor.document.uri.fsPath);
 		}));
 
 	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.findTopFolder',

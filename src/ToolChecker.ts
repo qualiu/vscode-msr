@@ -3,11 +3,12 @@ import { GetCommandOutput, HomeFolder, Is64BitOS, IsDarwinArm64, IsDebugMode, Is
 import { cookCmdShortcutsOrFile } from "./cookCommandAlias";
 import { FileExtensionToMappedExtensionMap, getConfig } from "./dynamicConfig";
 import { TerminalType } from "./enums";
-import { checkIfSupported, DefaultMessageLevel, MessageLevel, outputDebugByTime, outputErrorByTime, outputInfoByDebugMode, outputInfoByDebugModeByTime, outputInfoByTime, outputKeyInfo, outputKeyInfoByTime, outputWarnByTime, updateOutputChannel } from "./outputUtils";
+import { createDirectory } from "./fileUtils";
+import { DefaultMessageLevel, MessageLevel, checkIfSupported, outputDebugByTime, outputErrorByTime, outputInfoByDebugMode, outputInfoByDebugModeByTime, outputInfoByTime, outputKeyInfo, outputKeyInfoByTime, outputWarnByTime, updateOutputChannel } from "./outputUtils";
 import { getRunCmdTerminal, runRawCommandInTerminal } from "./runCommandUtils";
-import { checkAddFolderToPath, DefaultTerminalType, getHomeFolderForLinuxTerminalOnWindows, getTerminalShellExePath, isBashTerminalType, isLinuxTerminalOnWindows, IsLinuxTerminalOnWindows, isToolExistsInPath, isWindowsTerminalOnWindows, toCygwinPath, toTerminalPath } from "./terminalUtils";
-import { getDownloadUrl, getFileMd5, getHomeUrl, SourceHomeUrlArray, updateToolNameToPathMap } from "./toolSource";
-import { getActiveFilePath, getDefaultRootFolder, getElapsedSecondsToNow, isDirectory, isFileExists, isNullOrEmpty, PathEnvName, quotePaths, runCommandGetOutput } from "./utils";
+import { DefaultTerminalType, IsLinuxTerminalOnWindows, checkAddFolderToPath, getHomeFolderForLinuxTerminalOnWindows, getTerminalShellExePath, isBashTerminalType, isLinuxTerminalOnWindows, isTerminalUsingWindowsUtils, isToolExistsInPath, isWindowsTerminalOnWindows, toCygwinPath, toTerminalPath } from "./terminalUtils";
+import { SourceHomeUrlArray, getDownloadUrl, getFileMd5, getHomeUrl, updateToolNameToPathMap } from "./toolSource";
+import { PathEnvName, getActiveFilePath, getDefaultRootFolder, getElapsedSecondsToNow, isDirectory, isFileExists, isNullOrEmpty, quotePaths, runCommandGetOutput } from "./utils";
 import path = require('path');
 import fs = require('fs');
 import https = require('https');
@@ -55,6 +56,7 @@ export let IsTimeoutSupported: boolean = false;
 export let IsForwardingSlashSupportedOnWindows = false;
 export let IsOutputColumnSupported = false;
 export let IsFileTimeOffsetSupported = false;
+export let IsNotCheckInputPathSupported = false;
 
 export function setTimeoutInCommandLine(command: string, timeoutSeconds: number) {
   if (timeoutSeconds > 0 && IsTimeoutSupported) {
@@ -66,6 +68,13 @@ export function setTimeoutInCommandLine(command: string, timeoutSeconds: number)
 export function setOutputColumnIndexInCommandLine(command: string) {
   if (IsOutputColumnSupported && !command.includes(' --out-index')) {
     command = command.trimRight() + " --out-index"
+  }
+  return command;
+}
+
+export function setNotCheckInputPathInCommandLine(command: string, findRegex: RegExp = /\b(msr -w \S+)/g) {
+  if (IsNotCheckInputPathSupported && !command.includes(' --no-check')) {
+    command = command.replace(findRegex, "$1 --no-check");
   }
   return command;
 }
@@ -127,6 +136,7 @@ export class ToolChecker {
       IsTimeoutSupported = isArgSupported('--timeout', 'msr');
       IsOutputColumnSupported = MsrHelpText.includes('--out-index');
       IsFileTimeOffsetSupported = MsrHelpText.includes('time or ago');
+      IsNotCheckInputPathSupported = MsrHelpText.includes("--no-check");
     } else {
       NinHelpText = runCommandGetOutput(exePath + ' -h -C');
     }
@@ -142,8 +152,8 @@ export class ToolChecker {
 
     const [downloadCmd, targetExePath] = this.getDownloadCommandAndSavePath(pureExeName, '~/', GoodSourceUrlIndex);
     const exportCommand = 'export PATH=~:$PATH';
-    const checkExistCommand = 'ls -al ' + targetExePath + ' 2>/dev/null | egrep -e "^-[rw-]*?x.*?/' + pureExeName + '\\s*$"';
-    const firstCheck = 'which ' + pureExeName + ' 2>/dev/null | egrep -e "/' + pureExeName + '"';
+    const checkExistCommand = 'ls -al ' + targetExePath + ' 2>/dev/null | grep -E "^-[rw-]*?x.*?/' + pureExeName + '\\s*$"';
+    const firstCheck = 'which ' + pureExeName + ' 2>/dev/null | grep -E "/' + pureExeName + '"';
     const lastCheck = '( ' + checkExistCommand + ' || ( ' + downloadCmd + ' && ' + exportCommand + ' ) )';
     return firstCheck + ' || ' + lastCheck;
   }
@@ -188,7 +198,7 @@ export class ToolChecker {
       ? 'curl --silent --show-error --fail "' + sourceUrl + '" -o ' + quotedTmpSavePath
       : 'wget --quiet "' + sourceUrl + '" -O ' + quotedTmpSavePath + wgetArgs // + ' --timeout 30'
       ;
-    const PowerShellExeName = this.isTerminalOfWindows ? 'Powershell' : 'pwsh';
+    const PowerShellExeName = isTerminalUsingWindowsUtils(this.terminalType) ? 'Powershell' : 'pwsh';
     const lastResortCommand = PowerShellExeName + ' -Command "' + (this.isTerminalOfWindows ? '' : "\\") + '$ProgressPreference = \'SilentlyContinue\'; [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; '
       + "Invoke-WebRequest -Uri '" + sourceUrl + "' -OutFile " + quotePaths(tmpSaveExePath, "'") + '"';
 
@@ -229,11 +239,12 @@ export class ToolChecker {
       const mappedExt = isNullOrEmpty(extension) ? '' : (FileExtensionToMappedExtensionMap.get(extension.substring(1)) || '');
       const findType = ('finding ' + mappedExt + ' definition').replace('  ', ' ');
       const checkProcessPattern = getConfigValueOfActiveProject('autoDisableFindDefinitionPattern', true);
-      let tip = 'echo Auto disable ' + findType + ' = ' + !isNullOrEmpty(checkProcessPattern)
-        + '. Default terminal = ' + TerminalType[DefaultTerminalType]
-        + '. Universal slash for --np/pp/xp/sp = ' + IsForwardingSlashSupportedOnWindows
-        + '. Locate results to column = ' + IsOutputColumnSupported
-        + '. Time offset support for --w1/w2 = ' + IsFileTimeOffsetSupported
+      let tip = 'echo Auto disable self ' + findType + ' = ' + !isNullOrEmpty(checkProcessPattern)
+        // + '. Default terminal = ' + TerminalType[DefaultTerminalType]
+        + '. Universal slash = ' + IsForwardingSlashSupportedOnWindows
+        // + '. Output result column = ' + IsOutputColumnSupported
+        // + '. Time offset = ' + IsFileTimeOffsetSupported
+        + '. Faster gfind-xxx = ' + IsNotCheckInputPathSupported
         + '. Auto update search tool = ' + getConfig().AutoUpdateSearchTool
         + '.';
       if (PlatformToolChecker.IsToolExists) {
@@ -314,11 +325,7 @@ export class ToolChecker {
       }
 
       const saveFolder = path.dirname(tmpSaveExePath);
-      try {
-        if (saveFolder !== '~' && !fs.existsSync(saveFolder)) {
-          fs.mkdirSync(saveFolder);
-        }
-      } catch (err) {
+      if (saveFolder !== '~' && !createDirectory(saveFolder)) {
         outputErrorByTime('Failed to create save folder: ' + saveFolder + ' for ' + sourceExeName);
         continue;
       }

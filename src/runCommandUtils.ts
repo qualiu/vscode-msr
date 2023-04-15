@@ -3,9 +3,9 @@ import * as vscode from 'vscode';
 import { IsMacOS, IsWindows, RunCmdTerminalName } from './constants';
 import { cookCmdShortcutsOrFile } from './cookCommandAlias';
 import { WorkspaceToGitIgnoreMap } from './dynamicConfig';
-import { enableColorAndHideCommandLine, outputDebugByTime, ShellPath, UsePowershell } from "./outputUtils";
+import { ShellPath, UsePowershell, enableColorAndHideCommandLine, outputDebugByTime } from "./outputUtils";
 import { IsLinuxTerminalOnWindows } from './terminalUtils';
-import { getDefaultRootFolderByActiveFile } from "./utils";
+import { getDefaultRootFolderByActiveFile, isNullOrEmpty } from "./utils";
 import os = require('os');
 
 const ClearCmd = IsWindows && !UsePowershell ? 'cls' : "clear";
@@ -71,6 +71,10 @@ export function runRawCommandInTerminal(command: string, showTerminal = true, cl
 }
 
 export function sendCommandToTerminal(command: string, terminal: vscode.Terminal, showTerminal = false, clearAtFirst = true, isLinuxOnWindows = IsLinuxTerminalOnWindows) {
+  if (isNullOrEmpty(command)) {
+    return;
+  }
+
   const searchAndListPattern = /\s+(-i?[tx]|-l)\s+/;
   if (command.startsWith("msr") && !command.match(searchAndListPattern)) {
     outputDebugByTime("Skip running command due to not found none of matching names of -x or -t, command = " + command);

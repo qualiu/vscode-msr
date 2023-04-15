@@ -157,7 +157,7 @@ export function outputDebugByTime(message: string, showWindow: boolean = false) 
 	outputDebug('\n' + nowText(message), showWindow);
 }
 
-export function clearOutputChannel() {
+function clearOutputChannel() {
 	getOutputChannel().clear();
 }
 
@@ -165,7 +165,6 @@ export function clearOutputChannelByTimes(circle: number = 1000) {
 	if (OutputTimes % circle == 0) {
 		clearOutputChannel();
 	}
-
 	OutputTimes++;
 }
 

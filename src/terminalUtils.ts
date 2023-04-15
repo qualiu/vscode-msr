@@ -23,7 +23,7 @@ export function getTipFileStoragePath(terminalType: TerminalType): string {
 export function getTipFileDisplayPath(terminalType: TerminalType): string {
   const displayPath = toTerminalPath(getTipFileStoragePath(terminalType));
   return isWindowsTerminalOnWindows(terminalType)
-    ? displayPath.replace(os.tmpdir(), '%TMP%')
+    ? displayPath.replace(TempStorageFolder, '%TMP%')
     : displayPath;
 }
 
@@ -65,6 +65,10 @@ export function isPowerShellTerminal(terminalType: TerminalType): boolean {
 
 export function isLinuxTerminalOnWindows(terminalType: TerminalType = DefaultTerminalType): boolean {
   return IsWindows && !isWindowsTerminalOnWindows(terminalType);
+}
+
+export function isTerminalUsingWindowsUtils(terminalType: TerminalType = DefaultTerminalType): boolean {
+  return IsWindows && (isWindowsTerminalOnWindows(terminalType) || TerminalType.MinGWBash === terminalType || TerminalType.CygwinBash === terminalType);
 }
 
 export const IsWindowsTerminalOnWindows: boolean = isWindowsTerminalOnWindows(DefaultTerminalType);

@@ -3,6 +3,7 @@ import { TerminalType } from '../../enums';
 // You can import and use all API from the 'vscode' module
 // as well as import your extension to test it
 import { GitIgnore } from '../../gitUtils';
+import { IsWindows } from '../../constants';
 
 export function comparePattern(parser: GitIgnore, rawPattern: string, expected: string | null = null) {
   const result = parser.getPattern(rawPattern);
@@ -89,6 +90,9 @@ export function testLinuxTerminal() {
 }
 
 export function testCmdTerminalWithBackSlash() {
+  if (!IsWindows) {
+    return;
+  }
   const parser = new GitIgnore('', true, true, true, TerminalType.CMD, false);
   // Generate test below: msr -p src\test\suite\gitIgnoreTest.ts -b "function testLinuxTerminal" -q "^\s*\}" -t "^(\s*comparePattern\(\w+, [^,]+).*" -o "\1);" -P
   comparePattern(parser, '[Bb]in', String.raw`\\Bin\\`);

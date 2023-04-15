@@ -2,6 +2,10 @@
 
 All notable changes to this "vscode-msr" extension will be documented in this file.
 
+## [2.1.57]
+- Separated `cmdAlias` folders on Windows for `CMD` + `MinGW` + `Cygwin` + `WSL` terminals.
+- Improved terminal initialization + toggling enable/disable find-definitions.
+
 ## [2.1.56]
 - Improved checking professional language process and stop vscode-msr finding definition.
 

@@ -31,6 +31,10 @@ export function testForLoopCmdAlias() {
       `for /f "tokens=1,3 delime=; " %a in ('xxx') do ( for /f %d in ('loop2') do Loop1 %a %b %c Loop2 %d %D %e Mix %a-%b-%c-%d )`,
       `for /f "tokens=1,3 delime=; " %%a in ('xxx') do ( for /f %%d in ('loop2') do Loop1 %%a %b %%c Loop2 %%d %D %e Mix %%a-%b-%%c-%%d )`,
     )
+    .set(
+      `for /f %a in ('dir /b *.txt') do ( for /f %b in ('dir /a:d /b %~dpa') do echo %~dpa%~nxb )`,
+      `for /f %%a in ('dir /b *.txt') do ( for /f %%b in ('dir /a:d /b %%~dpa') do echo %%~dpa%%~nxb )`
+    )
     ;
 
   doskeyBodyToExpectedMap.forEach((expected, doskey, _) => {

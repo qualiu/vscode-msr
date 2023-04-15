@@ -1,15 +1,15 @@
 import path = require('path');
 import * as vscode from 'vscode';
 import { GetConfigPriorityPrefixes, getConfigValueByAllParts, getConfigValueByProjectAndExtension, getConfigValueOfActiveProject, getConfigValueOfProject } from './configUtils';
-import { IsDebugMode, IsLinux, IsSupportedSystem, IsWindows, IsWSL } from './constants';
+import { HomeFolder, IsDebugMode, IsLinux, IsSupportedSystem, IsWSL, IsWindows } from './constants';
 import { cookCmdShortcutsOrFile, mergeSkipFolderPattern } from './cookCommandAlias';
 import { FindType, TerminalType } from './enums';
 import { GitIgnore } from './gitUtils';
-import { clearOutputChannelByTimes, MessageLevel, outputDebug, outputDebugByTime, outputErrorByTime, outputInfoByTime, outputInfoClearByTime, outputKeyInfoByTime, updateOutputChannel } from './outputUtils';
+import { MessageLevel, clearOutputChannelByTimes, outputDebug, outputDebugByTime, outputErrorByTime, outputInfoByTime, outputInfoClearByTime, outputKeyInfoByTime, updateOutputChannel } from './outputUtils';
 import { createRegex } from './regexUtils';
 import { getRunCmdTerminalWithInfo } from './runCommandUtils';
 import { SearchConfig } from './searchConfig';
-import { DefaultTerminalType, isLinuxTerminalOnWindows, IsLinuxTerminalOnWindows, IsWindowsTerminalOnWindows, toStoragePaths, toTerminalPath, toTerminalPaths, toTerminalPathsText } from './terminalUtils';
+import { DefaultTerminalType, IsLinuxTerminalOnWindows, IsWindowsTerminalOnWindows, isLinuxTerminalOnWindows, toStoragePaths, toTerminalPath, toTerminalPaths, toTerminalPathsText } from './terminalUtils';
 import { getDefaultRootFolderByActiveFile, getDefaultRootFolderName, getElapsedSecondsToNow, getExtensionNoHeadDot, getRootFolder, getRootFolderName, getRootFolders, getUniqueStringSetNoCase, isNullOrEmpty, nowText, quotePaths, runCommandGetOutput } from './utils';
 
 const SplitPathsRegex = /\s*[,;]\s*/;
@@ -201,6 +201,11 @@ export class DynamicConfig {
     private ProjectToGitIgnoreStatusMap = new Map<String, boolean>();
     private ChangePowerShellTerminalToCmdOrBashConfig: string = "auto";
 
+    public getCmdAliasScriptFolder(): string {
+        const folder = this.RootConfig.get('cmdAlias.saveFolder') as string;
+        return isNullOrEmpty(folder) ? HomeFolder : folder.trim();
+    }
+
     public isKnownLanguage(extension: string): boolean {
         return FileExtensionToMappedExtensionMap.has(extension) || this.RootConfig.get(extension) !== undefined;
     }
@@ -224,17 +229,21 @@ export class DynamicConfig {
         return true;
     }
 
-    public toggleEnableFindingDefinition(extension: string) {
+    public toggleEnableFindingDefinition(currentFilePath: string) {
+        const filePath = path.parse(currentFilePath);
+        const extension = getExtensionNoHeadDot(filePath.ext);
         const isKnownType = this.isKnownLanguage(extension);
         const mappedExt = FileExtensionToMappedExtensionMap.get(extension) || extension;
         const currentStatus = this.TmpToggleEnabledExtensionToValueMap.get(mappedExt);
 
         let isEnabled = currentStatus === true;
+        const checkProcessPattern = this.getCheckingLanguageProcessPattern(currentFilePath, extension, mappedExt);
+        const isAutoDisable = !isNullOrEmpty(checkProcessPattern);
         if (undefined === currentStatus) {
             if (isKnownType) {
-                isEnabled = !this.DisabledFileExtensionRegex.test(extension) && !this.DisableFindDefinitionFileExtensionRegex.test(extension);
+                isEnabled = !this.DisabledFileExtensionRegex.test(extension) && !this.DisableFindDefinitionFileExtensionRegex.test(extension) && !isAutoDisable;
             } else {
-                isEnabled = !MyConfig.OnlyFindDefinitionForKnownLanguages;
+                isEnabled = !MyConfig.OnlyFindDefinitionForKnownLanguages && !isAutoDisable;
             }
         }
 
@@ -424,11 +433,15 @@ export class DynamicConfig {
         return false;
     }
 
-    private shouldSkipFindingDefinitionByLanguageProcess(currentFilePath: string, extension: string, mappedExt: string): boolean {
+    private getCheckingLanguageProcessPattern(currentFilePath: string, extension: string, mappedExt: string): string {
         const rootFolderName = getRootFolderName(currentFilePath, true);
-        const checkProcessPattern = getConfigValueByProjectAndExtension(rootFolderName, extension, mappedExt, 'autoDisableFindDefinitionPattern', true)
+        return getConfigValueByProjectAndExtension(rootFolderName, extension, mappedExt, 'autoDisableFindDefinitionPattern', true)
             .replace('#_MappedExtName_#', mappedExt)
             .trim();
+    }
+
+    private shouldSkipFindingDefinitionByLanguageProcess(currentFilePath: string, extension: string, mappedExt: string): boolean {
+        const checkProcessPattern = this.getCheckingLanguageProcessPattern(currentFilePath, extension, mappedExt);
         if (isNullOrEmpty(checkProcessPattern)) {
             return false;
         }
@@ -445,6 +458,7 @@ export class DynamicConfig {
         try {
             clearOutputChannelByTimes();
             new RegExp(checkProcessPattern); // to catch Regex error.
+            const rootFolderName = getRootFolderName(currentFilePath, true);
             const languageProcessName = getConfigValueByProjectAndExtension(rootFolderName, extension, mappedExt, 'languageProcessName')
                 .replace(/\.exe$/i, '');
             // const fastFilter = isNullOrEmpty(languageProcessName) ? '' : `- ProcessName '${languageProcessName}'`;
@@ -508,7 +522,6 @@ export function getConfig(reload: boolean = false): DynamicConfig {
         MyConfig = new DynamicConfig();
     }
 
-    clearOutputChannelByTimes();
     MyConfig.update();
 
     outputDebug('----- vscode-msr configuration loaded: ' + nowText() + ' -----');

@@ -1,14 +1,14 @@
 import path = require('path');
 import fs = require('fs');
 import { getConfigValueOfActiveProject } from './configUtils';
-import { getCommandToSetGitInfoVar, OutputChannelName, RunCmdTerminalName } from './constants';
+import { getCommandToSetGitInfoVar, OutputChannelName, RunCmdTerminalName, TempStorageFolder, TrimProjectNameRegex } from './constants';
 import { TerminalType } from './enums';
 import { saveTextToFile } from './fileUtils';
 import { outputError, outputErrorByTime, outputInfoByDebugMode, outputInfoByTime, outputWarnByTime } from './outputUtils';
 import { runCommandInTerminal, runRawCommandInTerminal } from './runCommandUtils';
 import { DefaultTerminalType, getTipFileDisplayPath, IsLinuxTerminalOnWindows, isWindowsTerminalOnWindows, toTerminalPath } from './terminalUtils';
 import { IsForwardingSlashSupportedOnWindows, RunCommandChecker } from './ToolChecker';
-import { changeToForwardSlash, getElapsedSecondsToNow, getTempFolder, isNullOrEmpty, quotePaths, RunCmdTerminalRootFolder } from './utils';
+import { changeToForwardSlash, getElapsedSecondsToNow, isNullOrEmpty, quotePaths, RunCmdTerminalRootFolder } from './utils';
 // Another solution: (1) git ls-files --recurse-submodules > project-file-list.txt ; (2) msr -w project-file-list.txt  (3) file watcher + update list.
 // Show junk files: (1) git ls-files --recurse-submodules --ignored --others --exclude-standard (2) git ls-files --recurse-submodules --others --ignored -X .gitignore
 
@@ -256,9 +256,8 @@ export class GitIgnore {
       const message = 'Cost ' + getElapsedSecondsToNow(beginTime).toFixed(3) + ' s: ' + parsedInfo;
       outputInfoByTime(message);
 
-      const saveFolder = getTempFolder();
-      const tmpScriptName = path.basename(this.RootFolder).replace(/[^\w\.-]/g, '-') + '.set-git-skip-paths-env.tmp';
-      this.SetSkipPathEnvFile = path.join(saveFolder, tmpScriptName + (this.IsCmdTerminal ? '.cmd' : '.sh'));
+      const tmpScriptName = path.basename(this.RootFolder).replace(TrimProjectNameRegex, '-') + '.set-git-skip-paths-env.tmp';
+      this.SetSkipPathEnvFile = path.join(TempStorageFolder, tmpScriptName + (this.IsCmdTerminal ? '.cmd' : '.sh'));
       const setEnvCommands = this.getExportCommand(this.SkipPathPattern);
       saveTextToFile(this.SetSkipPathEnvFile, setEnvCommands);
       callbackWhenSucceeded();

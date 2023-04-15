@@ -4,7 +4,6 @@ import { IsWindows, ShouldQuotePathRegex, TrimSearchTextRegex } from './constant
 import { TerminalType } from './enums';
 import { outputInfoByDebugModeByTime } from './outputUtils';
 import path = require('path');
-import os = require('os');
 import fs = require('fs');
 import ChildProcess = require('child_process');
 
@@ -300,19 +299,6 @@ export function getRootFolders(currentFilePath: string): string[] {
     vscode.workspace.workspaceFolders.forEach(a => rootFolderSet.add(a.uri.fsPath));
     rootFolderSet.delete('');
     return Array.from(rootFolderSet);
-}
-
-export function getTempFolder(): string {
-    const tmpFolder = os.tmpdir();
-    if (IsWindows) {
-        return tmpFolder;
-    }
-
-    if (tmpFolder.startsWith('/')) {
-        return '/tmp/';
-    }
-
-    return tmpFolder;
 }
 
 export function getPowerShellName(terminalType: TerminalType) {

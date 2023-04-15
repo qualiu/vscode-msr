@@ -34,9 +34,9 @@ Then it's the **light** and **right** tool for you(just **2~3 MB** storage + **1
   - `Arm64`: `WinVersion` >= `8.1`.
 - **Linux**
   - `x86_64`: `kernel` >= `2.6.32` 64-bit + 32-bit **Ubuntu** + **CentOS** + **Fedora**.
-  - `Arm64`: `kernel` >= `4.15` (**Ubuntu 18.04**, others not verified).
+  - `Arm64`: `kernel` >= `4.15` (**Ubuntu 18.04**).
 - **MacOS**
-  - `arm64`: **Darwin Arm64**.
+  - `Arm64`: **Darwin Arm64**.
 
 ### **You Can Start Using this without Doing Anything**
 
@@ -117,28 +117,45 @@ You can also manually **download** the tiny [msr.EXE](https://github.com/qualiu/
 
 - Or simply **copy 1 command** below to download + copy to **`system folder`** which already in `$PATH` or `%PATH%`:
 
-  - **Windows**：(If it's a 32-bit system, use **[msr-Win32.exe](https://raw.githubusercontent.com/qualiu/msr/master/tools/msr-Win32.exe)**)
+  - **Windows**
+    - `x86_64` / `Arm64` 64-bit `Windows` + `MinGW`
 
-    - **If `curl.exe` or `wget.exe` exists**: (check by command like `"where curl.exe"`, you can get it by [choco](https://chocolatey.org/packages/Wget) or [cygwin](https://github.com/qualiu/msrTools/blob/master/system/install-cygwin.bat))
+      - **If has `curl.exe` or `wget.exe`**: (check by command like `"where curl.exe"`, you can get it by [choco](https://chocolatey.org/packages/Wget) or [cygwin](https://github.com/qualiu/msrTools/blob/master/system/install-cygwin.bat))
 
-      - **curl** <https://raw.githubusercontent.com/qualiu/msr/master/tools/msr.exe> -o `msr.tmp` && `move /y msr.tmp msr.exe` && `icacls msr.exe /grant %USERNAME%:RX` && **move** [msr.exe](https://raw.githubusercontent.com/qualiu/msr/master/tools/msr.exe) `%SystemRoot%\`
-      - **wget** <https://raw.githubusercontent.com/qualiu/msr/master/tools/msr.exe> -O `msr.tmp` && `move /y msr.tmp msr.exe` && `icacls msr.exe /grant %USERNAME%:RX` && **move** [msr.exe](https://raw.githubusercontent.com/qualiu/msr/master/tools/msr.exe) `%SystemRoot%\`
+        - **curl** <https://raw.githubusercontent.com/qualiu/msr/master/tools/msr.exe> -o `msr.tmp` && `move /y msr.tmp msr.exe` && `icacls msr.exe /grant %USERNAME%:RX` && **move** [msr.exe](https://raw.githubusercontent.com/qualiu/msr/master/tools/msr.exe) `%SystemRoot%\`
+        - **wget** <https://raw.githubusercontent.com/qualiu/msr/master/tools/msr.exe> -O `msr.tmp` && `move /y msr.tmp msr.exe` && `icacls msr.exe /grant %USERNAME%:RX` && **move** [msr.exe](https://raw.githubusercontent.com/qualiu/msr/master/tools/msr.exe) `%SystemRoot%\`
 
-    - Otherwise use `PowerShell`:
+      - Otherwise use `PowerShell`:
 
-      **PowerShell** `-Command "$ProgressPreference = 'SilentlyContinue'; [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/qualiu/msr/master/tools/msr.exe' -OutFile msr.tmp"` && `move /y msr.tmp msr.exe` && `icacls msr.exe /grant %USERNAME%:RX` && **move** [msr.exe](https://raw.githubusercontent.com/qualiu/msr/master/tools/msr.exe) `%SystemRoot%\`
+        **PowerShell** `-Command "$ProgressPreference = 'SilentlyContinue'; [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; Invoke-WebRequest -Uri 'https://raw.githubusercontent.com/qualiu/msr/master/tools/msr.exe' -OutFile msr.tmp"` && `move /y msr.tmp msr.exe` && `icacls msr.exe /grant %USERNAME%:RX` && **move** [msr.exe](https://raw.githubusercontent.com/qualiu/msr/master/tools/msr.exe) `%SystemRoot%\`
 
-  - **Linux**: `Ubuntu`/`CentOS`/`Fedora`: (If it's a 32-bit system, use **[msr-i386.gcc48](https://raw.githubusercontent.com/qualiu/msr/master/tools/msr-i386.gcc48)**. `gcc`/`g++` >= 4.8)
+    - **Cygwin** [bash terminal](#supported-4-terminal-types-on-windows) on Windows
 
-    **curl** <https://raw.githubusercontent.com/qualiu/msr/master/tools/msr.gcc48> -o `msr.tmp` && `mv -f msr.tmp msr` && `chmod +x msr` && `sudo mv msr /usr/bin/msr`
+      **curl** <https://raw.githubusercontent.com/qualiu/msr/master/tools/msr.cygwin> -o `msr.tmp` && `mv -f msr.tmp msr` && `chmod +x msr` && `mv msr /usr/bin/msr`
 
-  - **Cygwin** [bash terminal on Windows](#supported-4-terminal-types-on-windows):
+    - `x86` 32-bit `Windows` + `MinGW`
 
-    **curl** <https://raw.githubusercontent.com/qualiu/msr/master/tools/msr.cygwin> -o `msr.tmp` && `mv -f msr.tmp msr` && `chmod +x msr` && `mv msr /usr/bin/msr`
+      **curl** <https://raw.githubusercontent.com/qualiu/msr/master/tools/msr-Win32.exe> -o `msr.tmp` && `move /y msr.tmp msr.exe` && `icacls msr.exe /grant %USERNAME%:RX` && **move** [msr.exe](https://raw.githubusercontent.com/qualiu/msr/master/tools/msr.exe) `%SystemRoot%\`
 
-  - **MacOS**: `Darwin-Arm64`:
-  
+    
+  - **Linux**
+    - `x86_64`: 64-bit `Ubuntu` / `CentOS` / `Fedora` / `WSL-on-Windows`
+
+      **curl** <https://raw.githubusercontent.com/qualiu/msr/master/tools/msr.gcc48> -o `msr.tmp` && `mv -f msr.tmp msr` && `chmod +x msr` && `sudo mv msr /usr/bin/msr`
+
+    - `Arm64` (like `Ubuntu Arm64`):
+      
+      **curl** <https://raw.githubusercontent.com/qualiu/msr/master/tools/msr-aarch64.linux> -o `msr.tmp` && `mv -f msr.tmp msr` && `chmod +x msr` && `sudo mv msr /usr/bin/msr`
+
+    - `x86` 32-bit `Ubuntu` / `CentOS` / `Fedora` / `WSL-on-Windows`
+
+      **curl** <https://raw.githubusercontent.com/qualiu/msr/master/tools/msr-i386.gcc48> -o `msr.tmp` && `mv -f msr.tmp msr` && `chmod +x msr` && `sudo mv msr /usr/bin/msr`
+
+
+  - **MacOS** `Darwin-Arm64`:
+    
     **curl** <https://raw.githubusercontent.com/qualiu/msr/master/tools/msr-arm64.darwin> -o `msr.tmp` && `mv -f msr.tmp msr` && `chmod +x msr` && `sudo mv msr /usr/local/bin/msr`
+    
 
 ### Alternative Sources if Unable to Download msr/nin from GitHub
 If you're unable to download msr/nin tools from [GitHub](https://github.com/qualiu/msr)(validation: [md5.txt](https://github.com/qualiu/msr/blob/master/tools/md5.txt)) by command lines above, try sources + command lines below:

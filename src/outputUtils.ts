@@ -7,7 +7,12 @@ import { nowText, replaceTextByRegex } from './utils';
 export const UsePowershell = false;
 const WindowsShell = UsePowershell ? 'powershell' : 'cmd.exe';
 export const ShellPath = IsWindows ? WindowsShell : 'bash';
-const ShowColorHideCmdRegex = /\s+-[Cc](\s+|$)/g;
+const ShowColorHideCmdRegex: RegExp = /\s+-[Cc](\s+|$)/g;
+const SearchRegexList: RegExp[] = [
+	/\s+(-t|--text-match)\s+(\w+\S*|'(.+?)'|"(.+?)")/,
+	/\s+(-x|--has-text)\s+(\w+\S*|'(.+?)'|"(.+?)")/
+];
+
 let OutputTimes: number = 0;
 
 export enum MessageLevel {
@@ -169,12 +174,27 @@ export function clearOutputChannelByTimes(circle: number = 1000) {
 }
 
 export function enableColorAndHideCommandLine(cmd: string, removeSearchWordHint: boolean = true): string {
-	let text = replaceTextByRegex(cmd, ShowColorHideCmdRegex, '$1');
-	if (removeSearchWordHint) {
-		text = text.replace(/\s+Search\s+%~?1[\s\w]*/, ' ');
+	let hasFound = false;
+	for (let k = 0; k < SearchRegexList.length; k++) {
+		let match = cmd.match(SearchRegexList[k]);
+		if (match && match.index !== undefined) {
+			hasFound = true;
+			const text1 = cmd.substring(0, match.index);
+			const text2 = cmd.substring(match.index, match.index + match[0].length);
+			const text3 = cmd.substring(match.index + match[0].length);
+			cmd = replaceTextByRegex(text1, ShowColorHideCmdRegex, '$1') + text2 + replaceTextByRegex(text3, ShowColorHideCmdRegex, '$1');
+		}
 	}
 
-	return text.replace(/\s+Search\s*$/, '');
+	if (!hasFound) {
+		cmd = replaceTextByRegex(cmd, ShowColorHideCmdRegex, '$1');
+	}
+
+	if (removeSearchWordHint) {
+		cmd = cmd.replace(/\s+Search\s+%~?1[\s\w]*/, ' ');
+	}
+
+	return cmd.replace(/\s+Search\s*$/, '');
 }
 
 export function checkIfSupported(): boolean {

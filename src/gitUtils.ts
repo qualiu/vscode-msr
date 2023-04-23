@@ -269,16 +269,15 @@ export class GitIgnore {
 
       const tipFileDisplayPath = getTipFileDisplayPath(this.Terminal);
       const setVarCmd = getCommandToSetGitInfoVar(this.IsCmdTerminal, this.SkipPathPattern.length, skipPatterns.size, errorList.length, this.ExemptionCount);
-      const replaceCmd = (this.IsCmdTerminal ? `-x ::` : `-x '#'`) + ` -o echo ` + (this.ExemptionCount > 0 ? `-L 3` : `-L 2 -N 2`);
+      const replaceCmd = (this.IsCmdTerminal ? `-x ::` : `-x '#'`) + ` -o echo ` + (
+        !isInMaxLength
+          ? `-L 4 -N4`
+          : (this.ExemptionCount > 0 ? `-L 3 -N3` : `-L 2 -N2`)
+      );
+
       const command = `msr -XA -z "${setVarCmd} msr -p ${tipFileDisplayPath} ${replaceCmd} -XA"` // change -XA to -XMI for debug
         + (this.IsCmdTerminal ? ' & use-this-alias -A' : '');
       runRawCommandInTerminal(command);
-      if (!isInMaxLength) {
-        let warning = 'Will not use git-ignore due to setVariableCommandLength = ' + setVarCmdLength + ' exceeds ' + this.MaxCommandLength;
-        outputErrorByTime(warning);
-        warning = IsLinuxTerminalOnWindows ? warning.replace(this.IgnoreFilePath, this.IgnoreFilePath.replace(/\\/g, '/')) : warning;
-        runRawCommandInTerminal(`msr -aPA -z "${warning}" -t "(not use \\S+)" -x ${this.MaxCommandLength}`);
-      }
     });
   }
 

@@ -11,7 +11,7 @@ import { escapeRegExp } from "./regexUtils";
 import { runCommandInTerminal, sendCommandToTerminal } from './runCommandUtils';
 import { DefaultTerminalType, IsLinuxTerminalOnWindows, getTerminalInitialPath, getTerminalNameOrShellExeName, getTerminalShellExePath, isLinuxTerminalOnWindows, isPowerShellTerminal, isWindowsTerminalOnWindows, toStoragePath, toTerminalPath, toTerminalPathsText } from './terminalUtils';
 import { getSetToolEnvCommand, getToolExportFolder } from "./toolSource";
-import { getDefaultRootFolderName, getElapsedSecondsToNow, getPowerShellName, getRootFolder, getRootFolderName, getUniqueStringSetNoCase, isNullOrEmpty, quotePaths, replaceSearchTextHolder, replaceTextByRegex, runCommandGetOutput } from "./utils";
+import { getDefaultRootFolderName, getElapsedSecondsToNow, getPowerShellName, getRootFolder, getRootFolderName, getUniqueStringSetNoCase, isNullOrEmpty, isPowerShellCommand, quotePaths, replaceSearchTextHolder, replaceTextByRegex, runCommandGetOutput } from "./utils";
 import { FindJavaSpringReferenceByPowerShellAlias } from './wordReferenceUtils';
 import fs = require('fs');
 import os = require('os');
@@ -270,12 +270,12 @@ export function cookCmdShortcutsOrFile(
     : 'tmp-git-file-list';
 
   // Duplicate find-xxx to gfind-xxx for "git ls-file" & find-xxx; except find-nd / find-ndp
-  const powerShellCmd = getPowerShellName(terminalType) + ' -Command';
+  const powerShellCmdHead = getPowerShellName(terminalType) + ' -Command';
   const sortedCmdKeys = Array.from(cmdAliasMap.keys()).sort();
   sortedCmdKeys.forEach(key => {
     const value = cmdAliasMap.get(key) || '';
     if (key.match(/^(find|sort)-/) && !key.startsWith('find-nd') && /msr(\.exe)? -rp/.test(value)) {
-      const isPowerShellScript = value.includes(powerShellCmd); // like find-spring-ref to gfind-spring-ref
+      const isPowerShellScript = value.includes(powerShellCmdHead); // like find-spring-ref to gfind-spring-ref
       const tmpListFile = isPowerShellScript && isWindowsTerminal
         ? path.join(TempStorageFolder, tmpFileName)
         : quotePaths((isWindowsTerminal ? '%tmp%\\' : '/tmp/') + tmpFileName);
@@ -302,7 +302,7 @@ export function cookCmdShortcutsOrFile(
       let newCommand = value.replace(/(msr(\.exe)?) -rp\s+(".+?"|\S+)/, checkAndListCommand.trimRight() + ' $1 -w ' + tmpListFile)
         .replace(/\s+(--nd|--np)\s+".+?"\s*/, ' ');
       newCommand = setNotCheckInputPathInCommandLine(newCommand);
-      if (isForProjectCmdAlias && TerminalType.CygwinBash === terminalType) {
+      if (isForProjectCmdAlias && TerminalType.CygwinBash === terminalType && isPowerShellCommand(newCommand, terminalType)) {
         newCommand = newCommand.replace(/\bmsr (-+\w+)/g, 'msr.exe $1'); // workaround for cygwin PowerShell
       }
       if (isWindowsTerminal) {
@@ -518,6 +518,7 @@ export function cookCmdShortcutsOrFile(
     const expectedContent = (isWindowsTerminal ? '@' : '') + `msr -aPA -e .+ -z "${finalGuide}" -it "${colorPattern}" ` + (isWindowsTerminal ? '%*' : '$*')
       + lineSep + gitInfoTemplate + " Free to use gfind-xxx / find-xxx." + colorCmd + ` -t "[1-9]\\d* e\\w+"`
       + lineSep + gitInfoTemplate + " Please use gfind-xxx instead of find-xxx for git-exemptions." + colorCmd + ` -t "[1-9]\\d* e\\w+|MSR-\\S+|\\bfind-\\S+"`
+      + lineSep + gitInfoTemplate + " Will not use git-ignore as too long Skip_Git_Paths." + colorCmd + ` -t "[1-9]\\d* e\\w+|MSR-\\S+|Skip[\\w\\. -]+ = ([89][1-9]\\d{2}|\\d{5,})|(not use \\S+|too long [\\w-]+)"`
       ;
 
     let shouldWrite = !fs.existsSync(tipFileStoragePath);
@@ -883,9 +884,7 @@ function getCommandAliasMap(
       psCode = psCode.replace(/'/g, '"').replace(/"/g, '\\"').trim();
     }
     let findExtRefCmd = getCommandAliasText(aliasName, psCode, true, terminalType, writeToEachFile, true, true, true);
-    const powerShellCmd = getPowerShellName(terminalType) + ' -Command';
-    const isPowerShellScript = findExtRefCmd.includes(powerShellCmd);
-    if (TerminalType.CygwinBash === terminalType && isPowerShellScript) { // as workaround of running powershell with exe
+    if (TerminalType.CygwinBash === terminalType && isPowerShellCommand(findExtRefCmd, terminalType)) { // as workaround of running powershell with exe
       findExtRefCmd = findExtRefCmd.replace(/ msr (-+\w+)/g, ' msr.exe $1');
     }
     cmdAliasMap.set(aliasName, findExtRefCmd);

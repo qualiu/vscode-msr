@@ -2,6 +2,10 @@
 
 All notable changes to this "vscode-msr" extension will be documented in this file.
 
+## [2.1.58]
+- Improved command alias for `Cygwin` + `MacOS` terminals.
+- Improved tip + trimming "-c/-C" in command lines.
+
 ## [2.1.57]
 - Separated `cmdAlias` folders on Windows for `CMD` + `MinGW` + `Cygwin` + `WSL` terminals.
 - Improved terminal initialization + toggling enable/disable find-definitions.

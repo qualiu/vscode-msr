@@ -45,8 +45,10 @@ export function getTerminalTypeFromExePath(terminalExePath: string = TerminalExe
     return TerminalType.MinGWBash;
   } else if (/bash.exe$/.test(terminalExePath)) {
     return TerminalType.WslBash;
-  } else {
+  } else if (IsWindows) {
     return TerminalType.PowerShell; // TerminalType.CMD;
+  } else {
+    return TerminalType.LinuxBash;
   }
 }
 

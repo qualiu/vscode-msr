@@ -304,3 +304,8 @@ export function getRootFolders(currentFilePath: string): string[] {
 export function getPowerShellName(terminalType: TerminalType) {
     return !IsWindows || TerminalType.WslBash == terminalType ? "pwsh" : "PowerShell";
 }
+
+export function isPowerShellCommand(cmd: string, terminalType: TerminalType): boolean {
+    const powerShellCmd = getPowerShellName(terminalType) + ' -Command';
+    return cmd.includes(powerShellCmd);
+}

@@ -19,27 +19,24 @@ import path = require('path');
 
 const CookCmdDocUrl = 'https://github.com/qualiu/vscode-msr/blob/master/README.md#command-shortcuts';
 
-// return ~/cmdAlias/ or /tmp/
-function getCmdAliasSaveFolder(isMultipleScript: boolean, isForProjectCmdAlias: boolean, terminalType: TerminalType, forceUseDefault = false): string {
+// return ~/cmdAlias/ or ~/cmdAlias/cygwin/ or /tmp/
+function getCmdAliasSaveFolder(isMultipleScripts: boolean, isForProjectCmdAlias: boolean, terminalType: TerminalType, forceUseDefault = false): string {
   // avoid random folder in Darwin like: '/var/folders/7m/f0z72nfn3nn6_mnb_0000gn/T'
-  let saveFolder = isForProjectCmdAlias ? TempStorageFolder : toStoragePath(forceUseDefault ? HomeFolder : getConfig().getCmdAliasScriptFolder());
-  if (isMultipleScript) {
-    saveFolder = path.join(saveFolder, 'cmdAlias');
-    if (IsWindows || IsWSL) {
-      const terminalTypeText = TerminalType[terminalType].toLowerCase()
-        .replace(/bash$/i, '')
-        .replace(/PowerShell/i, 'cmd');
-      saveFolder = path.join(saveFolder, terminalTypeText);
-    }
-  }
+  const terminalTypeText = TerminalType[terminalType].toLowerCase()
+    .replace(/bash$/i, '');
 
+  const generalFolder = toStoragePath(forceUseDefault ? HomeFolder : getConfig().getCmdAliasScriptFolder());
+  const parentFolder = isForProjectCmdAlias && !isMultipleScripts ? TempStorageFolder : path.join(generalFolder, 'cmdAlias');
+
+  const shouldSeparate = isLinuxTerminalOnWindows(terminalType) || (isMultipleScripts && (IsWSL || IsWindows));
+  const saveFolder = shouldSeparate ? path.join(parentFolder, terminalTypeText) : parentFolder;
   createDirectory(saveFolder);
   return saveFolder;
 }
 
 export function getGeneralCmdAliasFilePath(terminalType: TerminalType) {
   const isWindowsTerminal = isWindowsTerminalOnWindows(terminalType);
-  const saveAliasFolder = getCmdAliasSaveFolder(false, false, terminalType);
+  const saveAliasFolder = path.dirname(getCmdAliasSaveFolder(false, false, terminalType));
   const fileName = 'msr-cmd-alias' + (isWindowsTerminal ? '.doskeys' : '.bashrc');
 
   // if is WSL and first time, which read Windows settings.
@@ -124,10 +121,6 @@ export function cookCmdShortcutsOrFile(
   }
 
   const defaultRootFolderName = getDefaultRootFolderName();
-  if (isNullOrEmpty(defaultRootFolderName)) {
-    return;
-  }
-
   const trackBeginTime = new Date();
   const elapseSeconds = getElapsedSecondsToNow(LastCookTime);
   LastCookTime = new Date();
@@ -160,7 +153,7 @@ export function cookCmdShortcutsOrFile(
   }
 
   const saveAliasFolder = getCmdAliasSaveFolder(false, isForProjectCmdAlias, terminalType);
-  if (isNullOrEmpty(rootFolderName) && !terminal) {
+  if (isNullOrEmpty(rootFolderName)) { // && !terminal) {
     isForProjectCmdAlias = false;
   }
 
@@ -214,10 +207,12 @@ export function cookCmdShortcutsOrFile(
   addOpenUpdateCmdAlias(quotedDefaultAliasFileForTerminal, 'update-alias', 'open-alias');
 
   const tmpAliasFolderForTerminal = toTerminalPath(getCmdAliasSaveFolder(false, true, terminalType), terminalType);
-  const linuxTmpFolder = isLinuxTerminalOnWindows ? toTerminalPath(TempStorageFolder, terminalType) : '/tmp';
+  const linuxTmpFolder = isLinuxTerminalOnWindows
+    ? tmpAliasFolderForTerminal //toTerminalPath(TempStorageFolder, terminalType)
+    : '/tmp';
   const useThisAliasBody = isWindowsTerminal
-    ? String.raw`for /f "tokens=*" %a in ('msr -z "%CD%" -t ".*?([^\\/]+)$" -o "\1" -aPAC ^| msr -t "${TrimProjectNameRegex.source}" -o "-" -aPAC') do echo doskey /MACROFILE="%tmp%\%a.msr-cmd-alias.doskeys" | msr -XM`
-    : String.raw`thisFile=${linuxTmpFolder}/$(msr -z "$PWD" -t ".*?([^/]+)$" -o "\1" -aPAC | msr -t "${TrimProjectNameRegex.source}" -o "-" -aPAC).msr-cmd-alias.bashrc; echo source $thisFile; source $thisFile;`;
+    ? String.raw`for /f "tokens=*" %a in ('git rev-parse --show-toplevel 2^>nul ^|^| echo "%CD%"') do for /f "tokens=*" %b in ('msr -z "%a" -t ".*?([^\\/]+?)\s*$" -o "\1" -aPAC ^| msr -t "${TrimProjectNameRegex.source}" -o "-" -aPAC') do echo doskey /MACROFILE="%tmp%\%b.msr-cmd-alias.doskeys" | msr -XM`
+    : String.raw`thisFile=${linuxTmpFolder}/$(echo $(git rev-parse --show-toplevel 2>/dev/null || echo "$PWD") | msr -t ".*?([^/]+?)\s*$" -o "\1" -aPAC | msr -t "${TrimProjectNameRegex.source}" -o "-" -aPAC).msr-cmd-alias.bashrc; echo source $thisFile; source $thisFile;`;
 
   const useThisAliasCmdBody = getCommandAliasText('use-this-alias', useThisAliasBody, true, terminalType, true, true);
   // For CMD terminal + Cygwin/MinGW terminal
@@ -472,7 +467,7 @@ export function cookCmdShortcutsOrFile(
   }
 
   outputDebugByTime('Finished to cook command shortcuts. Cost ' + getElapsedSecondsToNow(trackBeginTime) + ' seconds.');
-  if (!isForProjectCmdAlias && (isRunCmdTerminal || isFromMenu)) {
+  if (!isForProjectCmdAlias && (isRunCmdTerminal || isFromMenu) && !isNullOrEmpty(rootFolderName)) {
     if (isWindowsTerminal) {
       runCmdInTerminal('doskey /MACROFILE="' + projectAliasFilePath + '"');
     } else {

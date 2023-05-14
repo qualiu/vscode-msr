@@ -213,12 +213,18 @@ export function registerExtension(context: vscode.ExtensionContext) {
 		(textEditor: vscode.TextEditor, _edit: vscode.TextEditorEdit, ..._args: any[]) => {
 			cookCmdShortcutsOrFile(true, textEditor.document.uri.fsPath, false, false);
 			cookCmdShortcutsOrFile(true, textEditor.document.uri.fsPath, false, true, undefined, false, true);
+			if (!isNullOrEmpty(getDefaultRootFolder())) {
+				cookCmdShortcutsOrFile(true, textEditor.document.uri.fsPath, true, false, undefined, false, false, false, true);
+			}
 		}));
 
 	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.cookCmdAliasDumpWithOthersToFilesByProject',
 		(textEditor: vscode.TextEditor, _edit: vscode.TextEditorEdit, ..._args: any[]) => {
 			cookCmdShortcutsOrFile(true, textEditor.document.uri.fsPath, true, false);
 			cookCmdShortcutsOrFile(true, textEditor.document.uri.fsPath, true, true, undefined, false, true);
+			if (!isNullOrEmpty(getDefaultRootFolder())) {
+				cookCmdShortcutsOrFile(true, textEditor.document.uri.fsPath, true, false, undefined, false, false, false, true);
+			}
 		}));
 
 	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.tmpToggleEnableFindingDefinition',

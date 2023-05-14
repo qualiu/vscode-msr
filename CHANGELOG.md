@@ -2,6 +2,12 @@
 
 All notable changes to this "vscode-msr" extension will be documented in this file.
 
+## [2.1.59]
+- Enabled cooking alias in any opened files/projects (not just git projects).
+- Supported updating new command alias from files in `MSR-RUN-CMD` terminal without reloading vscode.
+- Supported `use-this-alias` in descendant folders + Separated temp alias for `MinGW` + `Cygwin` on Windows.
+- Reduced `msr.refreshTmpGitFileListDuration` to avoid unexpected results as `git ls-files` is very fast.
+
 ## [2.1.58]
 - Improved command alias for `Cygwin` + `MacOS` terminals.
 - Improved tip + trimming "-c/-C" in command lines.

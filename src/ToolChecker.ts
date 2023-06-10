@@ -99,6 +99,8 @@ export function isArgSupported(argName: string, toolName = 'msr'): boolean {
   return regex.test(toolName === 'msr' ? MsrHelpText : NinHelpText);
 }
 
+let HasTriedDownloading = false;
+
 export class ToolChecker {
   public IsToolExists = false;
   public MsrExePath: string = '';
@@ -269,13 +271,17 @@ export class ToolChecker {
     }
 
     if (!this.IsToolExists) {
-
       const sourceExeName = this.getSourceExeName('msr');
       outputErrorByTime('Not found ' + sourceExeName + ' in ' + PathEnvName + ' for ' + TerminalType[this.terminalType] + ' terminal:');
       outputErrorByTime('Please download it (just copy + paste the command line) follow: https://github.com/qualiu/vscode-msr/blob/master/README.md#more-freely-to-use-and-help-you-more');
 
       if (this.autoDownload) {
-        [this.IsToolExists, this.MsrExePath] = this.autoDownloadTool('msr');
+        if (HasTriedDownloading) {
+          outputWarnByTime(`Skip downloading ${sourceExeName}, please download it manually, or reload to auto download.`);
+        } else {
+          HasTriedDownloading = true;
+          [this.IsToolExists, this.MsrExePath] = this.autoDownloadTool('msr');
+        }
       }
     }
     if (this.IsToolExists) {
@@ -312,7 +318,7 @@ export class ToolChecker {
 
   private tryAllSourcesToDownload(pureExeName: string, sourceExeName: string, tmpSaveExePath: string, targetExePath: string): boolean {
     for (let tryTimes = 0; tryTimes < SourceHomeUrlArray.length; tryTimes++) {
-      outputKeyInfoByTime('Will try to download the tiny tool "' + sourceExeName + '" by command:');
+      outputKeyInfoByTime(`Will try to download the tiny tool "${sourceExeName}" by command:`);
       runRawCommandInTerminal(`echo Times-${tryTimes + 1}: Try to download ${sourceExeName} from source-${tryTimes + 1}, see: "${TipUrl}"`)
       const tryUrlIndex = GoodSourceUrlIndex + tryTimes;
       const [downloadCommand, _] = this.getDownloadCommandAndSavePath(pureExeName, tmpSaveExePath, tryUrlIndex);

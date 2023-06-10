@@ -2,6 +2,11 @@
 
 All notable changes to this "vscode-msr" extension will be documented in this file.
 
+## [2.1.60]
+- Added common alias like `gpc`/`gph`/`git-sm-init`/`git-add-safe-dir` + `reset-env`/`reload-env`/`add-user-path`/`del-tmp-path` etc.
+  - Added config `msr.overwriteInConsistentCommonAliasByExtension` (default = `false`).
+- Auto add tool folder to user PATH on Windows.
+
 ## [2.1.59]
 - Enabled cooking alias in any opened files/projects (not just git projects).
 - Supported updating new command alias from files in `MSR-RUN-CMD` terminal without reloading vscode.

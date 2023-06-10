@@ -3,7 +3,7 @@
 	"displayName": "Code mining + Replace file + Find definition and reference for all types.",
 	"description": "Code mining + Replace file + Find definition and reference in multiple repository paths by msr for all coding languages + configuration + doc files.",
 	"author": "qualiu@microsoft.com",
-	"version": "2.1.59",
+	"version": "2.1.60",
 	"icon": "images/vscode-msr-icon.png",
 	"license": "completely free",
 	"publisher": "qualiu",
@@ -799,6 +799,11 @@
 					"default": true,
 					"description": "Overwrite the default initialized command shortcuts (alias/doskeys) of a project when open a new terminal."
 				},
+				"msr.overwriteInConsistentCommonAliasByExtension": {
+					"type": "boolean",
+					"default": false,
+					"description": "Overwrite inconsistent common alias by vscode-msr."
+				},
 				"msr.tmpToggleEnableFindingDefinition.menu.visible": {
 					"type": "boolean",
 					"default": true,
@@ -1181,7 +1186,7 @@
 				},
 				"msr.default.allFiles": {
 					"type": "string",
-					"default": "\\.(cs(html)?|cpp|cxx|h|hpp|hxx|cc?|c\\+{2}|\\w+proj|sln|nuspec|config|conf|properties|resx|props|java|scala|py|go|rs|php|vue|tsx?|jsx?|json|ya?ml|xml|ini|sql|md|ipynb|rst|sh|bat|cmd|psm?1)$|^readme|^make\\w+$",
+					"default": "\\.(cs(html)?|cpp|cxx|h|hpp|hxx|cc?|c\\+{2}|\\w+proj|sln|nuspec|config|conf|properties|props|resx|props|java|scala|py|go|rs|php|vue|tsx?|jsx?|json|ya?ml|xml|xsd|ini|sql|md|ipynb|rst|sh|bat|cmd|psm?1)$|^readme|^make\\w+$",
 					"description": "Default Regex pattern for files to search."
 				},
 				"msr.default.codeFileExtensionMappingTypes": {
@@ -1201,7 +1206,7 @@
 				},
 				"msr.default.configFiles": {
 					"type": "string",
-					"default": "\\.(config|conf|properties|resx|json|ya?ml|xml|ini)$",
+					"default": "\\.(config|conf|properties|props|resx|json|ya?ml|xml|xsd|ini)$",
 					"description": "Default Regex pattern for configuration files."
 				},
 				"msr.default.docFiles": {
@@ -1211,17 +1216,17 @@
 				},
 				"msr.default.codeAndConfig": {
 					"type": "string",
-					"default": "\\.(cs(html)?|cpp|cxx|h|hpp|hxx|cc?|c\\+{2}|vcx?proj|sln|nuspec|config|conf|properties|resx|props|java|scala|py|go|rs|php|vue|tsx?|jsx?|json|ya?ml|xml|ini)$|^make\\w+$",
+					"default": "\\.(cs(html)?|cpp|cxx|h|hpp|hxx|cc?|c\\+{2}|vcx?proj|sln|nuspec|config|conf|properties|props|resx|props|java|scala|py|go|rs|php|vue|tsx?|jsx?|json|ya?ml|xml|xsd|ini)$|^make\\w+$",
 					"description": "Default Regex pattern for code + configuration files."
 				},
 				"msr.default.codeAndConfigDocs": {
 					"type": "string",
-					"default": "\\.(cs(html)?|cpp|cxx|h|hpp|hxx|cc?|c\\+{2}|vcx?proj|sln|nuspec|config|conf|properties|resx|props|java|scala|py|go|rs|php|vue|tsx?|jsx?|json|ya?ml|xml|ini|sql|md|ipynb|rst)$|^readme|^make\\w+$",
+					"default": "\\.(cs(html)?|cpp|cxx|h|hpp|hxx|cc?|c\\+{2}|vcx?proj|sln|nuspec|config|conf|properties|props|resx|props|java|scala|py|go|rs|php|vue|tsx?|jsx?|json|ya?ml|xml|xsd|ini|sql|md|ipynb|rst)$|^readme|^make\\w+$",
 					"description": "Default Regex pattern for code + configuration + document files."
 				},
 				"msr.default.configAndDocs": {
 					"type": "string",
-					"default": "\\.(config|conf|properties|resx|json|ya?ml|xml|ini|sql|md|ipynb|rst)$|^readme",
+					"default": "\\.(config|conf|properties|props|resx|json|ya?ml|xml|xsd|ini|sql|md|ipynb|rst)$|^readme",
 					"description": "Default Regex pattern for configuration + document files."
 				},
 				"msr.default.class.skip.definition": {
@@ -1516,7 +1521,7 @@
 				},
 				"msr.cs.codeAndConfigDocs": {
 					"type": "string",
-					"default": "\\.(cs(html)?|csproj|sln|nuspec|config|props|json|ya?ml|xml|ini|sql|md|ipynb|rst)$",
+					"default": "\\.(cs(html)?|csproj|sln|nuspec|config|props|json|ya?ml|xml|xsd|ini|sql|md|ipynb|rst)$",
 					"description": "Regex pattern for C# code + configuration + document files."
 				},
 				"msr.cs.isFindClass": {
@@ -1546,7 +1551,7 @@
 				},
 				"msr.cpp.codeAndConfigDocs": {
 					"type": "string",
-					"default": "\\.(cpp|cxx|h|hpp|hxx|cc?|c\\+{2}|vcx?proj|sln|nuspec|config|props|json|ya?ml|xml|ini|sql|md|ipynb|rst)$|^make\\w+$",
+					"default": "\\.(cpp|cxx|h|hpp|hxx|cc?|c\\+{2}|vcx?proj|sln|nuspec|config|props|json|ya?ml|xml|xsd|ini|sql|md|ipynb|rst)$|^make\\w+$",
 					"description": "Regex pattern for C++ or C code + configuration + document files."
 				},
 				"msr.cpp.isFindClass": {
@@ -1596,7 +1601,7 @@
 				},
 				"msr.py.codeAndConfigDocs": {
 					"type": "string",
-					"default": "\\.(py|json|ya?ml|xml|ini|sql|md|ipynb|rst)$",
+					"default": "\\.(py|json|ya?ml|xml|xsd|ini|sql|md|ipynb|rst)$",
 					"description": "Regex pattern for Python code + configuration + document files."
 				},
 				"msr.py.isFindClass": {
@@ -1626,12 +1631,12 @@
 				},
 				"msr.java.codeAndConfigDocs": {
 					"type": "string",
-					"default": "\\.(java|scala|json|ya?ml|xml|ini|sql|md|ipynb|rst)$",
+					"default": "\\.(java|scala|json|ya?ml|xml|xsd|ini|sql|md|ipynb|rst)$",
 					"description": "Regex pattern for Java code + configuration + document files."
 				},
 				"msr.ui.codeAndConfigDocs": {
 					"type": "string",
-					"default": "\\.(vue|tsx?|jsx?|json|ya?ml|xml|ini|sql|md|ipynb|rst)$",
+					"default": "\\.(vue|tsx?|jsx?|json|ya?ml|xml|xsd|ini|sql|md|ipynb|rst)$",
 					"description": "Regex pattern for Front-end code + configuration + document files."
 				},
 				"msr.ui.definition": {

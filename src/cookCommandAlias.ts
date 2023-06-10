@@ -1,29 +1,30 @@
 import * as vscode from 'vscode';
 import { IsFileTimeOffsetSupported, RunCommandChecker, ToolChecker, setNotCheckInputPathInCommandLine, setOutputColumnIndexInCommandLine } from './ToolChecker';
 import { getFindTopDistributionCommand, getSortCommandText } from "./commands";
+import { getCommandAliasText, getCommonAliasMap } from './commonAlias';
 import { getConfigValueByPriorityList, getConfigValueByProjectAndExtension, getConfigValueOfProject } from "./configUtils";
 import { HomeFolder, IsLinux, IsWSL, IsWindows, RunCmdTerminalName, TempStorageFolder, TrimProjectNameRegex, getGitInfoTipTemplate } from "./constants";
 import { DefaultRootFolder, MappedExtToCodeFilePatternMap, MyConfig, getConfig, getGitIgnore, getSearchPathOptions } from "./dynamicConfig";
 import { FindCommandType, TerminalType } from "./enums";
 import { createDirectory, readTextFile, saveTextToFile } from './fileUtils';
-import { enableColorAndHideCommandLine, outputDebugByTime, outputErrorByTime, outputInfoQuiet, outputInfoQuietByTime, outputWarnByTime } from "./outputUtils";
+import { outputDebug, outputDebugByTime, outputErrorByTime, outputInfo, outputInfoByDebugModeByTime, outputInfoQuiet, outputInfoQuietByTime, outputKeyInfoByTime, outputWarn, outputWarnByTime } from "./outputUtils";
 import { escapeRegExp } from "./regexUtils";
 import { runCommandInTerminal, sendCommandToTerminal } from './runCommandUtils';
 import { DefaultTerminalType, IsLinuxTerminalOnWindows, getTerminalInitialPath, getTerminalNameOrShellExeName, getTerminalShellExePath, isLinuxTerminalOnWindows, isPowerShellTerminal, isWindowsTerminalOnWindows, toStoragePath, toTerminalPath, toTerminalPathsText } from './terminalUtils';
 import { getSetToolEnvCommand, getToolExportFolder } from "./toolSource";
-import { getDefaultRootFolderName, getElapsedSecondsToNow, getPowerShellName, getRootFolder, getRootFolderName, getUniqueStringSetNoCase, isNullOrEmpty, isPowerShellCommand, quotePaths, replaceSearchTextHolder, replaceTextByRegex, runCommandGetOutput } from "./utils";
+import { getDefaultRootFolderName, getElapsedSecondsToNow, getPowerShellName, getRootFolder, getRootFolderName, getUniqueStringSetNoCase, isNullOrEmpty, isPowerShellCommand, quotePaths, replaceArgForLinuxCmdAlias, replaceArgForWindowsCmdAlias, replaceTextByRegex, runCommandGetOutput } from "./utils";
 import { FindJavaSpringReferenceByPowerShellAlias } from './wordReferenceUtils';
 import fs = require('fs');
 import os = require('os');
 import path = require('path');
-
 const CookCmdDocUrl = 'https://github.com/qualiu/vscode-msr/blob/master/README.md#command-shortcuts';
 
 // return ~/cmdAlias/ or ~/cmdAlias/cygwin/ or /tmp/
 function getCmdAliasSaveFolder(isMultipleScripts: boolean, isForProjectCmdAlias: boolean, terminalType: TerminalType, forceUseDefault = false): string {
   // avoid random folder in Darwin like: '/var/folders/7m/f0z72nfn3nn6_mnb_0000gn/T'
   const terminalTypeText = TerminalType[terminalType].toLowerCase()
-    .replace(/bash$/i, '');
+    .replace(/bash$/i, '')
+    .replace(/PowerShell$/i, 'cmd');
 
   const generalFolder = toStoragePath(forceUseDefault ? HomeFolder : getConfig().getCmdAliasScriptFolder());
   const parentFolder = isForProjectCmdAlias && !isMultipleScripts ? TempStorageFolder : path.join(generalFolder, 'cmdAlias');
@@ -103,168 +104,13 @@ function getShellExeAndTerminalType(terminal: vscode.Terminal | undefined, isNew
   }
 }
 
-let LastCookTime: Date = new Date();
-LastCookTime.setFullYear(LastCookTime.getFullYear() - 1);
-
-export function cookCmdShortcutsOrFile(
-  isFromMenu: boolean,
-  currentFilePath: string,
-  isForProjectCmdAlias: boolean,
-  writeToEachFile: boolean,
-  terminal: vscode.Terminal | undefined = undefined,
-  isNewlyCreated: boolean = false,
-  dumpOtherCmdAlias: boolean = false,
-  isSelfLoopCalling: boolean = false,
-  onlyCookFile: boolean = false) {
-  if (!RunCommandChecker.IsToolExists) {
-    return;
-  }
-
-  const defaultRootFolderName = getDefaultRootFolderName();
-  const trackBeginTime = new Date();
-  const elapseSeconds = getElapsedSecondsToNow(LastCookTime);
-  LastCookTime = new Date();
-
-  // 3 cookings of MSR-RUN-CMD: Init-terminal + Load-git-ignore + Tool downloaded.
-  const isTooCloseCooking = elapseSeconds <= 5 && !isFromMenu && !isNewlyCreated;
-
-  // TODO: Refactor to compose-alias + write-files + different-os-terminals
-  const isRunCmdTerminal = terminal !== undefined && terminal != null && terminal.name === RunCmdTerminalName;
-  const isNewlyCreatedRunCmdTerminal = isNewlyCreated && isRunCmdTerminal;
-  outputDebugByTime('Begin cooking command shortcuts for terminal ' + (terminal ? terminal.name : ''));
-  const [shellExe, terminalType] = isRunCmdTerminal && !isNewlyCreated && IsWindows
-    ? ['cmd.exe', TerminalType.CMD]
-    : getShellExeAndTerminalType(terminal, isNewlyCreated);
-  const shellExeName = path.basename(shellExe).replace(/\.exe$/i, ''); // Remove .exe for Linux bash on Windows.
-  const bashConfigFile = "~/." + (isNullOrEmpty(shellExeName) ? 'bash' : shellExeName).replace('wsl', 'bash') + "rc";
-  const shellExeFolder = path.dirname(shellExe);
-  const isWindowsTerminal = isWindowsTerminalOnWindows(terminalType);
-  const isLinuxTerminalOnWindows = IsWindows && !isWindowsTerminal;
-  const generalScriptFilesFolder = getCmdAliasSaveFolder(true, false, terminalType);
-  const generalAliasFolderForBash = toTerminalPath(generalScriptFilesFolder, terminalType);
-  const rootFolder = isRunCmdTerminal && !onlyCookFile ? DefaultRootFolder : getRootFolder(currentFilePath, isForProjectCmdAlias);
+function duplicateSearchFileCmdAlias(rootFolder: string, terminalType: TerminalType, cmdAliasMap: Map<string, string>, isForProjectCmdAlias: boolean) {
+  // Duplicate find-xxx to gfind-xxx for "git ls-file" & find-xxx; except find-nd / find-ndp
   const rootFolderName = getRootFolderName(rootFolder);
-  if (isPowerShellTerminal(terminalType) && MyConfig.canUseGoodGitIgnore(rootFolder)) {
-    const testScriptName = isWindowsTerminal && IsWindows ? 'gfind-all.cmd' : 'gfind-all';
-    const testPath = path.join(generalScriptFilesFolder, testScriptName);
-    if (!isSelfLoopCalling && !fs.existsSync(testPath)) {
-      cookCmdShortcutsOrFile(isFromMenu, currentFilePath, false, true, terminal, false, false, true);
-    }
-  }
-
-  const saveAliasFolder = getCmdAliasSaveFolder(false, isForProjectCmdAlias, terminalType);
-  if (isNullOrEmpty(rootFolderName)) { // && !terminal) {
-    isForProjectCmdAlias = false;
-  }
-
-  const singleScriptsSaveFolder = toStoragePath(generalScriptFilesFolder);
-  const singleScriptsFolderForTerminal = toTerminalPath(singleScriptsSaveFolder, terminalType);
-
-  const [cmdAliasMap, oldCmdCount, _commands] = getCommandAliasMap(terminalType, rootFolder, isForProjectCmdAlias, writeToEachFile, dumpOtherCmdAlias);
-  const cmdAliasFileNameForDefault = 'msr-cmd-alias' + (isWindowsTerminal ? '.doskeys' : '.bashrc');
-  const cmdAliasFileNameForProject = defaultRootFolderName.replace(TrimProjectNameRegex, '-') + '.' + cmdAliasFileNameForDefault; // keep same with use-this-alias
-  const tmpAliasStorageFolder = getCmdAliasSaveFolder(false, true, DefaultTerminalType);
-  const projectAliasFilePath = toStoragePath(path.join(tmpAliasStorageFolder, cmdAliasFileNameForProject));
-  const tipFileStoragePath = toStoragePath(path.join(tmpAliasStorageFolder, 'tip-guide')) + (isWindowsTerminal ? '.cmd' : ".sh");
-  const tipFileDisplayPath = toTerminalPath(tipFileStoragePath, terminalType);
-  const aliasFileName = isForProjectCmdAlias ? cmdAliasFileNameForProject : cmdAliasFileNameForDefault;
-  const cmdAliasFileStoragePath = toStoragePath(path.join(saveAliasFolder, aliasFileName));
-  const defaultCmdAliasFileStoragePath = getGeneralCmdAliasFilePath(terminalType);
-  const defaultCmdAliasFileForTerminal = toTerminalPath(defaultCmdAliasFileStoragePath, terminalType);
-  const quotedDefaultAliasFileForTerminal = quotePaths(defaultCmdAliasFileForTerminal);
-  const quotedCmdAliasFileForTerminal = quotePaths(toTerminalPath(cmdAliasFileStoragePath, terminalType));
-  const initBashAliasCmd = `source ${bashConfigFile}; source ${quotedCmdAliasFileForTerminal}; chmod +x ${generalAliasFolderForBash}/*`;
-  const slashQuotedDefaultCmdAliasFile = defaultCmdAliasFileForTerminal.includes(' ')
-    ? '\\"' + defaultCmdAliasFileForTerminal + '\\"'
-    : defaultCmdAliasFileForTerminal;
-
-  let toolToOpen = 'code';
-  if (isWindowsTerminal) {
-    const aliasBody = 'doskey /macros 2>&1 | msr -PI -t "^(%1)"';
-    const existingOpenDoskey = cmdAliasMap.get('open-alias') as string || '';
-    const matchTool = /=(\w+\S+|"\w+.*?")/.exec(existingOpenDoskey);
-    toolToOpen = isNullOrEmpty(existingOpenDoskey) || !matchTool ? 'code' : matchTool[1];
-    cmdAliasMap.set('alias', getCommandAliasText('alias', aliasBody, false, TerminalType.CMD, writeToEachFile));
-
-    cmdAliasMap.set('malias', getCommandAliasText('malias', aliasBody, false, TerminalType.CMD, writeToEachFile));
-  } else if (!isWindowsTerminal) {
-    cmdAliasMap.set('malias', getCommandAliasText('malias', 'alias | msr -PI -t "^(?:alias\\s+)?($1)"', true, TerminalType.WslBash, writeToEachFile));
-  }
-
-  function addOpenUpdateCmdAlias(aliasFilePath: string, updateName: string = 'update-alias', openName: string = 'open-alias') {
-    const updateDoskeyText = isWindowsTerminal
-      ? (writeToEachFile ? `doskey /MACROFILE=${aliasFilePath}` : `${updateName}=doskey /MACROFILE=${aliasFilePath}`)
-      : (writeToEachFile ? `source ${aliasFilePath}` : `alias ${updateName}='source ${aliasFilePath}'`);
-
-    const openDoskeyText = isWindowsTerminal
-      ? (writeToEachFile ? `${toolToOpen} ${aliasFilePath}` : `${openName}=${toolToOpen} ${aliasFilePath}`)
-      : (writeToEachFile ? `${toolToOpen} ${aliasFilePath}` : `alias ${openName}='${toolToOpen} ${aliasFilePath}'`);
-
-    cmdAliasMap.set(updateName, updateDoskeyText);
-    cmdAliasMap.set(openName, openDoskeyText);
-  }
-
-  addOpenUpdateCmdAlias(quotedDefaultAliasFileForTerminal, 'update-alias', 'open-alias');
-
-  const tmpAliasFolderForTerminal = toTerminalPath(getCmdAliasSaveFolder(false, true, terminalType), terminalType);
-  const linuxTmpFolder = isLinuxTerminalOnWindows
-    ? tmpAliasFolderForTerminal //toTerminalPath(TempStorageFolder, terminalType)
-    : '/tmp';
-  const useThisAliasBody = isWindowsTerminal
-    ? String.raw`for /f "tokens=*" %a in ('git rev-parse --show-toplevel 2^>nul ^|^| echo "%CD%"') do for /f "tokens=*" %b in ('msr -z "%a" -t ".*?([^\\/]+?)\s*$" -o "\1" -aPAC ^| msr -t "${TrimProjectNameRegex.source}" -o "-" -aPAC') do echo doskey /MACROFILE="%tmp%\%b.msr-cmd-alias.doskeys" | msr -XM`
-    : String.raw`thisFile=${linuxTmpFolder}/$(echo $(git rev-parse --show-toplevel 2>/dev/null || echo "$PWD") | msr -t ".*?([^/]+?)\s*$" -o "\1" -aPAC | msr -t "${TrimProjectNameRegex.source}" -o "-" -aPAC).msr-cmd-alias.bashrc; echo source $thisFile; source $thisFile;`;
-
-  const useThisAliasCmdBody = getCommandAliasText('use-this-alias', useThisAliasBody, true, terminalType, true, true);
-  // For CMD terminal + Cygwin/MinGW terminal
-  if (createDirectory(singleScriptsSaveFolder) && writeOneAliasToFile('use-this-alias', useThisAliasCmdBody, true)) {
-    if (!IsWindows) {
-      runCommandGetOutput(`chmod +x ${singleScriptsSaveFolder}/*`);
-    }
-  }
-
-  const openThisAliasBody = useThisAliasBody.replace(/doskey\W+MACROFILE=|source (?<=\$thisFile)/g, 'code ');
-  cmdAliasMap.set('use-this-alias', getCommandAliasText('use-this-alias', useThisAliasBody, isWindowsTerminal, terminalType, writeToEachFile, isWindowsTerminal));
-  cmdAliasMap.set('open-this-alias', getCommandAliasText('open-this-alias', openThisAliasBody, true, terminalType, writeToEachFile, true));
-  if (isForProjectCmdAlias && !isNullOrEmpty(rootFolderName)) {
-    const tmpName = rootFolderName.replace(TrimProjectNameRegex, '-').toLowerCase();
-    addOpenUpdateCmdAlias(quotedCmdAliasFileForTerminal, 'update-' + tmpName + '-alias', 'open-' + tmpName + '-alias');
-  }
-
-  // list-alias + use-alias
-  const tmpBody = 'msr -l --wt --sz -p ' + quotePaths(tmpAliasFolderForTerminal) + ' -f "' + cmdAliasFileNameForDefault + '$" $*';
-  cmdAliasMap.set('list-alias', getCommandAliasText('list-alias', tmpBody, true, terminalType, false, false));
-  const useBody = isWindowsTerminal ? 'doskey /MACROFILE=$1' : 'source $1';
-  cmdAliasMap.set('use-alias', getCommandAliasText('use-alias', useBody, true, terminalType, false, false));
-
-  [FindCommandType.FindTopFolder, FindCommandType.FindTopType, FindCommandType.FindTopSourceFolder, FindCommandType.FindTopSourceType, FindCommandType.FindTopCodeFolder, FindCommandType.FindTopCodeType].forEach(findTopCmd => {
-    const findTopBody = getFindTopDistributionCommand(false, isForProjectCmdAlias, true, findTopCmd, rootFolder);
-    let aliasName = replaceTextByRegex(FindCommandType[findTopCmd], /([a-z])([A-Z])/g, '$1-$2');
-    aliasName = replaceTextByRegex(aliasName, /^-|-$/g, '').toLowerCase();
-    cmdAliasMap.set(aliasName, getCommandAliasText(aliasName, findTopBody, false, terminalType, writeToEachFile, false, false));
-  });
-
-  [FindCommandType.SortBySize, FindCommandType.SortByTime, FindCommandType.SortSourceBySize, FindCommandType.SortSourceByTime, FindCommandType.SortCodeBySize, FindCommandType.SortCodeByTime].forEach(sortCmd => {
-    const sortBody = getSortCommandText(false, isForProjectCmdAlias, true, sortCmd, rootFolder, true);
-    let aliasName = replaceTextByRegex(FindCommandType[sortCmd], /([a-z])([A-Z])/g, '$1-$2');
-    aliasName = replaceTextByRegex(aliasName, /^-|-$/g, '').toLowerCase();
-    cmdAliasMap.set(aliasName, getCommandAliasText(aliasName, sortBody, false, terminalType, writeToEachFile, false, false));
-  });
-
-  const useFullPathsBody = getPathCmdAliasBody(true, cmdAliasFileStoragePath, false);
-  cmdAliasMap.set('use-fp', getCommandAliasText('use-fp', useFullPathsBody, false, terminalType, writeToEachFile, false, false));
-  const searchRelativePathsBody = getPathCmdAliasBody(false, cmdAliasFileStoragePath, false);
-  cmdAliasMap.set('use-rp', getCommandAliasText('use-rp', searchRelativePathsBody, false, terminalType, writeToEachFile, false, false));
-
-  const outFullPathsBody = getPathCmdAliasBody(true, cmdAliasFileStoragePath, true, true);
-  cmdAliasMap.set('out-fp', getCommandAliasText('out-fp', outFullPathsBody, false, terminalType, writeToEachFile, false, false));
-  const outRelativePathsBody = getPathCmdAliasBody(false, cmdAliasFileStoragePath, true, false);
-  cmdAliasMap.set('out-rp', getCommandAliasText('out-rp', outRelativePathsBody, false, terminalType, writeToEachFile, false, false));
-
   const tmpFileName = isForProjectCmdAlias
     ? 'tmp-list-' + (rootFolderName + '-' + path.basename(path.dirname(rootFolder))).replace(TrimProjectNameRegex, '-')
     : 'tmp-git-file-list';
-
-  // Duplicate find-xxx to gfind-xxx for "git ls-file" & find-xxx; except find-nd / find-ndp
+  const isWindowsTerminal = isWindowsTerminalOnWindows(terminalType);
   const powerShellCmdHead = getPowerShellName(terminalType) + ' -Command';
   const sortedCmdKeys = Array.from(cmdAliasMap.keys()).sort();
   sortedCmdKeys.forEach(key => {
@@ -308,11 +154,181 @@ export function cookCmdShortcutsOrFile(
       cmdAliasMap.set('g' + key, newCommand);
     }
   });
+}
+
+let LastCookTime: Date = new Date();
+LastCookTime.setFullYear(LastCookTime.getFullYear() - 1);
+
+export function cookCmdShortcutsOrFile(
+  isFromMenu: boolean,
+  currentFilePath: string,
+  isForProjectCmdAlias: boolean,
+  writeToEachFile: boolean,
+  terminal: vscode.Terminal | undefined = undefined,
+  isNewlyCreated: boolean = false,
+  dumpOtherCmdAlias: boolean = false,
+  isSelfLoopCalling: boolean = false,
+  onlyCookFile: boolean = false,
+  isGitIgnoreCompleted: boolean = false) {
+  if (!RunCommandChecker.IsToolExists) {
+    return;
+  }
+
+  const defaultRootFolderName = getDefaultRootFolderName();
+  const trackBeginTime = new Date();
+  const elapseSeconds = getElapsedSecondsToNow(LastCookTime);
+  LastCookTime = new Date();
+
+  // 3 cookings of MSR-RUN-CMD: Init-terminal + Load-git-ignore + Tool downloaded.
+  const isTooCloseCooking = elapseSeconds <= 5 && !isFromMenu && !isNewlyCreated;
+
+  // TODO: Refactor to compose-alias + write-files + different-os-terminals
+  const isRunCmdTerminal = terminal !== undefined && terminal != null && terminal.name === RunCmdTerminalName;
+  const isNewlyCreatedRunCmdTerminal = isNewlyCreated && isRunCmdTerminal;
+  outputDebugByTime('Begin cooking command shortcuts for terminal ' + (terminal ? terminal.name : ''));
+  const [shellExe, terminalType] = isRunCmdTerminal && !isNewlyCreated && IsWindows
+    ? ['cmd.exe', TerminalType.CMD]
+    : getShellExeAndTerminalType(terminal, isNewlyCreated);
+  const shellExeName = path.basename(shellExe).replace(/\.exe$/i, ''); // Remove .exe for Linux bash on Windows.
+  const bashConfigFile = "~/." + (isNullOrEmpty(shellExeName) ? 'bash' : shellExeName).replace('wsl', 'bash') + "rc";
+  const shellExeFolder = path.dirname(shellExe);
+  const isWindowsTerminal = isWindowsTerminalOnWindows(terminalType);
+  const isLinuxTerminalOnWindows = IsWindows && !isWindowsTerminal;
+  const generalScriptFilesFolder = getCmdAliasSaveFolder(true, false, terminalType);
+  const generalAliasFolderForBash = toTerminalPath(generalScriptFilesFolder, terminalType);
+  const rootFolder = isRunCmdTerminal && !onlyCookFile ? DefaultRootFolder : getRootFolder(currentFilePath, isForProjectCmdAlias);
+  const rootFolderName = getRootFolderName(rootFolder);
+  if (isPowerShellTerminal(terminalType) && MyConfig.canUseGoodGitIgnore(rootFolder)) {
+    const testScriptName = isWindowsTerminal && IsWindows ? 'gfind-all.cmd' : 'gfind-all';
+    const testPath = path.join(generalScriptFilesFolder, testScriptName);
+    if (!isSelfLoopCalling && !fs.existsSync(testPath)) {
+      cookCmdShortcutsOrFile(isFromMenu, currentFilePath, false, true, terminal, false, false, true);
+    }
+  }
+
+  const saveAliasFolder = getCmdAliasSaveFolder(false, isForProjectCmdAlias, terminalType);
+  if (isNullOrEmpty(rootFolderName)) { // && !terminal) {
+    isForProjectCmdAlias = false;
+  }
+
+  const singleScriptsSaveFolder = toStoragePath(generalScriptFilesFolder);
+  const singleScriptsFolderForTerminal = toTerminalPath(singleScriptsSaveFolder, terminalType);
+  const cmdAliasFileNameForDefault = 'msr-cmd-alias' + (isWindowsTerminal ? '.doskeys' : '.bashrc');
+  const cmdAliasFileNameForProject = defaultRootFolderName.replace(TrimProjectNameRegex, '-') + '.' + cmdAliasFileNameForDefault; // keep same with use-this-alias
+  const tmpAliasStorageFolder = getCmdAliasSaveFolder(false, true, DefaultTerminalType);
+  const projectAliasFilePath = toStoragePath(path.join(tmpAliasStorageFolder, cmdAliasFileNameForProject));
+  const tipFileStoragePath = toStoragePath(path.join(tmpAliasStorageFolder, 'tip-guide')) + (isWindowsTerminal ? '.cmd' : ".sh");
+  const tipFileDisplayPath = toTerminalPath(tipFileStoragePath, terminalType);
+  const aliasFileName = isForProjectCmdAlias ? cmdAliasFileNameForProject : cmdAliasFileNameForDefault;
+  const cmdAliasFileStoragePath = toStoragePath(path.join(saveAliasFolder, aliasFileName));
+  const defaultCmdAliasFileStoragePath = getGeneralCmdAliasFilePath(terminalType);
+  const defaultCmdAliasFileForTerminal = toTerminalPath(defaultCmdAliasFileStoragePath, terminalType);
+  const quotedDefaultAliasFileForTerminal = quotePaths(defaultCmdAliasFileForTerminal);
+  const quotedCmdAliasFileForTerminal = quotePaths(toTerminalPath(cmdAliasFileStoragePath, terminalType));
+  const initBashAliasCmd = `source ${bashConfigFile}; source ${quotedCmdAliasFileForTerminal}; chmod +x ${generalAliasFolderForBash}/*`;
+  const slashQuotedDefaultCmdAliasFile = defaultCmdAliasFileForTerminal.includes(' ')
+    ? '\\"' + defaultCmdAliasFileForTerminal + '\\"'
+    : defaultCmdAliasFileForTerminal;
+
+  const [cmdAliasMap, aliasCountFromFile, _commands] = getCommandAliasMap(terminalType, rootFolder, isForProjectCmdAlias, writeToEachFile, dumpOtherCmdAlias);
+  let toolToOpen = 'code';
+  if (isWindowsTerminal) {
+    const aliasBody = 'doskey /macros 2>&1 | msr -PI -t "^(%1)"';
+    const existingOpenDoskey = cmdAliasMap.get('open-alias') as string || '';
+    const matchTool = /=(\w+\S+|"\w+.*?")/.exec(existingOpenDoskey);
+    toolToOpen = isNullOrEmpty(existingOpenDoskey) || !matchTool ? 'code' : matchTool[1];
+    cmdAliasMap.set('alias', getCommandAliasText('alias', aliasBody, false, TerminalType.CMD, writeToEachFile));
+    cmdAliasMap.set('malias', getCommandAliasText('malias', aliasBody, false, TerminalType.CMD, writeToEachFile));
+  } else if (!isWindowsTerminal) {
+    cmdAliasMap.set('malias', getCommandAliasText('malias', 'alias | msr -PI -t "^(?:alias\\s+)?($1)"', true, TerminalType.WslBash, writeToEachFile));
+  }
+
+  function addOpenUpdateCmdAlias(aliasFilePath: string, updateName: string = 'update-alias', openName: string = 'open-alias') {
+    const updateDoskeyText = isWindowsTerminal
+      ? (writeToEachFile ? `doskey /MACROFILE=${aliasFilePath}` : `${updateName}=doskey /MACROFILE=${aliasFilePath}`)
+      : (writeToEachFile ? `source ${aliasFilePath}` : `alias ${updateName}='source ${aliasFilePath}'`);
+
+    const openDoskeyText = isWindowsTerminal
+      ? (writeToEachFile ? `${toolToOpen} ${aliasFilePath}` : `${openName}=${toolToOpen} ${aliasFilePath}`)
+      : (writeToEachFile ? `${toolToOpen} ${aliasFilePath}` : `alias ${openName}='${toolToOpen} ${aliasFilePath}'`);
+
+    cmdAliasMap.set(updateName, updateDoskeyText);
+    cmdAliasMap.set(openName, openDoskeyText);
+  }
+
+  addOpenUpdateCmdAlias(quotedDefaultAliasFileForTerminal, 'update-alias', 'open-alias');
+
+  const tmpAliasFolderForTerminal = toTerminalPath(getCmdAliasSaveFolder(false, true, terminalType), terminalType);
+  const linuxTmpFolder = isLinuxTerminalOnWindows
+    ? tmpAliasFolderForTerminal //toTerminalPath(TempStorageFolder, terminalType)
+    : '/tmp';
+  const useThisAliasBody = isWindowsTerminal
+    ? String.raw`for /f "tokens=*" %a in ('git rev-parse --show-toplevel 2^>nul ^|^| echo "%CD%"') do for /f "tokens=*" %b in ('msr -z "%a" -t ".*?([^\\/]+?)\s*$" -o "\1" -aPAC ^| msr -t "${TrimProjectNameRegex.source}" -o "-" -aPAC') do echo doskey /MACROFILE="%tmp%\%b.msr-cmd-alias.doskeys" | msr -XM`
+    : String.raw`thisFile=${linuxTmpFolder}/$(echo $(git rev-parse --show-toplevel 2>/dev/null || echo "$PWD") | msr -t ".*?([^/]+?)\s*$" -o "\1" -aPAC | msr -t "${TrimProjectNameRegex.source}" -o "-" -aPAC).msr-cmd-alias.bashrc; echo source $thisFile; source $thisFile;`;
+  cmdAliasMap.set('use-this-alias', getCommandAliasText('use-this-alias', useThisAliasBody, true, terminalType, false, true));
+
+  if (createDirectory(singleScriptsSaveFolder)) {
+    ['use-this-alias', 'add-user-path', 'reload-env', 'reset-env'].forEach(name => {
+      const fullBody = cmdAliasMap.get(name) as string;
+      if (!isNullOrEmpty(fullBody)) {
+        const body = fullBody.replace(new RegExp(`^${name}=`), '');
+        const useFunction = name === 'use-this-alias' || name === 'add-user-path';
+        const text = getCommandAliasText(name, body, useFunction, terminalType, true, false);
+        writeOneAliasToFile(name, text, true);
+      }
+    });
+
+    if (!IsWindows) {
+      runCommandGetOutput(`chmod +x ${singleScriptsSaveFolder}/*`);
+    }
+  }
+
+  const openThisAliasBody = useThisAliasBody.replace(/doskey\W+MACROFILE=|source (?<=\$thisFile)/g, 'code ');
+  cmdAliasMap.set('use-this-alias', getCommandAliasText('use-this-alias', useThisAliasBody, isWindowsTerminal, terminalType, writeToEachFile, isWindowsTerminal));
+  cmdAliasMap.set('open-this-alias', getCommandAliasText('open-this-alias', openThisAliasBody, true, terminalType, writeToEachFile, true));
+  if (isForProjectCmdAlias && !isNullOrEmpty(rootFolderName)) {
+    const tmpName = rootFolderName.replace(TrimProjectNameRegex, '-').toLowerCase();
+    addOpenUpdateCmdAlias(quotedCmdAliasFileForTerminal, 'update-' + tmpName + '-alias', 'open-' + tmpName + '-alias');
+  }
+
+  // list-alias + use-alias
+  const tmpBody = 'msr -l --wt --sz -p ' + quotePaths(tmpAliasFolderForTerminal) + ' -f "' + cmdAliasFileNameForDefault + '$" $*';
+  cmdAliasMap.set('list-alias', getCommandAliasText('list-alias', tmpBody, true, terminalType, false, false));
+  const useBody = isWindowsTerminal ? 'doskey /MACROFILE=$1' : 'source $1';
+  cmdAliasMap.set('use-alias', getCommandAliasText('use-alias', useBody, true, terminalType, false, false));
+
+  [FindCommandType.FindTopFolder, FindCommandType.FindTopType, FindCommandType.FindTopSourceFolder, FindCommandType.FindTopSourceType, FindCommandType.FindTopCodeFolder, FindCommandType.FindTopCodeType].forEach(findTopCmd => {
+    const findTopBody = getFindTopDistributionCommand(false, isForProjectCmdAlias, true, findTopCmd, rootFolder);
+    let aliasName = replaceTextByRegex(FindCommandType[findTopCmd], /([a-z])([A-Z])/g, '$1-$2');
+    aliasName = replaceTextByRegex(aliasName, /^-|-$/g, '').toLowerCase();
+    cmdAliasMap.set(aliasName, getCommandAliasText(aliasName, findTopBody, false, terminalType, writeToEachFile, false, false));
+  });
+
+  [FindCommandType.SortBySize, FindCommandType.SortByTime, FindCommandType.SortSourceBySize, FindCommandType.SortSourceByTime, FindCommandType.SortCodeBySize, FindCommandType.SortCodeByTime].forEach(sortCmd => {
+    const sortBody = getSortCommandText(false, isForProjectCmdAlias, true, sortCmd, rootFolder, true);
+    let aliasName = replaceTextByRegex(FindCommandType[sortCmd], /([a-z])([A-Z])/g, '$1-$2');
+    aliasName = replaceTextByRegex(aliasName, /^-|-$/g, '').toLowerCase();
+    cmdAliasMap.set(aliasName, getCommandAliasText(aliasName, sortBody, false, terminalType, writeToEachFile, false, false));
+  });
+
+  const useFullPathsBody = getPathCmdAliasBody(true, cmdAliasFileStoragePath, false);
+  cmdAliasMap.set('use-fp', getCommandAliasText('use-fp', useFullPathsBody, false, terminalType, writeToEachFile, false, false));
+  const searchRelativePathsBody = getPathCmdAliasBody(false, cmdAliasFileStoragePath, false);
+  cmdAliasMap.set('use-rp', getCommandAliasText('use-rp', searchRelativePathsBody, false, terminalType, writeToEachFile, false, false));
+
+  const outFullPathsBody = getPathCmdAliasBody(true, cmdAliasFileStoragePath, true, true);
+  cmdAliasMap.set('out-fp', getCommandAliasText('out-fp', outFullPathsBody, false, terminalType, writeToEachFile, false, false));
+  const outRelativePathsBody = getPathCmdAliasBody(false, cmdAliasFileStoragePath, true, false);
+  cmdAliasMap.set('out-rp', getCommandAliasText('out-rp', outRelativePathsBody, false, terminalType, writeToEachFile, false, false));
+
+  duplicateSearchFileCmdAlias(rootFolder, terminalType, cmdAliasMap, isForProjectCmdAlias);
 
   const skipWritingScriptNames = new Set<string>(['use-fp', 'use-rp', 'out-rp', 'out-fp', 'alias']);
   const canWriteScripts = writeToEachFile && createDirectory(singleScriptsSaveFolder);
   let allCmdAliasText = ''; // writeToEachFile || isWindowsTerminal || !isForProjectCmdAlias ? '' : 'source /etc/profile; source ~/.bashrc' + '\n\n';
   let writeScriptFailureCount = 0;
+  const isOnlyCookingGeneralCmdAlias = !isForProjectCmdAlias && isSelfLoopCalling && onlyCookFile;
+  const isDumpingGeneralAliasFromMenu = isFromMenu && !isForProjectCmdAlias && dumpOtherCmdAlias;
   const sortedKeys = Array.from(cmdAliasMap.keys()).sort();
   sortedKeys.forEach(key => {
     let scriptContent = cmdAliasMap.get(key) || '';
@@ -354,50 +370,54 @@ export function cookCmdShortcutsOrFile(
       outputInfoQuietByTime('Successfully made ' + cmdAliasMap.size + ' command alias/doskey script files and saved in: ' + singleScriptsSaveFolder);
     }
   } else {
-    const existedText = readTextFile(cmdAliasFileStoragePath);
-    const hasChanged = allCmdAliasText !== existedText;
-    if (hasChanged) {
-      if (!isNullOrEmpty(existedText) && terminal && !MyConfig.OverwriteProjectCmdAliasForNewTerminals) {
-        outputDebugByTime(`Found msr.overwriteProjectCmdAliasForNewTerminals = false, Skip writing temp command shortcuts file: ${cmdAliasFileStoragePath}`);
-      } else {
-        if (!saveTextToFile(cmdAliasFileStoragePath, allCmdAliasText, 'command alias file')) {
+    if (isOnlyCookingGeneralCmdAlias || isDumpingGeneralAliasFromMenu) {
+      saveTextToFile(defaultCmdAliasFileStoragePath, allCmdAliasText, 'command alias file');
+    }
+
+    const expectedCount = cmdAliasMap.size - (isForProjectCmdAlias ? 2 : 0); // open/update project alias
+    if (aliasCountFromFile < expectedCount && !isSelfLoopCalling) {
+      cookCmdShortcutsOrFile(false, currentFilePath, false, false, terminal, false, false, true, true);
+    }
+
+    if (!onlyCookFile) {
+      if (isForProjectCmdAlias && !writeToEachFile) {
+        const allTmpCmdAliasText = readTextFile(projectAliasFilePath);
+        if (allTmpCmdAliasText !== allCmdAliasText) {
+          saveTextToFile(projectAliasFilePath, allCmdAliasText, 'tmp project alias file');
+          //const gitIgnore = getGitIgnore(rootFolder)
+          if (isRunCmdTerminal && isGitIgnoreCompleted) {
+            runCmdInTerminal('doskey /MACROFILE=' + quotedCmdAliasFileForTerminal);
+          }
+        }
+      }
+
+      if (terminal && isWindowsTerminal) {
+        if (TerminalType.CMD !== terminalType && TerminalType.PowerShell !== terminalType) {
+          outputErrorByTime('Not supported terminal: ' + terminal.name + ', shellExe = ' + shellExe);
+          runCmdInTerminal('echo Not supported terminal: ' + terminal.name + ', shellExe = ' + shellExe);
+          // fs.unlinkSync(cmdAliasFile);
           return;
         }
-      }
-    }
 
-    if (!terminal || (isRunCmdTerminal && MyConfig.IsDebug)) {
-      outputCmdAliasGuide(terminal ? getGeneralCmdAliasFilePath(terminalType) : cmdAliasFileStoragePath, '');
-      const existingInfo = isWindowsTerminal ? ' (merged existing = ' + oldCmdCount + ')' : '';
-      outputInfoQuietByTime((hasChanged ? 'Successfully made ' : 'Already has same ') + cmdAliasMap.size + existingInfo + ' command alias/doskey file at: ' + cmdAliasFileStoragePath);
-      outputInfoQuietByTime('To more freely use them (like in scripts or nested command line pipe): Press `F1` search `msr Cook` and choose cooking script files. (You can make menu `msr.cookCmdAliasFiles` visible).');
-    }
-
-    if (defaultCmdAliasFileStoragePath !== cmdAliasFileStoragePath && !fs.existsSync(defaultCmdAliasFileStoragePath)) {
-      fs.copyFileSync(cmdAliasFileStoragePath, defaultCmdAliasFileStoragePath);
-    }
-
-    if (onlyCookFile) {
-      return;
-    }
-
-    if (terminal && isWindowsTerminal) {
-      if (TerminalType.CMD !== terminalType && TerminalType.PowerShell !== terminalType) {
-        outputErrorByTime('Not supported terminal: ' + terminal.name + ', shellExe = ' + shellExe);
-        runCmdInTerminal('echo Not supported terminal: ' + terminal.name + ', shellExe = ' + shellExe);
-        // fs.unlinkSync(cmdAliasFile);
-        return;
-      }
-
-      // Powershell PSReadLine module is not compatible with doskey
-      if (TerminalType.PowerShell === terminalType && isNewlyCreatedRunCmdTerminal) {
-        runCmdInTerminal(getSetToolEnvCommand(TerminalType.PowerShell, [generalScriptFilesFolder]), true);
-        // workaround for unknown shell case on Windows when reloading/reusing MSR-RUN-CMD terminal.
-        if (isRunCmdTerminal) {
-          runCmdInTerminal(getSetToolEnvCommand(TerminalType.CMD, [generalScriptFilesFolder]), true);
+        // Powershell PSReadLine module is not compatible with doskey
+        if (TerminalType.PowerShell === terminalType && isNewlyCreatedRunCmdTerminal) {
+          runCmdInTerminal(getSetToolEnvCommand(TerminalType.PowerShell, [generalScriptFilesFolder]), true);
+          // workaround for unknown shell case on Windows when reloading/reusing MSR-RUN-CMD terminal.
+          if (isRunCmdTerminal) {
+            runCmdInTerminal(getSetToolEnvCommand(TerminalType.CMD, [generalScriptFilesFolder]), true);
+          }
         }
       }
     }
+  }
+
+  if (isWindowsTerminal && isRunCmdTerminal && (isFromMenu || isOnlyCookingGeneralCmdAlias)) {
+    const regCmd = 'REG ADD "HKEY_CURRENT_USER\\Software\\Microsoft\\Command Processor" /v Autorun /d "DOSKEY /MACROFILE=' + slashQuotedDefaultCmdAliasFile + '" /f';
+    runCmdInTerminal(regCmd, true);
+  }
+
+  if (onlyCookFile) {
+    return;
   }
 
   // TO-DO simplify checking tool path: Add tool folder + cmdAlias folder without checking.
@@ -408,9 +428,10 @@ export function cookCmdShortcutsOrFile(
       runCmdInTerminal('doskey /MACROFILE=' + quotedCmdAliasFileForTerminal); // init alias for CMD
     }
 
-    if (isFromMenu) {
-      const regCmd = 'REG ADD "HKEY_CURRENT_USER\\Software\\Microsoft\\Command Processor" /v Autorun /d "DOSKEY /MACROFILE=' + slashQuotedDefaultCmdAliasFile + '" /f';
-      runCmdInTerminal(regCmd, true);
+    if (isRunCmdTerminal && !isTooCloseCooking) {
+      const toolFolder = getToolExportFolder(TerminalType.CMD);
+      const foldersToAdd = [generalScriptFilesFolder, toolFolder].join(';').trimRight();
+      runCmdInTerminal(`add-user-path "${foldersToAdd}"`, true);  // where /q add-user-path.cmd ||
     }
   } else {
     if (isNewlyCreated) {
@@ -715,12 +736,14 @@ function getCommandAliasMap(
   }
 
   const findTypes = ['definition', 'reference'];
-
-  let cmdAliasMap = (writeToEachFile && !dumpOtherCmdAlias)
-    ? new Map<string, string>()
-    : getExistingCmdAlias(terminalType, writeToEachFile);
-
-  const oldCmdCount = cmdAliasMap.size;
+  let aliasCountFromFile = 0;
+  let cmdAliasMap: Map<string, string> = new Map();
+  if (writeToEachFile && !dumpOtherCmdAlias) {
+    cmdAliasMap = getCommonAliasMap(isWindowsTerminalOnWindows(terminalType), writeToEachFile);
+  } else {
+    cmdAliasMap = getExistingCmdAlias(terminalType, writeToEachFile);
+    aliasCountFromFile = cmdAliasMap.size;
+  }
 
   const gitIgnoreInfo = getGitIgnore(rootFolder);
   const skipFolderPatternForCmdAlias = gitIgnoreInfo.Valid && isForProjectCmdAlias
@@ -863,7 +886,7 @@ function getCommandAliasMap(
   commands.push(findMemberRefCmd);
 
   copyAliasForSpecialShortcuts();
-  return [cmdAliasMap, oldCmdCount, commands];
+  return [cmdAliasMap, aliasCountFromFile, commands];
 
   function addFindMemberReferenceCommand(aliasName: string, mappedExtension: string, oneRealExtension: string = '') {
     if (isNullOrEmpty(oneRealExtension)) {
@@ -933,78 +956,6 @@ function getCommandAliasMap(
   }
 }
 
-function getCommandAliasText(
-  cmdName: string,
-  cmdBody: string,
-  useFunction: boolean,
-  terminalType: TerminalType,
-  writeToEachFile: boolean,
-  addTailArgs: boolean = true,
-  hideCmdAddColor: boolean = true,
-  isPowerShellScript: boolean = false): string {
-  if (hideCmdAddColor) {
-    cmdBody = enableColorAndHideCommandLine(cmdBody);
-  }
-
-  const isWindowsTerminal = isWindowsTerminalOnWindows(terminalType);
-  const hasSearchTextHolder = isWindowsTerminal ? /%~?1/.test(cmdBody) : /\$1|%~?1/.test(cmdBody);
-  if (hasSearchTextHolder) {
-    cmdBody = replaceSearchTextHolder(cmdBody.trimRight(), '$1');
-  }
-
-  let tailArgs = "";
-  if (addTailArgs) {
-    if (hasSearchTextHolder) {
-      if (isPowerShellScript) { // only for find-spring-ref
-        tailArgs = isWindowsTerminal
-          ? ' $2 $3 $4 $5 $6 $7 $8 $9'
-          //: ' $2 $3 $4 $5 $6 $7 $8 $9'.replace(/\$(\d+)/g, "'\\$$$1'"); // good
-          : " '\\${@:2}'";
-      }
-      // For Windows must be: ' $2 $3 $4 $5 $6 $7 $8 $9', but msr can ignore duplicate $1, so this tricky way works fine, and avoid truncating long args.
-      else {
-        tailArgs = isWindowsTerminal ? ' $*' : ' "${@:2}"';
-      }
-    } else {
-      tailArgs = isWindowsTerminal ? ' $*' : ' "$@"';
-    }
-  }
-
-  return getCommandTextByNameAndBody(cmdName, cmdBody, tailArgs, useFunction, terminalType, writeToEachFile, isPowerShellScript);
-}
-
-function getCommandTextByNameAndBody(cmdName: string, cmdBody: string, tailArgs: string, useFunction: boolean, terminalType: TerminalType, writeToEachFile: boolean, isPowerShellScript: boolean = false) {
-  const powerShellCmdText = getPowerShellName(terminalType) + ' -Command "' + cmdBody + tailArgs + '"';
-  if (isWindowsTerminalOnWindows(terminalType)) {
-    if (writeToEachFile) {
-      return isPowerShellScript
-        ? powerShellCmdText.replace(/\$(\d+)\b/g, '%$1')
-        : replaceArgForWindowsCmdAlias('@' + cmdBody + tailArgs);
-    }
-
-    return isPowerShellScript
-      ? cmdName + '=' + powerShellCmdText
-      : cmdName + '=' + cmdBody + tailArgs;
-  }
-
-  const funBody = isPowerShellScript ? powerShellCmdText : cmdBody + tailArgs;
-  if (useFunction) {
-    const functionName = '_' + cmdName.replace(/-/g, '_');
-    if (writeToEachFile) {
-      return funBody;
-    }
-
-    return 'alias ' + cmdName + "='function " + functionName + '() {'
-      + '\n\t' + funBody
-      + '\n' + '}; ' + functionName + "'";
-  }
-
-  if (writeToEachFile) {
-    return funBody;
-  }
-  return 'alias ' + cmdName + "='" + funBody + "'";
-}
-
 function outputCmdAliasGuide(cmdAliasFile: string, singleScriptFolder: string = '') {
   if (singleScriptFolder.length > 0) {
     outputInfoQuietByTime('Add folder ' + singleScriptFolder + ' to PATH then you can directly call the script name everywhere in/out vscode to search/replace like:');
@@ -1062,23 +1013,51 @@ function addFullPathHideWarningOption(extraOption: string, writeToEachFile: bool
 }
 
 function getExistingCmdAlias(terminalType: TerminalType, forMultipleFiles: boolean): Map<string, string> {
-  var map = new Map<string, string>();
+  var cmdAliasMap = getCommonAliasMap(isWindowsTerminalOnWindows(terminalType), forMultipleFiles);
+  outputInfoByDebugModeByTime(`Built ${cmdAliasMap.size} common alias.`);
   const isWindowsTerminal = isWindowsTerminalOnWindows(terminalType);
   const defaultCmdAliasFile = getGeneralCmdAliasFilePath(terminalType);
   const defaultCmdAliasFileForTerminal = toTerminalPath(defaultCmdAliasFile, terminalType);
   const cmdAliasText = readTextFile(defaultCmdAliasFile);
   if (isNullOrEmpty(cmdAliasText)) {
     outputWarnByTime(`Not found or read empty file: ${defaultCmdAliasFileForTerminal}`);
-    return map;
+    return cmdAliasMap;
   }
-  return getCmdAliasMapFromText(cmdAliasText, map, forMultipleFiles, isWindowsTerminal);
+  const [inconsistentCount, newCount] = getCmdAliasMapFromText(cmdAliasText, cmdAliasMap, forMultipleFiles, isWindowsTerminal);
+  if (inconsistentCount > 0) {
+    outputWarnByTime(`Found ${inconsistentCount} inconsistent common alias, you can enable 'msr.overwriteInConsistentCommonAliasByExtension'`
+      + `, or delete them in file: ${defaultCmdAliasFileForTerminal}`);
+  }
+
+  // Skip checking and overwrite alias file if for multiple files - the alias body is different with default alias content.
+  if (forMultipleFiles) {
+    return cmdAliasMap;
+  }
+
+  if (newCount > 0) {
+    outputInfo(`Found ${newCount} new common alias, will save all ${cmdAliasMap.size} alias to file: ${defaultCmdAliasFileForTerminal}`);
+  }
+
+  if (newCount > 0 || (inconsistentCount > 0 && MyConfig.OverwriteInConsistentCommonAliasByExtension)) {
+    const sortedKeys = Array.from(cmdAliasMap.keys()).sort();
+    const newCmdAliasText = sortedKeys.map(key => cmdAliasMap.get(key)).join(isWindowsTerminal ? '\r\n\r\n' : '\n\n');
+    if (!saveTextToFile(defaultCmdAliasFile, newCmdAliasText)) {
+      outputErrorByTime(`Failed to save ${newCount} new alias to file: ${defaultCmdAliasFileForTerminal}`);
+    } else {
+      outputKeyInfoByTime(`Updated ${inconsistentCount} alias, added ${newCount} alias, see ${cmdAliasMap.size} alias in file: ${defaultCmdAliasFileForTerminal}`);
+    }
+  }
+
+  return cmdAliasMap;
 }
 
-function getCmdAliasMapFromText(cmdAliasText: string, map: Map<string, string>, forMultipleFiles: boolean, isWindowsTerminal: boolean) {
-  const lines = IsWindows ? cmdAliasText.split(/[\r\n]+/) : cmdAliasText.split(/(^|[\r\n])alias\s+/);
-  const reg = /^(\w+[\w\.-]+)=(.+)/s;
+function getCmdAliasMapFromText(cmdAliasText: string, map: Map<string, string>, forMultipleFiles: boolean, isWindowsTerminal: boolean): [number, number] {
+  const lines = isWindowsTerminal ? cmdAliasText.split(/[\r\n]+/) : cmdAliasText.split(/(^|[\r\n]+)alias\s+/);
+  const getNameBodyRegex = /^(\w+[\w\.-]+)=(.+)/s;
+  let remainCommonKeys = new Set<string>(map.keys());
+  let inconsistentCount = 0;
   lines.forEach(a => {
-    const match = reg.exec(a);
+    const match = getNameBodyRegex.exec(a);
     if (match) {
       const body = forMultipleFiles
         ? (isWindowsTerminal
@@ -1086,30 +1065,26 @@ function getCmdAliasMapFromText(cmdAliasText: string, map: Map<string, string>, 
           : replaceArgForLinuxCmdAlias(match[0])
         )
         : (isWindowsTerminal ? '' : 'alias ') + match[0].trim();
-      map.set(match[1], body);
+      const name = match[1];
+      if (remainCommonKeys.delete(name)) {
+        const bodyFromCommon = map.get(name);
+        if (bodyFromCommon !== body) {
+          inconsistentCount++;
+          if (MyConfig.OverwriteInConsistentCommonAliasByExtension) {
+            outputWarn(`Overwrite inconsistent common alias-${inconsistentCount}: ${name}`);
+            return;
+          }
+          outputWarn(`Found inconsistent common alias-${inconsistentCount}: ${name}`);
+        } else {
+          outputDebug(`Found same common alias: ${name}`);
+        }
+      }
+
+      map.set(name, body);
     }
   });
-
-  return map;
-}
-
-function replaceArgForLinuxCmdAlias(body: string): string {
-  // function or simple alias
-  const functionBody = body.replace(/^\s*\S+=['"]\s*function\s+[^\r\n]+[\r\n]+\s*(.+?)\}\s*;\s*\S+\s*['"]\s*$/s, '$1');
-  if (functionBody !== body) {
-    return functionBody.trim();
-  }
-
-  const aliasBody = body.replace(/^.*?=['"](.+)['"]\s*$/, '$1')
-    .replace(/^\S+=/, '');
-  return aliasBody.trim();
-}
-
-function replaceArgForWindowsCmdAlias(body: string): string {
-  body = replaceTextByRegex(body, /([\"'])\$1/g, '$1%~1');
-  body = replaceTextByRegex(body, /\$(\d+)/g, '%$1');
-  body = replaceTextByRegex(body, /\$\*/g, '%*');
-  return body.trim();
+  remainCommonKeys.forEach(key => outputInfo(`Found new common alias: ${key}`));
+  return [inconsistentCount, remainCommonKeys.size];
 }
 
 function replaceForLoopVariableTokens(cmd: string): string {

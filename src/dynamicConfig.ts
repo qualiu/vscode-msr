@@ -84,7 +84,7 @@ export function updateGitIgnoreUsage() {
             MyConfig.setGitIgnoreStatus(rootFolder, gitIgnore.ExemptionCount < 1);
             const [runCmdTerminal, isNewlyCreated] = getRunCmdTerminalWithInfo(false);
             if (!isNewlyCreated) {
-                cookCmdShortcutsOrFile(false, rootFolder, true, false, runCmdTerminal, false, false, false, onlyCookFile);
+                cookCmdShortcutsOrFile(false, rootFolder, true, false, runCmdTerminal, false, false, false, onlyCookFile, true);
             }
             gitIgnore.exportSkipPathVariable(); //true
             const autoCompare = getConfigValueOfActiveProject('autoCompareFileListsIfUsedGitIgnore') === 'true';
@@ -196,6 +196,7 @@ export class DynamicConfig {
     public RefreshTmpGitFileListDuration: string = '10m';
     public AutoUpdateSearchTool: boolean = false;
     public CheckLanguageProcessIntervalMinutes = 15;
+    public OverwriteInConsistentCommonAliasByExtension = false;
 
     private TmpToggleEnabledExtensionToValueMap = new Map<string, boolean>();
     private ProjectToGitIgnoreStatusMap = new Map<String, boolean>();
@@ -345,7 +346,7 @@ export class DynamicConfig {
         this.RefreshTmpGitFileListDuration = (getConfigValueOfActiveProject('refreshTmpGitFileListDuration', true) || '10m').replace(/\s+/g, '');
         this.AutoUpdateSearchTool = getConfigValueOfActiveProject('autoUpdateSearchTool') === 'true';
         this.CheckLanguageProcessIntervalMinutes = Math.max(5, Number(getConfigValueOfActiveProject('checkLanguageProcessIntervalMinutes') || '20'));
-
+        this.OverwriteInConsistentCommonAliasByExtension = getConfigValueOfActiveProject('overwriteInConsistentCommonAliasByExtension') === 'true';
         SearchConfig.reload();
 
         this.ExcludeFoldersFromSettings.clear();

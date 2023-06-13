@@ -2,6 +2,9 @@
 
 All notable changes to this "vscode-msr" extension will be documented in this file.
 
+## [2.1.62]
+- Removed tail args for common alias.
+
 ## [2.1.61]
 - Fixed cooking common alias to each script file.
 - Separated temp alias files for 4 types of terminals on Windows: CMD + MinGW + Cygwin + WSL.

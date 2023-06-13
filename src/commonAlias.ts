@@ -14,7 +14,7 @@ const LinuxAliasMap: Map<string, string> = new Map<string, string>()
   ;
 
 const CheckUseFunctionRegex = /\$\d\b| \$\*/;
-const CheckAddTailArgsRegex = /\s+\$\*|\s+\$\d+(\s+|$)/;
+const CheckExistingArgsRegex = /\$\*|\$\d+/;
 const TrimMultilineRegex = /[\r\n]+\s*/mg;
 const TrimPowerShellCmdWhiteRegex = /(PowerShell)( 2>nul)? (-Command ")\s+/g;
 const TrimForLoopWhite = /(%[a-zA-Z]\s+in\s+\(')\s+/g;
@@ -210,7 +210,7 @@ function getAliasBody(terminalType: TerminalType, name: string, body: string, wr
   }
 
   const useFunction = CheckUseFunctionRegex.test(body);
-  const addTailArgs = !CheckAddTailArgsRegex.test(body);
+  const addTailArgs = !CheckExistingArgsRegex.test(body);
   return getCommandAliasText(name, body, useFunction, terminalType, writeToEachFile, addTailArgs, false, false);
 }
 
@@ -341,6 +341,12 @@ export function getCommandAliasText(
   }
 
   let tailArgs = "";
+  if (addTailArgs) {
+    // Generally should not add tail args if found arg-holders by CheckExistingArgsRegex, but special case for find-xxx-def
+    addTailArgs = !CommonAliasMap.has(cmdName)
+      && (isWindowsTerminal ? !WindowsAliasMap.has(cmdName) : !LinuxAliasMap.has(cmdName));
+  }
+
   if (addTailArgs) {
     if (hasSearchTextHolder) {
       if (isPowerShellScript) { // only for find-spring-ref

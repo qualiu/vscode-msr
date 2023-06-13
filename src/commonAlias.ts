@@ -13,6 +13,8 @@ const LinuxAliasMap: Map<string, string> = new Map<string, string>()
       msr -XMI -z "git config --global --get-all safe.directory | msr -x $repoRootDir -P as final check"`)
   ;
 
+const CheckUseFunctionRegex = /\$\d\b| \$\*/;
+const CheckAddTailArgsRegex = /\s+\$\*|\s+\$\d+(\s+|$)/;
 const TrimMultilineRegex = /[\r\n]+\s*/mg;
 const TrimPowerShellCmdWhiteRegex = /(PowerShell)( 2>nul)? (-Command ")\s+/g;
 const TrimForLoopWhite = /(%[a-zA-Z]\s+in\s+\(')\s+/g;
@@ -96,7 +98,7 @@ function getReloadWindowsEnvCmd(skipPaths: string = '', addTmpPaths: string = ''
   [String]::Join(';', $valueSet)"') do @SET "PATH=%a"`;
 }
 
-function getReloadEnvCmd(forScriptFile: boolean): string {
+function getReloadEnvCmd(forScriptFile: boolean, name: string = 'reload-env'): string {
   const escapeCmdEqual = forScriptFile ? '=' : '^=';
   const cmdAlias = String.raw`for /f "tokens=*" %a in ('PowerShell -Command "
     $processEnvs = [System.Environment]::GetEnvironmentVariables([System.EnvironmentVariableTarget]::Process);
@@ -117,10 +119,11 @@ function getReloadEnvCmd(forScriptFile: boolean): string {
     foreach ($name in $nameValueMap.Keys) {
       'SET \"' + $name + '${escapeCmdEqual}' + $nameValueMap[$name] + '\"'
     }"') do @%a`;
-  return trimAliasBody(cmdAlias);
+  const body = trimAliasBody(cmdAlias);
+  return forScriptFile ? body : name + '=' + body;
 }
 
-function getResetEnvCmd(forScriptFile: boolean): string {
+function getResetEnvCmd(forScriptFile: boolean, name: string = 'reset-env'): string {
   const escapeCmdEqual = forScriptFile ? '=' : '^=';
   const knownEvnNames = "'" + ['ALLUSERSPROFILE', 'APPDATA', 'ChocolateyInstall', 'CommonProgramFiles', 'CommonProgramFiles(x86)', 'CommonProgramW6432'
     , 'COMPUTERNAME', 'ComSpec', 'DriverData', 'HOMEDRIVE', 'HOMEPATH', 'LOCALAPPDATA', 'LOGONSERVER', 'NugetMachineInstallRoot', 'NUMBER_OF_PROCESSORS'
@@ -157,7 +160,8 @@ function getResetEnvCmd(forScriptFile: boolean): string {
       'SET \"' + $name + '${escapeCmdEqual}' + $nameValueMap[$name] + '\"'
     }
     "') do @%a`;
-  return trimAliasBody(cmdAlias);
+  const body = trimAliasBody(cmdAlias);
+  return forScriptFile ? body : name + '=' + body;
 }
 
 function getAddPathValueCmd(envTarget: string): string {
@@ -199,11 +203,15 @@ function getRemovePathValueCmd(envTarget: string): string {
   return trimAliasBody(cmdAlias);
 }
 
-function getLinuxAliasText(name: string, body: string, writeToEachFile: boolean = false): string {
+function getAliasBody(terminalType: TerminalType, name: string, body: string, writeToEachFile: boolean): string {
   body = trimAliasBody(body);
-  body = body.replace(/ & /g, '; ');
-  const useFunction = /\$\d\b| \$\*/.test(body);
-  return getCommandAliasText(name, body, useFunction, TerminalType.LinuxBash, writeToEachFile, false, false, false);
+  if (!isWindowsTerminalOnWindows(terminalType)) {
+    body = body.replace(/ & /g, '; ');
+  }
+
+  const useFunction = CheckUseFunctionRegex.test(body);
+  const addTailArgs = !CheckAddTailArgsRegex.test(body);
+  return getCommandAliasText(name, body, useFunction, terminalType, writeToEachFile, addTailArgs, false, false);
 }
 
 const WindowsAliasMap: Map<string, string> = new Map<string, string>()
@@ -246,7 +254,7 @@ const WindowsAliasMap: Map<string, string> = new Map<string, string>()
   .set('docker-start', String.raw`for /f "tokens=*" %a in ('docker container ls -a ^| msr -it "^(\w+)\s+\S*($1).*" -o "\1" -PAC') do msr -XM -z "docker start %a"`)
   .set('docker-stop', String.raw`for /f "tokens=*" %a in ('docker container ls -a ^| msr -it "^(\w+)\s+\S*($1).*" -o "\1" -PAC') do msr -XM -z "docker stop %a"`)
   .set('docker-stop-all', String.raw`docker ps | msr --nt CONTAINER -t "^(\w+).*" -o "docker stop \1" -X`)
-  .set('grant-perm', String.raw`echo icacls $1 /grant %USERNAME%:F /T /Q $* | msr -XM`)
+  .set('grant-perm', String.raw`echo icacls $1 /grant %USERNAME%:F /T /Q | msr -XM`)
   .set('open-vsc', String.raw`code "%APPDATA%\Code\User\settings.json"`)
   .set('to-vscode-arg-lines', String.raw`PowerShell -Command "Set-Clipboard $(Get-Clipboard | msr -t '\s+' -o '\n' -aPAC | msr -t '(.+)' -o '\t\t\#\1\#,' -aPIC | msr -x '#' -o '\\\"' -PAC).Replace('\"\"', '\"');"`)
   .set('to-vscode-arg-lines-2-slashes', String.raw`PowerShell -Command "Set-Clipboard $(Get-Clipboard | msr -t '\s+' -o '\n' -aPAC | msr -t '(.+)' -o '\t\t\#\1\#,' -aPIC | msr -x \ -o \\ -aPAC | msr -x '#' -o '\\\"' -aPAC).Replace('\"\"', '\"');"`)
@@ -299,20 +307,16 @@ const WindowsAliasMap: Map<string, string> = new Map<string, string>()
   .set('az-token-env', String.raw`for /f "tokens=*" %a in ('PowerShell "az account get-access-token | ConvertFrom-Json | ForEach-Object { Write-Output $_.accessToken }"') do set "AZURE_ACCESS_TOKEN=%a"`)
   ;
 
-export function getCommonAliasMap(isWindowsCmdTerminal: boolean, writeToEachFile: boolean): Map<string, string> {
+export function getCommonAliasMap(terminalType: TerminalType, writeToEachFile: boolean): Map<string, string> {
   let cmdAliasMap = new Map<string, string>();
-  if (isWindowsCmdTerminal) {
-    CommonAliasMap.forEach((value, key) => {
-      cmdAliasMap.set(key, key + '=' + trimAliasBody(value));
-    });
-    WindowsAliasMap.forEach((value, key) => {
-      cmdAliasMap.set(key, key + '=' + trimAliasBody(value));
-    });
-    cmdAliasMap.set('reload-env', 'reload-env=' + getReloadEnvCmd(writeToEachFile))
-      .set('reset-env', 'reset-env=' + getResetEnvCmd(writeToEachFile));
+  if (isWindowsTerminalOnWindows(terminalType)) {
+    CommonAliasMap.forEach((value, key) => cmdAliasMap.set(key, getAliasBody(terminalType, key, value, writeToEachFile)));
+    WindowsAliasMap.forEach((value, key) => cmdAliasMap.set(key, getAliasBody(terminalType, key, value, writeToEachFile)));
+    cmdAliasMap.set('reload-env', getReloadEnvCmd(writeToEachFile))
+      .set('reset-env', getResetEnvCmd(writeToEachFile));
   } else {
-    CommonAliasMap.forEach((value, key) => cmdAliasMap.set(key, getLinuxAliasText(key, value, writeToEachFile)));
-    LinuxAliasMap.forEach((value, key) => cmdAliasMap.set(key, getLinuxAliasText(key, value, writeToEachFile)));
+    CommonAliasMap.forEach((value, key) => cmdAliasMap.set(key, getAliasBody(terminalType, key, value, writeToEachFile)));
+    LinuxAliasMap.forEach((value, key) => cmdAliasMap.set(key, getAliasBody(terminalType, key, value, writeToEachFile)));
   }
   return cmdAliasMap;
 }

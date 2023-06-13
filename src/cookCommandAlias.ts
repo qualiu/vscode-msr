@@ -215,7 +215,7 @@ export function cookCmdShortcutsOrFile(
   const singleScriptsFolderForTerminal = toTerminalPath(singleScriptsSaveFolder, terminalType);
   const cmdAliasFileNameForDefault = 'msr-cmd-alias' + (isWindowsTerminal ? '.doskeys' : '.bashrc');
   const cmdAliasFileNameForProject = defaultRootFolderName.replace(TrimProjectNameRegex, '-') + '.' + cmdAliasFileNameForDefault; // keep same with use-this-alias
-  const tmpAliasStorageFolder = getCmdAliasSaveFolder(false, true, DefaultTerminalType);
+  const tmpAliasStorageFolder = getCmdAliasSaveFolder(false, true, terminalType);
   const projectAliasFilePath = toStoragePath(path.join(tmpAliasStorageFolder, cmdAliasFileNameForProject));
   const tipFileStoragePath = toStoragePath(path.join(tmpAliasStorageFolder, 'tip-guide')) + (isWindowsTerminal ? '.cmd' : ".sh");
   const tipFileDisplayPath = toTerminalPath(tipFileStoragePath, terminalType);
@@ -739,7 +739,7 @@ function getCommandAliasMap(
   let aliasCountFromFile = 0;
   let cmdAliasMap: Map<string, string> = new Map();
   if (writeToEachFile && !dumpOtherCmdAlias) {
-    cmdAliasMap = getCommonAliasMap(isWindowsTerminalOnWindows(terminalType), writeToEachFile);
+    cmdAliasMap = getCommonAliasMap(terminalType, writeToEachFile);
   } else {
     cmdAliasMap = getExistingCmdAlias(terminalType, writeToEachFile);
     aliasCountFromFile = cmdAliasMap.size;
@@ -1013,7 +1013,7 @@ function addFullPathHideWarningOption(extraOption: string, writeToEachFile: bool
 }
 
 function getExistingCmdAlias(terminalType: TerminalType, forMultipleFiles: boolean): Map<string, string> {
-  var cmdAliasMap = getCommonAliasMap(isWindowsTerminalOnWindows(terminalType), forMultipleFiles);
+  var cmdAliasMap = getCommonAliasMap(terminalType, forMultipleFiles);
   outputInfoByDebugModeByTime(`Built ${cmdAliasMap.size} common alias.`);
   const isWindowsTerminal = isWindowsTerminalOnWindows(terminalType);
   const defaultCmdAliasFile = getGeneralCmdAliasFilePath(terminalType);

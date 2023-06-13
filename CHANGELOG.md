@@ -2,6 +2,10 @@
 
 All notable changes to this "vscode-msr" extension will be documented in this file.
 
+## [2.1.61]
+- Fixed cooking common alias to each script file.
+- Separated temp alias files for 4 types of terminals on Windows: CMD + MinGW + Cygwin + WSL.
+
 ## [2.1.60]
 - Added common alias like `gpc`/`gph`/`git-sm-init`/`git-add-safe-dir` + `reset-env`/`reload-env`/`add-user-path`/`del-tmp-path` etc.
   - Added config `msr.overwriteInConsistentCommonAliasByExtension` (default = `false`).

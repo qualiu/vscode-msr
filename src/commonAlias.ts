@@ -1,7 +1,28 @@
 import { TerminalType } from "./enums";
 import { enableColorAndHideCommandLine } from "./outputUtils";
 import { isWindowsTerminalOnWindows } from "./terminalUtils";
-import { getPowerShellName, isNullOrEmpty, replaceArgForWindowsCmdAlias, replaceSearchTextHolder } from "./utils";
+import { getPowerShellName, isNullOrEmpty, replaceSearchTextHolder, replaceTextByRegex } from "./utils";
+
+export function replaceArgForLinuxCmdAlias(body: string): string {
+  // function or simple alias
+  const functionBody = body.replace(/^\s*\S+=['"]\s*function\s+[^\r\n]+[\r\n]+\s*(.+?)\}\s*;\s*\S+\s*['"]\s*$/s, '$1');
+  if (functionBody !== body) {
+    return functionBody.trim();
+  }
+
+  const aliasBody = body.replace(/^.*?=['"](.+)['"]\s*$/, '$1');
+  return aliasBody.trim();
+}
+
+export function replaceArgForWindowsCmdAlias(body: string, forScriptFile: boolean): string {
+  body = replaceTextByRegex(body, /([\"'])\$1/g, '$1%~1');
+  body = replaceTextByRegex(body, /\$(\d+)/g, '%$1');
+  body = replaceTextByRegex(body, /\$\*/g, '%*').trim();
+  if (forScriptFile) {
+    body = replaceForLoopVariableOnWindows(body);
+  }
+  return body;
+}
 
 const LinuxAliasMap: Map<string, string> = new Map<string, string>()
   .set('vim-to-row', String.raw`msr -z "$1" -t "^(.+?):(\d+)(:.*)?$" -o "vim +\2 +\"set number\" \"\1\"" -XM`)
@@ -99,7 +120,7 @@ function getReloadWindowsEnvCmd(skipPaths: string = '', addTmpPaths: string = ''
 }
 
 function getReloadEnvCmd(forScriptFile: boolean, name: string = 'reload-env'): string {
-  const escapeCmdEqual = forScriptFile ? '=' : '^=';
+  const escapeCmdEqual = '^=';
   const cmdAlias = String.raw`for /f "tokens=*" %a in ('PowerShell -Command "
     $processEnvs = [System.Environment]::GetEnvironmentVariables([System.EnvironmentVariableTarget]::Process);
     $sysEnvs = [System.Environment]::GetEnvironmentVariables([System.EnvironmentVariableTarget]::Machine);
@@ -120,11 +141,11 @@ function getReloadEnvCmd(forScriptFile: boolean, name: string = 'reload-env'): s
       'SET \"' + $name + '${escapeCmdEqual}' + $nameValueMap[$name] + '\"'
     }"') do @%a`;
   const body = trimAliasBody(cmdAlias);
-  return forScriptFile ? body : name + '=' + body;
+  return forScriptFile ? replaceArgForWindowsCmdAlias(body, forScriptFile) : name + '=' + body;
 }
 
 function getResetEnvCmd(forScriptFile: boolean, name: string = 'reset-env'): string {
-  const escapeCmdEqual = forScriptFile ? '=' : '^=';
+  const escapeCmdEqual = '^=';
   const knownEvnNames = "'" + ['ALLUSERSPROFILE', 'APPDATA', 'ChocolateyInstall', 'CommonProgramFiles', 'CommonProgramFiles(x86)', 'CommonProgramW6432'
     , 'COMPUTERNAME', 'ComSpec', 'DriverData', 'HOMEDRIVE', 'HOMEPATH', 'LOCALAPPDATA', 'LOGONSERVER', 'NugetMachineInstallRoot', 'NUMBER_OF_PROCESSORS'
     , 'OneDrive', 'OS', 'PACKAGE_CACHE_DIRECTORY', 'Path', 'PATHEXT', 'PROCESSOR_ARCHITECTURE', 'PROCESSOR_IDENTIFIER', 'PROCESSOR_LEVEL'
@@ -161,7 +182,7 @@ function getResetEnvCmd(forScriptFile: boolean, name: string = 'reset-env'): str
     }
     "') do @%a`;
   const body = trimAliasBody(cmdAlias);
-  return forScriptFile ? body : name + '=' + body;
+  return forScriptFile ? replaceArgForWindowsCmdAlias(body, forScriptFile) : name + '=' + body;
 }
 
 function getAddPathValueCmd(envTarget: string): string {
@@ -367,13 +388,58 @@ export function getCommandAliasText(
   return getCommandTextByNameAndBody(cmdName, cmdBody, tailArgs, useFunction, terminalType, writeToEachFile, isPowerShellScript);
 }
 
+
+function replaceForLoopVariableTokens(cmd: string): string {
+  // Example: for /f "tokens=*" %a in ('xxx') do xxx %a
+  // Should replace %a to %%a when writing each alias/doskey to a file.
+  const GetForLoopRegex = /\bfor\s+\/f\s+("[^"]*?tokens=\s*(?<Token>\*|\d+[, \d]*)[^"]*?"\s+)?%(?<StartVariable>[a-z])\s+in\s+\(.*?\)\s*do\s+/i;
+  const match = GetForLoopRegex.exec(cmd);
+  if (!match || !match.groups) {
+    return cmd;
+  }
+
+  let tokens = match.groups['Token'] ? match.groups['Token'].split(/,\s*/) : ['1'];
+  if (tokens.length === 1 && tokens[0] === '*') {
+    tokens = ['1'];
+  }
+
+  const startingVariableName = match.groups['StartVariable'];
+  const isLowerCaseVariable = startingVariableName.toLowerCase() === startingVariableName;
+  let beginCharCode = isLowerCaseVariable
+    ? startingVariableName.toLowerCase().charCodeAt(0)
+    : startingVariableName.toUpperCase().charCodeAt(0);
+
+  let variableChars: string[] = [];
+  tokens.forEach((numberText) => {
+    const number = Number.parseInt(numberText.toString());
+    const variableName = String.fromCharCode(beginCharCode + number - 1);
+    variableChars.push(variableName);
+  });
+
+  for (let k = 0; k < variableChars.length; k++) {
+    cmd = cmd.replace(new RegExp('%' + variableChars[k], 'g'), '%%' + variableChars[k]);
+  }
+
+  // next for loop
+  const subText = cmd.substring(match.index + match[0].length);
+  return cmd.substring(0, match.index + match[0].length) + replaceForLoopVariableTokens(subText);
+}
+
+export function replaceForLoopVariableOnWindows(cmd: string): string {
+  cmd = replaceForLoopVariableTokens(cmd);
+
+  // Replace %~dpa %~nxa to %%~dpa %%~nxa
+  return cmd.replace(/(%~(dp|nx)[a-z])/g, '%$1');
+  // return cmd.replace(/((?<!%)%~(dp|nx)[a-z])/g, '%$1');
+}
+
 function getCommandTextByNameAndBody(cmdName: string, cmdBody: string, tailArgs: string, useFunction: boolean, terminalType: TerminalType, writeToEachFile: boolean, isPowerShellScript: boolean = false) {
   const powerShellCmdText = getPowerShellName(terminalType) + ' -Command "' + cmdBody + tailArgs + '"';
   if (isWindowsTerminalOnWindows(terminalType)) {
     if (writeToEachFile) {
       return isPowerShellScript
         ? powerShellCmdText.replace(/\$(\d+)\b/g, '%$1')
-        : replaceArgForWindowsCmdAlias(cmdBody + tailArgs);
+        : replaceArgForWindowsCmdAlias(cmdBody + tailArgs, writeToEachFile);
     }
 
     return isPowerShellScript

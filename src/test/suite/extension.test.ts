@@ -3,7 +3,7 @@ import { before } from 'mocha';
 // as well as import your extension to test it
 import * as vscode from 'vscode';
 import { checkConfigKeysInDoc, checkDuplicateDescription, validateRegexPatterns } from './configAndDocTest';
-import { testForLoopCmdAlias } from './cookCmdAliasTest';
+import { testForLoopCmdAlias, testLinuxGeneralCmdAlias, testLinuxGeneralCmdAliasScript, testWindowsGeneralCmdAlias, testWindowsGeneralCmdAliasScript } from './cookCmdAliasTest';
 import { testCmdTerminalWithBackSlash, testCmdTerminalWithForwardSlash, testLinuxTerminal, testNotSkipDotPaths, testOmitExemptions } from './gitIgnoreTest';
 import { testEscapeRegex, testEscapeRegexForFindingCommands, testSpecialCaseReplacing } from './utilsTest';
 
@@ -55,5 +55,9 @@ suite('Test-3: Parsing .gitignore test', () => {
 });
 
 suite('Test-4: Cook each doskey/alias to a batch script file for Windows doskey', () => {
+    test('Test Windows doskey/alias of one file.', testWindowsGeneralCmdAlias);
+    test('Test Windows doskey/alias of multiple scripts.', testWindowsGeneralCmdAliasScript);
+    test('Test Linux alias of multiple scripts.', testLinuxGeneralCmdAlias);
+    test('Test Linux alias of multiple scripts.', testLinuxGeneralCmdAliasScript);
     test('Test use "%%x" for looping variable "%x" when cooking doskey/alias to files on Windows.', testForLoopCmdAlias);
 });

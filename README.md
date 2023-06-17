@@ -111,7 +111,7 @@ To copy and use `msr` [command lines](#reuse-the-command-to-search-further-or-re
 
 ### Or Manually Download + Set PATH Once And Forever
 
-See [here](Manually-Download-Tools.md) for details.
+See [here](Manually-Download-Tools.md) for details including command lines for downloading tool on `Windows`/`Linux`/`MacOS`.
 
 ## Adjust Your Color Theme if Result File Path Folder Color is Not Clear
 

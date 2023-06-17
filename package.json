@@ -3,7 +3,7 @@
 	"displayName": "Code mining + Replace file + Find definition and reference for all types.",
 	"description": "Code mining + Replace file + Find definition and reference in multiple repository paths by msr for all coding languages + configuration + doc files.",
 	"author": "qualiu@microsoft.com",
-	"version": "2.1.62",
+	"version": "2.1.63",
 	"icon": "images/vscode-msr-icon.png",
 	"license": "completely free",
 	"publisher": "qualiu",
@@ -799,7 +799,7 @@
 					"default": true,
 					"description": "Overwrite the default initialized command shortcuts (alias/doskeys) of a project when open a new terminal."
 				},
-				"msr.overwriteInConsistentCommonAliasByExtension": {
+				"msr.overwriteInconsistentCommonAliasByExtension": {
 					"type": "boolean",
 					"default": false,
 					"description": "Overwrite inconsistent common alias by vscode-msr."

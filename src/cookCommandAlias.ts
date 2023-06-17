@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { IsFileTimeOffsetSupported, RunCommandChecker, ToolChecker, setNotCheckInputPathInCommandLine, setOutputColumnIndexInCommandLine } from './ToolChecker';
 import { getFindTopDistributionCommand, getSortCommandText } from "./commands";
-import { getCommandAliasText, getCommonAliasMap } from './commonAlias';
+import { getCommandAliasText, getCommonAliasMap, replaceArgForLinuxCmdAlias, replaceArgForWindowsCmdAlias } from './commonAlias';
 import { getConfigValueByPriorityList, getConfigValueByProjectAndExtension, getConfigValueOfProject } from "./configUtils";
 import { HomeFolder, IsLinux, IsWSL, IsWindows, RunCmdTerminalName, TempStorageFolder, TrimProjectNameRegex, getGitInfoTipTemplate } from "./constants";
 import { DefaultRootFolder, MappedExtToCodeFilePatternMap, MyConfig, getConfig, getGitIgnore, getSearchPathOptions } from "./dynamicConfig";
@@ -12,7 +12,7 @@ import { escapeRegExp } from "./regexUtils";
 import { runCommandInTerminal, sendCommandToTerminal } from './runCommandUtils';
 import { DefaultTerminalType, IsLinuxTerminalOnWindows, getTerminalInitialPath, getTerminalNameOrShellExeName, getTerminalShellExePath, isLinuxTerminalOnWindows, isPowerShellTerminal, isWindowsTerminalOnWindows, toStoragePath, toTerminalPath, toTerminalPathsText } from './terminalUtils';
 import { getSetToolEnvCommand, getToolExportFolder } from "./toolSource";
-import { getDefaultRootFolderName, getElapsedSecondsToNow, getPowerShellName, getRootFolder, getRootFolderName, getUniqueStringSetNoCase, isNullOrEmpty, isPowerShellCommand, quotePaths, replaceArgForLinuxCmdAlias, replaceArgForWindowsCmdAlias, replaceTextByRegex, runCommandGetOutput } from "./utils";
+import { getDefaultRootFolderName, getElapsedSecondsToNow, getPowerShellName, getRootFolder, getRootFolderName, getUniqueStringSetNoCase, isNullOrEmpty, isPowerShellCommand, quotePaths, replaceTextByRegex, runCommandGetOutput } from "./utils";
 import { FindJavaSpringReferenceByPowerShellAlias } from './wordReferenceUtils';
 import fs = require('fs');
 import os = require('os');
@@ -512,7 +512,7 @@ export function cookCmdShortcutsOrFile(
 
     if (isWindowsTerminal) {
       const head = (MyConfig.AddEchoOffWhenCookingWindowsCommandAlias + os.EOL + MyConfig.SetVariablesToLocalScopeWhenCookingWindowsCommandAlias).trim();
-      scriptContent = (head.length > 0 ? head + os.EOL : head) + replaceForLoopVariableOnWindows(scriptContent)
+      scriptContent = (head.length > 0 ? head + os.EOL : head) + scriptContent;
     }
 
     if (!isWindowsTerminal) {
@@ -714,7 +714,7 @@ export function cookCmdShortcutsOrFile(
   }
 }
 
-function getCommandAliasMap(
+export function getCommandAliasMap(
   terminalType: TerminalType,
   rootFolder: string,
   isForProjectCmdAlias: boolean,
@@ -1012,7 +1012,7 @@ function addFullPathHideWarningOption(extraOption: string, writeToEachFile: bool
   return extraOption.trim();
 }
 
-function getExistingCmdAlias(terminalType: TerminalType, forMultipleFiles: boolean): Map<string, string> {
+export function getExistingCmdAlias(terminalType: TerminalType, forMultipleFiles: boolean): Map<string, string> {
   var cmdAliasMap = getCommonAliasMap(terminalType, forMultipleFiles);
   outputInfoByDebugModeByTime(`Built ${cmdAliasMap.size} common alias.`);
   const isWindowsTerminal = isWindowsTerminalOnWindows(terminalType);
@@ -1025,7 +1025,7 @@ function getExistingCmdAlias(terminalType: TerminalType, forMultipleFiles: boole
   }
   const [inconsistentCount, newCount] = getCmdAliasMapFromText(cmdAliasText, cmdAliasMap, forMultipleFiles, isWindowsTerminal);
   if (inconsistentCount > 0) {
-    outputWarnByTime(`Found ${inconsistentCount} inconsistent common alias, you can enable 'msr.overwriteInConsistentCommonAliasByExtension'`
+    outputWarnByTime(`Found ${inconsistentCount} inconsistent common alias, you can enable 'msr.overwriteInconsistentCommonAliasByExtension'`
       + `, or delete them in file: ${defaultCmdAliasFileForTerminal}`);
   }
 
@@ -1038,7 +1038,7 @@ function getExistingCmdAlias(terminalType: TerminalType, forMultipleFiles: boole
     outputInfo(`Found ${newCount} new common alias, will save all ${cmdAliasMap.size} alias to file: ${defaultCmdAliasFileForTerminal}`);
   }
 
-  if (newCount > 0 || (inconsistentCount > 0 && MyConfig.OverwriteInConsistentCommonAliasByExtension)) {
+  if (newCount > 0 || (inconsistentCount > 0 && MyConfig.OverwriteInconsistentCommonAliasByExtension)) {
     const sortedKeys = Array.from(cmdAliasMap.keys()).sort();
     const newCmdAliasText = sortedKeys.map(key => cmdAliasMap.get(key)).join(isWindowsTerminal ? '\r\n\r\n' : '\n\n');
     if (!saveTextToFile(defaultCmdAliasFile, newCmdAliasText)) {
@@ -1061,7 +1061,7 @@ function getCmdAliasMapFromText(cmdAliasText: string, map: Map<string, string>, 
     if (match) {
       const body = forMultipleFiles
         ? (isWindowsTerminal
-          ? replaceArgForWindowsCmdAlias(match[2])
+          ? replaceArgForWindowsCmdAlias(match[2], forMultipleFiles)
           : replaceArgForLinuxCmdAlias(match[0])
         )
         : (isWindowsTerminal ? '' : 'alias ') + match[0].trim();
@@ -1070,7 +1070,7 @@ function getCmdAliasMapFromText(cmdAliasText: string, map: Map<string, string>, 
         const bodyFromCommon = map.get(name);
         if (bodyFromCommon !== body) {
           inconsistentCount++;
-          if (MyConfig.OverwriteInConsistentCommonAliasByExtension) {
+          if (MyConfig.OverwriteInconsistentCommonAliasByExtension) {
             outputWarn(`Overwrite inconsistent common alias-${inconsistentCount}: ${name}`);
             return;
           }
@@ -1085,50 +1085,6 @@ function getCmdAliasMapFromText(cmdAliasText: string, map: Map<string, string>, 
   });
   remainCommonKeys.forEach(key => outputInfo(`Found new common alias: ${key}`));
   return [inconsistentCount, remainCommonKeys.size];
-}
-
-function replaceForLoopVariableTokens(cmd: string): string {
-  // Example: for /f "tokens=*" %a in ('xxx') do xxx %a
-  // Should replace %a to %%a when writing each alias/doskey to a file.
-  const GetForLoopRegex = /\bfor\s+\/f\s+("[^"]*?tokens=\s*(?<Token>\*|\d+[, \d]*)[^"]*?"\s+)?%(?<StartVariable>[a-z])\s+in\s+\(.*?\)\s*do\s+/i;
-  const match = GetForLoopRegex.exec(cmd);
-  if (!match || !match.groups) {
-    return cmd;
-  }
-
-  let tokens = match.groups['Token'] ? match.groups['Token'].split(/,\s*/) : ['1'];
-  if (tokens.length === 1 && tokens[0] === '*') {
-    tokens = ['1'];
-  }
-
-  const startingVariableName = match.groups['StartVariable'];
-  const isLowerCaseVariable = startingVariableName.toLowerCase() === startingVariableName;
-  let beginCharCode = isLowerCaseVariable
-    ? startingVariableName.toLowerCase().charCodeAt(0)
-    : startingVariableName.toUpperCase().charCodeAt(0);
-
-  let variableChars: string[] = [];
-  tokens.forEach((numberText) => {
-    const number = Number.parseInt(numberText.toString());
-    const variableName = String.fromCharCode(beginCharCode + number - 1);
-    variableChars.push(variableName);
-  });
-
-  for (let k = 0; k < variableChars.length; k++) {
-    cmd = cmd.replace(new RegExp('%' + variableChars[k], 'g'), '%%' + variableChars[k]);
-  }
-
-  // next for loop
-  const subText = cmd.substring(match.index + match[0].length);
-  return cmd.substring(0, match.index + match[0].length) + replaceForLoopVariableTokens(subText);
-}
-
-export function replaceForLoopVariableOnWindows(cmd: string): string {
-  cmd = replaceForLoopVariableTokens(cmd);
-
-  // Replace %~dpa %~nxa to %%~dpa %%~nxa
-  return cmd.replace(/(%~(dp|nx)[a-z])/g, '%$1');
-  // return cmd.replace(/((?<!%)%~(dp|nx)[a-z])/g, '%$1');
 }
 
 export function mergeSkipFolderPattern(skipFoldersPattern: string) {

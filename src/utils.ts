@@ -218,25 +218,6 @@ export function replaceTextByRegex(sourceText: string, toFindRegex: RegExp, repl
     return newText;
 }
 
-export function replaceArgForLinuxCmdAlias(body: string): string {
-    // function or simple alias
-    const functionBody = body.replace(/^\s*\S+=['"]\s*function\s+[^\r\n]+[\r\n]+\s*(.+?)\}\s*;\s*\S+\s*['"]\s*$/s, '$1');
-    if (functionBody !== body) {
-        return functionBody.trim();
-    }
-
-    const aliasBody = body.replace(/^.*?=['"](.+)['"]\s*$/, '$1')
-        .replace(/^\S+=/, '');
-    return aliasBody.trim();
-}
-
-export function replaceArgForWindowsCmdAlias(body: string): string {
-    body = replaceTextByRegex(body, /([\"'])\$1/g, '$1%~1');
-    body = replaceTextByRegex(body, /\$(\d+)/g, '%$1');
-    body = replaceTextByRegex(body, /\$\*/g, '%*');
-    return body.trim();
-}
-
 export function getExtensionNoHeadDot(extension: string | undefined, defaultValue: string = 'default'): string {
     if (!extension || isNullOrEmpty(extension)) {
         return defaultValue;

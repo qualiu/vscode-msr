@@ -2,6 +2,10 @@
 
 All notable changes to this "vscode-msr" extension will be documented in this file.
 
+[2.1.63]
+- Renamed 1 config `msr.overwriteInConsistentCommonAliasByExtension` to `msr.overwriteInconsistentCommonAliasByExtension`.
+- Corrected 1 script on Linux: `git-add-safe-dir`.
+
 ## [2.1.62]
 - Removed tail args for common alias.
 
@@ -11,7 +15,7 @@ All notable changes to this "vscode-msr" extension will be documented in this fi
 
 ## [2.1.60]
 - Added common alias like `gpc`/`gph`/`git-sm-init`/`git-add-safe-dir` + `reset-env`/`reload-env`/`add-user-path`/`del-tmp-path` etc.
-  - Added config `msr.overwriteInConsistentCommonAliasByExtension` (default = `false`).
+  - Added config `msr.overwriteInconsistentCommonAliasByExtension` (default = `false`).
 - Auto add tool folder to user PATH on Windows.
 
 ## [2.1.59]

@@ -3,7 +3,7 @@
 	"displayName": "Code mining + Replace file + Find definition and reference for all types.",
 	"description": "Code mining + Replace file + Find definition and reference in multiple repository paths by msr for all coding languages + configuration + doc files.",
 	"author": "qualiu@microsoft.com",
-	"version": "2.1.63",
+	"version": "2.1.64",
 	"icon": "images/vscode-msr-icon.png",
 	"license": "completely free",
 	"publisher": "qualiu",
@@ -801,7 +801,7 @@
 				},
 				"msr.overwriteInconsistentCommonAliasByExtension": {
 					"type": "boolean",
-					"default": false,
+					"default": true,
 					"description": "Overwrite inconsistent common alias by vscode-msr."
 				},
 				"msr.tmpToggleEnableFindingDefinition.menu.visible": {

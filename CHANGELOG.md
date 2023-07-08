@@ -2,7 +2,11 @@
 
 All notable changes to this "vscode-msr" extension will be documented in this file.
 
-[2.1.63]
+## [2.1.64]
+- Improved `reload-env` + Reduced running `add-user-path` on Windows.
+- Changed `msr.overwriteInconsistentCommonAliasByExtension` = `true`.
+
+## [2.1.63]
 - Renamed 1 config `msr.overwriteInConsistentCommonAliasByExtension` to `msr.overwriteInconsistentCommonAliasByExtension`.
 - Corrected 1 script on Linux: `git-add-safe-dir`.
 

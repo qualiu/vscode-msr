@@ -421,6 +421,7 @@ export function cookCmdShortcutsOrFile(
   }
 
   // TO-DO simplify checking tool path: Add tool folder + cmdAlias folder without checking.
+  const rawWindowsPathSet = new Set<string>((process.env['PATH'] || '').split(/\\?\s*;\s*/));
   const useGitIgnore = MyConfig.canUseGoodGitIgnore(rootFolder);
   if (isWindowsTerminal) {
     if (!isTooCloseCooking) {
@@ -430,15 +431,23 @@ export function cookCmdShortcutsOrFile(
 
     if (isRunCmdTerminal && !isTooCloseCooking) {
       const toolFolder = getToolExportFolder(TerminalType.CMD);
-      const foldersToAdd = [generalScriptFilesFolder, toolFolder].join(';').trimRight();
-      runCmdInTerminal(`add-user-path "${foldersToAdd}"`, true);  // where /q add-user-path.cmd ||
+      const foldersToAdd = isNullOrEmpty(toolFolder) ? [generalScriptFilesFolder] : [generalScriptFilesFolder, toolFolder];
+      let foundCount = 0;
+      for (let k = 0; k < foldersToAdd.length && foundCount < foldersToAdd.length; k++) {
+        foundCount += rawWindowsPathSet.has(foldersToAdd[k]) ? 1 : 0;
+      }
+
+      if (foundCount < foldersToAdd.length) {
+        const addPathText = foldersToAdd.join(';').trimRight();
+        runCmdInTerminal(`add-user-path "${addPathText}"`, true);  // where /q add-user-path.cmd ||
+      }
     }
   } else {
     if (isNewlyCreated) {
       if (isLinuxTerminalOnWindows) {
         if (isNewlyCreatedRunCmdTerminal) { // Calling bash to enter MinGW / Cygwin
           let envPathSet = new Set<string>().add(shellExeFolder);
-          (process.env['PATH'] || '').split(/\\?\s*;\s*/).forEach(a => envPathSet.add(a));
+          rawWindowsPathSet.forEach(a => envPathSet.add(a));
           envPathSet = getUniqueStringSetNoCase(envPathSet, true);
           process.env['PATH'] = Array.from(envPathSet).join(';');
           runCmdInTerminal(quotePaths(shellExe));

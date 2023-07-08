@@ -26,7 +26,8 @@ export function replaceArgForWindowsCmdAlias(body: string, forScriptFile: boolea
 
 const LinuxAliasMap: Map<string, string> = new Map<string, string>()
   .set('vim-to-row', String.raw`msr -z "$1" -t "^(.+?):(\d+)(:.*)?$" -o "vim +\2 +\"set number\" \"\1\"" -XM`)
-  .set('git-add-safe-dir', String.raw`repoRootDir=$(git rev-parse --show-toplevel); git config --global --get-all safe.directory
+  .set('git-add-safe-dir', String.raw`repoRootDir=$(git rev-parse --show-toplevel);
+      git config --global --get-all safe.directory
         | msr -t "^$repoRootDir/?$" -M && msr -XMI -z "git config --global --add safe.directory $repoRootDir";
       msr -p $repoRootDir/.gitmodules -t "^\s*path\s*=\s*(\S+)" -o "$repoRootDir/\1" -PAC
         | nin ~/.gitconfig "^(\S+)" "^\s*directory\s*=\s*(\S+)" -PAC
@@ -133,9 +134,9 @@ function getReloadEnvCmd(forScriptFile: boolean, name: string = 'reload-env'): s
     [void] $pathValueSet.Remove('');
     $envNameSet = New-Object System.Collections.Generic.HashSet[String]([StringComparer]::OrdinalIgnoreCase);
     $nameValueMap = New-Object 'System.Collections.Generic.Dictionary[string,string]'([StringComparer]::OrdinalIgnoreCase);
+    foreach ($name in $processEnvs.Keys) { $nameValueMap[$name] = $processEnvs[$name]; }
     foreach ($name in $sysEnvs.Keys) { $nameValueMap[$name] = $sysEnvs[$name]; }
     foreach ($name in $userEnvs.Keys) { $nameValueMap[$name] = $userEnvs[$name]; }
-    foreach ($name in $processEnvs.Keys) { $nameValueMap[$name] = $processEnvs[$name]; }
     $nameValueMap['PATH'] = $pathValueSet -Join ';';
     foreach ($name in $nameValueMap.Keys) {
       'SET \"' + $name + '${escapeCmdEqual}' + $nameValueMap[$name] + '\"'
@@ -146,12 +147,13 @@ function getReloadEnvCmd(forScriptFile: boolean, name: string = 'reload-env'): s
 
 function getResetEnvCmd(forScriptFile: boolean, name: string = 'reset-env'): string {
   const escapeCmdEqual = '^=';
-  const knownEvnNames = "'" + ['ALLUSERSPROFILE', 'APPDATA', 'ChocolateyInstall', 'CommonProgramFiles', 'CommonProgramFiles(x86)', 'CommonProgramW6432'
+  const knownEnvNames = "'" + ['ALLUSERSPROFILE', 'APPDATA', 'ChocolateyInstall', 'CommonProgramFiles', 'CommonProgramFiles(x86)', 'CommonProgramW6432'
     , 'COMPUTERNAME', 'ComSpec', 'DriverData', 'HOMEDRIVE', 'HOMEPATH', 'LOCALAPPDATA', 'LOGONSERVER', 'NugetMachineInstallRoot', 'NUMBER_OF_PROCESSORS'
     , 'OneDrive', 'OS', 'PACKAGE_CACHE_DIRECTORY', 'Path', 'PATHEXT', 'PROCESSOR_ARCHITECTURE', 'PROCESSOR_IDENTIFIER', 'PROCESSOR_LEVEL'
     , 'PROCESSOR_REVISION', 'ProgramData', 'ProgramFiles', 'ProgramFiles(x86)', 'ProgramW6432', 'PROMPT', 'PSModulePath', 'PUBLIC', 'SystemDrive'
     , 'SystemRoot', 'TEMP', 'TMP', 'UATDATA', 'USERDNSDOMAIN', 'USERDOMAIN', 'USERDOMAIN_ROAMINGPROFILE', 'USERNAME', 'USERPROFILE', 'windir'
   ].join("', '") + "'";
+
   const cmdAlias = String.raw`for /f "tokens=*" %a in ('PowerShell -Command "
     $processEnvs = [System.Environment]::GetEnvironmentVariables([System.EnvironmentVariableTarget]::Process);
     $sysEnvs = [System.Environment]::GetEnvironmentVariables([System.EnvironmentVariableTarget]::Machine);
@@ -171,7 +173,7 @@ function getResetEnvCmd(forScriptFile: boolean, name: string = 'reset-env'): str
       $nameValueMap[$name] = $userEnvs[$name];
     }
     $nameValueMap['PATH'] = $pathValueSet -Join ';';
-    $KnownEnvNames = @(${knownEvnNames});
+    $KnownEnvNames = @(${knownEnvNames});
     foreach ($name in $processEnvs.Keys) {
       if (-not $nameValueMap.ContainsKey($name) -and -not $KnownEnvNames.Contains($name)) {
           'SET \"' + $name + '${escapeCmdEqual}\"'
@@ -305,19 +307,19 @@ const WindowsAliasMap: Map<string, string> = new Map<string, string>()
               msr -l --wt --sz -p $oneSavePath -M;
           }"`)
   .set('win11-group-taskbar', String.raw`PowerShell 2>nul -Command "
-          Write-Host Must-run-as-Admin -ForegroundColor Cyan;
+          Write-Host Must-run-as-Admin-for-this-Workaround -ForegroundColor Cyan;
           Set-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Shell\Update\Packages' -Name 'UndockingDisabled' -Value '00000000';
-          Set-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Search' -Name 'SearchboxTaskbarMode' -Value '00000001';
+          Set-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Search' -Name 'SearchBoxTaskbarMode' -Value '00000001';
           Set-ItemProperty -Path 'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer' -Name 'NoTaskGrouping' -Value '00000000';
           taskkill /f /im explorer.exe;
           CMD /Q /C START /REALTIME explorer.exe;"`)
   .set('win11-ungroup-taskbar', String.raw`PowerShell 2>nul -Command "
-          Write-Host Must-run-as-Admin -ForegroundColor Cyan;
+          Write-Host Must-run-as-Admin-for-this-Workaround -ForegroundColor Cyan;
           Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope LocalMachine -Force;
           New-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Shell\Update\Packages' -Name 'UndockingDisabled' -PropertyType DWord -Value '00000001';
           Set-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Shell\Update\Packages' -Name 'UndockingDisabled' -Value '00000001';
-          New-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Search' -Name 'SearchboxTaskbarMode' -PropertyType DWord -Value '00000000';
-          Set-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Search' -Name 'SearchboxTaskbarMode' -Value '00000000';
+          New-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Search' -Name 'SearchBoxTaskbarMode' -PropertyType DWord -Value '00000000';
+          Set-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Search' -Name 'SearchBoxTaskbarMode' -Value '00000000';
           New-ItemProperty -Path 'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer' -Name 'NoTaskGrouping' -PropertyType DWord -Value '00000001';
           Set-ItemProperty -Path 'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer' -Name 'NoTaskGrouping' -Value '00000001';
           taskkill /f /im explorer.exe;

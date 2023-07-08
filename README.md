@@ -211,6 +211,7 @@ This's helpful if got [**git-exemption-warnings**](#use-git-ignore) when initial
 - After you cooked command alias/doskeys, you'll see messages below: (You can **write**/**update** doskeys in file)
 - Automated command shortcuts on **Linux** + **MacOS** + **WSL** + [**4 types of terminals** on Windows](#supported-4-terminal-types-on-windows) to [search](#search-files-with-rich-filters) or [**mining-code**](#code-mining-without-or-with-little-knowledge) or [replace files](#replace-files-with-preview-and-backup).
 - Try **gfind-xxx** instead of **find-xxx** if warned [**exemptions**](#try-to-use-gfind-xxx-instead-of-find-xxx-aliasdoskey) when initializing new terminals.
+- If it's not in vscode (like other IDEs or system terminals), you can run **use-this-alias** in the terminal (if current folder is in a git project) to load command shortcuts for current project.
 
 ```bash
 Now you can directly use the command shortcuts in/out-of vscode to search + replace like:

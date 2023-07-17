@@ -132,11 +132,13 @@ function getReloadEnvCmd(forScriptFile: boolean, name: string = 'reload-env'): s
       [void] $pathValueSet.Add($path);
     }
     [void] $pathValueSet.Remove('');
-    $envNameSet = New-Object System.Collections.Generic.HashSet[String]([StringComparer]::OrdinalIgnoreCase);
     $nameValueMap = New-Object 'System.Collections.Generic.Dictionary[string,string]'([StringComparer]::OrdinalIgnoreCase);
     foreach ($name in $processEnvs.Keys) { $nameValueMap[$name] = $processEnvs[$name]; }
     foreach ($name in $sysEnvs.Keys) { $nameValueMap[$name] = $sysEnvs[$name]; }
     foreach ($name in $userEnvs.Keys) { $nameValueMap[$name] = $userEnvs[$name]; }
+    if ($nameValueMap.ContainsKey('USERNAME') -and $nameValueMap['USERNAME'] -eq 'SYSTEM') {
+      $nameValueMap['USERNAME'] = [regex]::Replace($processEnvs['USERPROFILE'], '^.*\\', '');
+    }
     $nameValueMap['PATH'] = $pathValueSet -Join ';';
     foreach ($name in $nameValueMap.Keys) {
       'SET \"' + $name + '${escapeCmdEqual}' + $nameValueMap[$name] + '\"'
@@ -147,11 +149,12 @@ function getReloadEnvCmd(forScriptFile: boolean, name: string = 'reload-env'): s
 
 function getResetEnvCmd(forScriptFile: boolean, name: string = 'reset-env'): string {
   const escapeCmdEqual = '^=';
-  const knownEnvNames = "'" + ['ALLUSERSPROFILE', 'APPDATA', 'ChocolateyInstall', 'CommonProgramFiles', 'CommonProgramFiles(x86)', 'CommonProgramW6432'
-    , 'COMPUTERNAME', 'ComSpec', 'DriverData', 'HOMEDRIVE', 'HOMEPATH', 'LOCALAPPDATA', 'LOGONSERVER', 'NugetMachineInstallRoot', 'NUMBER_OF_PROCESSORS'
-    , 'OneDrive', 'OS', 'PACKAGE_CACHE_DIRECTORY', 'Path', 'PATHEXT', 'PROCESSOR_ARCHITECTURE', 'PROCESSOR_IDENTIFIER', 'PROCESSOR_LEVEL'
-    , 'PROCESSOR_REVISION', 'ProgramData', 'ProgramFiles', 'ProgramFiles(x86)', 'ProgramW6432', 'PROMPT', 'PSModulePath', 'PUBLIC', 'SystemDrive'
-    , 'SystemRoot', 'TEMP', 'TMP', 'UATDATA', 'USERDNSDOMAIN', 'USERDOMAIN', 'USERDOMAIN_ROAMINGPROFILE', 'USERNAME', 'USERPROFILE', 'windir'
+  const knownEnvNames = "'" + ['ALLUSERSPROFILE', 'APPDATA', 'ChocolateyInstall', 'CommonProgramFiles', 'CommonProgramFiles(x86)', 'CommonProgramW6432',
+    'COMPUTERNAME', 'ComSpec', 'DriverData', 'HOMEDRIVE', 'HOMEPATH', 'LOCALAPPDATA', 'LOGONSERVER', 'NugetMachineInstallRoot', 'NUMBER_OF_PROCESSORS',
+    'OneDrive', 'OS', 'PACKAGE_CACHE_DIRECTORY', 'Path', 'PATHEXT', 'PROCESSOR_ARCHITECTURE', 'PROCESSOR_IDENTIFIER', 'PROCESSOR_LEVEL',
+    'PROCESSOR_REVISION', 'ProgramData', 'ProgramFiles', 'ProgramFiles(x86)', 'ProgramW6432', 'PROMPT', 'PSModulePath', 'PUBLIC', 'SystemDrive',
+    'SystemRoot', 'TEMP', 'TMP', 'UATDATA', 'USERDNSDOMAIN', 'USERDOMAIN', 'USERDOMAIN_ROAMINGPROFILE', 'USERNAME', 'USERPROFILE', 'windir',
+    'CLASSPATH', 'JAVA_HOME', 'GRADLE_HOME', 'MAVEN_HOME', 'CARGO_HOME', 'RUSTUP_HOME', 'GOPATH', 'GOROOT', 'ANDROID_SDK_ROOT', 'ANDROID_NDK_ROOT'
   ].join("', '") + "'";
 
   const cmdAlias = String.raw`for /f "tokens=*" %a in ('PowerShell -Command "
@@ -164,13 +167,15 @@ function getResetEnvCmd(forScriptFile: boolean, name: string = 'reset-env'): str
       [void] $pathValueSet.Add($path);
     }
     [void] $pathValueSet.Remove('');
-    $envNameSet = New-Object System.Collections.Generic.HashSet[String]([StringComparer]::OrdinalIgnoreCase);
     $nameValueMap = New-Object 'System.Collections.Generic.Dictionary[string,string]'([StringComparer]::OrdinalIgnoreCase);
     foreach ($name in $sysEnvs.Keys) {
       $nameValueMap[$name] = $sysEnvs[$name];
     }
     foreach ($name in $userEnvs.Keys) {
       $nameValueMap[$name] = $userEnvs[$name];
+    }
+    if ($nameValueMap.ContainsKey('USERNAME') -and $nameValueMap['USERNAME'] -eq 'SYSTEM') {
+      $nameValueMap['USERNAME'] = [regex]::Replace($processEnvs['USERPROFILE'], '^.*\\', '');
     }
     $nameValueMap['PATH'] = $pathValueSet -Join ';';
     $KnownEnvNames = @(${knownEnvNames});

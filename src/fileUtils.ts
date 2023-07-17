@@ -3,9 +3,15 @@ import path = require('path');
 
 import { outputErrorByTime, outputInfoByDebugModeByTime, outputInfoByTime } from "./outputUtils";
 
-export function saveTextToFile(filePath: string, text: string, info: string = 'file', tryTimes: number = 3): boolean {
+export function saveTextToFile(filePath: string, text: string, info: string = 'file', checkSkipSameContent: boolean = false, tryTimes: number = 3): boolean {
   for (let k = 1; k <= tryTimes; k++) {
     try {
+      if (checkSkipSameContent) {
+        const existingContent = readTextFile(filePath);
+        if (existingContent === text) {
+          return true;
+        }
+      }
       fs.writeFileSync(filePath, text);
       if (k > 1) {
         outputInfoByTime('Times-' + k + ': Successfully saved ' + info + ': ' + filePath);

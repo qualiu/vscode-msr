@@ -12,7 +12,7 @@ import { escapeRegExp } from "./regexUtils";
 import { runCommandInTerminal, sendCommandToTerminal } from './runCommandUtils';
 import { DefaultTerminalType, IsLinuxTerminalOnWindows, getTerminalInitialPath, getTerminalNameOrShellExeName, getTerminalShellExePath, isLinuxTerminalOnWindows, isPowerShellTerminal, isWindowsTerminalOnWindows, toStoragePath, toTerminalPath, toTerminalPathsText } from './terminalUtils';
 import { getSetToolEnvCommand, getToolExportFolder } from "./toolSource";
-import { getDefaultRootFolderName, getElapsedSecondsToNow, getPowerShellName, getRootFolder, getRootFolderName, getUniqueStringSetNoCase, isNullOrEmpty, isPowerShellCommand, quotePaths, replaceTextByRegex, runCommandGetOutput } from "./utils";
+import { getDefaultRootFolderName, getElapsedSecondsToNow, getPowerShellName, getRootFolder, getRootFolderName, getUniqueStringSetNoCase, isNullOrEmpty, isPowerShellCommand, isWeeklyCheckTime, quotePaths, replaceTextByRegex, runCommandGetOutput } from "./utils";
 import { FindJavaSpringReferenceByPowerShellAlias } from './wordReferenceUtils';
 import fs = require('fs');
 import os = require('os');
@@ -268,13 +268,14 @@ export function cookCmdShortcutsOrFile(
   cmdAliasMap.set('use-this-alias', getCommandAliasText('use-this-alias', useThisAliasBody, true, terminalType, false, true));
 
   if (createDirectory(singleScriptsSaveFolder)) {
+    const shouldCheckUpdateAlias = isWeeklyCheckTime();
     ['use-this-alias', 'add-user-path', 'reload-env', 'reset-env'].forEach(name => {
       const fullBody = cmdAliasMap.get(name) as string;
       if (!isNullOrEmpty(fullBody)) {
         const body = fullBody.replace(new RegExp(`^${name}=`), '');
         const useFunction = name === 'use-this-alias' || name === 'add-user-path';
         const text = getCommandAliasText(name, body, useFunction, terminalType, true, false);
-        writeOneAliasToFile(name, text, true);
+        writeOneAliasToFile(name, text, shouldCheckUpdateAlias);
       }
     });
 
@@ -513,9 +514,9 @@ export function cookCmdShortcutsOrFile(
     }
   }
 
-  function writeOneAliasToFile(name: string, scriptContent: string, checkAndSkip = false): boolean {
+  function writeOneAliasToFile(name: string, scriptContent: string, checkUpdateAlias: boolean = false): boolean {
     const singleScriptPath = path.join(singleScriptsSaveFolder, isWindowsTerminal ? name + '.cmd' : name);
-    if (checkAndSkip && fs.existsSync(singleScriptPath)) {
+    if (!checkUpdateAlias && fs.existsSync(singleScriptPath)) {
       return true;
     }
 
@@ -528,7 +529,8 @@ export function cookCmdShortcutsOrFile(
       scriptContent = '#!/bin/bash' + '\n' + scriptContent;
     }
 
-    return saveTextToFile(singleScriptPath, scriptContent.trim() + (isWindowsTerminal ? '\r\n' : '\n'), 'single command alias script file');
+    scriptContent = scriptContent.trim() + (isWindowsTerminal ? '\r\n' : '\n');
+    return saveTextToFile(singleScriptPath, scriptContent, 'single command alias script file', true);
   }
 
   function showTipByCommand(showTip: boolean) {

@@ -10,6 +10,16 @@ import ChildProcess = require('child_process');
 export const PathEnvName = IsWindows ? '%PATH%' : '$PATH';
 export const MatchWindowsDiskRegex = /^([A-Z]):/i;
 
+export function isWeeklyCheckTime(dayInWeek: number = 2, beginHour: number = 7, endHour: number = 12): boolean {
+    const now = new Date();
+    const hour = now.getHours();
+    if (now.getDay() !== dayInWeek || hour < beginHour || hour > endHour) {
+        // outputDebugByTime('Skip checking for now. Only check at every Tuesday 07:00 ~ 12:00.');
+        return false;
+    }
+    return true;
+}
+
 export function getErrorMessage(error: unknown): string {
     if (!error) {
         return '';

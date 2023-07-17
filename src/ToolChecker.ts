@@ -8,7 +8,7 @@ import { DefaultMessageLevel, MessageLevel, checkIfSupported, outputDebugByTime,
 import { getRunCmdTerminal, runRawCommandInTerminal } from "./runCommandUtils";
 import { DefaultTerminalType, IsLinuxTerminalOnWindows, checkAddFolderToPath, getHomeFolderForLinuxTerminalOnWindows, getTerminalShellExePath, isBashTerminalType, isLinuxTerminalOnWindows, isTerminalUsingWindowsUtils, isToolExistsInPath, isWindowsTerminalOnWindows, toCygwinPath, toTerminalPath } from "./terminalUtils";
 import { SourceHomeUrlArray, getDownloadUrl, getFileMd5, getHomeUrl, updateToolNameToPathMap } from "./toolSource";
-import { PathEnvName, getActiveFilePath, getDefaultRootFolder, getElapsedSecondsToNow, isDirectory, isFileExists, isNullOrEmpty, quotePaths, runCommandGetOutput } from "./utils";
+import { PathEnvName, getActiveFilePath, getDefaultRootFolder, getElapsedSecondsToNow, isDirectory, isFileExists, isNullOrEmpty, isWeeklyCheckTime, quotePaths, runCommandGetOutput } from "./utils";
 import path = require('path');
 import fs = require('fs');
 import https = require('https');
@@ -399,13 +399,8 @@ export class ToolChecker {
       return;
     }
 
-    if (!IsDebugMode) {
-      const now = new Date();
-      const hour = now.getHours();
-      if (now.getDay() !== 2 || hour < 7 || hour > 12) {
-        outputDebugByTime('Skip checking for now. Only check at every Tuesday 07:00 ~ 12:00.');
-        return;
-      }
+    if (!IsDebugMode && !isWeeklyCheckTime()) {
+      return;
     }
 
     const trackCheckBeginTime = new Date();

@@ -2,6 +2,9 @@
 
 All notable changes to this "vscode-msr" extension will be documented in this file.
 
+## [2.1.65]
+- Updated `USERNAME` for `reload-env`/`reset-env` on Windows.
+
 ## [2.1.64]
 - Improved `reload-env` + Reduced running `add-user-path` on Windows.
 - Changed `msr.overwriteInconsistentCommonAliasByExtension` = `true`.

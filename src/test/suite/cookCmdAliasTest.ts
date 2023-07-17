@@ -2,6 +2,7 @@ import * as assert from 'assert';
 import { replaceForLoopVariableOnWindows } from '../../commonAlias';
 import { getCommandAliasMap } from '../../cookCommandAlias';
 import { TerminalType } from '../../enums';
+import { IsWindows } from '../../constants';
 
 const TailArgsRegex: RegExp = /\$\*\W*$/; // Linux + Windows-doskey-file
 const LinuxFunctionTailArgsRegex: RegExp = /\$\*\W*[\r\n]+/; // Linux-bash-file

@@ -255,29 +255,13 @@ Each time it will write 1 or multiple script files to the folder of `msr.cmdAlia
 When you open a new terminal, will [**auto set project specific command shortcuts**](#auto-set-command-shortcuts-for-new-terminals) to use temporary command shortcuts of each project's specific settings plus `.vscode/settings.json` in it's root folder.
 
 ### Switch between General and Project Specific Command Shortcuts
-
-- Terminals in vscode:
-  - For `MSR-RUN-CMD` + other existing terminals in vscode:
-    - Run **update-alias** to temporarily use/switch to `default/general` filters.
-    - Run **open-alias** to open the general/default command alias file (like `~/msr-cmd-alias.bashrc` or `%USERPROFILE%\msr-cmd-alias.doskeys`).
-    - Run **update-{project-folder-name}-alias** to **recover**/use `git-ignore` filters.
-      - Run **`malias "update-\S*alias"`** to get the exact `update-xxx-alias` **names** + **paths**.
-  - Only for `MSR-RUN-CMD` terminals in vscode:
-    - Open [user settings](https://code.visualstudio.com/docs/getstarted/settings#_settings-editor) (press `F1`) -> search `msr.useGitIgnoreFile` and un-check it to use `default/general` filters.
-      - Change `msr.{project-folder-name}.useGitIgnoreFile` if you had set for a project in [user settings.json](https://code.visualstudio.com/docs/getstarted/settings#_settings-file-locations).
-- System console (`CMD/Bash`) **out of vscode** (after [cooking doskeys/alias](#make-command-shortcuts-to-search-or-replace-in-or-out-of-vscode)).
-  - If you always work with only one project/repository:
-    - [Cook project specific doskeys/alias](#make-command-shortcuts-to-search-or-replace-in-or-out-of-vscode) like `find-xxx` with project specific [git-ignore](#use-git-ignore).
-  - If you work with many projects/repositories, run 1 command to switch to project specific [git-ignore](#use-git-ignore):
-    - Windows CMD console:
-      - **doskey** /MACROFILE=`%TMP%\{project-folder-name}.msr-cmd-alias.doskeys`
-    - Linux/MacOS console or [Cygwin/MinGW/WSL console on Windows](#supported-4-terminal-types-on-windows):
-      - **source** `/tmp/{project-folder-name}.msr-cmd-alias.bashrc`
-    - Notes:
-      - The above `"temp alias file paths"` are already displayed in `MSR-RUN-CMD` and new terminals.
-      - Please get the **name** + **paths** by command: **`malias "update-\S*alias"`** in `MSR-RUN-CMD` and new terminals.
-      - Only effective to current console, no impact to other/latter consoles.
-- You can verify switching by command like: **`alias find-ref`**, should see different **find-ref** definitions after switched.
+Type commands below in a terminal/console after [cooking doskeys/alias](#make-command-shortcuts-to-search-or-replace-in-or-out-of-vscode):
+- Type `list-alias` to list all available alias files (auto cooked by vscode when opening a project/repo).
+- Type `use-this-alias` to use **project** specific alias in terminal (when in a project/repo folder).
+  - Type `update-alias` to switch to **general** alias.
+- For full or relative path:
+  - Type `out-fp` to output full file paths of search results.
+  - Type `out-rp` to output relative paths.
 
 ## Use git-ignore
 
@@ -354,12 +338,12 @@ Take **finding definition** for **batch** files (`*.bat` and `*.cmd`) as an exam
 
 ### Method-1: Only Add One Extension of the New Language You Want to Support
 
-If you only want to support finding definition for `*.bat` files other than all `batch` script (`*.bat` + `*.cmd`):
+If you only want to support `finding definition` for `*.bat` files other than all `batch` script (`*.bat` + `*.cmd`):
 
 Add **lower case** `extension name`: "**msr.{extension}.definition**" (here `{extension}` = **bat** ) into the file:
 
 ```json
-  "msr.batch.definition": "^\\s*:\\s*(%1)\\b|(^|\\s)set\\s+(/a\\s+)?\\\"?(%1)="
+  "msr.bat.definition": "^\\s*:\\s*(%1)\\b|(^|\\s)set\\s+(/a\\s+)?\\\"?(%1)="
 ```
 
 See [**here**](https://github.com/qualiu/vscode-msr/blob/master/Add-New-Language-Support-For-Developers.md#additional-explanation-for-the-regex-pattern-used-above-when-support-batch-scripts) if you're interested about the explanation of the `definition` Regex used above and below.
@@ -620,11 +604,13 @@ Code mining examples (run in vscode terminals: like `MSR-RUN-CMD` or add/open **
 
 - Fuzzy search a class/method: (Try [**gfind-xxx**](#try-to-use-gfind-xxx-instead-of-find-xxx-aliasdoskey) for all commands if got git exemptions)
   - **find-def** `"\w*Keyword\w*You-Heard-or-Knew\w*"`
+    - **gfind-def** `"\w*Keyword\w*You-Heard-or-Knew\w*"` -x `class` --sp `".cpp,/common,lib"` --xp `"extend,.h,.hpp"`
 
 - Fuzzy search a class/method, with [**optional args**](https://github.com/qualiu/msr#brief-summary-of-msr-exe) like **ignore case**(**-i**) :
   - **find-def** `"\w*Keyword\w*"` **-i**
-  - **find-def** `"\w*Keyword\w*"` **-i** -x `class`
+  - **find-def** `"\w*Keyword\w*"` **-i** -x `class` --sp `".cpp,/common,lib"` --xp `"extend,.h,.hpp"`
   - **find-ref** `"class\s+\w*Keyword\w*"` **-i**
+    - **gfind-ref** `"class\s+\w*Keyword\w*"` **-i**
   - **find-all** -i -t `"class\s+\w*keyword\w*"`
   - **find-def** `"\w*Keyword\w*"` **-i -x** `enum`
   - **find-def** `"\w*Keyword\w*"` **-ix** `public` -H `20` -T `20` --nx `internal` -d `"^(src)$|keyword"` --nd `"test|^(unit|bin$)|demo"`
@@ -632,7 +618,7 @@ Code mining examples (run in vscode terminals: like `MSR-RUN-CMD` or add/open **
   - **find-def** `"\w*Keyword\w*"` **-i** --nx `private` --nt `"protected|internal"` --xp `test,/unit,/bin/,demo` --pp `"/src/|keyword"` -H 20 -J ...
 
 - **Accelerate searching** if you know the language type (like `Python`/`C#`), the **more** filters the **faster**:
-  - **find-py-def** `"\w*(get|set|update)\w*Method-Keyword-You-Heard\w*"` -ix `public` --nx ... --nt ... --xp ... --pp ... -d ... --nd ...
+  - **find-py-def** `"\w*(get|set|update)\w*Method-Keyword-You-Heard\w*"` -ix `public` --nx ... --nt ... --xp ... --sp ... --pp ... --np ... -d ... --nd ...
   - **find-cs-def** `"\w*(get|set|update)\w*Method-Keyword-You-Heard\w*"` -i
   - **find-cpp-ref** `"(class|enum)\s+\w*Class-Keyword-You-Heard\w*"` -i
   - **find-java-ref** `"(class|enum)\s+\w*Class-Keyword-You-Heard\w*"` -i
@@ -642,7 +628,7 @@ Code mining examples (run in vscode terminals: like `MSR-RUN-CMD` or add/open **
   - **find-all** -i -t `"(class|enum)\s+\w*Class-Keyword-You-Heard\w*"`
 
 - Others like: (run command `alias find-xxx` to see the command template like `alias find-all`)
-  - **find-doc** -it `"regex-pattern"` -x `"and-plain-text"` --nx ... --nt ... --xp ... --pp ... -d ... --nd ...
+  - **find-doc** -it `"regex-pattern"` -x `"and-plain-text"` --nx ... --nt ... --xp ... --sp ... --pp ... -d ... --nd ...
   - **find-config** -it `"regex-pattern"` -x `"and-plain-text"`
   - **find-small** -it `"regex-pattern"` -x `"and-plain-text"`
 
@@ -651,6 +637,9 @@ Code mining examples (run in vscode terminals: like `MSR-RUN-CMD` or add/open **
   - **find-nd** -f `"\.(cs|py|java)$"` -it `"regex-pattern"` -x `"and-plain-text"`
   - **find-ndp** `path1,path2,pathN` -f `"\.(cs|py|java)$"` -it `"regex-pattern"` -x `"and-plain-text"`
   - **find-ndp** `path1,path2,pathN` -it `"regex-pattern"` -x `"and-plain-text"` -f ... --nf ... -d ... --nd ... --pp ... --xp ... --nt ... --nx ...
+  - **find-all** -it `"regex-pattern"` -x `"and-plain-text"` --sp `"sub-path1/,/sub-path2/"` --s1 `100KB` --s2 `3.5MB` -f ...
+  - **find-file** -it `"regex-pattern"` -x `"and-plain-text"` --s1 `100KB` --s2 `3.5MB` -f ...
+  - **gfind-file** / **gfind-all** / **gfind-small** / **gfind-ref** / ...
 
 - With other optional args like:
   - **find-all** -it `"regex-pattern"` -x `"and-plain-text"` -l  just list matched file paths.

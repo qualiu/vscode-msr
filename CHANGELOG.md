@@ -2,6 +2,10 @@
 
 All notable changes to this "vscode-msr" extension will be documented in this file.
 
+## [2.1.66]
+- Added `file-file` / `gfind-file` + Updated alias of `find-all` / `gfind-all` / `gfind-ref` / `find-pure-ref` / etc. (will search all files, no name filter).
+- Fixed registering general alias file when cooking alias on Window.
+
 ## [2.1.65]
 - Updated `USERNAME` for `reload-env`/`reset-env` on Windows.
 

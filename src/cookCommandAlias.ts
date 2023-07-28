@@ -412,7 +412,7 @@ export function cookCmdShortcutsOrFile(
     }
   }
 
-  if (isWindowsTerminal && isRunCmdTerminal && (isFromMenu || isOnlyCookingGeneralCmdAlias)) {
+  if (isWindowsTerminal && !isForProjectCmdAlias && (isRunCmdTerminal || (!terminal && isFromMenu) || isOnlyCookingGeneralCmdAlias)) {
     const regCmd = 'REG ADD "HKEY_CURRENT_USER\\Software\\Microsoft\\Command Processor" /v Autorun /d "DOSKEY /MACROFILE=' + slashQuotedDefaultCmdAliasFile + '" /f';
     runCmdInTerminal(regCmd, true);
   }
@@ -840,8 +840,12 @@ export function getCommandAliasMap(
 
     // msr.definition.extraOptions msr.default.extraOptions
     const extraOption = addFullPathHideWarningOption(getConfigValueOfProject(projectKey, 'extraOptions'), writeToEachFile);
-
-    let body = 'msr -rp .' + skipFolderPatternForCmdAlias + ' -f "' + allFilesPattern + '" ' + extraOption;
+    const isFindAll = cmdName.match(/^(find-all-?\S*|find-ref|find-pure-ref)$/);
+    let body = 'msr -rp .' + skipFolderPatternForCmdAlias;
+    if (!isFindAll) {
+      body += + ' -f "' + allFilesPattern + '"';
+    }
+    body += ' ' + extraOption.trim();
     body += skipPattern + searchPattern;
     commands.push(getCommandAlias(cmdName, body, true));
   });
@@ -855,6 +859,7 @@ export function getCommandAliasMap(
 
     // find-all
     const cmdName = 'find-' + fp.replace(/[A-Z]\w*$/, '');
+    const isFindAll = cmdName.match(/^(find-all-?\S*|find-ref|find-pure-ref)$/);
 
     // msr.definition.extraOptions msr.default.extraOptions
     let extraOption = addFullPathHideWarningOption(getConfigValueOfProject(projectKey, 'extraOptions'), writeToEachFile);
@@ -862,9 +867,15 @@ export function getCommandAliasMap(
       extraOption = extraOption.replace(/(^|\s+)--s2\s+\S+\s*/, ' ');
     }
 
-    let body = 'msr -rp .' + skipFolderPatternForCmdAlias + ' -f "' + filePattern + '" ' + extraOption;
-
-    commands.push(getCommandAlias(cmdName, body, true));
+    const body = 'msr -rp .' + skipFolderPatternForCmdAlias + (isFindAll ? "" : ' -f "' + filePattern + '" ' + extraOption.trim());
+    commands.push(getCommandAlias(cmdName, body.trimRight(), true));
+    if (cmdName === 'find-all') {
+      extraOption = extraOption.replace(/(^|\s+)--s1\s+\S+\s*/g, ' '); // many repo files are empty
+      extraOption = extraOption.replace(/(^|\s+)--s2\s+\S+\s*/, ' '); // some repo files are too huge
+      extraOption = extraOption.replace(/(^|\s+)-I(\s+|$)/, ' '); // many errors may show up for gfind-all
+      const findFileBody = 'msr -rp .' + skipFolderPatternForCmdAlias + ' ' + extraOption.trim();
+      commands.push(getCommandAlias('find-file', findFileBody.trim(), true));
+    }
   });
 
   // find-nd find-code find-ndp find-small find-all

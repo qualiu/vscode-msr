@@ -166,7 +166,7 @@ Try **gfind-xxx** alias/doskey/scripts which uses **accurate** source file paths
   - You can also set a big value but delete the tmp listing file after git update.
     - Easy to add alias like:
       - Windows: `git-pull=git branch | msr -t "^\s*\*\s*(\S+).*" -o "git pull origin \1 $*" -XM && del %tmp%\tmp-list-*`.
-      - Linux/MacOs: `alias git-pull='git branch | msr -t "^\s*\*\s*(\S+).*" -o "git pull origin \1 $*" -XM && rm /tmp/tmp-list-*'`.
+      - Linux/MacOS: `alias git-pull='git branch | msr -t "^\s*\*\s*(\S+).*" -o "git pull origin \1 $*" -XM && rm /tmp/tmp-list-*'`.
 
 This's helpful if got [**git-exemption-warnings**](#use-git-ignore) when initializing new terminals.
 
@@ -213,6 +213,14 @@ This's helpful if got [**git-exemption-warnings**](#use-git-ignore) when initial
 - Try **gfind-xxx** instead of **find-xxx** if warned [**exemptions**](#try-to-use-gfind-xxx-instead-of-find-xxx-aliasdoskey) when initializing new terminals.
 - If it's not in vscode (like other IDEs or system terminals), you can run **use-this-alias** in the terminal (if current folder is in a git project) to load command shortcuts for current project.
 
+You can search **in vscode terminal** then **click** the results to **open and locate** them.
+
+You can also start [**code-mining**](#code-mining-without-or-with-little-knowledge) or [replacing files](#replace-files-with-preview-and-backup) out of vscode ([System terminals or other IDEs](#the-cookeddumped-aliasdoskey-can-be-used-in-many-ides-not-just-vscode)).
+ 
+If using alias(like `find-spring-ref`) in a **nested command** (like `for/while-loop` or `command|pipe`), or **script file** (like `*.bat/cmd` or `*.sh`):
+   - Use **full-name** (like `find-spring-ref.cmd`) .
+   - Or use **full script path** (like `~/cmdAlias/find-spring-ref`).
+
 ```bash
 Now you can directly use the command shortcuts in/out-of vscode to search + replace like:
 find-ndp dir1,dir2,file1,fileN -t MySearchRegex -x AndPlainText
@@ -244,8 +252,6 @@ See + Use command alias(shortcut) in `MSR-RUN-CMD` on `TERMINAL` tab, or start u
 (if running `find-xxx` in vscode terminals, you can `click` the search results to open in vscode.)
 ```
 
-You can search **in vscode terminal** then **click** the results to **open and locate** them, or start [**code-mining**](#code-mining-without-or-with-little-knowledge).
-
 Each time it will write 1 or multiple script files to the folder of `msr.cmdAlias.saveFolder`, if not set:
 
 - Single alias/doskey file: Save to `%USERPROFILE%\` on Windows or `~/` on Linux/MacOS.
@@ -259,7 +265,8 @@ Type commands below in a terminal/console after [cooking doskeys/alias](#make-co
 - Type `list-alias` to list all available alias files (auto cooked by vscode when opening a project/repo).
 - Type `use-this-alias` to use **project** specific alias in terminal (when in a project/repo folder).
   - Type `update-alias` to switch to **general** alias.
-- For full or relative path:
+
+For full or relative path:
   - Type `out-fp` to output full file paths of search results.
   - Type `out-rp` to output relative paths.
 
@@ -275,28 +282,15 @@ Parsing result of `.gitignore` file: see `MSR-Def-Ref` output channel (with `msr
 
 Run command **`"npm run test"`** in vscode-msr folder if you want to see the translation rule of git-ignore on Windows/Linux/MacOS.
 
-### Compare file lists to help checking if a project can use git-ignore
+### Check if a Project Can Use git-ignore
 
 - Method-1: Set `msr.autoCompareFileListsIfUsedGitIgnore` = `true` to auto compare file list at starting (opening projects).
 - Method-2: Use menu/command-palette of `msr.compareFileListsWithGitIgnore` to compare file lists if enabled `msr.useGitIgnoreFile`.
 
-### Enable or disable git-ignore for all projects or one project
+### Enable or Disable git-ignore for All Projects or One Project
 
 - For all projects: Set `msr.useGitIgnoreFile` to `true` or `false`.
 - For one project: Add `msr.{project-folder-name}.useGitIgnoreFile` = `true` or `false` in [user settings](#extension-settings-if-you-want-to-change).
-
-### A better solution to support `git-ignore` in future
-- Use `git ls-files` command output all file list to `/tmp/{project}-git-files.txt`.
-  - For terminal usages, there's a new group of [**gfind-xxx**](#try-to-use-gfind-xxx-instead-of-find-xxx-aliasdoskey) alias/doskey shortcuts.
-- Use `msr -w /tmp/{project}-git-files.txt` instead of current `msr -rp .` or `msr -rp {project}-full-path`.
-- Create a file watcher to auto update `/tmp/{project}-git-files.txt` when captured file `deletion` or `creation` events.
-
-### Current workarounds if non-precise `git-ignore` not works well
-
-- Precise method:
-  - As mentioned above, leverage **git ls-files** to output file list to a temp file + **msr -w** to read (instead of `msr -rp`).
-- Non-precise method: 
-  - See [switch between general/specific shortcuts](#switch-between-general-and-project-specific-command-shortcuts).
 
 ## Support Multiple Repositories
 
@@ -390,14 +384,20 @@ Set `msr.menu.visible` = `false` to hide all context menus of `Regex find xxx` +
 
 ## Get the Best Combined Power
 
-- Most time the professional language extension of vscode works well, so vscode-msr will disable itself to find definition by checking language extension process.
-- You can still leverage vscode-msr to find definition temporarily, or permanently by changing the user settings.
+- Most time, professional extension(like `vscode-java`) works well, so `vscode-msr` will `disable` itself finding definition:
+  - If found professional extension process is running:
+    - `vscode-msr` will ignore `"Go To Definition"` from `mouse-click` or `key` like `F12`.
+  - You can still use `vscode-msr` by menu or terminal.
+     
+- If professional extension not work, you can `toggle` enabling `vscode-msr` temporarily (until reload/re-open vscode).
 
 ### Auto Disable Finding Definition as Default
 - Default config = `msr.cpp.autoDisableFindDefinitionPattern` , values is a Regex pattern of process name of professional language extension (like `vscode-java`).
 - If you don't want to use this auto-disabling feature, like below (update user settings):
-  - For `C++`, add/set empty value  `msr.cpp.autoDisableFindDefinitionPattern` = `""`.
-- Accelerate/accurate checking language process like below:
+  - For `C++`, add/set empty value `msr.cpp.autoDisableFindDefinitionPattern` = `""`.
+  - For all languages, add/set empty value `msr.default.autoDisableFindDefinitionPattern` = `""`
+    - Change specific config like `msr.java.autoDisableFindDefinitionPattern` to empty if found.
+- Accelerate/accurate checking language process like below（`C#` + `Rust`):
   - `msr.cs.languageProcessName` = `dotnet`
   - `msr.rs.languageProcessName` = `rust-analyzer`
 - For mapped extension (like: `cs`/`rs`/`py`/`cpp`/`java`): 
@@ -604,18 +604,28 @@ Code mining examples (run in vscode terminals: like `MSR-RUN-CMD` or add/open **
 
 - Fuzzy search a class/method: (Try [**gfind-xxx**](#try-to-use-gfind-xxx-instead-of-find-xxx-aliasdoskey) for all commands if got git exemptions)
   - **find-def** `"\w*Keyword\w*You-Heard-or-Knew\w*"`
-    - **gfind-def** `"\w*Keyword\w*You-Heard-or-Knew\w*"` -x `class` --sp `".cpp,/common,lib"` --xp `"extend,.h,.hpp"`
+    - **gfind-def** `"\w*Keyword\w*You-Heard-or-Knew\w*"` -x `class` --sp `".cpp,/common,lib"` --xp `"test,unit,mock,/obj,/bin/"`
+    - **gfind-def** `"\w*Keyword\w*You-Heard-or-Knew\w*"` -x `struct` -k `12`
 
 - Fuzzy search a class/method, with [**optional args**](https://github.com/qualiu/msr#brief-summary-of-msr-exe) like **ignore case**(**-i**) :
   - **find-def** `"\w*Keyword\w*"` **-i**
-  - **find-def** `"\w*Keyword\w*"` **-i** -x `class` --sp `".cpp,/common,lib"` --xp `"extend,.h,.hpp"`
-  - **find-ref** `"class\s+\w*Keyword\w*"` **-i**
-    - **gfind-ref** `"class\s+\w*Keyword\w*"` **-i**
+  - **find-def** `"\w*Keyword\w*"` **-i** -x `class` --sp `".hpp,.cpp,/common,lib"` --xp `"test,unit,mock,/obj,/bin/"`
+  - **find-ref** `"class\s+\w*Keyword\w*"` **-i** --nx `";"`
+    - **gfind-ref** `"class\s+\w*Keyword\w*"` **-i** --nt `";\s*$"`
+    - **gfind-ref** `"\w*Keyword\w*"` **-i** -x `enum`
   - **find-all** -i -t `"class\s+\w*keyword\w*"`
   - **find-def** `"\w*Keyword\w*"` **-i -x** `enum`
   - **find-def** `"\w*Keyword\w*"` **-ix** `public` -H `20` -T `20` --nx `internal` -d `"^(src)$|keyword"` --nd `"test|^(unit|bin$)|demo"`
   - **find-def** `"\w*Keyword\w*"` **-i** --nt `"private|protected"` --pp `"/src/|keyword"` --xp `test,/unit,/bin/,demo` --np `"test|/unit|/bin/"`
   - **find-def** `"\w*Keyword\w*"` **-i** --nx `private` --nt `"protected|internal"` --xp `test,/unit,/bin/,demo` --pp `"/src/|keyword"` -H 20 -J ...
+
+- Replace files (Add -o `"replace-to-xxx"` + Append `-R`):
+  - **find-ref** `OldName` -o `NewName` -L `row1` -N `row2` --nt ... --nx ... --sp ... -xp ... --pp ... -- preview replacing if no `-R`
+    - **gfind-ref** `OldName` -o `NewName` -x `"And has text"` --nt ... --nx ... --sp ... -xp ... --pp ... -- preview replacing.
+    - **gfind-java-ref** `OldName` -o `NewName` -x ... --nt ... --nx ... --sp ... -xp ... --pp ... -- preview replacing.
+    - **gfind-file** -t `"\bOld Text\b"` -o `"New Text"` **-j**  -- to preview only **changed** replacing.
+  - **gfind-config** -t ... -o ...
+    - **gfind-small** -t ... -o ...
 
 - **Accelerate searching** if you know the language type (like `Python`/`C#`), the **more** filters the **faster**:
   - **find-py-def** `"\w*(get|set|update)\w*Method-Keyword-You-Heard\w*"` -ix `public` --nx ... --nt ... --xp ... --sp ... --pp ... --np ... -d ... --nd ...
@@ -626,6 +636,10 @@ Code mining examples (run in vscode terminals: like `MSR-RUN-CMD` or add/open **
   - **find-ui** -it `"regex-pattern"` -x `"and-plain-text"`
   - **find-code** -it `"(class|enum)\s+\w*Class-Keyword-You-Heard\w*"`
   - **find-all** -i -t `"(class|enum)\s+\w*Class-Keyword-You-Heard\w*"`
+  - **find-cpp-member-ref** `m_variable` -- to find `m_variable` + `getVariable` + `setVariable` + `_variable` + `variable_`
+    - **gfind-cpp-member-ref** `m_variable` -x `set` -- to find `setVariable`
+  - **find-spring-ref** `setVariable`  -- to find `variable` + `getVariable` + `setVariable`
+    - **find-spring-ref** `variable` -x `is`   -- to find `isVariable`
 
 - Others like: (run command `alias find-xxx` to see the command template like `alias find-all`)
   - **find-doc** -it `"regex-pattern"` -x `"and-plain-text"` --nx ... --nt ... --xp ... --sp ... --pp ... -d ... --nd ...

@@ -335,7 +335,7 @@ export function cookCmdShortcutsOrFile(
     let scriptContent = cmdAliasMap.get(key) || '';
     if (writeToEachFile) {
       if (canWriteScripts && !skipWritingScriptNames.has(key) && (dumpOtherCmdAlias || key.match(/^(g?find|sort)-|malias/))) {
-        if (!writeOneAliasToFile(key, scriptContent)) {
+        if (!writeOneAliasToFile(key, scriptContent, true)) {
           writeScriptFailureCount++;
         }
       }

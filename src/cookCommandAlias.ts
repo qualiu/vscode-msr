@@ -843,7 +843,7 @@ export function getCommandAliasMap(
     const isFindAll = cmdName.match(/^(find-all-?\S*|find-ref|find-pure-ref)$/);
     let body = 'msr -rp .' + skipFolderPatternForCmdAlias;
     if (!isFindAll) {
-      body += + ' -f "' + allFilesPattern + '"';
+      body += ' -f "' + allFilesPattern + '"';
     }
     body += ' ' + extraOption.trim();
     body += skipPattern + searchPattern;

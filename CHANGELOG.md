@@ -1,6 +1,10 @@
 # Change Log
 
 All notable changes to this "vscode-msr" extension will be documented in this file.
+
+## [2.1.68]
+- Fixed typo error for `find-def` + `gfind-def`.
+
 ## [2.1.67]
 - Overwrite inconsistent alias when dumping alias to script files.
 

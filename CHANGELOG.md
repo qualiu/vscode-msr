@@ -2,6 +2,9 @@
 
 All notable changes to this "vscode-msr" extension will be documented in this file.
 
+## [2.1.69]
+- Improved skipping dot folders + Reduced `Skip_Git_Paths` value.
+
 ## [2.1.68]
 - Fixed typo error for `find-def` + `gfind-def`.
 
@@ -565,7 +568,7 @@ All notable changes to this "vscode-msr" extension will be documented in this fi
 
 ## [1.0.9]
 
-- Changed `msr.{root-folder-name}.skipFolders` role from **additional** to **overwrite** to improve performance.
+- Changed `msr.{repo-folder-name}.skipFolders` role from **additional** to **overwrite** to improve performance.
 - Added warning for platforms not supported.
 
 ## [1.0.8]

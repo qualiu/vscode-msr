@@ -121,7 +121,7 @@ To adjust the colors, for example, if it's default `dark-blue` color theme:
 
 - Open your [personal settings file](https://code.visualstudio.com/docs/getstarted/settings#_settings-file-locations) with `code` or other tools like:
   - Windows: code `%APPDATA%\Code\User\settings.json`
-  - Linux: code `$HOME/.config/Code/User/settings`
+  - Linux: code `$HOME/.config/Code/User/settings.json`
 - Add or change **terminal.ansiBrightBlue** like below: (Add outer brackets `"{ }"` if the file is empty)
 
 ```json
@@ -163,10 +163,9 @@ You can generate the command shortcuts (alias/doskey) to directly use for search
 Try **gfind-xxx** alias/doskey/scripts which uses **accurate** source file paths by "`git ls-files`", though a bit slower than **find-xxx**.
 - You can change set `msr.refreshTmpGitFileListDuration` (default = `2 minutes`) to avoid writing temp file too frequently.
   - It's very fast to run `git ls-files` for most projects.
-  - You can also set a big value but delete the tmp listing file after git update.
-    - Easy to add alias like:
-      - Windows: `git-pull=git branch | msr -t "^\s*\*\s*(\S+).*" -o "git pull origin \1 $*" -XM && del %tmp%\tmp-list-*`.
-      - Linux/MacOS: `alias git-pull='git branch | msr -t "^\s*\*\s*(\S+).*" -o "git pull origin \1 $*" -XM && rm /tmp/tmp-list-*'`.
+  - You can set long duration(like `30days`) + Add/Use `git-pull` like below to auto refresh tmp-list :
+    - Windows: `git-pull=git branch | msr -t "^\s*\*\s*(\S+).*" -o "git pull origin \1 $*" -XM && del %tmp%\tmp-list-*`.
+    - Linux/MacOS: `alias git-pull='git branch | msr -t "^\s*\*\s*(\S+).*" -o "git pull origin \1 $*" -XM && rm /tmp/tmp-list-*'`.
 
 This's helpful if got [**git-exemption-warnings**](#use-git-ignore) when initializing new terminals.
 
@@ -208,7 +207,7 @@ This's helpful if got [**git-exemption-warnings**](#use-git-ignore) when initial
 
 ### Command Shortcuts
 
-- After you cooked command alias/doskeys, you'll see messages below: (You can **write**/**update** doskeys in file)
+- After you cooked command alias/doskeys, you'll see messages below: (You can **add**/**update** doskeys in file)
 - Automated command shortcuts on **Linux** + **MacOS** + **WSL** + [**4 types of terminals** on Windows](#supported-4-terminal-types-on-windows) to [search](#search-files-with-rich-filters) or [**mining-code**](#code-mining-without-or-with-little-knowledge) or [replace files](#replace-files-with-preview-and-backup).
 - Try **gfind-xxx** instead of **find-xxx** if warned [**exemptions**](#try-to-use-gfind-xxx-instead-of-find-xxx-aliasdoskey) when initializing new terminals.
 - If it's not in vscode (like other IDEs or system terminals), you can run **use-this-alias** in the terminal (if current folder is in a git project) to load command shortcuts for current project.
@@ -277,6 +276,10 @@ Open [user settings](https://code.visualstudio.com/docs/getstarted/settings#_set
 - This use the `.gitignore` file only in top folder of the project, without other kinds/folders of git-ignore files.
 - Omit file/folder exemptions (like `!not-exclude.txt`) as default.
   - Set `msr.omitGitIgnoreExemptions` = `false` to not use git-ignore if found exemptions.
+- Change `skipDotFoldersIfUseGitIgnoreFile` to `false` if some code files in **dot folders** like `".submodules"`:
+  - Method-1: Change for the project only (choose `workspace` when open user settings menu).
+  - Method-2: Change [settings.json](#adjust-your-color-theme-if-result-file-path-folder-color-is-not-clear): Add `msr.{project-repo-folder-name}.skipDotFoldersIfUseGitIgnoreFile` = `false`.
+    - [Full overriding rule](https://github.com/qualiu/vscode-msr/blob/master/Add-New-Language-Support-For-Developers.md#full-priority-order-of-config-override-rule) for more details.
 
 Parsing result of `.gitignore` file: see `MSR-Def-Ref` output channel (with `msr.debug` = `true` or launched in debug mode).
 
@@ -368,7 +371,7 @@ Set `msr.quiet` = `false`, `msr.debug` = `true` will help you tune and debug the
 
 ### Other Optional Settings and Full Priority Order of Config Override Rule
 
-See [optional settings](https://github.com/qualiu/vscode-msr/blob/master/Add-New-Language-Support-For-Developers.md#many-other-settings-if-you-want-to-override-or-add-or-update) and [override rule](https://github.com/qualiu/vscode-msr/blob/master/Add-New-Language-Support-For-Developers.md#full-priority-order-of-config-override-rule).
+See [optional settings](https://github.com/qualiu/vscode-msr/blob/master/Add-New-Language-Support-For-Developers.md#many-other-settings-if-you-want-to-override-or-add-or-update) and [overriding rule](https://github.com/qualiu/vscode-msr/blob/master/Add-New-Language-Support-For-Developers.md#full-priority-order-of-config-override-rule).
 
 ## Every Function is Under Your Control and Easy to Change
 
@@ -502,7 +505,7 @@ This doc listed a few configuration names. Finding more by pressing `F1` to [Ope
 
 - You can add `msr.{project-folder-name}.xxx` in [settings file](https://code.visualstudio.com/docs/getstarted/settings#_settings-file-locations) to override all config values, like:
   - `msr.{git-folder-name}.useGitIgnoreFile` or `msr.{git-folder-name}.skipFolders` etc.
-- Full priority/order: See [**override rule + order**](https://github.com/qualiu/vscode-msr/blob/master/Add-New-Language-Support-For-Developers.md#full-priority-order-of-config-override-rule).
+- Full priority/order: See [**overriding rule + order**](https://github.com/qualiu/vscode-msr/blob/master/Add-New-Language-Support-For-Developers.md#full-priority-order-of-config-override-rule).
 
 Note: Check [**your personal settings**](https://code.visualstudio.com/docs/getstarted/settings#_settings-file-locations) (`msr.xxx` in file) with the latest tuned github settings, especially for `Regex` patterns.
 
@@ -604,12 +607,12 @@ Code mining examples (run in vscode terminals: like `MSR-RUN-CMD` or add/open **
 
 - Fuzzy search a class/method: (Try [**gfind-xxx**](#try-to-use-gfind-xxx-instead-of-find-xxx-aliasdoskey) for all commands if got git exemptions)
   - **find-def** `"\w*Keyword\w*You-Heard-or-Knew\w*"`
-    - **gfind-def** `"\w*Keyword\w*You-Heard-or-Knew\w*"` -x `class` --sp `".cpp,/common,lib"` --xp `"test,unit,mock,/obj,/bin/"`
+    - **gfind-def** `"\w*Keyword\w*You-Heard-or-Knew\w*"` -x `class` --sp `"/common/,/lib"`
     - **gfind-def** `"\w*Keyword\w*You-Heard-or-Knew\w*"` -x `struct` -k `12`
 
 - Fuzzy search a class/method, with [**optional args**](https://github.com/qualiu/msr#brief-summary-of-msr-exe) like **ignore case**(**-i**) :
   - **find-def** `"\w*Keyword\w*"` **-i**
-  - **find-def** `"\w*Keyword\w*"` **-i** -x `class` --sp `".hpp,.cpp,/common,lib"` --xp `"test,unit,mock,/obj,/bin/"`
+  - **find-def** `"\w*Keyword\w*"` **-i** -x `class` --xp `"test,unit,mock,/obj,/bin/"`
   - **find-ref** `"class\s+\w*Keyword\w*"` **-i** --nx `";"`
     - **gfind-ref** `"class\s+\w*Keyword\w*"` **-i** --nt `";\s*$"`
     - **gfind-ref** `"\w*Keyword\w*"` **-i** -x `enum`
@@ -619,10 +622,10 @@ Code mining examples (run in vscode terminals: like `MSR-RUN-CMD` or add/open **
   - **find-def** `"\w*Keyword\w*"` **-i** --nt `"private|protected"` --pp `"/src/|keyword"` --xp `test,/unit,/bin/,demo` --np `"test|/unit|/bin/"`
   - **find-def** `"\w*Keyword\w*"` **-i** --nx `private` --nt `"protected|internal"` --xp `test,/unit,/bin/,demo` --pp `"/src/|keyword"` -H 20 -J ...
 
-- Replace files (Add -o `"replace-to-xxx"` + Append `-R`):
-  - **find-ref** `OldName` -o `NewName` -L `row1` -N `row2` --nt ... --nx ... --sp ... -xp ... --pp ... -- preview replacing if no `-R`
-    - **gfind-ref** `OldName` -o `NewName` -x `"And has text"` --nt ... --nx ... --sp ... -xp ... --pp ... -- preview replacing.
-    - **gfind-java-ref** `OldName` -o `NewName` -x ... --nt ... --nx ... --sp ... -xp ... --pp ... -- preview replacing.
+- Replace files: Add **-o** `"replace-to-xxx"` + Append **-R** to `replace` (**Preview** replacing result **without** `-R`):
+  - **find-ref** `OldName` -o `NewName` -L `row1` -N `row2` --nt ... --nx ... --sp ... -xp ... --pp ...
+    - **gfind-ref** `OldName` -o `NewName` -x `"And has text"` --nt ... --nx ... --sp ... -xp ... --pp ...
+    - **gfind-java-ref** `OldName` -o `NewName` -x ... --nt ... --nx ... --sp ... -xp ... --pp ...
     - **gfind-file** -t `"\bOld Text\b"` -o `"New Text"` **-j**  -- to preview only **changed** replacing.
   - **gfind-config** -t ... -o ...
     - **gfind-small** -t ... -o ...
@@ -650,8 +653,8 @@ Code mining examples (run in vscode terminals: like `MSR-RUN-CMD` or add/open **
   - **find-nd** -it `"regex-pattern"` -x `"and-plain-text"` [**optional args**](https://github.com/qualiu/msr#brief-summary-of-msr-exe)
   - **find-nd** -f `"\.(cs|py|java)$"` -it `"regex-pattern"` -x `"and-plain-text"`
   - **find-ndp** `path1,path2,pathN` -f `"\.(cs|py|java)$"` -it `"regex-pattern"` -x `"and-plain-text"`
-  - **find-ndp** `path1,path2,pathN` -it `"regex-pattern"` -x `"and-plain-text"` -f ... --nf ... -d ... --nd ... --pp ... --xp ... --nt ... --nx ...
-  - **find-all** -it `"regex-pattern"` -x `"and-plain-text"` --sp `"sub-path1/,/sub-path2/"` --s1 `100KB` --s2 `3.5MB` -f ...
+  - **find-ndp** `path1,path2,pathN` -it `"regex-pattern"` -x `"and-plain-text"` ...
+  - **find-file** -it `"regex-pattern"` --sp `"sub-path1/,/sub-path2/"`
   - **find-file** -it `"regex-pattern"` -x `"and-plain-text"` --s1 `100KB` --s2 `3.5MB` -f ...
   - **gfind-file** / **gfind-all** / **gfind-small** / **gfind-ref** / ...
 
@@ -684,7 +687,7 @@ Once you found the results:
 
   You can set `skipFolders` pattern for each project to **overwrite** `default.skipFolders` in [your personal settings file](https://code.visualstudio.com/docs/getstarted/settings#_settings-file-locations).
 
-  Like adding `msr.{root-folder-name}.skipFolders` + value in `%APPDATA%\Code\User\settings.json` on Windows:
+  Like adding `msr.{repo-folder-name}.skipFolders` + value in `%APPDATA%\Code\User\settings.json` on Windows:
 
   ```json
   "msr.My-Project-Root-Folder-Name.skipFolders": "^(unit|tests)$|other-partial-folder-name"
@@ -696,10 +699,10 @@ Once you found the results:
 
   Regex pattern to promote scores for sorting definition (`Go To Definition`) or references (`Find All References`):
 
-  - `msr.{root-folder-name}.promoteFolderPattern`: Regex pattern to promote folder scores for result file folders.
-  - `msr.{root-folder-name}.promotePathPattern`: Regex pattern to promote path scores for result file paths.
-  - `msr.{root-folder-name}.promoteFolderScore`: Recommended value is 100 to 1000. Default = 200 if not set.
-  - `msr.{root-folder-name}.promotePathScore`: Recommended value is 100 to 1000. Default = 200 if not set.
+  - `msr.{repo-folder-name}.promoteFolderPattern`: Regex pattern to promote folder scores for result file folders.
+  - `msr.{repo-folder-name}.promotePathPattern`: Regex pattern to promote path scores for result file paths.
+  - `msr.{repo-folder-name}.promoteFolderScore`: Recommended value is 100 to 1000. Default = 200 if not set.
+  - `msr.{repo-folder-name}.promotePathScore`: Recommended value is 100 to 1000. Default = 200 if not set.
 
 ### Extra Paths Settings
 

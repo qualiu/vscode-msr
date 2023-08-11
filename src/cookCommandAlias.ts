@@ -12,7 +12,7 @@ import { escapeRegExp } from "./regexUtils";
 import { runCommandInTerminal, sendCommandToTerminal } from './runCommandUtils';
 import { DefaultTerminalType, IsLinuxTerminalOnWindows, getTerminalInitialPath, getTerminalNameOrShellExeName, getTerminalShellExePath, isLinuxTerminalOnWindows, isPowerShellTerminal, isWindowsTerminalOnWindows, toStoragePath, toTerminalPath, toTerminalPathsText } from './terminalUtils';
 import { getSetToolEnvCommand, getToolExportFolder } from "./toolSource";
-import { getDefaultRootFolderName, getElapsedSecondsToNow, getPowerShellName, getRootFolder, getRootFolderName, getUniqueStringSetNoCase, isNullOrEmpty, isPowerShellCommand, isWeeklyCheckTime, quotePaths, replaceTextByRegex, runCommandGetOutput } from "./utils";
+import { getDefaultRootFolderName, getElapsedSecondsToNow, getLoadAliasFileCommand, getPowerShellName, getRootFolder, getRootFolderName, getUniqueStringSetNoCase, isNullOrEmpty, isPowerShellCommand, isWeeklyCheckTime, quotePaths, replaceTextByRegex, runCommandGetOutput } from "./utils";
 import { FindJavaSpringReferenceByPowerShellAlias } from './wordReferenceUtils';
 import fs = require('fs');
 import os = require('os');
@@ -244,9 +244,10 @@ export function cookCmdShortcutsOrFile(
   }
 
   function addOpenUpdateCmdAlias(aliasFilePath: string, updateName: string = 'update-alias', openName: string = 'open-alias') {
+    const loadCmdAliasCommand = getLoadAliasFileCommand(aliasFilePath, isWindowsTerminal);
     const updateDoskeyText = isWindowsTerminal
-      ? (writeToEachFile ? `doskey /MACROFILE=${aliasFilePath}` : `${updateName}=doskey /MACROFILE=${aliasFilePath}`)
-      : (writeToEachFile ? `source ${aliasFilePath}` : `alias ${updateName}='source ${aliasFilePath}'`);
+      ? (writeToEachFile ? loadCmdAliasCommand : `${updateName}=${loadCmdAliasCommand}`)
+      : (writeToEachFile ? loadCmdAliasCommand : `alias ${updateName}='${loadCmdAliasCommand}'`);
 
     const openDoskeyText = isWindowsTerminal
       ? (writeToEachFile ? `${toolToOpen} ${aliasFilePath}` : `${openName}=${toolToOpen} ${aliasFilePath}`)
@@ -387,7 +388,7 @@ export function cookCmdShortcutsOrFile(
           saveTextToFile(projectAliasFilePath, allCmdAliasText, 'tmp project alias file');
           //const gitIgnore = getGitIgnore(rootFolder)
           if (isRunCmdTerminal && isGitIgnoreCompleted) {
-            runCmdInTerminal('doskey /MACROFILE=' + quotedCmdAliasFileForTerminal);
+            runCmdInTerminal(getLoadAliasFileCommand(quotedCmdAliasFileForTerminal, isWindowsTerminal));
           }
         }
       }
@@ -427,7 +428,7 @@ export function cookCmdShortcutsOrFile(
   if (isWindowsTerminal) {
     if (!isTooCloseCooking) {
       runCmdInTerminal(getSetToolEnvCommand(terminalType, [generalScriptFilesFolder]));
-      runCmdInTerminal('doskey /MACROFILE=' + quotedCmdAliasFileForTerminal); // init alias for CMD
+      runCmdInTerminal(getLoadAliasFileCommand(quotedCmdAliasFileForTerminal, isWindowsTerminal)); // init alias for CMD
     }
 
     if (isRunCmdTerminal && !isTooCloseCooking) {
@@ -499,11 +500,7 @@ export function cookCmdShortcutsOrFile(
 
   outputDebugByTime('Finished to cook command shortcuts. Cost ' + getElapsedSecondsToNow(trackBeginTime) + ' seconds.');
   if (!isForProjectCmdAlias && (isRunCmdTerminal || isFromMenu) && !isNullOrEmpty(rootFolderName)) {
-    if (isWindowsTerminal) {
-      runCmdInTerminal('doskey /MACROFILE="' + projectAliasFilePath + '"');
-    } else {
-      runCmdInTerminal('source "' + projectAliasFilePath + '"');
-    }
+    runCmdInTerminal(getLoadAliasFileCommand(projectAliasFilePath, isWindowsTerminal));
   }
 
   function runPowerShellShowFindCmdLocation(searchFileNamePattern = "^g?find-\\w+-def") {
@@ -623,7 +620,7 @@ export function cookCmdShortcutsOrFile(
     const replaceHead = `msr -p ` + tmpSaveFile;
     const andText = isWindowsTerminal ? " & " : " ; ";
     const copyCmd = (isWindowsTerminal ? `copy /y ` : `cp `) + quotePaths(sourceFilePath) + ` ` + tmpSaveFile;
-    const loadCmdAliasCmd = (isWindowsTerminal ? "doskey /MACROFILE=" : "source ") + tmpSaveFile;
+    const loadCmdAliasCmd = getLoadAliasFileCommand(tmpSaveFile, isWindowsTerminal);
 
     const useExtraPathsToFindDefinition = getConfigValueByProjectAndExtension(rootFolderName, '', '', 'findDefinition.useExtraPaths') === "true";
     const useExtraPathsToFindReferences = getConfigValueByProjectAndExtension(rootFolderName, '', '', 'findReference.useExtraPaths') === "true";

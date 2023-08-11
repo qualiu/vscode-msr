@@ -58,7 +58,7 @@ const GetInputPathsRegex: RegExp = /^(msr\s+-[r\s]*-?p)\s+("[^\"]+"|\S+)/;
 let HasMountPrefixForWSL: boolean | undefined = undefined;
 
 export function isWindowsTerminalOnWindows(terminalType = DefaultTerminalType): boolean {
-  return IsWindows && (TerminalType.CMD === terminalType || TerminalType.PowerShell === terminalType);
+  return (TerminalType.CMD === terminalType || TerminalType.PowerShell === terminalType);
 }
 
 export function isPowerShellTerminal(terminalType: TerminalType): boolean {

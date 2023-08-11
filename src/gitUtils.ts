@@ -4,7 +4,7 @@ import { getConfigValueOfActiveProject } from './configUtils';
 import { getCommandToSetGitInfoVar, OutputChannelName, RunCmdTerminalName, TempStorageFolder, TrimProjectNameRegex } from './constants';
 import { TerminalType } from './enums';
 import { saveTextToFile } from './fileUtils';
-import { outputError, outputErrorByTime, outputInfoByDebugMode, outputInfoByTime, outputWarnByTime } from './outputUtils';
+import { outputError, outputErrorByTime, outputInfoByDebugMode, outputInfoByTime, outputInfoQuiet, outputInfoQuietByTime, outputWarnByTime } from './outputUtils';
 import { runCommandInTerminal, runRawCommandInTerminal } from './runCommandUtils';
 import { DefaultTerminalType, getTipFileDisplayPath, IsLinuxTerminalOnWindows, isWindowsTerminalOnWindows, toTerminalPath } from './terminalUtils';
 import { IsForwardingSlashSupportedOnWindows, RunCommandChecker } from './ToolChecker';
@@ -190,27 +190,29 @@ export class GitIgnore {
       }
 
       const lines = text.split(/\r?\n/);
-      const ignoreRegex = /^\s*#/;
+      const ignoreCommentSpecialRegex = new RegExp(String.raw`^\s*#` + '|' + String.raw`^/\**/?$`); // Skip cases: /*/
       const exemptionRegex = /^\s*\!/;
+      const ignoreDotFolderRegex = new RegExp(String.raw`^\.\*$` + '|' + String.raw`^/?\.[\w\./\?-]+$`); // Skip cases: .*.swp 
 
       const useBackSlash = this.IsCmdTerminal && !IsForwardingSlashSupportedOnWindows;
-      const dotFolderPattern = this.SkipDotFolders
-        ? (useBackSlash ? '\\\\' + '[\\$\\.]' : '/' + '[\\$\\.]')
-        : (useBackSlash ? '\\\\' + '\\$' : '/' + '\\$');
+      const headSlash = useBackSlash ? '\\\\' : '/';
+      const dotFolderPattern = headSlash + (this.SkipDotFolders ? '[\\$\\.]' : '\\$');
 
       let skipPatterns = new Set<string>().add(dotFolderPattern);
 
       if (!this.SkipDotFolders) {
-        skipPatterns.add(this.getPattern('.git/'));
+        skipPatterns.add(this.getPattern(headSlash + '.git/'));
       }
 
+      let readPatternCount = 0;
       let errorList = new Array<string>();
       for (let row = 0; row < lines.length; row++) {
         const line = lines[row].trim();
-        if (ignoreRegex.test(line)) {
+        if (isNullOrEmpty(line) || ignoreCommentSpecialRegex.test(line)) {
           continue;
         }
 
+        readPatternCount++;
         if (exemptionRegex.test(line)) {
           if (this.OmitGitIgnoreExemptions) {
             this.ExemptionCount++;
@@ -225,7 +227,16 @@ export class GitIgnore {
           }
         }
 
+        if (line.startsWith('$') || (this.SkipDotFolders && ignoreDotFolderRegex.test(line))) {
+          outputInfoQuiet('Ignore redundant dot ignore: "' + line + '" at ' + this.IgnoreFilePath + ':' + (row + 1) + ' while msr.skipDotFoldersIfUseGitIgnoreFile = true.');
+          continue;
+        }
+
         const pattern = this.getPattern(line);
+        if (pattern.length < 2) {
+          outputWarnByTime('Skip too short pattern: "' + line + '" at ' + this.IgnoreFilePath + ':' + (row + 1));
+          continue;
+        }
 
         try {
           // tslint:disable-next-line: no-unused-expression
@@ -247,7 +258,7 @@ export class GitIgnore {
         outputError(errorList.join('\n'));
       }
 
-      let parsedInfo = `Parsed ${skipPatterns.size} patterns, omitted ${errorList.length} errors, ignored ${this.ExemptionCount} exemptions in ${this.IgnoreFilePath}`;
+      let parsedInfo = `Parsed ${skipPatterns.size} of ${readPatternCount} patterns, omitted ${errorList.length} errors, ignored ${this.ExemptionCount} exemptions in ${this.IgnoreFilePath}`;
       if (this.ExemptionCount > 0) {
         parsedInfo += ` - see ${OutputChannelName} in OUTPUT. Use gfind-xxx instead of find-xxx for git-exemptions`;
       }
@@ -268,7 +279,7 @@ export class GitIgnore {
       }
 
       const tipFileDisplayPath = getTipFileDisplayPath(this.Terminal);
-      const setVarCmd = getCommandToSetGitInfoVar(this.IsCmdTerminal, this.SkipPathPattern.length, skipPatterns.size, errorList.length, this.ExemptionCount);
+      const setVarCmd = getCommandToSetGitInfoVar(this.IsCmdTerminal, this.SkipPathPattern.length, readPatternCount, skipPatterns.size, errorList.length, this.ExemptionCount);
       const replaceCmd = (this.IsCmdTerminal ? `-x ::` : `-x '#'`) + ` -o echo ` + (
         !isInMaxLength
           ? `-L 4 -N4`
@@ -340,7 +351,7 @@ export class GitIgnore {
     }
 
     if (this.SkipDotFolders && line.match(/^\.\w+|^\$|^\.\*$/)) {
-      outputInfoByDebugMode('Skip redundant dot/dollar-ignore-path: ' + line + '\n');
+      outputInfoQuietByTime('Skip redundant dot/dollar pattern: "' + line + '"');
       return '';
     }
 

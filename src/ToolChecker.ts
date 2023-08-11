@@ -53,7 +53,7 @@ const GetTimeoutRegex: RegExp = /\s+--timeout\s+(-?\d+)/;
 const CheckForwardingSlashSupportOnWindowsText = "Support '/' on Windows";
 
 export let IsTimeoutSupported: boolean = false;
-export let IsForwardingSlashSupportedOnWindows = false;
+export let IsForwardingSlashSupportedOnWindows = true;
 export let IsOutputColumnSupported = false;
 export let IsFileTimeOffsetSupported = false;
 export let IsNotCheckInputPathSupported = false;

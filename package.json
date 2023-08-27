@@ -3,7 +3,7 @@
 	"displayName": "Code mining + Replace file + Find definition and reference for all types.",
 	"description": "Code mining + Replace file + Find definition and reference in multiple repository paths by msr for all coding languages + configuration + doc files.",
 	"author": "qualiu@microsoft.com",
-	"version": "2.1.69",
+	"version": "2.1.70",
 	"icon": "images/vscode-msr-icon.png",
 	"license": "completely free",
 	"publisher": "qualiu",
@@ -65,6 +65,15 @@
 	"main": "./out/extension.js",
 	"contributes": {
 		"commands": [
+			{
+				"command": "msr.myFindOrReplaceSelectedTextCommand",
+				"title": "My custom find or replace command.",
+				"category": "msr",
+				"icon": {
+					"dark": "images/vscode-msr-small.svg",
+					"light": "images/vscode-msr-small.svg"
+				}
+			},
 			{
 				"command": "msr.regexFindDefinitionInCurrentFile",
 				"title": "Regex find definition in current file.",
@@ -411,6 +420,11 @@
 		"menus": {
 			"editor/context": [
 				{
+					"when": "config.msr.menu.visible && config.msr.myFindOrReplaceSelectedTextCommand.menu.visible",
+					"command": "msr.myFindOrReplaceSelectedTextCommand",
+					"group": "code-mining-by-msr"
+				},
+				{
 					"when": "config.msr.menu.visible && config.msr.compareFileListsWithGitIgnore.menu.visible",
 					"command": "msr.compareFileListsWithGitIgnore",
 					"group": "code-mining-by-msr"
@@ -602,6 +616,10 @@
 				}
 			],
 			"commandPalette": [
+				{
+					"command": "msr.myFindOrReplaceSelectedTextCommand",
+					"group": "code-mining-by-msr"
+				},
 				{
 					"command": "msr.compareFileListsWithGitIgnore",
 					"group": "code-mining-by-msr"
@@ -875,6 +893,10 @@
 				"msr.compareFileListsWithGitIgnore.menu.visible": {
 					"type": "boolean",
 					"default": false
+				},
+				"msr.myFindOrReplaceSelectedTextCommand.menu.visible": {
+					"type": "boolean",
+					"default": true
 				},
 				"msr.regexFindDefinitionInCurrentFile.menu.visible": {
 					"type": "boolean",
@@ -1780,6 +1802,16 @@
 					"type": "string",
 					"default": "bond proto thrift"
 				},
+				"msr.bp.definition": {
+					"description": "Regex pattern to search struct/enum/union definitions of Bond + Protocol Buffers.",
+					"type": "string",
+					"default": "^\\s*(message|enum|struct)\\s+(%1)\\b"
+				},
+				"msr.thrift.definition": {
+					"description": "Regex pattern to search struct/enum/union definitions of Thrift.",
+					"type": "string",
+					"default": "^\\s*(enum|struct|union)\\s+(%1)\\b|^\\s*typedef\\s+\\w+\\s+(%1)\\b"
+				},
 				"msr.fileExtensionMap.proj": {
 					"description": "Project file extension like C# / C++ in Visual Studio.",
 					"type": "string",
@@ -1874,6 +1906,31 @@
 					"description": "Set non-empty Regex to auto disable finding Rust definition if found language extension running, like: 'vscode\\S*extension\\S*java' (You can temporarily toggle enable/disable - check MSR-Def-Ref in OUTPUT tab).",
 					"type": "string",
 					"default": "vscode\\S*extension\\S*\\brust\\b"
+				},
+				"msr.cpp.myFindOrReplaceSelectedTextCommand": {
+					"description": "Example of custom command line to find selected text in C/C++. Auto use common-skip-folder or git-ls-files if ignore or no git exemptions.",
+					"type": "string",
+					"default": "%AutoDecideSkipFolderToSearch% -f \"\\.(c\\+\\+|cpp|cxx|cc|c|hp*|hxx)$\" --xd --s1 1B --s2 3.6MB --out-index --nt \"^\\s*(#include|/|\\*)|^.{360,}\" -t \"\\b%1\\b\" --xp test,mock,deprecate"
+				},
+				"msr.c++.myFindOrReplaceSelectedTextCommand": {
+					"description": "Example of custom command line to precisely find selected text in C/C++. Auto change /tmp/ to %TMP% on Windows.",
+					"type": "string",
+					"default": "git ls-files --recurse-submodules > /tmp/tmp-git-file-list && msr --no-check -w /tmp/tmp-git-file-list -f %FileExtMap% --xd --s1 1B --s2 3.6MB --out-index --nt \"^\\s*(#include|/|\\*)|^.{360,}\" -t \"\\b%1\\b\" --xp test,mock,deprecate"
+				},
+				"msr.cxx.myFindOrReplaceSelectedTextCommand": {
+					"description": "Example of custom command line to find selected text in C/C++. Auto change `%Skip_Git_Paths%` to `$Skip_Git_Paths` on Linux/MacOS + Auto change to `--nd \"Skip-Folder-Regex\"` if Skip_Git_Paths is not set due to git exemptions.",
+					"type": "string",
+					"default": "msr -rp %ProjectsFolders% --np \"%Skip_Git_Paths%\" -f %FileExtMap% --xd --s1 1B --s2 3.6MB --out-index --nt \"^\\s*(#include|/|\\*)|^.{360,}\" -t \"\\b%1\\b\" --xp test,mock,deprecate"
+				},
+				"msr.proto.myFindOrReplaceSelectedTextCommand": {
+					"description": "Example of custom command line to find selected text in Protocol Buffers files.",
+					"type": "string",
+					"default": "%AutoDecideSkipFolderToSearch% -f %FileExt% -t \"^\\s*(message|enum)\\s+%1\\b\" --xp test,mock,deprecate"
+				},
+				"msr.bp.myFindOrReplaceSelectedTextCommand": {
+					"description": "Example of custom command line to find selected text in Bond + Protocol Buffers + Thrift files.",
+					"type": "string",
+					"default": "%AutoDecideSkipFolderToSearch% -f %FileExt% -t \"^\\s*(message|struct|enum|union)\\s+%1\\b\" --xp test,mock,deprecate"
 				}
 			}
 		}

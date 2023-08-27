@@ -2,11 +2,11 @@ import { ParsedPath } from 'path';
 import * as vscode from 'vscode';
 import { GetConfigPriorityPrefixes, getConfigValueByPriorityList, getConfigValueByProjectAndExtension } from './configUtils';
 import { SearchTextHolder } from './constants';
-import { getConfig, MyConfig } from './dynamicConfig';
+import { MyConfig, getConfig } from './dynamicConfig';
 import { FindType, ForceFindType } from './enums';
 import { ForceSetting } from './forceSettings';
 import { outputDebug, outputDebugByTime, outputErrorByTime } from './outputUtils';
-import { createRegex, EmptyRegex, getAllSingleWords } from './regexUtils';
+import { EmptyRegex, createRegex, getAllSingleWords } from './regexUtils';
 import { getExtensionNoHeadDot, getRootFolderName, isNullOrEmpty, replaceSearchTextHolder, toPath } from './utils';
 
 export class SearchChecker {
@@ -133,7 +133,7 @@ export class SearchChecker {
 		this.isInTestFolder = /test/i.test(currentFile.dir);
 		this.isInTestPath = this.isTestFileName || this.isInTestFolder;
 
-		this.isClassResultRegex = this.getCheckingRegex('isClassResult', true);
+		this.isClassResultRegex = this.getCheckingRegex('isClassResult', true, false, 'definition', false);
 		this.isEnumResultRegex = this.getCheckingRegex('isEnumResult', true);
 		this.isMethodResultRegex = this.getCheckingRegex('isMethodResult', true);
 		this.isInterfaceResultRegex = this.getCheckingRegex('isInterfaceResult', true);
@@ -388,11 +388,19 @@ export class SearchChecker {
 		outputDebugByTime('Final-Check: isFindMember = ' + this.isFindMember + ', isFindClass = ' + this.isFindClass + ' , isFindMethod = ' + this.isFindMethod + ' , isFindEnum = ' + this.isFindEnum);
 	}
 
-	public getCheckingRegex(configKeyTail: string, allowEmpty: boolean, matchAnyIfEmpty: boolean = false): RegExp {
-		const useDefault = configKeyTail === 'isFindClass' && MyConfig.UseDefaultFindingClassCheckExtensionRegex.test(this.currentFile.ext);
-		const rawPattern = useDefault
-			? getConfigValueByProjectAndExtension(this.rootFolderName, '', 'default', configKeyTail, allowEmpty)
-			: getConfigValueByProjectAndExtension(this.rootFolderName, this.extension, this.mappedExt, configKeyTail, allowEmpty);
+	public getCheckingRegex(configKeyTail: string, allowEmpty: boolean, matchAnyIfEmpty: boolean = false, fallBackToConfigKeyTail: string = '', addDefault: boolean = true): RegExp {
+		const checkConfigTails = [configKeyTail, fallBackToConfigKeyTail];
+		let rawPattern = '';
+		for (let k = 0; k < checkConfigTails.length; k++) {
+			if (isNullOrEmpty(checkConfigTails[k])) {
+				continue;
+			}
+			rawPattern = getConfigValueByProjectAndExtension(this.rootFolderName, this.extension, this.mappedExt, checkConfigTails[k], allowEmpty, addDefault);
+			if (!isNullOrEmpty(rawPattern)) {
+				break;
+			}
+		}
+
 		const pattern = replaceSearchTextHolder(rawPattern, this.currentWord);
 		return matchAnyIfEmpty && isNullOrEmpty(pattern) ? new RegExp(".?") : createRegex(pattern);
 	}

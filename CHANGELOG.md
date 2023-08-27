@@ -2,6 +2,10 @@
 
 All notable changes to this "vscode-msr" extension will be documented in this file.
 
+## [2.1.70]
+- Auto use `msr.xxx.definition` pattern for `msr.xxx.isClassResult` if not set (like `msr.proto.definition`).
+- Added `msr.myFindOrReplaceSelectedTextCommand` menu + custom command examples to find or replace selected text.
+
 ## [2.1.69]
 - Improved skipping dot folders + Reduced `Skip_Git_Paths` value.
 

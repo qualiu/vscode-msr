@@ -97,6 +97,10 @@ export function registerExtension(context: vscode.ExtensionContext) {
 		}
 	}));
 
+	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.myFindOrReplaceSelectedTextCommand',
+		(textEditor: vscode.TextEditor, _edit: vscode.TextEditorEdit, ..._args: any[]) =>
+			runFindingCommand(FindCommandType.MyFindOrReplaceSelectedText, textEditor)));
+
 	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.regexFindAsClassOrMethodDefinitionInCodeFiles',
 		(textEditor: vscode.TextEditor, _edit: vscode.TextEditorEdit, ..._args: any[]) =>
 			runFindingCommand(FindCommandType.RegexFindAsClassOrMethodDefinitionInCodeFiles, textEditor)));

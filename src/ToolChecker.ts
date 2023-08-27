@@ -57,6 +57,22 @@ export let IsForwardingSlashSupportedOnWindows = true;
 export let IsOutputColumnSupported = false;
 export let IsFileTimeOffsetSupported = false;
 export let IsNotCheckInputPathSupported = false;
+let OutputToStderrArg = '';
+let KeepColorArg = '';
+
+export function AddOutputToStderrArg(command: string): string {
+  if (isNullOrEmpty(OutputToStderrArg)) {
+    return command;
+  }
+  return command + ' ' + OutputToStderrArg;
+}
+
+export function AddKeepColorArg(command: string): string {
+  if (isNullOrEmpty(KeepColorArg)) {
+    return command;
+  }
+  return command + ' ' + KeepColorArg;
+}
 
 export function setTimeoutInCommandLine(command: string, timeoutSeconds: number) {
   if (timeoutSeconds > 0 && IsTimeoutSupported) {
@@ -139,6 +155,8 @@ export class ToolChecker {
       IsOutputColumnSupported = MsrHelpText.includes('--out-index');
       IsFileTimeOffsetSupported = MsrHelpText.includes('time or ago');
       IsNotCheckInputPathSupported = MsrHelpText.includes("--no-check");
+      OutputToStderrArg = isArgSupported('--to-stderr', 'msr') ? '--to-stderr' : '';
+      KeepColorArg = isArgSupported('--keep-color', 'msr') ? '--keep-color' : '';
     } else {
       NinHelpText = runCommandGetOutput(exePath + ' -h -C');
     }

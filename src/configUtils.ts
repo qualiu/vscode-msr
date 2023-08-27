@@ -2,14 +2,15 @@ import * as vscode from 'vscode';
 import { getDefaultRootFolderByActiveFile } from './utils';
 import path = require('path');
 
-export function getConfigValueOfActiveProject(configTailKey: string, allowEmpty = false): string {
+export function getConfigValueOfActiveProject(configTailKey: string, allowEmpty = false, addDefault: boolean = true): string {
   const rootFolder = getDefaultRootFolderByActiveFile();
   const rootFolderName = path.basename(rootFolder);
-  return getConfigValueOfProject(rootFolderName, configTailKey, allowEmpty);
+  return getConfigValueOfProject(rootFolderName, configTailKey, allowEmpty, addDefault);
 }
 
-export function getConfigValueOfProject(rootFolderName: string, configTailKey: string, allowEmpty = false) {
-  return getConfigValueByPriorityList([rootFolderName, '', 'default'], configTailKey, allowEmpty);
+export function getConfigValueOfProject(rootFolderName: string, configTailKey: string, allowEmpty = false, addDefault: boolean = true): string {
+  const prefixSet = GetConfigPriorityPrefixes(rootFolderName, 'default', '', addDefault);
+  return getConfigValueByPriorityList(prefixSet, configTailKey, allowEmpty);
 }
 
 export function getConfigValueByProjectAndExtension(rootFolderName: string, extension: string, mappedExt: string, configTailKey: string, allowEmpty = false, addDefault: boolean = true): string {

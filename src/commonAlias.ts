@@ -55,7 +55,7 @@ const CommonAliasMap: Map<string, string> = new Map<string, string>()
           & git status`)
   .set('gca', String.raw`git commit --amend --no-edit $*`)
   .set('gfc', String.raw`git rev-parse --abbrev-ref HEAD | msr -t "(.+)" -o "git fetch origin \1" -XM`)
-  .set('gdc', String.raw`git rev-parse --abbrev-ref HEAD | msr -t "(.+)" -o "git difftool $* origin/\1" -XM`)
+  .set('gdc', String.raw`git rev-parse --abbrev-ref HEAD | msr -t "(.+)" -o "git difftool origin/\1 $*" -XM`)
   .set('gdf', String.raw`git diff --name-only $1 | msr -t "(.+)" -o "git difftool $* \1" -XM`)
   .set('gsh', String.raw`git rev-parse --abbrev-ref HEAD | msr -t "(.+)" -o "git reset --hard origin/\1" -XM`)
   .set('gsh-sm', String.raw`git rev-parse --abbrev-ref HEAD | msr -t "(.+)" -o "git reset --hard origin/\1" -XM && msr -z "git submodule sync --init && git submodule update -f" -t "&&" -o "\n" -PAC | msr -XM -V ne0 & git status`)
@@ -312,14 +312,14 @@ const WindowsAliasMap: Map<string, string> = new Map<string, string>()
               msr -l --wt --sz -p $oneSavePath -M;
           }"`)
   .set('win11-group-taskbar', String.raw`PowerShell 2>nul -Command "
-          Write-Host Must-run-as-Admin-for-this-Workaround -ForegroundColor Cyan;
+          Write-Host Must-run-as-Admin-for-this-Workaround-of-Grouping-Taskbar-on-Windows11 -ForegroundColor Cyan;
           Set-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Shell\Update\Packages' -Name 'UndockingDisabled' -Value '00000000';
           Set-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Search' -Name 'SearchBoxTaskbarMode' -Value '00000001';
           Set-ItemProperty -Path 'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer' -Name 'NoTaskGrouping' -Value '00000000';
           taskkill /f /im explorer.exe;
           CMD /Q /C START /REALTIME explorer.exe;"`)
   .set('win11-ungroup-taskbar', String.raw`PowerShell 2>nul -Command "
-          Write-Host Must-run-as-Admin-for-this-Workaround -ForegroundColor Cyan;
+          Write-Host Must-run-as-Admin-for-this-Workaround-of-UnGrouping-Taskbar-on-Windows11 -ForegroundColor Cyan;
           Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope LocalMachine -Force;
           New-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Shell\Update\Packages' -Name 'UndockingDisabled' -PropertyType DWord -Value '00000001';
           Set-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Shell\Update\Packages' -Name 'UndockingDisabled' -Value '00000001';
@@ -333,6 +333,8 @@ const WindowsAliasMap: Map<string, string> = new Map<string, string>()
   .set('is-admin', String.raw`PowerShell -Command "$principal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent()); $principal.IsInRole([Security.Principal.WindowsBuiltinRole]::Administrator)"`)
   .set('az-token-clip', String.raw`PowerShell -Command "Set-Clipboard($(az account get-access-token | ConvertFrom-Json).accessToken.ToString().TrimEnd())"`)
   .set('az-token-env', String.raw`for /f "tokens=*" %a in ('PowerShell "az account get-access-token | ConvertFrom-Json | ForEach-Object { Write-Output $_.accessToken }"') do set "AZURE_ACCESS_TOKEN=%a"`)
+  .set('mingw-mock', String.raw`set "MINGW_MOCK=1" && set "MSYSTEM=MINGW64" && set MINGW_ROOT="C:\Program Files\Git" && echo Now will output forward slash '/' for result paths in this CMD terminal.`)
+  .set('mingw-unmock', String.raw`set "MINGW_MOCK=" && set "MSYSTEM=" && set "MINGW_ROOT=" && echo Now will output backslash '\' for result paths in this CMD terminal.`)
   ;
 
 export function getCommonAliasMap(terminalType: TerminalType, writeToEachFile: boolean): Map<string, string> {

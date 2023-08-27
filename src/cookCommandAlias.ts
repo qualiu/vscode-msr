@@ -10,7 +10,7 @@ import { createDirectory, readTextFile, saveTextToFile } from './fileUtils';
 import { outputDebug, outputDebugByTime, outputErrorByTime, outputInfo, outputInfoByDebugModeByTime, outputInfoQuiet, outputInfoQuietByTime, outputKeyInfoByTime, outputWarn, outputWarnByTime } from "./outputUtils";
 import { escapeRegExp } from "./regexUtils";
 import { runCommandInTerminal, sendCommandToTerminal } from './runCommandUtils';
-import { DefaultTerminalType, IsLinuxTerminalOnWindows, getTerminalInitialPath, getTerminalNameOrShellExeName, getTerminalShellExePath, isLinuxTerminalOnWindows, isPowerShellTerminal, isWindowsTerminalOnWindows, toStoragePath, toTerminalPath, toTerminalPathsText } from './terminalUtils';
+import { DefaultTerminalType, IsLinuxTerminalOnWindows, IsWindowsTerminalOnWindows, getTerminalInitialPath, getTerminalNameOrShellExeName, getTerminalShellExePath, isLinuxTerminalOnWindows, isPowerShellTerminal, isWindowsTerminalOnWindows, toStoragePath, toTerminalPath, toTerminalPathsText } from './terminalUtils';
 import { getSetToolEnvCommand, getToolExportFolder } from "./toolSource";
 import { getDefaultRootFolderName, getElapsedSecondsToNow, getLoadAliasFileCommand, getPowerShellName, getRootFolder, getRootFolderName, getUniqueStringSetNoCase, isNullOrEmpty, isPowerShellCommand, isWeeklyCheckTime, quotePaths, replaceTextByRegex, runCommandGetOutput } from "./utils";
 import { FindJavaSpringReferenceByPowerShellAlias } from './wordReferenceUtils';
@@ -353,9 +353,11 @@ export function cookCmdShortcutsOrFile(
     + ' , find-top-folder gfind-top-type sort-code-by-time etc. See detail like: alias find-def or malias find-top or malias use-fp or malias sort-.+?= etc.';
   const finalGuide = createCmdAliasTip + shortcutsExample + ' You can change msr.skipInitCmdAliasForNewTerminalTitleRegex in user settings.'
     + ' Toggle-Enable/Disable finding definition + Speed-Up-if-Slowdown-by-Windows-Security + Adjust-Color + Fuzzy-Code-Mining + Preview-And-Replace-Files + Hide/Show-Menus'
-    + ' + Use git-ignore + Use in external terminals/IDEs: use-this-alias / list-alias / out-fp / out-rp + More functions/details see doc like: ' + CookCmdDocUrl;
+    + ' + Use git-ignore + Use in external terminals/IDEs: use-this-alias / list-alias / out-fp / out-rp'
+    + (IsWindowsTerminalOnWindows ? ' / mingw-mock' : '')
+    + ' + More functions/details see doc like: ' + CookCmdDocUrl;
 
-  const colorPattern = 'PowerShell|re-cook|\\d+|m*alias|doskey|find-\\S+|sort-\\S+|out-\\S+|use-\\S+|msr.skip\\S+|\\S+-alias\\S*|other'
+  const colorPattern = 'PowerShell|re-cook|\\d+|m*alias|doskey|find-\\S+|sort-\\S+|out-\\S+|use-\\S+|msr.skip\\S+|\\S+-alias\\S*|other|mock|mingw'
     + '|Toggle|Enable|Disable|Speed-Up|Adjust-Color|Code-Mining|Preview-|-Replace-|git-ignore|Menus|functions|details';
 
   if (writeToEachFile) {

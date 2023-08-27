@@ -12,8 +12,15 @@ import { changeToForwardSlash, getElapsedSecondsToNow, isNullOrEmpty, quotePaths
 // Another solution: (1) git ls-files --recurse-submodules > project-file-list.txt ; (2) msr -w project-file-list.txt  (3) file watcher + update list.
 // Show junk files: (1) git ls-files --recurse-submodules --ignored --others --exclude-standard (2) git ls-files --recurse-submodules --others --ignored -X .gitignore
 
-const SkipPathVariableName: string = 'Skip_Git_Paths';
+export const SkipPathVariableName: string = 'Skip_Git_Paths';
 const RunCmdFolderWithForwardSlash: string = changeToForwardSlash(RunCmdTerminalRootFolder);
+
+let ProjectFolderToHasSkipGitPathsEnvMap = new Map<string, boolean>();
+
+export function hasValidGitSkipPathsEnv(projectGitFolder: string): boolean {
+  projectGitFolder = changeToForwardSlash(projectGitFolder);
+  return ProjectFolderToHasSkipGitPathsEnvMap.get(projectGitFolder) || false;
+}
 
 export class GitIgnore {
   public Valid: boolean = false;
@@ -158,6 +165,7 @@ export class GitIgnore {
   }
 
   public parse(callbackWhenSucceeded: (...args: any[]) => void, callbackWhenFailed: (...args: any[]) => void) {
+    ProjectFolderToHasSkipGitPathsEnvMap.set(this.RootFolder, false);
     this.Valid = false;
     this.ExemptionCount = 0;
     if (!this.UseGitIgnoreFile || isNullOrEmpty(this.IgnoreFilePath)) {
@@ -254,6 +262,7 @@ export class GitIgnore {
       const setVarCmdLength = this.SkipPathPattern.length + (this.IsCmdTerminal ? '@set "="'.length : 'export =""'.length) + SkipPathVariableName.length;
       const isInMaxLength = setVarCmdLength < this.MaxCommandLength;
       this.Valid = this.SkipPathPattern.length > 0 && isInMaxLength;
+      ProjectFolderToHasSkipGitPathsEnvMap.set(this.RootFolder, this.Valid);
       if (errorList.length > 0) {
         outputError(errorList.join('\n'));
       }

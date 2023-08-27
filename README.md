@@ -79,7 +79,7 @@ Then it's the **light** and **right** tool for you(just **2~3 MB** storage + **1
   - Much faster than professional language extensions in some cases (like results in same file or folder).
   - Auto search other language files + [extra repo folders](#extra-paths-settings) if not found definition results.
 
-[Screenshot GIF](https://raw.githubusercontent.com/qualiu/vscode-msr/master/images/find-def-ref.gif): Search **Definitions** + **References** for **C++** / **Python** / **Java** in `vscode`:
+[Screenshot GIF](images/find-def-ref.gif): Search **Definitions** + **References** for **C++** / **Python** / **Java** in `vscode`:
 
 ![find-def-ref.gif](images/find-def-ref.gif)
 
@@ -152,7 +152,7 @@ You can change the value for **small projects** which you can prefer **precision
 - For a project: `msr.{project-folder-Name}.preferSearchingSpeedOverPrecision` = `false`.
 - For C# code: `msr.cs.preferSearchingSpeedOverPrecision` = `false`.
 
-More override settings see: [**full priority rule**](https://github.com/qualiu/vscode-msr/blob/master/Add-New-Language-Support-For-Developers.md#full-priority-order-of-config-override-rule).
+More override settings see: [**full priority rule**](Add-New-Language-Support-For-Developers.md#full-priority-order-of-config-override-rule).
 
 ## Make Command Shortcuts to Search or Replace In or Out of VSCODE
 
@@ -269,6 +269,18 @@ For full or relative path:
   - Type `out-fp` to output full file paths of search results.
   - Type `out-rp` to output relative paths.
 
+And many other [**common shortcuts**](/src/commonAlias.ts) like (run `alias` to see all alias/doskeys):
+  - Windows + Linux/MacOS:
+    - git shortcuts: 
+      - Type `gpc` to pull current branch + `gph` to push current branch + `gfc` to fetch current branch.
+      - Type `gpc-sm` to pull submodules + `git-sm-reset` to reset submodules + `git-sm-reinit` to fix tough issues, etc.
+      - Type `git-cherry-pick-branch-new-old-commits` to cherry pick commits of a branch from old to new commits (add `-X` to execute commands).
+  - Windows CMD only:
+    - Type `mingw-mock` to output forward slash(/) on Windows + `mingw-unmock` to restore.
+    - Type `win11-ungroup-taskbar` to ungroup Windows11 taskbar + `win11-group-taskbar` to restore/group taskbar on Windows 11.
+    - Type `reload-env` to reload environment variables + `reset-env` to **discard** and **reload** environment variables.
+    - Type `add-user-path` / `add-sys-path` / `add-tmp-path` + `del-user-path` / `del-sys-path` / `del-tmp-path` to add/delete %PATH% values.
+
 ## Use git-ignore
 
 Open [user settings](https://code.visualstudio.com/docs/getstarted/settings#_settings-editor), set `msr.useGitIgnoreFile` = `true` (or `msr.{project-folder-name}.useGitIgnoreFile` = `true`)
@@ -279,7 +291,7 @@ Open [user settings](https://code.visualstudio.com/docs/getstarted/settings#_set
 - Change `skipDotFoldersIfUseGitIgnoreFile` to `false` if some code files in **dot folders** like `".submodules"`:
   - Method-1: Change for the project only (choose `workspace` when open user settings menu).
   - Method-2: Change [settings.json](#adjust-your-color-theme-if-result-file-path-folder-color-is-not-clear): Add `msr.{project-repo-folder-name}.skipDotFoldersIfUseGitIgnoreFile` = `false`.
-    - [Full overriding rule](https://github.com/qualiu/vscode-msr/blob/master/Add-New-Language-Support-For-Developers.md#full-priority-order-of-config-override-rule) for more details.
+    - [Full overriding rule](Add-New-Language-Support-For-Developers.md#full-priority-order-of-config-override-rule) for more details.
 
 Parsing result of `.gitignore` file: see `MSR-Def-Ref` output channel (with `msr.debug` = `true` or launched in debug mode).
 
@@ -294,6 +306,27 @@ Run command **`"npm run test"`** in vscode-msr folder if you want to see the tra
 
 - For all projects: Set `msr.useGitIgnoreFile` to `true` or `false`.
 - For one project: Add `msr.{project-folder-name}.useGitIgnoreFile` = `true` or `false` in [user settings](#extension-settings-if-you-want-to-change).
+
+### Custom Search Command with Menu
+- You add/set custom search/replace command by adding config `msr.xxx.myFindOrReplaceSelectedTextCommand` in [user settings](#extension-settings-if-you-want-to-change).
+  - Example of using git file list to precisely search `C++` code to find **pure reference** of `selected` text (`%1`):
+    - Use `%UseGitFileListToSearch%` to add/set **msr.cpp.myFindOrReplaceSelectedTextCommand** = 
+      - ```"%UseGitFileListToSearch% -f \"\\.(c\\+\\+|cpp|cxx|cc|c)$\" --xd --s1 1B --s2 3.6MB --out-index --nt \"^\\s*(#include|/|\\*)|^.{360,}\" -t \"\\b%1\\b\" --xp test,mock,deprecate"```
+    - Or write your own raw command for **msr.cpp.myFindOrReplaceSelectedTextCommand** = 
+      - ```"git ls-files --recurse-submodules > /tmp/tmp-git-file-list && msr --no-check -w /tmp/tmp-git-file-list -f \"\\.(c\\+\\+|cpp|cxx|cc|c)$\" --xd --s1 1B --s2 3.6MB --out-index --nt \"^\\s*(#include|/|\\*)|^.{360,}\" -t \"\\b%1\\b\" --xp test,mock,deprecate"```
+  - Example of using common filter if ignore/no git-exemptions (which needless to always write a temp file `/tmp/tmp-git-file-list`):
+    - Use `%ProjectsFolders%` + `%FileExt%` / `%FileExtMap%` for **msr.cpp.myFindOrReplaceSelectedTextCommand** = 
+      - ```msr -rp %ProjectsFolders% --np \"$Skip_Git_Paths\" -f %FileExtMap% --xd --s1 1B --s2 3.6MB --out-index --nt \"^\\s*(#include|/|\\*)|^.{360,}\" -t \"\\b%1\\b\" --xp test,mock,deprecate```
+  - **Recommended example** of using `%AutoDecideSkipFolderToSearch%` + `%FileExt%` / `%FileExtMap%`:
+    - **msr.cpp.myFindOrReplaceSelectedTextCommand** = ```"%AutoDecideSkipFolderToSearch% -f %FileExtMap% --xd --s1 1B --s2 3.6MB --out-index --nt \"^\\s*(#include|/|\\*)|^.{360,}\" -t \"\\b%1\\b\" --xp test,mock,deprecate"```
+      - If ignore/no git-exemptions: Auto replace `%AutoDecideSkipFolderToSearch%` to `"msr -rp %ProjectsFolders%" --np "%Skip_Git_Paths%"`.
+      - Otherwise: Auto replace `%AutoDecideSkipFolderToSearch%` to `"git ls-files --recurse-submodules > /tmp/tmp-git-file-list && msr --no-check -w /tmp/tmp-git-file-list"`.
+- You can hide the custom search menu by unchecking/setting `msr.myFindOrReplaceSelectedTextCommand.menu.visible` = `true` in [user settings](#extension-settings-if-you-want-to-change).
+- The override rule of config is same with [**full priority rule**](/Add-New-Language-Support-For-Developers.md#full-priority-order-of-config-override-rule) like below (from high to low priority):
+  - msr.`my-repo-folder-name`.`proto`.myFindOrReplaceSelectedTextCommand 
+    - Concrete `{Ext}` = `proto` override below.
+  - msr.`bp`.myFindOrReplaceSelectedTextCommand
+    - General `{ExtMap}` = `bp` = `bond` + `proto`.
 
 ## Support Multiple Repositories
 
@@ -343,7 +376,7 @@ Add **lower case** `extension name`: "**msr.{extension}.definition**" (here `{ex
   "msr.bat.definition": "^\\s*:\\s*(%1)\\b|(^|\\s)set\\s+(/a\\s+)?\\\"?(%1)="
 ```
 
-See [**here**](https://github.com/qualiu/vscode-msr/blob/master/Add-New-Language-Support-For-Developers.md#additional-explanation-for-the-regex-pattern-used-above-when-support-batch-scripts) if you're interested about the explanation of the `definition` Regex used above and below.
+See [**here**](Add-New-Language-Support-For-Developers.md#additional-explanation-for-the-regex-pattern-used-above-when-support-batch-scripts) if you're interested about the explanation of the `definition` Regex used above and below.
 
 ### Method-2: Support All Extensions of the New Language by Adding 2 Mandatory Settings
 
@@ -371,7 +404,7 @@ Set `msr.quiet` = `false`, `msr.debug` = `true` will help you tune and debug the
 
 ### Other Optional Settings and Full Priority Order of Config Override Rule
 
-See [optional settings](https://github.com/qualiu/vscode-msr/blob/master/Add-New-Language-Support-For-Developers.md#many-other-settings-if-you-want-to-override-or-add-or-update) and [overriding rule](https://github.com/qualiu/vscode-msr/blob/master/Add-New-Language-Support-For-Developers.md#full-priority-order-of-config-override-rule).
+See [optional settings](Add-New-Language-Support-For-Developers.md#many-other-settings-if-you-want-to-override-or-add-or-update) and [overriding rule](Add-New-Language-Support-For-Developers.md#full-priority-order-of-config-override-rule).
 
 ## Every Function is Under Your Control and Easy to Change
 
@@ -379,7 +412,7 @@ See [optional settings](https://github.com/qualiu/vscode-msr/blob/master/Add-New
 
 Default setting just shows a few of 24 provided context menu items of `Plain-text find` + `Regex find` + `Sort`.
 
-To show or hide more menus, [open user settings](#extension-settings-if-you-want-to-change) check/un-check menus like [screenshot](https://raw.githubusercontent.com/qualiu/vscode-msr/master/images/editor-context-menu.png) below:
+To show or hide more menus, [open user settings](#extension-settings-if-you-want-to-change) check/un-check menus like [screenshot](images/editor-context-menu.png) below:
 
 ![editor-context-menu](images/editor-context-menu.png)
 
@@ -505,7 +538,7 @@ This doc listed a few configuration names. Finding more by pressing `F1` to [Ope
 
 - You can add `msr.{project-folder-name}.xxx` in [settings file](https://code.visualstudio.com/docs/getstarted/settings#_settings-file-locations) to override all config values, like:
   - `msr.{git-folder-name}.useGitIgnoreFile` or `msr.{git-folder-name}.skipFolders` etc.
-- Full priority/order: See [**overriding rule + order**](https://github.com/qualiu/vscode-msr/blob/master/Add-New-Language-Support-For-Developers.md#full-priority-order-of-config-override-rule).
+- Full priority/order: See [**overriding rule + order**](Add-New-Language-Support-For-Developers.md#full-priority-order-of-config-override-rule).
 
 Note: Check [**your personal settings**](https://code.visualstudio.com/docs/getstarted/settings#_settings-file-locations) (`msr.xxx` in file) with the latest tuned github settings, especially for `Regex` patterns.
 
@@ -711,7 +744,7 @@ Once you found the results:
 
 These global **extra search paths** settings enable searching related files **without loading** them into `vscode`.
 
-More details see [Extra Path Settings](https://github.com/qualiu/vscode-msr/blob/master/Extra-Path-Settings.md).
+More details see [Extra Path Settings](Extra-Path-Settings.md).
 
 ### Specific Coding Language Settings Examples
 
@@ -822,19 +855,19 @@ Besides the [overview doc](https://github.com/qualiu/msr/blob/master/README.md) 
   - Filter rows by 1 or more blocks + **stop** like: **-b** `"^\s*public.*?class"` **-Q** `"^\s*\}\s*$"` **-q** `"stop-matching-regex"`
   - **Quickly** pick up `head{N}` results + **Jump out**(`-J`), like: **-H** `30` **-J** or **-J** **-H** `300` or **-JH** `300` etc.
   - Don't color matched text: **-C** (`Faster` to output, and **must be set** for `Linux/Cygwin` to further process).
-  - Output summary `info` to **stderr** + **hide** `warnings in stderr` (like BOM encoding): **-I** : You can see **-I -C** or **-IC** or **-J -I -C** or **-JIC** etc. in [package.json](https://github.com/qualiu/vscode-msr/blob/master/package.json)
+  - Output summary `info` to **stderr** + **hide** `warnings in stderr` (like BOM encoding): **-I** : You can see **-I -C** or **-IC** or **-J -I -C** or **-JIC** etc. in [package.json](package.json)
 
 ## Welcome to Contribute
 
 Github repository: <https://github.com/qualiu/vscode-msr>
 
-You may just need to add or update the [configuration file](https://github.com/qualiu/vscode-msr/blob/master/package.json): Add or update `Regex` patterns of `find-references` or `find-definitions` for various coding languages.
+You may just need to add or update the [configuration file](package.json): Add or update `Regex` patterns of `find-references` or `find-definitions` for various coding languages.
 
 ### Add New Support or Improve
 
 Please help to set the `Regex` patterns for them if you want. You can:
 
-- Reference the `.definition` and `.reference` Regex patterns of **default** or a specific language type in [configuration file](https://github.com/qualiu/vscode-msr/blob/master/package.json).
+- Reference the `.definition` and `.reference` Regex patterns of **default** or a specific language type in [configuration file](package.json).
 - Debug this extension:
   - Use `vscode` to open [this project](https://github.com/qualiu/vscode-msr) start (press `F5`) to debug, if you've cloned it.
   - Set/Check `msr.debug` to enable output debugging info, if you just installed this extension.
@@ -842,13 +875,13 @@ Please help to set the `Regex` patterns for them if you want. You can:
 
 ### Check and Update this doc
 
-Easy to check consistency of [configurations](https://github.com/qualiu/vscode-msr/blob/master/package.json) with `this document` by command lines below (you can also run command `npm run test` if you're a developer):
+Easy to check consistency of [configurations](package.json) with `this document` by command lines below (you can also run command `npm run test` if you're a developer):
 
-**[nin](https://github.com/qualiu/msr#liberate--digitize-daily-works-by-2-exe-file-processing-data-mining-map-reduce)** `README.md` [package.json](https://github.com/qualiu/vscode-msr/blob/master/package.json) **"(msr\\.[\w\\.]+)"** --nt `"msr\.(exe|gcc\w+|cygwin)|project\d+|\.(My|xxx|extra\w+Group)|msr.py.extra"` --nx "fileExtensionMap*" -i -c Should no result
+**[nin](https://github.com/qualiu/msr#liberate--digitize-daily-works-by-2-exe-file-processing-data-mining-map-reduce)** `README.md` [package.json](package.json) **"(msr\\.[\w\\.]+)"** --nt `"msr\.(exe|gcc\w+|cygwin)|project\d+|\.(My|xxx|extra\w+Group)|msr.py.extra"` --nx "fileExtensionMap*" -i -c Should no result
 
-**[nin](https://github.com/qualiu/msr#liberate--digitize-daily-works-by-2-exe-file-processing-data-mining-map-reduce)** `README.md` [package.json](https://github.com/qualiu/vscode-msr/blob/master/package.json) **"(msr\\.[\w\\.]+)"** --nt `"msr\.(exe|gcc\w+|cygwin)|project\d+|\.(My|xxx|extra\w+Group)|msr.py.extra"` --nx "fileExtensionMap*" -i **-m** -c Should have results
+**[nin](https://github.com/qualiu/msr#liberate--digitize-daily-works-by-2-exe-file-processing-data-mining-map-reduce)** `README.md` [package.json](package.json) **"(msr\\.[\w\\.]+)"** --nt `"msr\.(exe|gcc\w+|cygwin)|project\d+|\.(My|xxx|extra\w+Group)|msr.py.extra"` --nx "fileExtensionMap*" -i **-m** -c Should have results
 
-**[nin](https://github.com/qualiu/msr#liberate--digitize-daily-works-by-2-exe-file-processing-data-mining-map-reduce)** [package.json](https://github.com/qualiu/vscode-msr/blob/master/package.json) nul -p -d -k 2 -x description -c Should no unreasonable duplicate descriptions.
+**[nin](https://github.com/qualiu/msr#liberate--digitize-daily-works-by-2-exe-file-processing-data-mining-map-reduce)** [package.json](package.json) nul -p -d -k 2 -x description -c Should no unreasonable duplicate descriptions.
 
 ## Known Issues
 
@@ -903,7 +936,7 @@ You can use `Ctrl + Mouse hover` to `peek definition`, use `F12` to `go to defin
 
 ## Release Notes
 
-See [CHANGELOG](https://github.com/qualiu/vscode-msr/blob/master/CHANGELOG.md) or `vscode-msr` extension [commit history](https://github.com/qualiu/vscode-msr/commits/master).
+See [CHANGELOG](CHANGELOG.md) or `vscode-msr` extension [commit history](https://github.com/qualiu/vscode-msr/commits/master).
 
 ---
 

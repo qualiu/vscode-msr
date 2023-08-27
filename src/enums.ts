@@ -54,5 +54,6 @@ export enum FindCommandType {
     FindTopSourceFolder,
     FindTopSourceType,
     FindTopCodeFolder,
-    FindTopCodeType
+    FindTopCodeType,
+    MyFindOrReplaceSelectedText,
 }

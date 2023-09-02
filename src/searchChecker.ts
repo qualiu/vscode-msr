@@ -133,7 +133,7 @@ export class SearchChecker {
 		this.isInTestFolder = /test/i.test(currentFile.dir);
 		this.isInTestPath = this.isTestFileName || this.isInTestFolder;
 
-		this.isClassResultRegex = this.getCheckingRegex('isClassResult', true, false, 'definition', false);
+		this.isClassResultRegex = this.getCheckingRegex('isClassResult', true, false, 'definition');
 		this.isEnumResultRegex = this.getCheckingRegex('isEnumResult', true);
 		this.isMethodResultRegex = this.getCheckingRegex('isMethodResult', true);
 		this.isInterfaceResultRegex = this.getCheckingRegex('isInterfaceResult', true);
@@ -388,8 +388,9 @@ export class SearchChecker {
 		outputDebugByTime('Final-Check: isFindMember = ' + this.isFindMember + ', isFindClass = ' + this.isFindClass + ' , isFindMethod = ' + this.isFindMethod + ' , isFindEnum = ' + this.isFindEnum);
 	}
 
-	public getCheckingRegex(configKeyTail: string, allowEmpty: boolean, matchAnyIfEmpty: boolean = false, fallBackToConfigKeyTail: string = '', addDefault: boolean = true): RegExp {
+	public getCheckingRegex(configKeyTail: string, allowEmpty: boolean, matchAnyIfEmpty: boolean = false, fallBackToConfigKeyTail: string = ''): RegExp {
 		const checkConfigTails = [configKeyTail, fallBackToConfigKeyTail];
+		const addDefault = isNullOrEmpty(fallBackToConfigKeyTail) && configKeyTail !== fallBackToConfigKeyTail;
 		let rawPattern = '';
 		for (let k = 0; k < checkConfigTails.length; k++) {
 			if (isNullOrEmpty(checkConfigTails[k])) {
@@ -398,6 +399,13 @@ export class SearchChecker {
 			rawPattern = getConfigValueByProjectAndExtension(this.rootFolderName, this.extension, this.mappedExt, checkConfigTails[k], allowEmpty, addDefault);
 			if (!isNullOrEmpty(rawPattern)) {
 				break;
+			}
+		}
+
+		if (isNullOrEmpty(rawPattern) && !addDefault) {
+			rawPattern = getConfigValueByProjectAndExtension(this.rootFolderName, this.extension, this.mappedExt, configKeyTail, allowEmpty, true);
+			if (isNullOrEmpty(rawPattern) && !isNullOrEmpty(fallBackToConfigKeyTail)) {
+				rawPattern = getConfigValueByProjectAndExtension(this.rootFolderName, this.extension, this.mappedExt, fallBackToConfigKeyTail, allowEmpty, true);
 			}
 		}
 

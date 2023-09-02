@@ -2,6 +2,10 @@
 
 All notable changes to this "vscode-msr" extension will be documented in this file.
 
+## [2.1.71]
+- Improved finding definition: Enable adding `msr.{ext-or-fileExtMap}.definition` without `msr.xxx.isClassResult`.
+- Improved searching special file type like `Makefile` or `.extension`.
+
 ## [2.1.70]
 - Auto use `msr.xxx.definition` pattern for `msr.xxx.isClassResult` if not set (like `msr.proto.definition`).
 - Added `msr.myFindOrReplaceSelectedTextCommand` menu + custom command examples to find or replace selected text.
@@ -320,7 +324,7 @@ All notable changes to this "vscode-msr" extension will be documented in this fi
   - Added `msr.useGitIgnoreFile` = **false** which disable this non-precise function.
   - Added `msr.omitGitIgnoreExemptions` = **true** to skip exemptions like `!not-exclude.txt`.
   - Added `msr.skipDotFoldersIfUseGitIgnoreFile` = **true** to skip paths like `.git`.
-  - Auto detect and use forwarding slash support for CMD terminal on Windows.
+  - Auto detect and use forward slash support for CMD terminal on Windows.
 - Corrected 3 config items with right type.
 - Set `msr.searchRelativePathForNativeTerminals` = `true` as default.
 - Set `msr.cookCmdAlias.outputFullPath` = `false` as default.

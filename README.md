@@ -8,7 +8,7 @@ Have you suffered issues below in your daily work?
   - Cannot cross `multiple languages`? `C#` , `C++` , `Java`/`Scala`, `Python`, `Vue`, etc.
   - Cannot cross `multiple repositories`?
 - **Search code**:
-  - Clumsy and slow in IDE? Too **narrow** `vscode` panel to preview? 
+  - Clumsy and slow in IDE? Too **narrow** `vscode` panel to preview?
   - Wasting time to click and expand **each** item?
   - Lack of a powerful tool to [**learn/ramp-up code by yourself**](#code-mining-without-or-with-little-knowledge) ? (filter + stats + compare/analogy).
   - `What if` a **colorful** + **fast** glance for **all search results** + [**rich and powerful filters**](#search-files-with-rich-filters)?
@@ -29,7 +29,7 @@ Then it's the **light** and **right** tool for you(just **2~3 MB** storage + **1
 **Note**: ([**Temp-toggle**](#get-the-best-combined-power) or [**change settings**](#disable-finding-definition-and-references-for-specific-file-types) for languages disabled by default settings.)
 
 ### Supported Platforms
-- **Windows** 
+- **Windows**
   - `x86_64`: 64-bit + 32-bit Windows (including **WSL** + **Cygwin** + **MinGW**).
   - `Arm64`: `WinVersion` >= `8.1`.
 - **Linux**
@@ -215,7 +215,7 @@ This's helpful if got [**git-exemption-warnings**](#use-git-ignore) when initial
 You can search **in vscode terminal** then **click** the results to **open and locate** them.
 
 You can also start [**code-mining**](#code-mining-without-or-with-little-knowledge) or [replacing files](#replace-files-with-preview-and-backup) out of vscode ([System terminals or other IDEs](#the-cookeddumped-aliasdoskey-can-be-used-in-many-ides-not-just-vscode)).
- 
+
 If using alias(like `find-spring-ref`) in a **nested command** (like `for/while-loop` or `command|pipe`), or **script file** (like `*.bat/cmd` or `*.sh`):
    - Use **full-name** (like `find-spring-ref.cmd`) .
    - Or use **full script path** (like `~/cmdAlias/find-spring-ref`).
@@ -271,7 +271,7 @@ For full or relative path:
 
 And many other [**common shortcuts**](/src/commonAlias.ts) like (run `alias` to see all alias/doskeys):
   - Windows + Linux/MacOS:
-    - git shortcuts: 
+    - git shortcuts:
       - Type `gpc` to pull current branch + `gph` to push current branch + `gfc` to fetch current branch.
       - Type `gpc-sm` to pull submodules + `git-sm-reset` to reset submodules + `git-sm-reinit` to fix tough issues, etc.
       - Type `git-cherry-pick-branch-new-old-commits` to cherry pick commits of a branch from old to new commits (add `-X` to execute commands).
@@ -286,7 +286,7 @@ And many other [**common shortcuts**](/src/commonAlias.ts) like (run `alias` to 
 Open [user settings](https://code.visualstudio.com/docs/getstarted/settings#_settings-editor), set `msr.useGitIgnoreFile` = `true` (or `msr.{project-folder-name}.useGitIgnoreFile` = `true`)
 
 - This use the `.gitignore` file only in top folder of the project, without other kinds/folders of git-ignore files.
-- Omit file/folder exemptions (like `!not-exclude.txt`) as default.
+- Omit file/folder exemptions (like `!not-exclude.txt`) as **default** (will **ignore** such git exemptions).
   - Set `msr.omitGitIgnoreExemptions` = `false` to not use git-ignore if found exemptions.
 - Change `skipDotFoldersIfUseGitIgnoreFile` to `false` if some code files in **dot folders** like `".submodules"`:
   - Method-1: Change for the project only (choose `workspace` when open user settings menu).
@@ -308,22 +308,25 @@ Run command **`"npm run test"`** in vscode-msr folder if you want to see the tra
 - For one project: Add `msr.{project-folder-name}.useGitIgnoreFile` = `true` or `false` in [user settings](#extension-settings-if-you-want-to-change).
 
 ### Custom Search Command with Menu
-- You add/set custom search/replace command by adding config `msr.xxx.myFindOrReplaceSelectedTextCommand` in [user settings](#extension-settings-if-you-want-to-change).
+- You can add custom search/replace command by adding config `msr.xxx.myFindOrReplaceSelectedTextCommand` in [user settings.json](#extension-settings-if-you-want-to-change).
   - Example of using git file list to precisely search `C++` code to find **pure reference** of `selected` text (`%1`):
-    - Use `%UseGitFileListToSearch%` to add/set **msr.cpp.myFindOrReplaceSelectedTextCommand** = 
+    - Use `%UseGitFileListToSearch%` to add/set **msr.cpp.myFindOrReplaceSelectedTextCommand** =
       - ```"%UseGitFileListToSearch% -f \"\\.(c\\+\\+|cpp|cxx|cc|c)$\" --xd --s1 1B --s2 3.6MB --out-index --nt \"^\\s*(#include|/|\\*)|^.{360,}\" -t \"\\b%1\\b\" --xp test,mock,deprecate"```
-    - Or write your own raw command for **msr.cpp.myFindOrReplaceSelectedTextCommand** = 
-      - ```"git ls-files --recurse-submodules > /tmp/tmp-git-file-list && msr --no-check -w /tmp/tmp-git-file-list -f \"\\.(c\\+\\+|cpp|cxx|cc|c)$\" --xd --s1 1B --s2 3.6MB --out-index --nt \"^\\s*(#include|/|\\*)|^.{360,}\" -t \"\\b%1\\b\" --xp test,mock,deprecate"```
-  - Example of using common filter if ignore/no git-exemptions (which needless to always write a temp file `/tmp/tmp-git-file-list`):
-    - Use `%ProjectsFolders%` + `%FileExt%` / `%FileExtMap%` for **msr.cpp.myFindOrReplaceSelectedTextCommand** = 
-      - ```msr -rp %ProjectsFolders% --np \"$Skip_Git_Paths\" -f %FileExtMap% --xd --s1 1B --s2 3.6MB --out-index --nt \"^\\s*(#include|/|\\*)|^.{360,}\" -t \"\\b%1\\b\" --xp test,mock,deprecate```
+    - Or write your own raw command for **msr.cpp.myFindOrReplaceSelectedTextCommand** =
+      - ```"git ls-files --recurse-submodules > /tmp/tmp-git-file-list && msr --no-check -w /tmp/tmp-git-file-list ...`
+  - Example of using common filter if [ignored/no git-exemptions](#use-git-ignore) (which needless to always write a temp file `/tmp/tmp-git-file-list`):
+    - Use `%ProjectsFolders%` + `%FileExt%` / `%FileExtMap%` in [settings.json](#extension-settings-if-you-want-to-change) like below:
+     - "**msr.cpp.myFindOrReplaceSelectedTextCommand**" = ```"msr -rp %ProjectsFolders% --np \"$Skip_Git_Paths\" -f %FileExtMap% ..."```
   - **Recommended example** of using `%AutoDecideSkipFolderToSearch%` + `%FileExt%` / `%FileExtMap%`:
-    - **msr.cpp.myFindOrReplaceSelectedTextCommand** = ```"%AutoDecideSkipFolderToSearch% -f %FileExtMap% --xd --s1 1B --s2 3.6MB --out-index --nt \"^\\s*(#include|/|\\*)|^.{360,}\" -t \"\\b%1\\b\" --xp test,mock,deprecate"```
-      - If ignore/no git-exemptions: Auto replace `%AutoDecideSkipFolderToSearch%` to `"msr -rp %ProjectsFolders%" --np "%Skip_Git_Paths%"`.
+    - **msr.cpp.myFindOrReplaceSelectedTextCommand** = ```"%AutoDecideSkipFolderToSearch% -f %FileExtMap% ..."```
+      - If [ignored/no git-exemptions](#use-git-ignore): Auto replace `%AutoDecideSkipFolderToSearch%` to `"msr -rp %ProjectsFolders%" --np "%Skip_Git_Paths%"`.
       - Otherwise: Auto replace `%AutoDecideSkipFolderToSearch%` to `"git ls-files --recurse-submodules > /tmp/tmp-git-file-list && msr --no-check -w /tmp/tmp-git-file-list"`.
+  - You can set any other command lines like below using `find-xxx` or [gfind-xxx](#try-to-use-gfind-xxx-instead-of-find-xxx-aliasdoskey):
+    - **msr.cpp.myFindOrReplaceSelectedTextCommand** = ```"find-file -t \"^\\s*struct\\s+%1\\b\" -f %FileExt% --xp ... --sp ..."```
+    - The difference is the above recommended example will search multiple project folders when opening multiple projects/workspaces in vscode.
 - You can hide the custom search menu by unchecking/setting `msr.myFindOrReplaceSelectedTextCommand.menu.visible` = `true` in [user settings](#extension-settings-if-you-want-to-change).
 - The override rule of config is same with [**full priority rule**](/Add-New-Language-Support-For-Developers.md#full-priority-order-of-config-override-rule) like below (from high to low priority):
-  - msr.`my-repo-folder-name`.`proto`.myFindOrReplaceSelectedTextCommand 
+  - msr.`my-repo-folder-name`.`proto`.myFindOrReplaceSelectedTextCommand
     - Concrete `{Ext}` = `proto` override below.
   - msr.`bp`.myFindOrReplaceSelectedTextCommand
     - General `{ExtMap}` = `bp` = `bond` + `proto`.
@@ -424,7 +427,7 @@ Set `msr.menu.visible` = `false` to hide all context menus of `Regex find xxx` +
   - If found professional extension process is running:
     - `vscode-msr` will ignore `"Go To Definition"` from `mouse-click` or `key` like `F12`.
   - You can still use `vscode-msr` by menu or terminal.
-     
+
 - If professional extension not work, you can `toggle` enabling `vscode-msr` temporarily (until reload/re-open vscode).
 
 ### Auto Disable Finding Definition as Default
@@ -436,7 +439,7 @@ Set `msr.menu.visible` = `false` to hide all context menus of `Regex find xxx` +
 - Accelerate/accurate checking language process like below（`C#` + `Rust`):
   - `msr.cs.languageProcessName` = `dotnet`
   - `msr.rs.languageProcessName` = `rust-analyzer`
-- For mapped extension (like: `cs`/`rs`/`py`/`cpp`/`java`): 
+- For mapped extension (like: `cs`/`rs`/`py`/`cpp`/`java`):
   - Check `msr.fileExtensionMap.xxx` like `msr.fileExtensionMap.cs`.
   - You can add more `msr.fileExtensionMap.xxx`.
 
@@ -505,6 +508,10 @@ There're another 2 ways to toggle besides the hot key (`Alt+F2`):
 - `msr.enable.definition`: Set to `false` or un-check it to **disable** `find definitions` function for all types of files.
 - `msr.enable.reference`: Set to `false` or un-check it to **disable** `find references` function for all types of files.
 
+### Output Forward Slash on Windows for Search Result File Paths
+- Type `mingw-mock` to output forward slash('/') on Windows terminals (like `CMD`).
+- Type `mingw-unmock` to restore backslash('\\') on Windows.
+
 ### Output Relative Paths or Full Paths
 
 - For cooking command alias/shortcuts and using it:
@@ -531,9 +538,9 @@ This doc listed a few configuration names. Finding more by pressing `F1` to [Ope
 
 ## Extension Settings If You Want to Change
 
-- You **don't need to change** [user settings](https://code.visualstudio.com/docs/getstarted/settings#_edit-settings), however, if you need: 
+- You **don't need to change** [user settings](https://code.visualstudio.com/docs/getstarted/settings#_edit-settings), however, if you need:
   - Just type/paste **`msr.xxx`** in **vscode UI**(like below) or add/update **`msr.xxx`** in [**user settings file**](https://code.visualstudio.com/docs/getstarted/settings#_settings-file-locations):
-  
+
   ![change-settings-example](images/change-settings-example.png)
 
 - You can add `msr.{project-folder-name}.xxx` in [settings file](https://code.visualstudio.com/docs/getstarted/settings#_settings-file-locations) to override all config values, like:
@@ -838,13 +845,13 @@ Besides the [overview doc](https://github.com/qualiu/msr/blob/master/README.md) 
   - Skip/Exclude link files: **--xf**
   - Skip/Exclude link folders: **--xd**
   - Skip full or sub paths: **--xp** `d:\win\dir,my\sub,\bin\`
-    - Newer msr supports forwarding slash(`/`) on Windows to ease slash-escaping: 
-      - **--xp** `d:/win/dir,my/sub,/bin/` same as `d:\win\dir,my\sub,\bin\` 
+    - Newer msr supports forward slash(`/`) on Windows to ease slash-escaping:
+      - **--xp** `d:/win/dir,my/sub,/bin/` same as `d:\win\dir,my\sub,\bin\`
         - (You can omit double quotes since no spaces and special characters).
-      - **--np** `"d:/win/dir|my/sub|/bin/"` same as `"d:\\win\\dir|my\\sub|\\bin\\\\"` 
+      - **--np** `"d:/win/dir|my/sub|/bin/"` same as `"d:\\win\\dir|my\\sub|\\bin\\\\"`
         - (Need more slashes if end with a slash + double quote).
       - **--pp** `"/src/|/common"` same as `"\\src\\|\\common"`.
-    - Check if your msr support forwarding slash(`/`) by command:
+    - Check if your msr support forward slash(`/`) by command:
       - `msr -h | msr -x "Support '/'"`
   - Try to read once for link files: **-G** (link files' folders must be or under input root paths of `-p` or/and `-w`)
   - Filter `file size`: **--s1** <= size <= **s2** , like set one or two: **--s1** `1B` **--s2** `1.5MB`

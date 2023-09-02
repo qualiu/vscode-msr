@@ -6,7 +6,7 @@ import { cookCmdShortcutsOrFile, mergeSkipFolderPattern } from './cookCommandAli
 import { FindType, TerminalType } from './enums';
 import { GitIgnore } from './gitUtils';
 import { MessageLevel, clearOutputChannelByTimes, outputDebug, outputDebugByTime, outputErrorByTime, outputInfoByTime, outputInfoClearByTime, outputKeyInfoByTime, updateOutputChannel } from './outputUtils';
-import { createRegex } from './regexUtils';
+import { createRegex, escapeRegExp } from './regexUtils';
 import { getRunCmdTerminalWithInfo } from './runCommandUtils';
 import { SearchConfig } from './searchConfig';
 import { DefaultTerminalType, IsLinuxTerminalOnWindows, IsWindowsTerminalOnWindows, isLinuxTerminalOnWindows, toStoragePaths, toTerminalPath, toTerminalPaths, toTerminalPathsText } from './terminalUtils';
@@ -45,6 +45,20 @@ export let MappedExtToCodeFilePatternMap = new Map<string, string>()
     // .set('cpp', RootConfig.get('cpp.codeFiles') as string)
     .set('', 'default')
     ;
+
+export function getFileNamePattern(parsedFile: path.ParsedPath, useMappedExt: boolean = true): string {
+    const extension = getExtensionNoHeadDot(parsedFile.ext);
+    if (isNullOrEmpty(parsedFile.ext)) {
+        return `^${escapeRegExp(parsedFile.name)}$`
+    }
+
+    if (!useMappedExt) {
+        return "\\." + extension + "$";
+    }
+
+    const mappedExt = FileExtensionToMappedExtensionMap.get(extension) || extension;
+    return MappedExtToCodeFilePatternMap.get(mappedExt) || "\\." + extension + "$";
+}
 
 export function removeSearchTextForCommandLine(cmd: string): string {
     return cmd.replace(/(\s+-c)\s+Search\s+%~?1/, '$1');

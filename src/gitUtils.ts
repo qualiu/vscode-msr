@@ -6,7 +6,7 @@ import { TerminalType } from './enums';
 import { saveTextToFile } from './fileUtils';
 import { outputError, outputErrorByTime, outputInfoByDebugMode, outputInfoByTime, outputInfoQuiet, outputInfoQuietByTime, outputWarnByTime } from './outputUtils';
 import { runCommandInTerminal, runRawCommandInTerminal } from './runCommandUtils';
-import { DefaultTerminalType, getTipFileDisplayPath, IsLinuxTerminalOnWindows, isWindowsTerminalOnWindows, toTerminalPath } from './terminalUtils';
+import { DefaultTerminalType, getTipFileDisplayPath, IsLinuxTerminalOnWindows, IsWindowsTerminalOnWindows, isWindowsTerminalOnWindows, toTerminalPath } from './terminalUtils';
 import { IsForwardingSlashSupportedOnWindows, RunCommandChecker } from './ToolChecker';
 import { changeToForwardSlash, getElapsedSecondsToNow, isNullOrEmpty, quotePaths, RunCmdTerminalRootFolder } from './utils';
 // Another solution: (1) git ls-files --recurse-submodules > project-file-list.txt ; (2) msr -w project-file-list.txt  (3) file watcher + update list.
@@ -16,10 +16,23 @@ export const SkipPathVariableName: string = 'Skip_Git_Paths';
 const RunCmdFolderWithForwardSlash: string = changeToForwardSlash(RunCmdTerminalRootFolder);
 
 let ProjectFolderToHasSkipGitPathsEnvMap = new Map<string, boolean>();
+let ProjectFolderToShortSkipGitPathEnvValueMap = new Map<string, string>();
 
 export function hasValidGitSkipPathsEnv(projectGitFolder: string): boolean {
   projectGitFolder = changeToForwardSlash(projectGitFolder);
   return ProjectFolderToHasSkipGitPathsEnvMap.get(projectGitFolder) || false;
+}
+
+export function getSkipGitPathEnvOrValue(projectGitFolder: string): string {
+  if (!hasValidGitSkipPathsEnv(projectGitFolder)) {
+    return '';
+  }
+  projectGitFolder = changeToForwardSlash(projectGitFolder);
+  const shortEnvValue = ProjectFolderToShortSkipGitPathEnvValueMap.get(projectGitFolder);
+  if (shortEnvValue && !isNullOrEmpty(shortEnvValue)) {
+    return shortEnvValue;
+  }
+  return IsWindowsTerminalOnWindows ? `%${SkipPathVariableName}%` : `$${SkipPathVariableName}`;
 }
 
 export class GitIgnore {
@@ -263,6 +276,9 @@ export class GitIgnore {
       const isInMaxLength = setVarCmdLength < this.MaxCommandLength;
       this.Valid = this.SkipPathPattern.length > 0 && isInMaxLength;
       ProjectFolderToHasSkipGitPathsEnvMap.set(this.RootFolder, this.Valid);
+      if (this.Valid && this.SkipPathPattern.length < this.ExportLongSkipGitPathsLength) {
+        ProjectFolderToShortSkipGitPathEnvValueMap.set(this.RootFolder, this.SkipPathPattern);
+      }
       if (errorList.length > 0) {
         outputError(errorList.join('\n'));
       }

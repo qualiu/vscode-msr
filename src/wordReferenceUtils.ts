@@ -42,19 +42,12 @@ export const FindJavaSpringReferenceByPowerShellAlias = `
   }
   `.trim();
 
-export function changeToReferencePattern(rawWord: string, parsedFile: ParsedPath): string {
+export function changeSearchWordToVariationPattern(rawWord: string, parsedFile: ParsedPath): string {
   if (!MyConfig.AutoChangeSearchWordForReference) {
     return rawWord;
   }
 
-  // skip if contains non-alphabetic char, or whole word is upper case:
-  if (!rawWord.match(/^\w+$/) || rawWord.match(/^[A-Z_]+$/)) {
-    return rawWord;
-  }
-
   const extension = parsedFile.ext.replace(/^\./, '');
-  const memberPattern = /^m?_+|_+$/;
-
   const mappedExt = FileExtensionToMappedExtensionMap.get(extension) || extension;
 
   if (!rawWord.startsWith('m_') // cpp member style
@@ -64,6 +57,16 @@ export function changeToReferencePattern(rawWord: string, parsedFile: ParsedPath
     return rawWord;
   }
 
+  return getSearchWordVariationPattern(rawWord);
+}
+
+export function getSearchWordVariationPattern(rawWord: string): string {
+  // skip if contains non-alphabetic char, or whole word is upper case:
+  if (!rawWord.match(/^\w+$/) || rawWord.match(/^[A-Z_]+$/)) {
+    return rawWord;
+  }
+
+  const memberPattern = /^m?_+|_+$/;
   let checkWords = new Set<String>()
     .add(rawWord);
   if (rawWord.match(memberPattern)) {
@@ -77,27 +80,30 @@ export function changeToReferencePattern(rawWord: string, parsedFile: ParsedPath
   let wordSet = new Set<string>()
     .add(rawWord);
 
+  const separator = rawWord.match(/[a-z0-9]+_[a-z0-9]+/) ? '_' : '';
   checkWords.forEach(word => {
     if (word.match(memberPattern)) {
       return;
     }
 
-    const pure = word.replace(/^(is|get|set)([A-Z])/, '$2');
-    const cap = pure[0].toUpperCase() + pure.substring(1);
-    const camel = pure[0].toLowerCase() + pure.substring(1);
-    if (cap.length < word.length) {
-      if (pure[0].toUpperCase() === pure[0]) {
-        wordSet.add(camel);
+    const pureWord = word.replace(/^(is|get|set|has)([A-Z])/i, '$2');
+    const isCapitalized = word.match(/^[A-Z]/); // word.match(/^(Is|Get|Set|Has)[A-Z]/);
+    const capitalWord = pureWord[0].toUpperCase() + pureWord.substring(1);
+    const camelWord = pureWord[0].toLowerCase() + pureWord.substring(1);
+    if (capitalWord.length < word.length) {
+      if (!isCapitalized && pureWord[0].toUpperCase() === pureWord[0]) {
+        wordSet.add(camelWord);
       } else {
-        wordSet.add(cap);
+        wordSet.add(capitalWord);
       }
     }
 
+    const suffixWord = separator === '_' ? pureWord : capitalWord;
     wordSet
-      .add('is' + cap)
-      .add('get' + cap)
-      .add('set' + cap);
-
+      .add((isCapitalized ? 'Is' : 'is') + separator + suffixWord)
+      .add((isCapitalized ? 'Get' : 'get') + separator + suffixWord)
+      .add((isCapitalized ? 'Set' : 'set') + separator + suffixWord)
+      .add((isCapitalized ? 'Has' : 'has') + separator + suffixWord);
   });
 
   const text = "\\b"

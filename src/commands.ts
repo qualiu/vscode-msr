@@ -5,7 +5,7 @@ import { HomeFolder, RemoveJumpRegex, SkipJumpOutForHeadResultsRegex } from './c
 import { mergeSkipFolderPattern } from './cookCommandAlias';
 import { FileExtensionToMappedExtensionMap, MyConfig, getConfig, getFileNamePattern, getGitIgnore, getSearchPathOptions, removeSearchTextForCommandLine, replaceToRelativeSearchPath } from './dynamicConfig';
 import { FindCommandType, TerminalType } from './enums';
-import { SkipPathVariableName, hasValidGitSkipPathsEnv } from './gitUtils';
+import { SkipPathVariableName, getSkipGitPathEnvOrValue, hasValidGitSkipPathsEnv } from './gitUtils';
 import { enableColorAndHideCommandLine, outputDebugByTime, outputInfoByTime } from './outputUtils';
 import { Ranker } from './ranker';
 import { NormalTextRegex, escapeRegExp } from './regexUtils';
@@ -14,7 +14,7 @@ import { SearchConfig } from './searchConfig';
 import { DefaultTerminalType, IsLinuxTerminalOnWindows, IsWindowsTerminalOnWindows, changeFindingCommandForLinuxTerminalOnWindows, isLinuxTerminalOnWindows, toTerminalPath } from './terminalUtils';
 import { MsrExe } from './toolSource';
 import { RunCmdTerminalRootFolder, getCurrentWordAndText, getDefaultRootFolderByActiveFile, getExtensionNoHeadDot, getRootFolder, getRootFolderName, isNullOrEmpty, quotePaths, replaceSearchTextHolder, replaceTextByRegex, setSearchPathInCommand, toPath } from './utils';
-import { changeToReferencePattern } from './wordReferenceUtils';
+import { changeSearchWordToVariationPattern, getSearchWordVariationPattern } from './wordReferenceUtils';
 import path = require('path');
 
 const ReplaceSearchPathRegex = /-r?p\s+\S+|-r?p\s+\".+?\"/g;
@@ -45,14 +45,14 @@ export function runFindingCommand(findCmd: FindCommandType, textEditor: vscode.T
     currentWord = currentWord.replace(/%1/g, escapeHolder1).replace(/%~1/g, escapeHolder2);
     const isRegexFinding = findCmdText.match(/Regex/i);
     const isFindReference = findCmdText.match(/Reference/i);
-    const variedWordForReference = isRegexFinding && isFindReference
-        ? changeToReferencePattern(currentWord, parsedFile)
+    const searchWordVariationPattern = isRegexFinding && isFindReference
+        ? changeSearchWordToVariationPattern(currentWord, parsedFile)
         : currentWord;
 
     const rawSearchText = !isRegexFinding && IsWindowsTerminalOnWindows ? currentWord : currentWord.replace(/\\/g, '\\\\');
     const searchText = isRegexFinding
-        ? (isFindReference && variedWordForReference !== currentWord
-            ? variedWordForReference
+        ? (isFindReference && searchWordVariationPattern !== currentWord
+            ? searchWordVariationPattern
             : escapeRegExpForFindingCommand(currentWord)
         )
         : rawSearchText;
@@ -161,27 +161,31 @@ export function getFindTopDistributionCommand(toRunInTerminal: boolean, isForPro
     return command.trimRight();
 }
 
-function setCustomSkipFolders(projectGitFolder: string, sourceProjectFolders: string, parsedFile: path.ParsedPath, commandLine: string): string {
+function setCustomSearchCommand(projectGitFolder: string, sourceProjectFolders: string, parsedFile: path.ParsedPath, searchWord: string, commandLine: string): string {
     const extension = getExtensionNoHeadDot(parsedFile.ext);
     const mappedExt = FileExtensionToMappedExtensionMap.get(extension) || extension;
     // Check %AutoDecideSkipFolderToSearch% + %UseGitFileListToSearch% + %ProjectsFolders%
     const hasValidGitEnv = hasValidGitSkipPathsEnv(projectGitFolder);
+    const skipPathPattern = getSkipGitPathEnvOrValue(projectGitFolder);
     const useGitFileListToSearch = 'git ls-files --recurse-submodules > /tmp/tmp-git-file-list && msr --no-check -w /tmp/tmp-git-file-list';
     commandLine = commandLine.replace(new RegExp('%UseGitFileListToSearch%', 'g'), useGitFileListToSearch);
 
     commandLine = commandLine.replace(new RegExp('%ProjectsFolders%', 'g'), sourceProjectFolders);
-
     commandLine = commandLine.replace(new RegExp('%FileExtMap%', 'g'), `"${getFileNamePattern(parsedFile)}"`);
     commandLine = commandLine.replace(new RegExp('%FileExt%', 'g'), `"${getFileNamePattern(parsedFile, false)}"`);
 
     if (commandLine.includes('%AutoDecideSkipFolderToSearch%')) {
         const findAutoDecideRegex = new RegExp('%AutoDecideSkipFolderToSearch%', 'g');
-        if (hasValidGitEnv) {
-            const skipPathName = IsWindowsTerminalOnWindows ? `%${SkipPathVariableName}%` : `$${SkipPathVariableName}`;
-            commandLine = commandLine.replace(findAutoDecideRegex, `msr -rp ${sourceProjectFolders} --np "${skipPathName}"`);
-        } else {
+        if (isNullOrEmpty(skipPathPattern)) {
             commandLine = commandLine.replace(findAutoDecideRegex, useGitFileListToSearch);
+        } else {
+            commandLine = commandLine.replace(findAutoDecideRegex, `msr -rp ${sourceProjectFolders} --np "${skipPathPattern}"`);
         }
+    }
+
+    if (commandLine.includes("%SelectedWordVariation%")) {
+        const searchWordVariationPattern = '"' + getSearchWordVariationPattern(searchWord) + '"';
+        commandLine = commandLine.replace(new RegExp('%SelectedWordVariation%', 'g'), searchWordVariationPattern);
     }
 
     if (IsWindowsTerminalOnWindows) {
@@ -205,7 +209,6 @@ function setCustomSkipFolders(projectGitFolder: string, sourceProjectFolders: st
     commandLine = commandLine.replace(new RegExp('--np \"[\\$%]' + SkipPathVariableName + '\\b', 'g'), '--nd \"' + skipFoldersPattern);
     return commandLine;
 }
-
 
 export function getFindingCommandByCurrentWord(toRunInTerminal: boolean, findCmd: FindCommandType, searchText: string,
     parsedFile: path.ParsedPath, rawSearchText: string = '', ranker: Ranker | undefined, onlyRemoveJump: boolean = false): string {
@@ -265,7 +268,7 @@ export function getFindingCommandByCurrentWord(toRunInTerminal: boolean, findCmd
             // commandLine = commandLine.replace(new RegExp('/tmp/', 'g'), TempStorageFolder + '\\');
             commandLine = commandLine.replace(new RegExp('/tmp/', 'g'), '%TMP%' + '\\');
         }
-        return setCustomSkipFolders(rootFolder, sourceProjectFolders, parsedFile, commandLine);
+        return setCustomSearchCommand(rootFolder, sourceProjectFolders, parsedFile, searchText, commandLine);
     }
 
     const isFindDefinition = findCmdText.includes('Definition');

@@ -2,6 +2,11 @@
 
 All notable changes to this "vscode-msr" extension will be documented in this file.
 
+## [2.1.72]
+- Improved custom search command `msr.xxx.myFindOrReplaceSelectedTextCommand`:
+  - Supported short `%Skip_Git_Paths%` which not exported as a tmp env var.
+  - Added macro `%SelectedWordVariation%` (similar with config `msr.reference.autoChangeSearchWord`).
+
 ## [2.1.71]
 - Improved finding definition: Enable adding `msr.{ext-or-fileExtMap}.definition` without `msr.xxx.isClassResult`.
 - Improved searching special file type like `Makefile` or `.extension`.
@@ -93,13 +98,13 @@ All notable changes to this "vscode-msr" extension will be documented in this fi
 ## [2.1.49]
 - Auto change reference words for Java Spring when finding words from menu.
 - Added `find-spring-ref` alias for `CMD`/`Bash` - requires `PowerShell/pwsh`.
-- Added config `msr.reference.autoChangeSearchWord` = `true` as default. 
+- Added config `msr.reference.autoChangeSearchWord` = `true` as default.
 
 ## [2.1.48]
 - Added `msr.cookCmdAlias.showLongTip` to hide/show long tip for command alias in terminals.
 - Fixed issues in MacOS: Corrected `malias` + Fixed random command line break in `MSR-RUN-CMD` terminal.
 
-## [2.1.47] 
+## [2.1.47]
 - Trivial update for MacOS `MSR-RUN-CMD` terminal.
 
 ## [2.1.46]

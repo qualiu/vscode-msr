@@ -308,27 +308,43 @@ Run command **`"npm run test"`** in vscode-msr folder if you want to see the tra
 - For one project: Add `msr.{project-folder-name}.useGitIgnoreFile` = `true` or `false` in [user settings](#extension-settings-if-you-want-to-change).
 
 ### Custom Search Command with Menu
-- You can add custom search/replace command by adding config `msr.xxx.myFindOrReplaceSelectedTextCommand` in [user settings.json](#extension-settings-if-you-want-to-change).
-  - Example of using git file list to precisely search `C++` code to find **pure reference** of `selected` text (`%1`):
-    - Use `%UseGitFileListToSearch%` to add/set **msr.cpp.myFindOrReplaceSelectedTextCommand** =
-      - ```"%UseGitFileListToSearch% -f \"\\.(c\\+\\+|cpp|cxx|cc|c)$\" --xd --s1 1B --s2 3.6MB --out-index --nt \"^\\s*(#include|/|\\*)|^.{360,}\" -t \"\\b%1\\b\" --xp test,mock,deprecate"```
-    - Or write your own raw command for **msr.cpp.myFindOrReplaceSelectedTextCommand** =
-      - ```"git ls-files --recurse-submodules > /tmp/tmp-git-file-list && msr --no-check -w /tmp/tmp-git-file-list ...`
-  - Example of using common filter if [ignored/no git-exemptions](#use-git-ignore) (which needless to always write a temp file `/tmp/tmp-git-file-list`):
-    - Use `%ProjectsFolders%` + `%FileExt%` / `%FileExtMap%` in [settings.json](#extension-settings-if-you-want-to-change) like below:
-     - "**msr.cpp.myFindOrReplaceSelectedTextCommand**" = ```"msr -rp %ProjectsFolders% --np \"$Skip_Git_Paths\" -f %FileExtMap% ..."```
-  - **Recommended example** of using `%AutoDecideSkipFolderToSearch%` + `%FileExt%` / `%FileExtMap%`:
-    - **msr.cpp.myFindOrReplaceSelectedTextCommand** = ```"%AutoDecideSkipFolderToSearch% -f %FileExtMap% ..."```
-      - If [ignored/no git-exemptions](#use-git-ignore): Auto replace `%AutoDecideSkipFolderToSearch%` to `"msr -rp %ProjectsFolders%" --np "%Skip_Git_Paths%"`.
-      - Otherwise: Auto replace `%AutoDecideSkipFolderToSearch%` to `"git ls-files --recurse-submodules > /tmp/tmp-git-file-list && msr --no-check -w /tmp/tmp-git-file-list"`.
-  - You can set any other command lines like below using `find-xxx` or [gfind-xxx](#try-to-use-gfind-xxx-instead-of-find-xxx-aliasdoskey):
-    - **msr.cpp.myFindOrReplaceSelectedTextCommand** = ```"find-file -t \"^\\s*struct\\s+%1\\b\" -f %FileExt% --xp ... --sp ..."```
-    - The difference is the above recommended example will search multiple project folders when opening multiple projects/workspaces in vscode.
+You can add custom search/replace command by adding config `msr.xxx.myFindOrReplaceSelectedTextCommand` in [user settings.json](#extension-settings-if-you-want-to-change).
+- Example of using git file list to precisely search `C++` code to find **pure reference** of `selected` text (`%1`):
+  - **"msr.cpp.myFindOrReplaceSelectedTextCommand"** = `"%UseGitFileListToSearch% -f \"\\.(c\\+\\+|cpp|cxx|cc|c)$\" --nt \"^\\s*(#include|/|\\*)|^.{360,}\" -t \"\\b%1\\b\" --xp test,mock,deprecate"`
+  - Or write your own raw command for **msr.cpp.myFindOrReplaceSelectedTextCommand** =
+    - `"git ls-files --recurse-submodules > /tmp/tmp-git-file-list && msr --no-check -w /tmp/tmp-git-file-list ..."`
+- **Recommended example** of using `%AutoDecideSkipFolderToSearch%` + `%FileExt%` / `%FileExtMap%`:
+  - **"msr.cpp.myFindOrReplaceSelectedTextCommand"** = ```"%AutoDecideSkipFolderToSearch% -f %FileExtMap% -t \"\\b%1\\b\" ..."```
+
+#### Macro Variables to be Replaced for Custom Search or Replace Command
+- `%FileExtMap%` = Extensions like `"\\.(c\\+\\+|cpp|cxx|cc|c)$"` in config or overrode by your [user settings/settings.json](#additional-settings-in-your-personal-settings-file).
+- `%FileExt%` = Current file extension like `"\\.cpp$"` (the extension of current file in vscode).
+- `%1` = Placeholder of selected text in vscode.
+- `%UseGitFileListToSearch%` = `"git ls-files --recurse-submodules > /tmp/tmp-git-file-list && msr --no-check -w /tmp/tmp-git-file-list"`
+- `%ProjectsFolders%` =
+  - Current path(`"."`) - if it's a single project/workspace.
+  - Absolute paths of all projects/workspaces in current vscode, separated by comma(`","`).
+- `%Skip_Git_Paths%` = **Skip_Git_Path** environment variable in `MSR-RUN-CMD` of vscode (if enabled [git-ignore](#use-git-ignore) and no exemptions or [omitted exemptions](#use-git-ignore)).
+  - Will be replaced to `$Skip_Git_Paths` on Linux/MacOS.
+- `%AutoDecideSkipFolderToSearch%` =
+  - if [ignored/no git-exemptions](#use-git-ignore).
+    - `msr -rp %ProjectsFolders%" --np "%Skip_Git_Paths%"`
+  - Otherwise:
+    - `%UseGitFileListToSearch%` (see above).
+- `%SelectedWordVariation%` = Replace selected word `%1` like below (a bit similar with config `msr.reference.autoChangeSearchWord`):
+  - `m_product_id` -> `\b(m_product_id|is_product_id|get_product_id|set_product_id|has_product_id)\b`
+  - `getProductId` -> `\b(getProductId|productId|isProductId|setProductId|hasProductId)\b`
+  - `ProductId` -> `\b(ProductId|productId|isProductId|getProductId|setProductId|hasProductId)\b`
+  - `GetProductId` -> `\b(GetProductId|ProductId|IsProductId|SetProductId|HasProductId)\b`
+#### Other Guide for Custom Search Command
+- You can set any other command lines like below using `find-xxx` or [gfind-xxx](#try-to-use-gfind-xxx-instead-of-find-xxx-aliasdoskey):
+    - `"gfind-file -t \"^\\s*struct\\s+%1\\b\" -f %FileExt% -t \"\\b%1\\b\" ..."`
+    - `"msr -rp %ProjectsFolders% --np \"%Skip_Git_Paths%\" -f %FileExtMap% -t \"\\b%1\\b\" ..."`
 - You can hide the custom search menu by unchecking/setting `msr.myFindOrReplaceSelectedTextCommand.menu.visible` = `true` in [user settings](#extension-settings-if-you-want-to-change).
 - The override rule of config is same with [**full priority rule**](/Add-New-Language-Support-For-Developers.md#full-priority-order-of-config-override-rule) like below (from high to low priority):
-  - msr.`my-repo-folder-name`.`proto`.myFindOrReplaceSelectedTextCommand
+  - msr.**my-repo-folder-name**.**proto**.myFindOrReplaceSelectedTextCommand
     - Concrete `{Ext}` = `proto` override below.
-  - msr.`bp`.myFindOrReplaceSelectedTextCommand
+  - msr.**bp**.myFindOrReplaceSelectedTextCommand
     - General `{ExtMap}` = `bp` = `bond` + `proto`.
 
 ## Support Multiple Repositories

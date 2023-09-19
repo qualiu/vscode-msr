@@ -1,12 +1,12 @@
 import { getConfigValueOfActiveProject } from "./configUtils";
-import { GetCommandOutput, HomeFolder, Is64BitOS, IsDarwinArm64, IsDebugMode, IsLinuxArm64, IsWindows, OutputChannelName } from "./constants";
+import { GetCommandOutput, HomeFolder, Is64BitOS, IsDarwinArm64, IsDebugMode, IsLinuxArm64, IsWindows, OutputChannelName, getCommandToSetFinalTipVar } from "./constants";
 import { cookCmdShortcutsOrFile } from "./cookCommandAlias";
 import { FileExtensionToMappedExtensionMap, getConfig } from "./dynamicConfig";
 import { TerminalType } from "./enums";
 import { createDirectory } from "./fileUtils";
 import { DefaultMessageLevel, MessageLevel, checkIfSupported, outputDebugByTime, outputErrorByTime, outputInfoByDebugMode, outputInfoByDebugModeByTime, outputInfoByTime, outputKeyInfo, outputKeyInfoByTime, outputWarnByTime, updateOutputChannel } from "./outputUtils";
 import { getRunCmdTerminal, runRawCommandInTerminal } from "./runCommandUtils";
-import { DefaultTerminalType, IsLinuxTerminalOnWindows, checkAddFolderToPath, getHomeFolderForLinuxTerminalOnWindows, getTerminalShellExePath, isBashTerminalType, isLinuxTerminalOnWindows, isTerminalUsingWindowsUtils, isToolExistsInPath, isWindowsTerminalOnWindows, toCygwinPath, toTerminalPath } from "./terminalUtils";
+import { DefaultTerminalType, IsLinuxTerminalOnWindows, IsWindowsTerminalOnWindows, checkAddFolderToPath, getHomeFolderForLinuxTerminalOnWindows, getTerminalShellExePath, getTipFileDisplayPath, isBashTerminalType, isLinuxTerminalOnWindows, isTerminalUsingWindowsUtils, isToolExistsInPath, isWindowsTerminalOnWindows, toCygwinPath, toTerminalPath } from "./terminalUtils";
 import { SourceHomeUrlArray, getDownloadUrl, getFileMd5, getHomeUrl, updateToolNameToPathMap } from "./toolSource";
 import { PathEnvName, getActiveFilePath, getDefaultRootFolder, getElapsedSecondsToNow, isDirectory, isFileExists, isNullOrEmpty, isWeeklyCheckTime, quotePaths, runCommandGetOutput } from "./utils";
 import path = require('path');
@@ -54,6 +54,7 @@ const CheckForwardingSlashSupportOnWindowsText = "Support '/' on Windows";
 
 export let IsTimeoutSupported: boolean = false;
 export let IsForwardingSlashSupportedOnWindows = true;
+export let IsUniformSlashSupported = false;
 export let IsOutputColumnSupported = false;
 export let IsFileTimeOffsetSupported = false;
 export let IsNotCheckInputPathSupported = false;
@@ -157,6 +158,7 @@ export class ToolChecker {
       IsNotCheckInputPathSupported = MsrHelpText.includes("--no-check");
       OutputToStderrArg = isArgSupported('--to-stderr', 'msr') ? '--to-stderr' : '';
       KeepColorArg = isArgSupported('--keep-color', 'msr') ? '--keep-color' : '';
+      IsUniformSlashSupported = isArgSupported('--unix-slash', 'msr');
     } else {
       NinHelpText = runCommandGetOutput(exePath + ' -h -C');
     }
@@ -253,24 +255,16 @@ export class ToolChecker {
 
     const config = getConfig();
     const shouldActivate = config.UseGitIgnoreFile || isNullOrEmpty(getDefaultRootFolder());// || !getGitIgnore(getDefaultRootFolder()).Valid;
-    if (shouldActivate) {
+    if (shouldActivate && PlatformToolChecker.IsToolExists) {
       const activePath = getActiveFilePath() || '';
       const extension = isNullOrEmpty(activePath) ? '' : path.parse(activePath).ext;
       const mappedExt = isNullOrEmpty(extension) ? '' : (FileExtensionToMappedExtensionMap.get(extension.substring(1)) || '');
       const findType = ('finding ' + mappedExt + ' definition').replace('  ', ' ');
       const checkProcessPattern = getConfigValueOfActiveProject('autoDisableFindDefinitionPattern', true);
-      let tip = 'echo Auto disable self ' + findType + ' = ' + !isNullOrEmpty(checkProcessPattern)
-        // + '. Default terminal = ' + TerminalType[DefaultTerminalType]
-        + '. Universal slash = ' + IsForwardingSlashSupportedOnWindows
-        // + '. Output result column = ' + IsOutputColumnSupported
-        // + '. Time offset = ' + IsFileTimeOffsetSupported
-        + '. Faster gfind-xxx = ' + IsNotCheckInputPathSupported
-        + '. Auto update search tool = ' + getConfig().AutoUpdateSearchTool
-        + '.';
-      if (PlatformToolChecker.IsToolExists) {
-        tip += ' | msr -aPA -i -e true -t "false|Auto.*?(disable).*?definition"';
-      }
-      runRawCommandInTerminal(tip);
+      const tipFileDisplayPath = getTipFileDisplayPath(DefaultTerminalType);
+      let setEnVarCommand = getCommandToSetFinalTipVar(IsWindowsTerminalOnWindows, mappedExt, !isNullOrEmpty(checkProcessPattern), IsUniformSlashSupported, IsNotCheckInputPathSupported, getConfig().AutoUpdateSearchTool);
+      const tipCommand = setEnVarCommand + ' msr -p ' + tipFileDisplayPath + String.raw` -L 5 -N 5 -t "^\s*[#::]+\s*" -o "" -X -A`;
+      runRawCommandInTerminal(tipCommand);
     }
 
     this.checkAndDownloadTool('nin');

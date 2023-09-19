@@ -136,14 +136,13 @@ More details or other color settings follow [official vscode doc](https://code.v
 
 If you cannot get search results **in 1~2 seconds** for just **10000 code files** (auto skip `packages`/`build`/`junk files`):
 
-Follow [official Windows doc](https://support.microsoft.com/en-us/help/4028485/windows-10-add-an-exclusion-to-windows-security):
+Follow [official Windows doc](https://support.microsoft.com/en-us/help/4028485/windows-10-add-an-exclusion-to-windows-security) to add exclusion.
 
-- Add "**Folder exclusions**" for your `source code paths` (usually the save folders of `git clone` repositories).
-- If still slow and no obvious improvement:
-  - Add "**Process** type": like `msr.exe` + `msr` to `"Process exclusions"`.
-  - Add "**File**": like `D:\tools\msr.exe` to `"File exclusions"`.
+You can also use `trust-exe` command line (run as `Administrator` in a `new` CMD window) after installing `vscode-msr`:
 
-(You probably have done for others tools like `golang`, npm `node.exe` , `pip.exe` and `python.exe` etc.)
+- **trust-exe** `msr.exe,nin.exe` (input exe `name` or `title` or `path`).
+  - This will auto fetch exe path and use `PowerShell "Add-MpPreference -ExclusionPath $exePath"`.
+  - You can also use `trust-exe` with `git`/`ssh`/`bash`/`node.exe`/`pip.exe`/`python.exe`/`golang` etc.
 
 ## Prefer Precision over Speed when Searching Definitions
 

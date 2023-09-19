@@ -1,5 +1,7 @@
 import path = require('path');
 import fs = require('fs');
+import ChildProcess = require('child_process');
+import { ExecSyncOptions } from 'child_process';
 import { getConfigValueOfActiveProject } from './configUtils';
 import { getCommandToSetGitInfoVar, OutputChannelName, RunCmdTerminalName, TempStorageFolder, TrimProjectNameRegex } from './constants';
 import { TerminalType } from './enums';
@@ -8,9 +10,30 @@ import { outputError, outputErrorByTime, outputInfoByDebugMode, outputInfoByTime
 import { runCommandInTerminal, runRawCommandInTerminal } from './runCommandUtils';
 import { DefaultTerminalType, getTipFileDisplayPath, IsLinuxTerminalOnWindows, IsWindowsTerminalOnWindows, isWindowsTerminalOnWindows, toTerminalPath } from './terminalUtils';
 import { IsForwardingSlashSupportedOnWindows, RunCommandChecker } from './ToolChecker';
-import { changeToForwardSlash, getElapsedSecondsToNow, isNullOrEmpty, quotePaths, RunCmdTerminalRootFolder } from './utils';
+import { changeToForwardSlash, getDefaultRootFolder, getElapsedSecondsToNow, isNullOrEmpty, quotePaths, RunCmdTerminalRootFolder } from './utils';
 // Another solution: (1) git ls-files --recurse-submodules > project-file-list.txt ; (2) msr -w project-file-list.txt  (3) file watcher + update list.
 // Show junk files: (1) git ls-files --recurse-submodules --ignored --others --exclude-standard (2) git ls-files --recurse-submodules --others --ignored -X .gitignore
+
+function isGitRecurseSubModuleSupported(): boolean {
+  const execOption: ExecSyncOptions = { cwd: getDefaultRootFolder() };
+  try {
+    ChildProcess.execSync('git ls-files --recurse-submodules .git', execOption);
+    return true;
+  } catch (err) {
+    if (err) {
+      const errorText = err.toString();  // error: unknown option `recurse-submodules'
+      if (errorText.match(/unknown option \W*recurse-submodules/i)) {
+        outputInfoQuietByTime(`Detected '--recurse-submodules' not supported in 'git ls-files': ${errorText}`);
+        return false;
+      }
+    }
+    return false;
+  }
+}
+
+export const IsGitRecurseSubModuleSupported = isGitRecurseSubModuleSupported();
+export const GitListFileRecursiveArg = IsGitRecurseSubModuleSupported ? '--recurse-submodules' : '';
+export const GitListFileHead = `git ls-files ${GitListFileRecursiveArg}`.trimRight();
 
 export const SkipPathVariableName: string = 'Skip_Git_Paths';
 const RunCmdFolderWithForwardSlash: string = changeToForwardSlash(RunCmdTerminalRootFolder);
@@ -149,7 +172,7 @@ export class GitIgnore {
     const commands = this.IsCmdTerminal
       ? [
         setVariableCommand,
-        String.raw`git ls-files --recurse-submodules > %tmp%\git-file-list.txt`,
+        String.raw`${GitListFileHead} > %tmp%\git-file-list.txt`,
         String.raw`msr -rp . --np "%Skip_Git_Paths%" -l -PIC | msr -x \ -o / -aPAC > %tmp%\ext-file-list.txt`,
         String.raw`nin %tmp%\git-file-list.txt %tmp%\ext-file-list.txt --nt "^\.|/\." -H 5 -T 5`,
         String.raw`nin %tmp%\git-file-list.txt %tmp%\ext-file-list.txt --nt "^\.|/\." -S -H 5 -T 5`,
@@ -160,7 +183,7 @@ export class GitIgnore {
       ]
       : [
         setVariableCommand,
-        String.raw`git ls-files --recurse-submodules > /tmp/git-file-list.txt`,
+        String.raw`${GitListFileHead} > /tmp/git-file-list.txt`,
         String.raw`msr -rp . --np "$Skip_Git_Paths" -l -PIC > /tmp/ext-file-list.txt`,
         String.raw`nin /tmp/git-file-list.txt /tmp/ext-file-list.txt --nt "^\.|/\." -H 5 -T 5`,
         String.raw`nin /tmp/git-file-list.txt /tmp/ext-file-list.txt --nt "^\.|/\." -S -H 5 -T 5`,

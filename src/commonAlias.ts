@@ -1,4 +1,5 @@
 import { TerminalType } from "./enums";
+import { GitListFileRecursiveArg } from "./gitUtils";
 import { enableColorAndHideCommandLine } from "./outputUtils";
 import { isWindowsTerminalOnWindows } from "./terminalUtils";
 import { getPowerShellName, isNullOrEmpty, replaceSearchTextHolder, replaceTextByRegex } from "./utils";
@@ -33,6 +34,7 @@ const LinuxAliasMap: Map<string, string> = new Map<string, string>()
         | nin ~/.gitconfig "^(\S+)" "^\s*directory\s*=\s*(\S+)" -PAC
         | msr -t "(.+)" -o "git config --global --add safe.directory \1" -XMI;
       msr -XMI -z "git config --global --get-all safe.directory | msr -x $repoRootDir -P as final check"`)
+  .set('clear-msr-env', String.raw`for name in $(printenv | msr -t "^(MSR_\w+)=.*" -o "\1" -PAC); do echo "Cleared $name=$(printenv $name)" | grep -iE "MSR_\w+" --color && eval "unset $name"; done`)
   ;
 
 const CheckUseFunctionRegex = /\$\d\b| \$\*/;
@@ -65,7 +67,7 @@ const CommonAliasMap: Map<string, string> = new Map<string, string>()
   .set('git-sm-prune', String.raw`msr -XM -z "git prune" && msr -XMz "git submodule foreach git prune"`)
   .set('git-sm-init', String.raw`msr -XMz "git submodule sync" && echo git submodule update --init $* | msr -XM & git status`)
   .set('git-sm-reset', String.raw`msr -XMz "git submodule sync" && msr -XMz "git submodule init" && echo git submodule update -f $* | msr -XM & git status`)
-  .set('git-sm-restore', String.raw`echo git restore . --recurse-submodules $* | msr -XM & git status`)  // replace '&' to ';' for Linux
+  .set('git-sm-restore', String.raw`echo git restore . ${GitListFileRecursiveArg} $* | msr -XM & git status`)  // replace '&' to ';' for Linux
   .set('git-sm-reinit', String.raw`msr -XM -z "git submodule deinit -f ." && msr -XM -z "git submodule update --init" & git status`)
   .set('git-sm-update-remote', String.raw`msr -XMz "git submodule sync" && echo git submodule update --remote $* | msr -XM & git status`)
   .set('git-cherry-pick-branch-new-old-commits', String.raw`git log $1 | msr -b "^commit $2" -q "^commit $3" -t "^commit (\w+)" -o "\1" -M -C | msr -s "^:(\d+):" -n --dsc -t "^:\d+:\s+(\w+)" -o "git cherry-pick \1" $4 $5 $6 $7 $8 $9`)
@@ -333,8 +335,10 @@ const WindowsAliasMap: Map<string, string> = new Map<string, string>()
   .set('is-admin', String.raw`PowerShell -Command "$principal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent()); $principal.IsInRole([Security.Principal.WindowsBuiltinRole]::Administrator)"`)
   .set('az-token-clip', String.raw`PowerShell -Command "Set-Clipboard($(az account get-access-token | ConvertFrom-Json).accessToken.ToString().TrimEnd())"`)
   .set('az-token-env', String.raw`for /f "tokens=*" %a in ('PowerShell "az account get-access-token | ConvertFrom-Json | ForEach-Object { Write-Output $_.accessToken }"') do set "AZURE_ACCESS_TOKEN=%a"`)
-  .set('mingw-mock', String.raw`set "MINGW_MOCK=1" && set "MSYSTEM=MINGW64" && set MINGW_ROOT="C:\Program Files\Git" && echo Now will output forward slash '/' for result paths in this CMD terminal.`)
-  .set('mingw-unmock', String.raw`set "MINGW_MOCK=" && set "MSYSTEM=" && set "MINGW_ROOT=" && echo Now will output backslash '\' for result paths in this CMD terminal.`)
+  .set('mingw-mock', String.raw`set "MSR_UNIX_SLASH=1" && echo Now will output forward slash '/' for result paths in this CMD terminal.`)
+  .set('mingw-unMock', String.raw`set "MSR_UNIX_SLASH=" && echo Now will output backslash '\' for result paths in this CMD terminal.`)
+  .set('clear-msr-env', String.raw`for /f "tokens=*" %a in ('set ^| msr -t "^(MSR_\w+)=.*" -o "\1" -PAC') do @msr -z "%a" -t "(.+)" -o "echo Cleared \1=%\1% | msr -aPA -t MSR_\\w+ -e =.*" -XA || @set "%a="`)
+  .set('trust-exe', String.raw`PowerShell -Command "Write-Host 'Please run as Admin to add process exclusion, will auto fetch exe path by name, example: trust-exe msr,nin,git,scp' -ForegroundColor Cyan; foreach ($exe in ('$1'.Trim() -split '\s*[,;]\s*')) { if (-not [IO.File]::Exists($exe)) { $exe = $(Get-Command $exe).Source; } Write-Host ('Will add exe to exclusion: ' + $exe) -ForegroundColor Green; Add-MpPreference -ExclusionPath $exe; }"`)
   ;
 
 export function getCommonAliasMap(terminalType: TerminalType, writeToEachFile: boolean): Map<string, string> {

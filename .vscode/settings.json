@@ -91,6 +91,7 @@
     "pacigmo",
     "pacwgmo",
     "PATHEXT",
+    "printenv",
     "proto",
     "pushd",
     "pwsh",

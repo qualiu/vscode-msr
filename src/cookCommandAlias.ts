@@ -2,11 +2,12 @@ import * as vscode from 'vscode';
 import { IsFileTimeOffsetSupported, RunCommandChecker, ToolChecker, setNotCheckInputPathInCommandLine, setOutputColumnIndexInCommandLine } from './ToolChecker';
 import { getFindTopDistributionCommand, getSortCommandText } from "./commands";
 import { getCommandAliasText, getCommonAliasMap, replaceArgForLinuxCmdAlias, replaceArgForWindowsCmdAlias } from './commonAlias';
-import { getConfigValueByPriorityList, getConfigValueByProjectAndExtension, getConfigValueOfProject } from "./configUtils";
-import { HomeFolder, IsLinux, IsWSL, IsWindows, RunCmdTerminalName, TempStorageFolder, TrimProjectNameRegex, getGitInfoTipTemplate } from "./constants";
+import { getConfigValueByPriorityList, getConfigValueByProjectAndExtension, getConfigValueOfActiveProject, getConfigValueOfProject } from "./configUtils";
+import { HomeFolder, IsLinux, IsWSL, IsWindows, RunCmdTerminalName, TempStorageFolder, TrimProjectNameRegex, getTipInfoTemplate } from "./constants";
 import { DefaultRootFolder, MappedExtToCodeFilePatternMap, MyConfig, getConfig, getGitIgnore, getSearchPathOptions } from "./dynamicConfig";
 import { FindCommandType, TerminalType } from "./enums";
 import { createDirectory, readTextFile, saveTextToFile } from './fileUtils';
+import { GitListFileHead } from './gitUtils';
 import { outputDebug, outputDebugByTime, outputErrorByTime, outputInfo, outputInfoByDebugModeByTime, outputInfoQuiet, outputInfoQuietByTime, outputKeyInfoByTime, outputWarn, outputWarnByTime } from "./outputUtils";
 import { escapeRegExp } from "./regexUtils";
 import { runCommandInTerminal, sendCommandToTerminal } from './runCommandUtils';
@@ -121,7 +122,7 @@ function duplicateSearchFileCmdAlias(rootFolder: string, terminalType: TerminalT
         ? path.join(TempStorageFolder, tmpFileName)
         : quotePaths((isWindowsTerminal ? '%tmp%\\' : '/tmp/') + tmpFileName);
 
-      const listFileCommand = 'git ls-files --recurse-submodules > ' + tmpListFile;
+      const listFileCommand = `${GitListFileHead} > ${tmpListFile}`;
       let checkAndListCommand = listFileCommand + (isPowerShellScript ? '; ' : ' && ');
       const refreshDuration = MyConfig.RefreshTmpGitFileListDuration;
       if (isForProjectCmdAlias && IsFileTimeOffsetSupported) {
@@ -154,6 +155,20 @@ function duplicateSearchFileCmdAlias(rootFolder: string, terminalType: TerminalT
       cmdAliasMap.set('g' + key, newCommand);
     }
   });
+}
+
+function runPostInitCommands(terminal: vscode.Terminal, terminalType: TerminalType, rootFolderName: string) {
+  const terminalTypeName = TerminalType[terminalType].toString();
+  const typeName = (terminalTypeName[0].toLowerCase() + terminalTypeName.substring(1))
+    .replace(/CMD/i, 'cmd')
+    .replace(/MinGW/i, 'mingw')
+    .replace(/^(Linux|WSL)Bash/i, 'bash');
+  const configTailKey = typeName + '.postInitTerminalCommandLine';
+  const postInitCommand = getConfigValueOfProject(rootFolderName, configTailKey, true);
+  if (isNullOrEmpty(postInitCommand)) {
+    return;
+  }
+  sendCommandToTerminal(postInitCommand, terminal, true, false, isLinuxTerminalOnWindows(terminalType));
 }
 
 let LastCookTime: Date = new Date();
@@ -487,7 +502,9 @@ export function cookCmdShortcutsOrFile(
     runCmdInTerminal(cmd, true);
   } else if (TerminalType.Pwsh === terminalType && !useGitIgnore) {
     runPowerShellShowFindCmdLocation();
-    showTipByCommand(showLongTip);
+    if (showLongTip) {
+      showTipByCommand();
+    }
     runCmdInTerminal('bash --init-file ' + quotedCmdAliasFileForTerminal);
   } else {
     if (!isPowerShellTerminal(terminalType) && !isTooCloseCooking) {
@@ -497,12 +514,18 @@ export function cookCmdShortcutsOrFile(
         runCmdInTerminal('malias "update-\\S*alias|open-\\S*alias|use-\\S*alias" --nt function -e "(.:.+|[~/].+\\w+)" -M -H 2 -T2', true);
       }
     }
-    showTipByCommand(showLongTip);
+    if (showLongTip) {
+      showTipByCommand();
+    }
   }
 
   outputDebugByTime('Finished to cook command shortcuts. Cost ' + getElapsedSecondsToNow(trackBeginTime) + ' seconds.');
   if (!isForProjectCmdAlias && (isRunCmdTerminal || isFromMenu) && !isNullOrEmpty(rootFolderName)) {
     runCmdInTerminal(getLoadAliasFileCommand(projectAliasFilePath, isWindowsTerminal));
+  }
+
+  if (terminal) {
+    runPostInitCommands(terminal, terminalType, rootFolderName);
   }
 
   function runPowerShellShowFindCmdLocation(searchFileNamePattern = "^g?find-\\w+-def") {
@@ -522,9 +545,7 @@ export function cookCmdShortcutsOrFile(
     if (isWindowsTerminal) {
       const head = (MyConfig.AddEchoOffWhenCookingWindowsCommandAlias + os.EOL + MyConfig.SetVariablesToLocalScopeWhenCookingWindowsCommandAlias).trim();
       scriptContent = (head.length > 0 ? head + os.EOL : head) + scriptContent;
-    }
-
-    if (!isWindowsTerminal) {
+    } else {
       scriptContent = '#!/bin/bash' + '\n' + scriptContent;
     }
 
@@ -532,19 +553,16 @@ export function cookCmdShortcutsOrFile(
     return saveTextToFile(singleScriptPath, scriptContent, 'single command alias script file', true);
   }
 
-  function showTipByCommand(showTip: boolean) {
-    if (!showTip) {
-      return;
-    }
-
+  function showTipByCommand() {
     // const colorPatternForCmdEscape = colorPattern.replace(/\|/g, '^|');
     const lineSep = (isWindowsTerminal ? "\r\n::" : "\n#") + " ";
     const colorCmd = ` | msr -aPA -ix ignored -e "\\d+|Skip\\w+|g?find-\\w+|MSR-\\S+"`;
-    const gitInfoTemplate = getGitInfoTipTemplate(isWindowsTerminal);
+    const gitInfoTemplate = getTipInfoTemplate(isWindowsTerminal, false);
     const expectedContent = (isWindowsTerminal ? '@' : '') + `msr -aPA -e .+ -z "${finalGuide}" -it "${colorPattern}" ` + (isWindowsTerminal ? '%*' : '$*')
       + lineSep + gitInfoTemplate + " Free to use gfind-xxx / find-xxx." + colorCmd + ` -t "[1-9]\\d* e\\w+"`
       + lineSep + gitInfoTemplate + " Please use gfind-xxx instead of find-xxx for git-exemptions." + colorCmd + ` -t "[1-9]\\d* e\\w+|MSR-\\S+|\\bfind-\\S+"`
       + lineSep + gitInfoTemplate + " Will not use git-ignore as too long Skip_Git_Paths." + colorCmd + ` -t "[1-9]\\d* e\\w+|MSR-\\S+|Skip[\\w\\. -]+ = ([89][1-9]\\d{2}|\\d{5,})|(not use \\S+|too long [\\w-]+)"`
+      + lineSep + getTipInfoTemplate(isWindowsTerminal, true)
       ;
 
     let shouldWrite = !fs.existsSync(tipFileStoragePath);
@@ -1052,6 +1070,9 @@ export function getExistingCmdAlias(terminalType: TerminalType, forMultipleFiles
 
   // Skip checking and overwrite alias file if for multiple files - the alias body is different with default alias content.
   if (forMultipleFiles) {
+    if (!isWindowsTerminal) {
+      checkAddLinuxBashAliasFile(cmdAliasMap, path.dirname(defaultCmdAliasFile));
+    }
     return cmdAliasMap;
   }
 
@@ -1072,7 +1093,25 @@ export function getExistingCmdAlias(terminalType: TerminalType, forMultipleFiles
   return cmdAliasMap;
 }
 
-function getCmdAliasMapFromText(cmdAliasText: string, map: Map<string, string>, forMultipleFiles: boolean, isWindowsTerminal: boolean): [number, number] {
+function checkAddLinuxBashAliasFile(cmdAliasMap: Map<string, string>, folder: string,) {
+  const defaultBashFileName = getConfigValueOfActiveProject('bashrcFileToDumpScripts', true);
+  if (isNullOrEmpty(defaultBashFileName)) {
+    return;
+  }
+  const oldCount = cmdAliasMap.size;
+  const bashConfigFile = path.join(folder, defaultBashFileName);
+  try {
+    if (fs.existsSync(bashConfigFile)) {
+      const aliasText = readTextFile(bashConfigFile);
+      getCmdAliasMapFromText(aliasText, cmdAliasMap, true, false, true);
+      outputInfoQuietByTime(`Read ${cmdAliasMap.size - oldCount} alias from ${bashConfigFile}.`);
+    }
+  } catch (err) {
+    outputErrorByTime(`Failed to read alias from file: ${bashConfigFile}`);
+  }
+}
+
+function getCmdAliasMapFromText(cmdAliasText: string, map: Map<string, string>, forMultipleFiles: boolean, isWindowsTerminal: boolean, isBashConfigFile: boolean = false): [number, number] {
   const lines = isWindowsTerminal ? cmdAliasText.split(/[\r\n]+/) : cmdAliasText.split(/(^|[\r\n]+)alias\s+/);
   const getNameBodyRegex = /^(\w+[\w\.-]+)=(.+)/s;
   let remainCommonKeys = new Set<string>(map.keys());
@@ -1092,10 +1131,10 @@ function getCmdAliasMapFromText(cmdAliasText: string, map: Map<string, string>, 
         if (bodyFromCommon !== body) {
           inconsistentCount++;
           if (MyConfig.OverwriteInconsistentCommonAliasByExtension) {
-            outputWarn(`Overwrite inconsistent common alias-${inconsistentCount}: ${name}`);
+            outputWarn(`Overwrite inconsistent alias-${inconsistentCount}: ${name}`);
             return;
           }
-          outputWarn(`Found inconsistent common alias-${inconsistentCount}: ${name}`);
+          outputWarn(`Found inconsistent alias-${inconsistentCount}: ${name}`);
         } else {
           outputDebug(`Found same common alias: ${name}`);
         }
@@ -1104,7 +1143,9 @@ function getCmdAliasMapFromText(cmdAliasText: string, map: Map<string, string>, 
       map.set(name, body);
     }
   });
-  remainCommonKeys.forEach(key => outputInfo(`Found new common alias: ${key}`));
+  if (isBashConfigFile) {
+    remainCommonKeys.forEach(key => outputInfo(`Found new common alias: ${key}`));
+  }
   return [inconsistentCount, remainCommonKeys.size];
 }
 

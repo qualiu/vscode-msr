@@ -42,13 +42,21 @@ export const SystemBinFolder = IsWindows ? (process.env['SystemRoot'] || String.
 export const TempStorageFolder = IsWindows ? os.tmpdir() : '/tmp/';
 
 const GitInfoTemplate = "Skip_Git_Paths length = $L. Parsed $P of $T patterns, omitted $E errors, ignored $X exemptions: see MSR-Def-Ref in OUTPUT tab.";
+const FinalTipTemplate = `echo Auto disable self finding $M definition = $D. Uniform slash = $U. Faster gfind-xxx = $F. Auto update search tool = $A. | msr -aPA -i -e true -t "false|Auto.*?(disable).*?definition"`;
 
-export function getGitInfoTipTemplate(isCmdTerminal: boolean): string {
-  return isCmdTerminal ? GitInfoTemplate.replace(/\$([A-Z])\b/g, '%$1%') : GitInfoTemplate; //.replace(/%([A-Z])%/, '$1')
+export function getTipInfoTemplate(isCmdTerminal: boolean, isFinalTip: boolean): string {
+  const tip = isFinalTip ? FinalTipTemplate : GitInfoTemplate;
+  return isCmdTerminal ? tip.replace(/\$([A-Z])\b/g, '%$1%') : tip; //.replace(/%([A-Z])%/, '$1')
 }
 
 export function getCommandToSetGitInfoVar(isCmdTerminal: boolean, skipGitRegexLength: number, totalPatterns: number, parsedPatterns: number, errors: number, exemptions: number): string {
   return isCmdTerminal
     ? `set L=${skipGitRegexLength} & set T=${totalPatterns} & set P=${parsedPatterns} & set E=${errors} & set X=${exemptions} &`.replace(/ &/g, '&')
     : `export L=${skipGitRegexLength}; export T=${totalPatterns}; export P=${parsedPatterns}; export E=${errors}; export X=${exemptions};`; //.replace(/export ([A-Z])/g, '$1');
+}
+
+export function getCommandToSetFinalTipVar(isCmdTerminal: boolean, mappedExt: string, hasDisabledFindDefinition: boolean, isUniversalSlash: boolean, isFastGitFind: boolean, isAutoUpdate: boolean): string {
+  return isCmdTerminal
+    ? `set M=${mappedExt} & set D=${hasDisabledFindDefinition} & set U=${isUniversalSlash} & set F=${isFastGitFind} & set A=${isAutoUpdate} &`.replace(/ &/g, '&')
+    : `export M=${mappedExt}; export D=${hasDisabledFindDefinition}; export U=${isUniversalSlash}; export F=${isFastGitFind}; export A=${isAutoUpdate};`; //.replace(/export ([A-Z])/g, '$1');
 }

@@ -3,7 +3,7 @@
 	"displayName": "Code mining + Replace file + Find definition and reference for all types.",
 	"description": "Code mining + Replace file + Find definition and reference in multiple repository paths by msr for all coding languages + configuration + doc files.",
 	"author": "qualiu@microsoft.com",
-	"version": "2.1.72",
+	"version": "2.1.73",
 	"icon": "images/vscode-msr-icon.png",
 	"license": "completely free",
 	"publisher": "qualiu",
@@ -825,6 +825,11 @@
 					"default": true,
 					"description": "Overwrite inconsistent common alias by vscode-msr."
 				},
+				"msr.bashrcFileToDumpScripts": {
+					"type": "boolean",
+					"default": ".bashrc",
+					"description": "File name to dump alias to scripts. Default = '.bashrc'. If empty dumping."
+				},
 				"msr.tmpToggleEnableFindingDefinition.menu.visible": {
 					"type": "boolean",
 					"default": true,
@@ -1098,6 +1103,31 @@
 					"type": "int",
 					"default": 200,
 					"description": "Default demotion score for matched paths."
+				},
+				"msr.cmd.postInitTerminalCommandLine": {
+					"type": "string",
+					"default": "set MSR_OUT_INDEX=1 && set MSR_UNIX_SLASH=1 && echo Will output match index + forward slash for result paths.",
+					"description": "Initialize Windows CMD terminals (including MSR-RUN-CMD). set MSR_KEEP_COLOR=1 to keep color for output to file or pipe."
+				},
+				"msr.powerShell.postInitTerminalCommandLine": {
+					"type": "string",
+					"default": "$env:MSR_OUT_INDEX=1; $env:MSR_UNIX_SLASH=1; echo 'Will output match index + forward slash for result paths.'",
+					"description": "Initialize Windows PowerShell terminals. set MSR_KEEP_COLOR=1 to keep color for output to file or pipe."
+				},
+				"msr.mingwBash.postInitTerminalCommandLine": {
+					"type": "string",
+					"default": "export MSR_EXIT=gt127-to-127 && export MSR_OUT_INDEX=1 && export MSR_UNIX_SLASH=1 && echo Will limit big return value: \"$MSR_EXIT\" + Output match index + forward slash for result paths.",
+					"description": "Initialize MinGW bash terminals on Windows. export MSR_KEEP_COLOR=1 to keep color for output to file or pipe."
+				},
+				"msr.cygwinBash.postInitTerminalCommandLine": {
+					"type": "string",
+					"default": "export MSR_EXIT=gt255-to-255 && export MSR_OUT_INDEX=1 && export MSR_UNIX_SLASH=1 && echo Will limit big return value: \"$MSR_EXIT\" + Output match index + forward slash for result paths.",
+					"description": "Initialize Cygwin bash terminals."
+				},
+				"msr.bash.postInitTerminalCommandLine": {
+					"type": "string",
+					"default": "export MSR_EXIT=gt255-to-255 && export MSR_OUT_INDEX=1 && echo Will limit big return value: \"$MSR_EXIT\" + Output match index.",
+					"description": "Initialize Bash terminals (including MSR-RUN-CMD)."
 				},
 				"msr.definition.searchAllRootFolders": {
 					"type": "boolean",
@@ -1911,6 +1941,11 @@
 					"description": "Example of default custom command line to find selected text.",
 					"type": "string",
 					"default": "%AutoDecideSkipFolderToSearch% -f %FileExtMap% --xd --s1 1B --s2 3.6MB --out-index --nt \"^\\s*(#|/)|^.{360,}\" -t \"\\b%1\\b\" --xp test,mock,deprecate"
+				},
+				"msr.cs.myFindOrReplaceSelectedTextCommand": {
+					"description": "Example of C# custom command line to find selected text.",
+					"type": "string",
+					"default": "%AutoDecideSkipFolderToSearch% -f %FileExtMap% --xd --s1 1B --s2 3.6MB --out-index --nt \"^\\s*(#|/|using|namespace)|^.{360,}\" -t \"\\b%1\\b\" --xp test,mock,deprecate"
 				},
 				"msr.cpp.myFindOrReplaceSelectedTextCommand": {
 					"description": "Example of custom command line to find selected text in C/C++. Auto use common-skip-folder or git-ls-files if ignore or no git exemptions.",

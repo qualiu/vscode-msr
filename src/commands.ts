@@ -5,7 +5,7 @@ import { HomeFolder, RemoveJumpRegex, SkipJumpOutForHeadResultsRegex } from './c
 import { mergeSkipFolderPattern } from './cookCommandAlias';
 import { FileExtensionToMappedExtensionMap, MyConfig, getConfig, getFileNamePattern, getGitIgnore, getSearchPathOptions, removeSearchTextForCommandLine, replaceToRelativeSearchPath } from './dynamicConfig';
 import { FindCommandType, TerminalType } from './enums';
-import { SkipPathVariableName, getSkipGitPathEnvOrValue, hasValidGitSkipPathsEnv } from './gitUtils';
+import { GitListFileHead, SkipPathVariableName, getSkipGitPathEnvOrValue, hasValidGitSkipPathsEnv } from './gitUtils';
 import { enableColorAndHideCommandLine, outputDebugByTime, outputInfoByTime } from './outputUtils';
 import { Ranker } from './ranker';
 import { NormalTextRegex, escapeRegExp } from './regexUtils';
@@ -167,7 +167,10 @@ function setCustomSearchCommand(projectGitFolder: string, sourceProjectFolders: 
     // Check %AutoDecideSkipFolderToSearch% + %UseGitFileListToSearch% + %ProjectsFolders%
     const hasValidGitEnv = hasValidGitSkipPathsEnv(projectGitFolder);
     const skipPathPattern = getSkipGitPathEnvOrValue(projectGitFolder);
-    const useGitFileListToSearch = 'git ls-files --recurse-submodules > /tmp/tmp-git-file-list && msr --no-check -w /tmp/tmp-git-file-list';
+    const useGitFileListToSearch = `${GitListFileHead} > /tmp/tmp-git-file-list && msr --no-check -w /tmp/tmp-git-file-list`;
+    if (commandLine.match(/\s+-t\s+\S+/)) {
+        searchWord = escapeRegExpForFindingCommand(searchWord);
+    }
     commandLine = commandLine.replace(new RegExp('%UseGitFileListToSearch%', 'g'), useGitFileListToSearch);
 
     commandLine = commandLine.replace(new RegExp('%ProjectsFolders%', 'g'), sourceProjectFolders);

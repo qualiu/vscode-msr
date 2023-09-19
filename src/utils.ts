@@ -281,9 +281,12 @@ export function changeToForwardSlash(pathString: string, addTailSlash: boolean =
 
 export function getDefaultRootFolderByActiveFile(useDefaultProjectIfEmpty = false) {
     const activePath = getActiveFilePath();
-    let folder = !isNullOrEmpty(activePath) ? getRootFolder(activePath) : getDefaultRootFolder();
+    const defaultFolder = getDefaultRootFolder();
+    let folder = !isNullOrEmpty(activePath) && activePath.startsWith(defaultFolder)
+        ? getRootFolder(activePath)
+        : defaultFolder;
     if (useDefaultProjectIfEmpty && isNullOrEmpty(folder) && !isNullOrEmpty(activePath)) {
-        folder = getDefaultRootFolder();
+        folder = defaultFolder;
     }
 
     // if (appendSlash && !folder.endsWith(path.sep)) {

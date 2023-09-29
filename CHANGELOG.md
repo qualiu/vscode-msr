@@ -2,6 +2,10 @@
 
 All notable changes to this "vscode-msr" extension will be documented in this file.
 
+## [2.1.74]
+- Supported adding custom common alias by new config `msr.commonAliasNameBodyList` with 2 examples: `gsf` + `update-repos`.
+- Added `~/cmdAlias/` to `PATH` for Linux/MacOS.
+
 ## [2.1.73]
 - Supported custom initialization command line by new config `msr.xxx.postInitTerminalCommandLine`.
 - Auto detect old git and skip `--recurse-submodules` for `git ls-files` command + shortcuts.

@@ -1,11 +1,17 @@
+import * as vscode from 'vscode';
+import { AliasNameBody } from './AliasNameBody';
 import { TerminalType } from "./enums";
 import { GitListFileRecursiveArg } from "./gitUtils";
-import { enableColorAndHideCommandLine } from "./outputUtils";
+import { enableColorAndHideCommandLine, outputInfoQuietByTime, outputWarnByTime } from "./outputUtils";
 import { isWindowsTerminalOnWindows } from "./terminalUtils";
 import { getPowerShellName, isNullOrEmpty, replaceSearchTextHolder, replaceTextByRegex } from "./utils";
 
-export function replaceArgForLinuxCmdAlias(body: string): string {
+export function replaceArgForLinuxCmdAlias(body: string, forMultipleFiles: boolean): string {
   // function or simple alias
+  if (forMultipleFiles) {
+    body = body.replace(/\s+\$\*([^\w"]*)$/, ' "$*"$1');
+  }
+
   const functionBody = body.replace(/^\s*\S+=['"]\s*function\s+[^\r\n]+[\r\n]+\s*(.+?)\}\s*;\s*\S+\s*['"]\s*$/s, '$1');
   if (functionBody !== body) {
     return functionBody.trim();
@@ -343,7 +349,8 @@ const WindowsAliasMap: Map<string, string> = new Map<string, string>()
 
 export function getCommonAliasMap(terminalType: TerminalType, writeToEachFile: boolean): Map<string, string> {
   let cmdAliasMap = new Map<string, string>();
-  if (isWindowsTerminalOnWindows(terminalType)) {
+  const isWindowsTerminal = isWindowsTerminalOnWindows(terminalType);
+  if (isWindowsTerminal) {
     CommonAliasMap.forEach((value, key) => cmdAliasMap.set(key, getAliasBody(terminalType, key, value, writeToEachFile)));
     WindowsAliasMap.forEach((value, key) => cmdAliasMap.set(key, getAliasBody(terminalType, key, value, writeToEachFile)));
     cmdAliasMap.set('reload-env', getReloadEnvCmd(writeToEachFile))
@@ -351,6 +358,24 @@ export function getCommonAliasMap(terminalType: TerminalType, writeToEachFile: b
   } else {
     CommonAliasMap.forEach((value, key) => cmdAliasMap.set(key, getAliasBody(terminalType, key, value, writeToEachFile)));
     LinuxAliasMap.forEach((value, key) => cmdAliasMap.set(key, getAliasBody(terminalType, key, value, writeToEachFile)));
+  }
+  // get common alias map from config/settings:
+  const commonAliasNameBodyList = vscode.workspace.getConfiguration('msr').get('commonAliasNameBodyList');
+  if (commonAliasNameBodyList) {
+    const aliasNameBodyList = commonAliasNameBodyList as AliasNameBody[];
+    aliasNameBodyList.forEach((item: AliasNameBody) => {
+      const name = item.aliasName;
+      const body = item.aliasBody.trim();
+      // Replace '\\1' to '\\\\1' for Linux:
+      const refinedBody = isWindowsTerminal ? body : body.replace(/(\\{2})(\d)\b/, '$1$1$2');
+      const oldCount = cmdAliasMap.size;
+      cmdAliasMap.set(name, getAliasBody(terminalType, name, refinedBody, writeToEachFile));
+      if (cmdAliasMap.size > oldCount) {
+        outputInfoQuietByTime(`Added custom alias: ${name}=${refinedBody}`)
+      } else {
+        outputWarnByTime(`Overwrote existing alias: ${name}=${refinedBody}`, false);
+      }
+    });
   }
   return cmdAliasMap;
 }

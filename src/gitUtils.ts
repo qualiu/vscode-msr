@@ -22,8 +22,9 @@ function isGitRecurseSubModuleSupported(): boolean {
   } catch (err) {
     if (err) {
       const errorText = err.toString();  // error: unknown option `recurse-submodules'
+      const shortError = errorText.replace(/[\r\n]+\s*usage\s*:.*/is, '');
       if (errorText.match(/unknown option \W*recurse-submodules/i)) {
-        outputInfoQuietByTime(`Detected '--recurse-submodules' not supported in 'git ls-files': ${errorText}`);
+        outputInfoQuietByTime(`Detected '--recurse-submodules' not supported in 'git ls-files': ${shortError}`);
         return false;
       }
     }

@@ -275,10 +275,20 @@ And many other [**common shortcuts**](/src/commonAlias.ts) like (run `alias` to 
       - Type `gpc-sm` to pull submodules + `git-sm-reset` to reset submodules + `git-sm-reinit` to fix tough issues, etc.
       - Type `git-cherry-pick-branch-new-old-commits` to cherry pick commits of a branch from old to new commits (add `-X` to execute commands).
   - Windows CMD only:
-    - Type `mingw-mock` to output forward slash(/) on Windows + `mingw-unmock` to restore.
+    - Type `mingw-mock` to output forward slash('`/`') on Windows + `mingw-unmock` to restore backslash('`\`').
+      - Now it's auto output forward slash **temporarily** in `VsCode` terminals by config `msr.xxx.postInitTerminalCommandLine`.
     - Type `win11-ungroup-taskbar` to ungroup Windows11 taskbar + `win11-group-taskbar` to restore/group taskbar on Windows 11.
     - Type `reload-env` to reload environment variables + `reset-env` to **discard** and **reload** environment variables.
     - Type `add-user-path` / `add-sys-path` / `add-tmp-path` + `del-user-path` / `del-sys-path` / `del-tmp-path` to add/delete %PATH% values.
+
+### How to Add Your Custom Common Alias
+
+[Open User Settings](#extension-settings-if-you-want-to-change)(not JSON) -> type `msr.commonAliasNameBodyList` -> Click `"Edit in settings.json"`.
+
+- This will open the common alias settings with examples like `gsf` + `update-repos`.
+  - Only `aliasName` + `aliasBody` are required.
+- Be care of the alias (command lines) must be correct on all terminals (Windows + Linux + MacOS).
+
 
 ## Use git-ignore
 

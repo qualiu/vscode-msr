@@ -3,7 +3,7 @@
 	"displayName": "Code mining + Replace file + Find definition and reference for all types.",
 	"description": "Code mining + Replace file + Find definition and reference in multiple repository paths by msr for all coding languages + configuration + doc files.",
 	"author": "qualiu@microsoft.com",
-	"version": "2.1.73",
+	"version": "2.1.74",
 	"icon": "images/vscode-msr-icon.png",
 	"license": "completely free",
 	"publisher": "qualiu",
@@ -1058,6 +1058,44 @@
 					"type": "boolean",
 					"default": true,
 					"description": "Enable finding commands."
+				},
+				"msr.commonAliasNameBodyList": {
+					"description": "List of alias name + body. Be care of command line executable on Windows(CMD/MinGW/Cygwin) + Linux + MacOS.",
+					"type": "array",
+					"items": {
+						"type": "object",
+						"properties": {
+							"aliasName": {
+								"type": "string",
+								"description": "Alias name."
+							},
+							"aliasBody": {
+								"type": "string",
+								"description": "Alias body."
+							},
+							"description": {
+								"type": "string",
+								"description": "Description."
+							}
+						},
+						"required": [
+							"aliasName",
+							"aliasBody"
+						]
+					},
+					"scope": "resource",
+					"default": [
+						{
+							"aliasName": "gsf",
+							"aliasBody": "git --no-pager diff --name-only $1~1 $1",
+							"description": "Show file list of a git commit(change). The arg is the commit id. Example: gsf HEAD or gsf {commit-hash-id}."
+						},
+						{
+							"aliasName": "update-repos",
+							"aliasBody": "msr -rp . -l -k 2 -f \"^\\.gitignore$\" -PAC | msr -t \"(.+?)..gitignore\" -o \"cd \\1 && git rev-parse --abbrev-ref HEAD | msr -t \\\"(.+)\\\" -o \\\"git pull origin \\\\1\\\" -X -M -I\" -X -V ne0 $*",
+							"description": "Update git repos in current directory with each current branch. To execute output commands, append -X or -X -V ne0."
+						}
+					]
 				},
 				"msr.enable.onlyFindDefinitionForKnownLanguages": {
 					"type": "boolean",

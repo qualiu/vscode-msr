@@ -582,6 +582,8 @@ export function cookCmdShortcutsOrFile(
     const toolExportFolder = toTerminalPath(getToolExportFolder(terminalType), terminalType);
     const defaultAdding = `${toolExportFolder}:${generalAliasFolderForBash}`.replace(/^\s*:/, '');
     let initEnvCmd = `export PATH="/usr/bin/:~:${defaultAdding}:$PATH"`;
+    const checkAliasCmd = `which use-this-alias 2>/dev/null`;
+    runCmdInTerminal(`${checkAliasCmd} || (echo >> ${bashConfigFile} && echo '${checkAliasCmd} || ${initEnvCmd.replace(':~:', ':')}' >> ${bashConfigFile}); source ${bashConfigFile}`, true);
     if ((TerminalType.MinGWBash === terminalType || TerminalType.CygwinBash === terminalType)) {
       const binFolder = toTerminalPath(shellExeFolder, terminalType);
       const envPath = process.env['PATH'] || '';
@@ -1122,7 +1124,7 @@ function getCmdAliasMapFromText(cmdAliasText: string, map: Map<string, string>, 
       const body = forMultipleFiles
         ? (isWindowsTerminal
           ? replaceArgForWindowsCmdAlias(match[2], forMultipleFiles)
-          : replaceArgForLinuxCmdAlias(match[0])
+          : replaceArgForLinuxCmdAlias(match[0], forMultipleFiles)
         )
         : (isWindowsTerminal ? '' : 'alias ') + match[0].trim();
       const name = match[1];

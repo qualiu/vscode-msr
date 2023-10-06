@@ -37,6 +37,8 @@ Then it's the **light** and **right** tool for you(just **2~3 MB** storage + **1
   - `Arm64`: `kernel` >= `4.15` (**Ubuntu 18.04**).
 - **MacOS**
   - `Arm64`: **Darwin Arm64**.
+- **FreeBSD**
+  - `amd64`: Version >= `11.0` (older versions not tested).
 
 ### **You Can Start Using this without Doing Anything**
 
@@ -103,7 +105,7 @@ If not found [msr.EXE](https://github.com/qualiu/msr#liberate--digitize-daily-wo
 - **Windows**: If not found in `%PATH%` by command `"where msr.exe"`
   - Auto check and download to `%USERPROFILE%\msr.exe` when launching vscode.
   - Add `%USERPROFILE%` to `%PATH%` **temporarily** each time in each [newly opened terminal](#auto-set-command-shortcuts-for-new-terminals).
-- **Linux**/**MacOS**: If not found in `$PATH` by command `"which msr"`
+- **Linux**/**MacOS**/**FreeBSD**: If not found in `$PATH` by command `"which msr"`
   - Auto check and download to `~/msr` when launching vscode.
   - Add `~/` to `$PATH` **temporarily** each time in each [newly opened terminal](#auto-set-command-shortcuts-for-new-terminals).
 
@@ -111,7 +113,7 @@ To copy and use `msr` [command lines](#reuse-the-command-to-search-further-or-re
 
 ### Or Manually Download + Set PATH Once And Forever
 
-See [here](Manually-Download-Tools.md) for details including command lines for downloading tool on `Windows`/`Linux`/`MacOS`.
+See [manually downloading](Manually-Download-Tools.md) tool command lines on `Windows`/`Linux`/`MacOS`/`FreeBSD`.
 
 ## Adjust Your Color Theme if Result File Path Folder Color is Not Clear
 
@@ -138,9 +140,9 @@ If you cannot get search results **in 1~2 seconds** for just **10000 code files*
 
 Follow [official Windows doc](https://support.microsoft.com/en-us/help/4028485/windows-10-add-an-exclusion-to-windows-security) to add exclusion.
 
-You can also use `trust-exe` command line (run as `Administrator` in a `new` CMD window) after installing `vscode-msr`:
+You can also use `trust-exe` (run as `Administrator` in a `new` CMD window) after installing `vscode-msr` (see `"alias trust-exe"`):
 
-- **trust-exe** `msr.exe,nin.exe` (input exe `name` or `title` or `path`).
+- Run "**trust-exe** `msr,nin`" (input exe `name` or `title` or `path`).
   - This will auto fetch exe path and use `PowerShell "Add-MpPreference -ExclusionPath $exePath"`.
   - You can also use `trust-exe` with `git`/`ssh`/`bash`/`node.exe`/`pip.exe`/`python.exe`/`golang` etc.
 
@@ -164,7 +166,7 @@ Try **gfind-xxx** alias/doskey/scripts which uses **accurate** source file paths
   - It's very fast to run `git ls-files` for most projects.
   - You can set long duration(like `30days`) + Add/Use `git-pull` like below to auto refresh tmp-list :
     - Windows: `git-pull=git branch | msr -t "^\s*\*\s*(\S+).*" -o "git pull origin \1 $*" -XM && del %tmp%\tmp-list-*`.
-    - Linux/MacOS: `alias git-pull='git branch | msr -t "^\s*\*\s*(\S+).*" -o "git pull origin \1 $*" -XM && rm /tmp/tmp-list-*'`.
+    - Linux/MacOS/FreeBSD: `alias git-pull='git branch | msr -t "^\s*\*\s*(\S+).*" -o "git pull origin \1 $*" -XM && rm /tmp/tmp-list-*'`.
 
 This's helpful if got [**git-exemption-warnings**](#use-git-ignore) when initializing new terminals.
 
@@ -190,10 +192,10 @@ This's helpful if got [**git-exemption-warnings**](#use-git-ignore) when initial
   - `"Cook script files: Only general finding command alias/doskey."`
   - `"Cook script files by project: Only finding command alias/doskey."`
   - **`"Cook general finding + Dump with other command alias/doskey to script files."`**
-    - Tip for [**msr advantage**](https://github.com/qualiu/msr#tip-for-captured-groups-reference-to-replace-files-or-transform-text) on **Windows**(including `MinGW` + `Cygwin`) + **Linux**/**MacOS**:
+    - Tip for [**msr advantage**](https://github.com/qualiu/msr#tip-for-captured-groups-reference-to-replace-files-or-transform-text) on **Windows**(including `MinGW` + `Cygwin`) + **Linux**/**MacOS**/**FreeBSD**:
       - You can use `"\1"` instead of `"$1"` to avoid conflict if your `doskey`/`alias` contains **`Regex-Replacing`** commands:
         -  `Regex replace-to` conflict with `doskey macro` variables like **$1** on Windows.
-        -  `Regex replace-to` conflict with `bash` variables like **$1** on Linux/MacOS.
+        -  `Regex replace-to` conflict with `bash` variables like **$1** on Linux/MacOS/FreeBSD.
       - Same to use **\2** + **\3** better than **$2** **$3** and etc.
     - To hide command + set local variable scope for Windows `doskey` shortcuts to script files:
       - Change `msr.cookCmdAlias.addEchoOff` (default: added) to **`@REM echo off`** if you want to show command line.
@@ -207,7 +209,7 @@ This's helpful if got [**git-exemption-warnings**](#use-git-ignore) when initial
 ### Command Shortcuts
 
 - After you cooked command alias/doskeys, you'll see messages below: (You can **add**/**update** doskeys in file)
-- Automated command shortcuts on **Linux** + **MacOS** + **WSL** + [**4 types of terminals** on Windows](#supported-4-terminal-types-on-windows) to [search](#search-files-with-rich-filters) or [**mining-code**](#code-mining-without-or-with-little-knowledge) or [replace files](#replace-files-with-preview-and-backup).
+- Automated command shortcuts on **MacOS**/**FreeBSD**/**Linux** + **WSL** + [**4 types of terminals** on Windows](#supported-4-terminal-types-on-windows) to [search](#search-files-with-rich-filters) or [**mining-code**](#code-mining-without-or-with-little-knowledge) or [replace files](#replace-files-with-preview-and-backup).
 - Try **gfind-xxx** instead of **find-xxx** if warned [**exemptions**](#try-to-use-gfind-xxx-instead-of-find-xxx-aliasdoskey) when initializing new terminals.
 - If it's not in vscode (like other IDEs or system terminals), you can run **use-this-alias** in the terminal (if current folder is in a git project) to load command shortcuts for current project.
 
@@ -252,9 +254,9 @@ See + Use command alias(shortcut) in `MSR-RUN-CMD` on `TERMINAL` tab, or start u
 
 Each time it will write 1 or multiple script files to the folder of `msr.cmdAlias.saveFolder`, if not set:
 
-- Single alias/doskey file: Save to `%USERPROFILE%\` on Windows or `~/` on Linux/MacOS.
+- Single alias/doskey file: Save to `%USERPROFILE%\` on Windows or `~/` on Linux/MacOS/FreeBSD.
 
-- Multiple script files: Save to `%USERPROFILE%\cmdAlias\` on Windows or `~/cmdAlias/` on Linux/MacOS.
+- Multiple script files: Save to `%USERPROFILE%\cmdAlias\` on Windows or `~/cmdAlias/` on Linux/MacOS/FreeBSD.
 
 When you open a new terminal, will [**auto set project specific command shortcuts**](#auto-set-command-shortcuts-for-new-terminals) to use temporary command shortcuts of each project's specific settings plus `.vscode/settings.json` in it's root folder.
 
@@ -269,14 +271,15 @@ For full or relative path:
   - Type `out-rp` to output relative paths.
 
 And many other [**common shortcuts**](/src/commonAlias.ts) like (run `alias` to see all alias/doskeys):
-  - Windows + Linux/MacOS:
+  - Windows + Linux/MacOS/FreeBSD:
     - git shortcuts:
       - Type `gpc` to pull current branch + `gph` to push current branch + `gfc` to fetch current branch.
       - Type `gpc-sm` to pull submodules + `git-sm-reset` to reset submodules + `git-sm-reinit` to fix tough issues, etc.
-      - Type `git-cherry-pick-branch-new-old-commits` to cherry pick commits of a branch from old to new commits (add `-X` to execute commands).
+      - Type `git-cherry-pick-branch-new-old-commits` to cherry pick commits of a branch from old to new commits (add "`-X -V ne0`" to execute commands).
   - Windows CMD only:
     - Type `mingw-mock` to output forward slash('`/`') on Windows + `mingw-unmock` to restore backslash('`\`').
       - Now it's auto output forward slash **temporarily** in `VsCode` terminals by config `msr.xxx.postInitTerminalCommandLine`.
+        - You can add/remove more MSR_XXX variables like `MSR_EXIT` / `MSR_UNIX_SLASH` / `MSR_KEEP_COLOR` / etc.
     - Type `win11-ungroup-taskbar` to ungroup Windows11 taskbar + `win11-group-taskbar` to restore/group taskbar on Windows 11.
     - Type `reload-env` to reload environment variables + `reset-env` to **discard** and **reload** environment variables.
     - Type `add-user-path` / `add-sys-path` / `add-tmp-path` + `del-user-path` / `del-sys-path` / `del-tmp-path` to add/delete %PATH% values.
@@ -287,7 +290,7 @@ And many other [**common shortcuts**](/src/commonAlias.ts) like (run `alias` to 
 
 - This will open the common alias settings with examples like `gsf` + `update-repos`.
   - Only `aliasName` + `aliasBody` are required.
-- Be care of the alias (command lines) must be correct on all terminals (Windows + Linux + MacOS).
+- Be care of the alias (command lines) must be correct on all terminals (Windows + Linux + MacOS + FreeBSD).
 
 
 ## Use git-ignore
@@ -304,7 +307,7 @@ Open [user settings](https://code.visualstudio.com/docs/getstarted/settings#_set
 
 Parsing result of `.gitignore` file: see `MSR-Def-Ref` output channel (with `msr.debug` = `true` or launched in debug mode).
 
-Run command **`"npm run test"`** in vscode-msr folder if you want to see the translation rule of git-ignore on Windows/Linux/MacOS.
+Run command **`"npm run test"`** in vscode-msr folder if you want to see the translation rule of git-ignore on Windows/Linux/MacOS/FreeBSD.
 
 ### Check if a Project Can Use git-ignore
 
@@ -334,7 +337,7 @@ You can add custom search/replace command by adding config `msr.xxx.myFindOrRepl
   - Current path(`"."`) - if it's a single project/workspace.
   - Absolute paths of all projects/workspaces in current vscode, separated by comma(`","`).
 - `%Skip_Git_Paths%` = **Skip_Git_Path** environment variable in `MSR-RUN-CMD` of vscode (if enabled [git-ignore](#use-git-ignore) and no exemptions or [omitted exemptions](#use-git-ignore)).
-  - Will be replaced to `$Skip_Git_Paths` on Linux/MacOS.
+  - Will be replaced to `$Skip_Git_Paths` on Linux/MacOS/FreeBSD.
 - `%AutoDecideSkipFolderToSearch%` =
   - if [ignored/no git-exemptions](#use-git-ignore).
     - `msr -rp %ProjectsFolders%" --np "%Skip_Git_Paths%"`
@@ -666,7 +669,7 @@ Then you can try code/knowledge mining by yourself with vscode-msr: (after [**co
 
 Besides the normal **`"Go To Definition"`** by menu or key(`F12`), you can take flexible code mining in vscode terminals/console.
 
-The 40+ [shortcuts](#command-shortcuts) like `find-xxx` are convenient wrappers of [**msr/nin**](https://github.com/qualiu/msr#almost-no-learning-cost) with **70/30** composable [optional-args](https://github.com/qualiu/msr#brief-summary-of-msr-exe) (brief **Quick-Start** at bottom of running `msr -h` or `nin -h`).
+The 40+ [shortcuts](#command-shortcuts) like `find-xxx` are convenient wrappers of [**msr/nin**](https://github.com/qualiu/msr#almost-no-learning-cost) with **70+/30+** composable [optional-args](https://github.com/qualiu/msr#brief-summary-of-msr-exe) (brief **Quick-Start** at bottom of running `msr -h` or `nin -h`).
 
 Code mining examples (run in vscode terminals: like `MSR-RUN-CMD` or add/open **new** terminals):
 
@@ -731,10 +734,10 @@ Code mining examples (run in vscode terminals: like `MSR-RUN-CMD` or add/open **
   - **find-all** -it `"regex-pattern"` -x `"and-plain-text"` --nx `"not-contain-text"` --nt `"not-match-regex"` --xp `/bin/,debug/,test` --pp `expected-path-regex` --np `skip-path-regex` -U 3 -D 2 -H 100 -T 100 ...
 
 - Other functions:
-  - **find-top-source-type** `-H 9` : Gee `top 9` language types by file count/percentage in current workspace/repository.
+  - **find-top-source-type** `-H 9` : Get `top 9` language types by file count/percentage in current workspace/repository.
   - **find-top-source-type** `-k 100` : Get top languages which file `count >= 100`.
-  - **find-top-source-type** `-K 2.5` : Gee top languages which file count `percentage >= 2.5%`.
-  - **find-top-type** -H 9 `-w` : Gee top 9 file types and show one example file path (`whole/full` path) of each type.
+  - **find-top-source-type** `-K 2.5` : Get top languages which file count `percentage >= 2.5%`.
+  - **find-top-type** -H 9 `-w` : Get top 9 file types and show one example file path (`whole/full` path) of each type.
   - **sort-source-by-time** `-T 9` : Get `newest 9 source files` sorting `source files` by file write/modify time.
   - **sort-by-time** `-T 9` : Get `newest 9 files` sorting `all files` by file write/modify time.
   - **sort-by-size** `-T 9` : Get `newest 9 files` sorting `all files` by file size.
@@ -808,7 +811,7 @@ You can use any 1 of **3 methods** below to filter results or take further searc
 - Use [command shortcuts](#command-shortcuts) to write brief searching/replacing commands in/out-of vscode:
   - `MSR-RUN-CMD` + other terminals in vscode after auto-initialized `doskey/alias`.
   - System console (like CMD/Bash) **out of vscode**: See [switch general/specific shortcuts](#switch-between-general-and-project-specific-command-shortcuts).
-- Write raw [**msr/nin**](https://github.com/qualiu/msr#almost-no-learning-cost) commands with **70/30** composable [optional-args](https://github.com/qualiu/msr#brief-summary-of-msr-exe) (brief **Quick-Start** at bottom of running `msr -h` or `nin -h`).
+- Write raw [**msr/nin**](https://github.com/qualiu/msr#almost-no-learning-cost) commands with **70+/30+** composable [optional-args](https://github.com/qualiu/msr#brief-summary-of-msr-exe) (brief **Quick-Start** at bottom of running `msr -h` or `nin -h`).
 
 Change the value of **-t** / **--np** / **--nd** if already used in command line.
 
@@ -927,11 +930,7 @@ Long existing [VsCode Bug](https://github.com/microsoft/vscode/issues/96754): `U
 
 It's better to be solved by `vscode` itself to remove final duplicate results, or provide an interface for extensions to do it.
 
-However, there're 1 workaround for duplicate results + 2 workarounds for finding definition as below:
-
-#### Workaround for VsCode Duplicate Results Bug
-
-- [Temporarily toggle](#get-the-best-combined-power) `"enable/disable"` this extension, or disable one extension.
+However, there're 2 workarounds for finding definition as below:
 
 #### Workaround for VsCode Finding Definition Bug
 

@@ -2,6 +2,9 @@
 
 All notable changes to this "vscode-msr" extension will be documented in this file.
 
+## [2.1.75]
+- Improved searching selected text on Linux/MacOS (when containing "\`").
+
 ## [2.1.74]
 - Supported adding custom common alias by new config `msr.commonAliasNameBodyList` with 2 examples: `gsf` + `update-repos`.
 - Added `~/cmdAlias/` to `PATH` for Linux/MacOS.

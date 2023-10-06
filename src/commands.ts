@@ -49,13 +49,19 @@ export function runFindingCommand(findCmd: FindCommandType, textEditor: vscode.T
         ? changeSearchWordToVariationPattern(currentWord, parsedFile)
         : currentWord;
 
-    const rawSearchText = !isRegexFinding && IsWindowsTerminalOnWindows ? currentWord : currentWord.replace(/\\/g, '\\\\');
-    const searchText = isRegexFinding
+    let rawSearchText = !isRegexFinding && IsWindowsTerminalOnWindows
+        ? currentWord
+        : currentWord.replace(/\\/g, '\\\\');
+    let searchText = isRegexFinding
         ? (isFindReference && searchWordVariationPattern !== currentWord
             ? searchWordVariationPattern
             : escapeRegExpForFindingCommand(currentWord)
         )
         : rawSearchText;
+    if (!IsWindowsTerminalOnWindows) {
+        rawSearchText = rawSearchText.replace(/`/g, '\\`');
+        searchText = searchText.replace(/`/g, '\\`');
+    }
 
     let command = getFindingCommandByCurrentWord(true, findCmd, searchText, parsedFile, rawSearchText, undefined);
     command = command.replace(new RegExp(escapeHolder1, 'g'), '%1').replace(new RegExp(escapeHolder2, 'g'), '%~1');

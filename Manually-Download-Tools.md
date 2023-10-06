@@ -44,6 +44,9 @@ You can also manually **download** the tiny [msr.EXE](https://github.com/qualiu/
     
     **curl** <https://raw.githubusercontent.com/qualiu/msr/master/tools/msr-arm64.darwin> -o `msr.tmp` && `mv -f msr.tmp msr` && `chmod +x msr` && `sudo mv msr /usr/local/bin/msr`
     
+  - **FreeBSD** `amd64`:
+  
+    **curl** <https://raw.githubusercontent.com/qualiu/msr/master/tools/msr-amd64.freebsd> -o `msr.tmp` && `mv -f msr.tmp msr` && `chmod +x msr` && `sudo mv msr /usr/local/bin/msr`
 
 # Alternative Sources if Unable to Download msr/nin from GitHub
 If you're unable to download msr/nin tools from [GitHub](https://github.com/qualiu/msr)(validation: [md5.txt](https://github.com/qualiu/msr/blob/master/tools/md5.txt)) by command lines above, try sources + command lines below:

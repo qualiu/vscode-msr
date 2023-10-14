@@ -423,6 +423,16 @@ See [**here**](Add-New-Language-Support-For-Developers.md#additional-explanation
   "msr.batch.definition": "^\\s*:\\s*(%1)\\b|(^|\\s)set\\s+(/a\\s+)?\\\"?(%1)="
 ```
 
+### Simple Way to Add New Finding Alias
+
+Change/Add file extension names to config `msr.fileExtensionMapNames`:
+- Examples like: `"go py sql php md json xml"`
+  - This will generate finding alias like:
+    - `find-go` / `find-go-ref` / `find-go-def`
+    - `find-py` / `find-py-ref` / `find-py-def`
+    - `find-json` / `find-json-ref` 
+- Ignore if found `msr.fileExtensionMap.xxx` like `msr.fileExtensionMap.cs`.
+
 ### Fastest and Easiest Way to Support New Language
 
 For example of `Rust` language, adding `msr.fileExtensionMap.rs` = `"rs"` (like `"bat cmd"` for `msr.fileExtensionMap.batch`):

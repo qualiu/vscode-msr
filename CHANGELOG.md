@@ -2,6 +2,9 @@
 
 All notable changes to this "vscode-msr" extension will be documented in this file.
 
+## [2.1.76]
+- Added config `msr.msr.fileExtensionMapNames` to avoid too many `msr.fileExtensionMap.xxx` configs.
+
 ## [2.1.75]
 - Improved searching selected text on Linux/MacOS (when containing "\`").
 

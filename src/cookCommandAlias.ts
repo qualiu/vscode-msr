@@ -4,7 +4,7 @@ import { getFindTopDistributionCommand, getSortCommandText } from "./commands";
 import { getCommandAliasText, getCommonAliasMap, replaceArgForLinuxCmdAlias, replaceArgForWindowsCmdAlias } from './commonAlias';
 import { getConfigValueByPriorityList, getConfigValueByProjectAndExtension, getConfigValueOfActiveProject, getConfigValueOfProject } from "./configUtils";
 import { HomeFolder, IsLinux, IsWSL, IsWindows, RunCmdTerminalName, TempStorageFolder, TrimProjectNameRegex, getTipInfoTemplate } from "./constants";
-import { DefaultRootFolder, MappedExtToCodeFilePatternMap, MyConfig, getConfig, getGitIgnore, getSearchPathOptions } from "./dynamicConfig";
+import { AdditionalFileExtensionMapNames, DefaultRootFolder, MappedExtToCodeFilePatternMap, MyConfig, getConfig, getGitIgnore, getSearchPathOptions } from "./dynamicConfig";
 import { FindCommandType, TerminalType } from "./enums";
 import { createDirectory, readTextFile, saveTextToFile } from './fileUtils';
 import { GitListFileHead } from './gitUtils';
@@ -760,10 +760,8 @@ export function getCommandAliasMap(
     skipFoldersPattern = mergeSkipFolderPattern(skipFoldersPattern);
   }
 
-  let fileExtensionMapTypes = Array.from(MappedExtToCodeFilePatternMap.keys());
-  if (!fileExtensionMapTypes.includes('py')) {
-    fileExtensionMapTypes.push('py');
-  }
+  let fileExtensionMapTypes = new Set<string>(MappedExtToCodeFilePatternMap.keys());
+  AdditionalFileExtensionMapNames.forEach(ext => fileExtensionMapTypes.add(ext));
 
   const findTypes = ['definition', 'reference'];
   let aliasCountFromFile = 0;

@@ -5,7 +5,7 @@ import { HomeFolder, IsDebugMode, IsLinux, IsSupportedSystem, IsWSL, IsWindows }
 import { cookCmdShortcutsOrFile, mergeSkipFolderPattern } from './cookCommandAlias';
 import { FindType, TerminalType } from './enums';
 import { GitIgnore } from './gitUtils';
-import { MessageLevel, clearOutputChannelByTimes, outputDebug, outputDebugByTime, outputErrorByTime, outputInfoByTime, outputInfoClearByTime, outputKeyInfoByTime, updateOutputChannel } from './outputUtils';
+import { MessageLevel, clearOutputChannelByTimes, outputDebug, outputDebugByTime, outputErrorByTime, outputInfoByDebugModeByTime, outputInfoByTime, outputInfoClearByTime, outputKeyInfoByTime, outputWarnByTime, updateOutputChannel } from './outputUtils';
 import { createRegex, escapeRegExp } from './regexUtils';
 import { getRunCmdTerminalWithInfo } from './runCommandUtils';
 import { SearchConfig } from './searchConfig';
@@ -45,6 +45,8 @@ export let MappedExtToCodeFilePatternMap = new Map<string, string>()
     // .set('cpp', RootConfig.get('cpp.codeFiles') as string)
     .set('', 'default')
     ;
+
+export let AdditionalFileExtensionMapNames = new Set<string>();
 
 export function getFileNamePattern(parsedFile: path.ParsedPath, useMappedExt: boolean = true): string {
     const extension = getExtensionNoHeadDot(parsedFile.ext);
@@ -313,6 +315,19 @@ export class DynamicConfig {
                 });
             });
         }
+
+        const fileExtensionMapNames = getConfigValueOfProject(rootFolderName, "fileExtensionMapNames") as string || '';
+        const extensionNameSet = new Set<string>(fileExtensionMapNames.split(/\s+/));
+        AdditionalFileExtensionMapNames.clear();
+        extensionNameSet.forEach(ext => {
+            const mappedExtValues = MappedExtToCodeFilePatternMap.get(ext) || '';
+            if (!isNullOrEmpty(mappedExtValues) && mappedExtValues !== ext) {
+                outputWarnByTime(`Skipped extension = '${ext}' from 'msr.fileExtensionMapNames', use existing ext-mapping: '${mappedExtValues}' from 'msr.fileExtensionMap.${ext}'.`);
+                return;
+            }
+            AdditionalFileExtensionMapNames.add(ext);
+            outputInfoByDebugModeByTime(`Added extension = '${ext}' from 'msr.fileExtensionMapNames', will create alias like 'find-${ext}' + 'find-${ext}-ref' for it.`);
+        });
 
         this.OnlyFindDefinitionForKnownLanguages = getConfigValueOfActiveProject('enable.onlyFindDefinitionForKnownLanguages') === 'true';
         this.ClearTerminalBeforeExecutingCommands = getConfigValueOfActiveProject('clearTerminalBeforeExecutingCommands') === 'true';

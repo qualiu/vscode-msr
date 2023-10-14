@@ -3,7 +3,7 @@
 	"displayName": "Code mining + Replace file + Find definition and reference for all types.",
 	"description": "Code mining + Replace file + Find definition and reference in multiple repository paths by msr for all coding languages + configuration + doc files.",
 	"author": "qualiu@microsoft.com",
-	"version": "2.1.75",
+	"version": "2.1.76",
 	"icon": "images/vscode-msr-icon.png",
 	"license": "completely free",
 	"publisher": "qualiu",
@@ -1830,16 +1830,6 @@
 					"type": "string",
 					"default": "sh bash ksh zsh csh tsh"
 				},
-				"msr.fileExtensionMap.go": {
-					"description": "Golang file extensions.",
-					"type": "string",
-					"default": "go"
-				},
-				"msr.fileExtensionMap.gradle": {
-					"description": "Java gradle file extension.",
-					"type": "string",
-					"default": "gradle"
-				},
 				"msr.fileExtensionMap.ts": {
 					"description": "TypeScript file extension.",
 					"type": "string",
@@ -1849,21 +1839,6 @@
 					"description": "JavaScript file extension.",
 					"type": "string",
 					"default": "js jsx"
-				},
-				"msr.fileExtensionMap.vue": {
-					"description": "Vue file extension.",
-					"type": "string",
-					"default": "vue"
-				},
-				"msr.fileExtensionMap.bond": {
-					"description": "Microsoft Bond file extension.",
-					"type": "string",
-					"default": "bond"
-				},
-				"msr.fileExtensionMap.proto": {
-					"description": "Google Protocol Buffers file extension.",
-					"type": "string",
-					"default": "proto"
 				},
 				"msr.fileExtensionMap.bp": {
 					"description": "Protocol file extensions like Bond + Protocol Buffers + Thrift.",
@@ -1889,6 +1864,21 @@
 					"description": "Office + UML document extensions.",
 					"type": "string",
 					"default": "pptx? docx? ppsx? vsdx? rtf uml"
+				},
+				"msr.fileExtensionMap.yaml": {
+					"description": "YAML file extensions.",
+					"type": "string",
+					"default": "yaml yml"
+				},
+				"msr.fileExtensionMap.xml": {
+					"description": "XML file extensions.",
+					"type": "string",
+					"default": "xml xsd"
+				},
+				"msr.fileExtensionMapNames": {
+					"description": "File extension list to avoid define too many msr.fileExtensionMap.xxx config items (Skip if found msr.fileExtensionMap.xxx).",
+					"type": "string",
+					"default": "go py sql php md ini xml vue gradle proto bond thrift json yaml conf txt csv"
 				},
 				"msr.go.method.definition": {
 					"description": "Regex pattern to search Golang method definition.",

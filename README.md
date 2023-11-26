@@ -547,8 +547,9 @@ There're another 2 ways to toggle besides the hot key (`Alt+F2`):
 - `msr.enable.reference`: Set to `false` or un-check it to **disable** `find references` function for all types of files.
 
 ### Output Forward Slash on Windows for Search Result File Paths
-- Type `mingw-mock` to output forward slash('/') on Windows terminals (like `CMD`).
-- Type `mingw-unmock` to restore backslash('\\') on Windows.
+- Default: Output forward slash('/') on Windows terminals (like `CMD`) by setting `MSR_UNIX_SLASH=1`.
+- To restore backslash('\\') on Windows:
+  - Change `MSR_UNIX_SLASH=0` or change it in config `msr.cmd.postInitTerminalCommandLine`.
 
 ### Output Relative Paths or Full Paths
 

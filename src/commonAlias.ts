@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import { AliasNameBody } from './AliasNameBody';
 import { TerminalType } from "./enums";
 import { GitListFileRecursiveArg } from "./gitUtils";
-import { enableColorAndHideCommandLine, outputInfoQuietByTime, outputWarnByTime } from "./outputUtils";
+import { enableColorAndHideCommandLine, outputInfoByDebugModeByTime, outputWarnByTime } from "./outputUtils";
 import { isWindowsTerminalOnWindows } from "./terminalUtils";
 import { getPowerShellName, isNullOrEmpty, replaceSearchTextHolder, replaceTextByRegex } from "./utils";
 
@@ -69,6 +69,7 @@ const CommonAliasMap: Map<string, string> = new Map<string, string>()
   .set('gsh-sm', String.raw`git rev-parse --abbrev-ref HEAD | msr -t "(.+)" -o "git reset --hard origin/\1" -XM && msr -z "git submodule sync --init && git submodule update -f" -t "&&" -o "\n" -PAC | msr -XM -V ne0 & git status`)
   .set('gst', String.raw`git status $*`)
   .set('git-gc', String.raw`git reflog expire --all --expire=now && git gc --prune=now --aggressive`)
+  .set('git-rb-list', String.raw`git for-each-ref --format="%(refname:short)" refs/remotes/origin`) // git ls-remote --heads origin | msr -t "^\w+\s+refs/.+?/" -o "" -PAC
   .set('git-clean', String.raw`msr -z "git clean -xffd && git submodule foreach --recursive git clean -xffd" -t "&&" -o "\n" -PAC | msr -XM`)
   .set('git-sm-prune', String.raw`msr -XM -z "git prune" && msr -XMz "git submodule foreach git prune"`)
   .set('git-sm-init', String.raw`msr -XMz "git submodule sync" && echo git submodule update --init $* | msr -XM & git status`)
@@ -76,7 +77,7 @@ const CommonAliasMap: Map<string, string> = new Map<string, string>()
   .set('git-sm-restore', String.raw`echo git restore . ${GitListFileRecursiveArg} $* | msr -XM & git status`)  // replace '&' to ';' for Linux
   .set('git-sm-reinit', String.raw`msr -XM -z "git submodule deinit -f ." && msr -XM -z "git submodule update --init" & git status`)
   .set('git-sm-update-remote', String.raw`msr -XMz "git submodule sync" && echo git submodule update --remote $* | msr -XM & git status`)
-  .set('git-cherry-pick-branch-new-old-commits', String.raw`git log $1 | msr -b "^commit $2" -q "^commit $3" -t "^commit (\w+)" -o "\1" -M -C | msr -s "^:(\d+):" -n --dsc -t "^:\d+:\s+(\w+)" -o "git cherry-pick \1" $4 $5 $6 $7 $8 $9`)
+  .set('git-cherry-pick-branch-new-old-commits', String.raw`git log $1 | msr -b "^commit $2" -q "^commit $3" -t "^commit (\w+)" -o "\1" -M -C | msr -s "^:(\d+):" -n --dsc -t "^:\d+:(?:\d+:)?\s+(\w+)" -o "git cherry-pick \1" $4 $5 $6 $7 $8 $9`)
   .set('git-sm-check', String.raw`git status | msr -it "^\s*modified:\s+(\S+)\s*\(.*?$" -o "\1" -PAC
           | msr -x / -o \ -aPAC | msr -t "(.+)" -o "if exist \1\* pushd \1 && git status --untracked-files=all --short && git diff --name-only" -XM $*`)
   .set('git-sm-delete', String.raw`git status | msr -it "^\s*modified:\s+(\S+)\s*\(untracked content\)\s*$" -o "\1" -PAC
@@ -371,7 +372,7 @@ export function getCommonAliasMap(terminalType: TerminalType, writeToEachFile: b
       const oldCount = cmdAliasMap.size;
       cmdAliasMap.set(name, getAliasBody(terminalType, name, refinedBody, writeToEachFile));
       if (cmdAliasMap.size > oldCount) {
-        outputInfoQuietByTime(`Added custom alias: ${name}=${refinedBody}`)
+        outputInfoByDebugModeByTime(`Added custom alias: ${name}=${refinedBody}`)
       } else {
         outputWarnByTime(`Overwrote existing alias: ${name}=${refinedBody}`, false);
       }

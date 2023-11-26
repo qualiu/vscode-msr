@@ -2,8 +2,12 @@
 
 All notable changes to this "vscode-msr" extension will be documented in this file.
 
+## [2.1.77]
+- Improved cooking alias to script files for `.bashrc` on Linux/MacOS.
+- Improved alias `git-cherry-pick-branch-new-old-commits` for all platform.
+
 ## [2.1.76]
-- Added config `msr.msr.fileExtensionMapNames` to avoid too many `msr.fileExtensionMap.xxx` configs.
+- Added config `msr.fileExtensionMapNames` to avoid too many `msr.fileExtensionMap.xxx` configs.
 
 ## [2.1.75]
 - Improved searching selected text on Linux/MacOS (when containing "\`").
@@ -177,7 +181,7 @@ All notable changes to this "vscode-msr" extension will be documented in this fi
 - Changed default menu of `Cook-alias/doskey` to easy use (cook alias + dump scripts).
 
 ## [2.1.36]
-- Added config `msr.msr.default.codeFileExtensionMappingTypes` to co-work with `msr.fileExtensionMap.xxx`:
+- Added config `msr.default.codeFileExtensionMappingTypes` to co-work with `msr.fileExtensionMap.xxx`:
   - Auto add new code type (file extension) in `msr.fileExtensionMap.xxx` (like adding `groovy` in `msr.fileExtensionMap.java`).
   - Also add to command shortcuts like: `find-all` , `find-code` and `find-def` etc.
 - Added `groovy` to `msr.fileExtensionMap.java`.

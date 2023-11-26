@@ -212,7 +212,7 @@ export class DynamicConfig {
     public RefreshTmpGitFileListDuration: string = '10m';
     public AutoUpdateSearchTool: boolean = false;
     public CheckLanguageProcessIntervalMinutes = 15;
-    public OverwriteInconsistentCommonAliasByExtension = false;
+    public OverwriteInconsistentCommonAliasByExtension = true;
 
     private TmpToggleEnabledExtensionToValueMap = new Map<string, boolean>();
     private ProjectToGitIgnoreStatusMap = new Map<String, boolean>();
@@ -375,7 +375,7 @@ export class DynamicConfig {
         this.RefreshTmpGitFileListDuration = (getConfigValueOfActiveProject('refreshTmpGitFileListDuration', true) || '10m').replace(/\s+/g, '');
         this.AutoUpdateSearchTool = getConfigValueOfActiveProject('autoUpdateSearchTool') === 'true';
         this.CheckLanguageProcessIntervalMinutes = Math.max(5, Number(getConfigValueOfActiveProject('checkLanguageProcessIntervalMinutes') || '20'));
-        this.OverwriteInconsistentCommonAliasByExtension = getConfigValueOfActiveProject('overwriteInconsistentCommonAliasByExtension') === 'true';
+        this.OverwriteInconsistentCommonAliasByExtension = getConfigValueOfActiveProject('overwriteInconsistentCommonAliasByExtension') !== 'false';
         SearchConfig.reload();
 
         this.ExcludeFoldersFromSettings.clear();

@@ -8,7 +8,7 @@ import { AdditionalFileExtensionMapNames, DefaultRootFolder, MappedExtToCodeFile
 import { FindCommandType, TerminalType } from "./enums";
 import { createDirectory, readTextFile, saveTextToFile } from './fileUtils';
 import { GitListFileHead } from './gitUtils';
-import { outputDebug, outputDebugByTime, outputErrorByTime, outputInfo, outputInfoByDebugModeByTime, outputInfoQuiet, outputInfoQuietByTime, outputKeyInfoByTime, outputWarn, outputWarnByTime } from "./outputUtils";
+import { outputDebug, outputDebugByTime, outputErrorByTime, outputInfo, outputInfoByDebugModeByTime, outputInfoQuiet, outputInfoQuietByTime, outputWarn, outputWarnByTime } from "./outputUtils";
 import { escapeRegExp } from "./regexUtils";
 import { runCommandInTerminal, sendCommandToTerminal } from './runCommandUtils';
 import { DefaultTerminalType, IsLinuxTerminalOnWindows, IsWindowsTerminalOnWindows, getTerminalInitialPath, getTerminalNameOrShellExeName, getTerminalShellExePath, isLinuxTerminalOnWindows, isPowerShellTerminal, isWindowsTerminalOnWindows, toStoragePath, toTerminalPath, toTerminalPathsText } from './terminalUtils';
@@ -581,9 +581,9 @@ export function cookCmdShortcutsOrFile(
   function prepareEnvForLinuxTerminal(terminalType: TerminalType) {
     const toolExportFolder = toTerminalPath(getToolExportFolder(terminalType), terminalType);
     const defaultAdding = `${toolExportFolder}:${generalAliasFolderForBash}`.replace(/^\s*:/, '');
-    let initEnvCmd = `export PATH="/usr/bin/:~:${defaultAdding}:$PATH"`;
-    const checkAliasCmd = `which use-this-alias 2>/dev/null`;
-    runCmdInTerminal(`${checkAliasCmd} || (echo >> ${bashConfigFile} && echo '${checkAliasCmd} || ${initEnvCmd.replace(':~:', ':')}' >> ${bashConfigFile}); source ${bashConfigFile}`, true);
+    let initEnvCmd = `export PATH="/usr/bin/:$PATH:~:${defaultAdding}"`;
+    const checkAliasCmd = `which use-this-alias > /dev/null 2>&1`;
+    runCmdInTerminal(`${checkAliasCmd} || ( [ -z "$(cat ${bashConfigFile} | grep -E 'which use-this-alias')" ] && echo >> ${bashConfigFile} && echo '${checkAliasCmd} || ${initEnvCmd.replace(':~:', ':')}' >> ${bashConfigFile}); source ${bashConfigFile}`, true);
     if ((TerminalType.MinGWBash === terminalType || TerminalType.CygwinBash === terminalType)) {
       const binFolder = toTerminalPath(shellExeFolder, terminalType);
       const envPath = process.env['PATH'] || '';
@@ -1064,7 +1064,7 @@ export function getExistingCmdAlias(terminalType: TerminalType, forMultipleFiles
   }
   const [inconsistentCount, newCount] = getCmdAliasMapFromText(cmdAliasText, cmdAliasMap, forMultipleFiles, isWindowsTerminal);
   if (inconsistentCount > 0) {
-    outputWarnByTime(`Found ${inconsistentCount} inconsistent common alias, you can enable 'msr.overwriteInconsistentCommonAliasByExtension'`
+    outputInfoQuietByTime(`Found ${inconsistentCount} inconsistent common alias, you can enable 'msr.overwriteInconsistentCommonAliasByExtension'`
       + `, or delete them in file: ${defaultCmdAliasFileForTerminal}`);
   }
 
@@ -1086,7 +1086,7 @@ export function getExistingCmdAlias(terminalType: TerminalType, forMultipleFiles
     if (!saveTextToFile(defaultCmdAliasFile, newCmdAliasText)) {
       outputErrorByTime(`Failed to save ${newCount} new alias to file: ${defaultCmdAliasFileForTerminal}`);
     } else {
-      outputKeyInfoByTime(`Updated ${inconsistentCount} alias, added ${newCount} alias, see ${cmdAliasMap.size} alias in file: ${defaultCmdAliasFileForTerminal}`);
+      outputInfoQuietByTime(`Updated ${inconsistentCount} alias, added ${newCount} alias, see ${cmdAliasMap.size} alias in file: ${defaultCmdAliasFileForTerminal}`);
     }
   }
 
@@ -1113,35 +1113,57 @@ function checkAddLinuxBashAliasFile(cmdAliasMap: Map<string, string>, folder: st
 
 function getCmdAliasMapFromText(cmdAliasText: string, map: Map<string, string>, forMultipleFiles: boolean, isWindowsTerminal: boolean, isBashConfigFile: boolean = false): [number, number] {
   const lines = isWindowsTerminal ? cmdAliasText.split(/[\r\n]+/) : cmdAliasText.split(/(^|[\r\n]+)alias\s+/);
-  const getNameBodyRegex = /^(\w+[\w\.-]+)=(.+)/s;
+  const getNameBodyRegex = isWindowsTerminal || !forMultipleFiles
+    ? /^(\w+[\w\.-]+)=(.+)/s
+    : /^(\w+[\w\.-]+)=['"](.+)['"]\s*$/s;
   let remainCommonKeys = new Set<string>(map.keys());
   let inconsistentCount = 0;
   lines.forEach(a => {
-    const match = getNameBodyRegex.exec(a);
-    if (match) {
-      const body = forMultipleFiles
-        ? (isWindowsTerminal
-          ? replaceArgForWindowsCmdAlias(match[2], forMultipleFiles)
-          : replaceArgForLinuxCmdAlias(match[0], forMultipleFiles)
-        )
-        : (isWindowsTerminal ? '' : 'alias ') + match[0].trim();
-      const name = match[1];
-      if (remainCommonKeys.delete(name)) {
-        const bodyFromCommon = map.get(name);
-        if (bodyFromCommon !== body) {
-          inconsistentCount++;
-          if (MyConfig.OverwriteInconsistentCommonAliasByExtension) {
-            outputWarn(`Overwrite inconsistent alias-${inconsistentCount}: ${name}`);
-            return;
-          }
-          outputWarn(`Found inconsistent alias-${inconsistentCount}: ${name}`);
-        } else {
-          outputDebug(`Found same common alias: ${name}`);
-        }
-      }
-
-      map.set(name, body);
+    if (isNullOrEmpty(a.trim())) {
+      return;
     }
+    // Workaround to filter out 'export/source xxx' for script files:
+    let rawBodyText = isWindowsTerminal ? a.trim() : a.replace(/[\r\n]+(#|[a-z]+\w+).*/s, '').trim();
+    if (forMultipleFiles && isBashConfigFile) {
+      // Extract body if it's a function alias:
+      rawBodyText = rawBodyText.replace(/^([\w-]+)=(.)function\s+\w+[^\r\n]*\{\s*(.+?)\s*[\r\n]+\s*\}\s*;\s*\w+[^\r\n]*\s*$/s, "$1=$2$3$2");
+    }
+    const match = getNameBodyRegex.exec(rawBodyText);
+    if (!match) {
+      return;
+    }
+
+    const name = match[1];
+    let body = forMultipleFiles
+      ? (isWindowsTerminal
+        ? replaceArgForWindowsCmdAlias(match[2].trim(), forMultipleFiles)
+        : replaceArgForLinuxCmdAlias(match[2].trim(), forMultipleFiles)
+      )
+      : (isWindowsTerminal ? '' : 'alias ') + match[0].trim();
+
+    // Trim multi-line head whitespace for script files:
+    if (!isWindowsTerminal && forMultipleFiles) {
+      const headWhitespaceMatch = body.match(/[\r\n]+([ \t]+)/);
+      if (headWhitespaceMatch && !isNullOrEmpty(headWhitespaceMatch[1])) {
+        body = body.replace(new RegExp(`([\r\n]+)${headWhitespaceMatch[1]}`, 'g'), '$1');
+      }
+    }
+
+    if (remainCommonKeys.delete(name)) {
+      const bodyFromCommon = map.get(name);
+      if (bodyFromCommon !== body) {
+        inconsistentCount++;
+        if (MyConfig.OverwriteInconsistentCommonAliasByExtension) {
+          outputInfoQuietByTime(`Overwrite inconsistent alias-${inconsistentCount}: ${name}`);
+          return;
+        }
+        outputWarn(`Found inconsistent alias-${inconsistentCount}: ${name}`);
+      } else {
+        outputDebug(`Found same common alias: ${name}`);
+      }
+    }
+
+    map.set(name, body);
   });
   if (isBashConfigFile) {
     remainCommonKeys.forEach(key => outputInfo(`Found new common alias: ${key}`));

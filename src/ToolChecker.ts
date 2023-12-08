@@ -4,7 +4,7 @@ import { cookCmdShortcutsOrFile } from "./cookCommandAlias";
 import { FileExtensionToMappedExtensionMap, getConfig } from "./dynamicConfig";
 import { TerminalType } from "./enums";
 import { createDirectory } from "./fileUtils";
-import { DefaultMessageLevel, MessageLevel, checkIfSupported, outputDebugByTime, outputErrorByTime, outputInfoByDebugMode, outputInfoByDebugModeByTime, outputInfoByTime, outputKeyInfo, outputKeyInfoByTime, outputWarnByTime, updateOutputChannel } from "./outputUtils";
+import { DefaultMessageLevel, MessageLevel, checkIfSupported, outputDebugByTime, outputErrorByTime, outputInfoByDebugMode, outputInfoByDebugModeByTime, outputInfoByTime, outputInfoQuietByTime, outputKeyInfo, outputKeyInfoByTime, outputWarnByTime, updateOutputChannel } from "./outputUtils";
 import { getRunCmdTerminal, runRawCommandInTerminal } from "./runCommandUtils";
 import { DefaultTerminalType, IsLinuxTerminalOnWindows, IsWindowsTerminalOnWindows, checkAddFolderToPath, getHomeFolderForLinuxTerminalOnWindows, getTerminalShellExePath, getTipFileDisplayPath, isBashTerminalType, isLinuxTerminalOnWindows, isTerminalUsingWindowsUtils, isToolExistsInPath, isWindowsTerminalOnWindows, toCygwinPath, toTerminalPath } from "./terminalUtils";
 import { SourceHomeUrlArray, getDownloadUrl, getFileMd5, getHomeUrl, updateToolNameToPathMap } from "./toolSource";
@@ -259,11 +259,10 @@ export class ToolChecker {
       const activePath = getActiveFilePath() || '';
       const extension = isNullOrEmpty(activePath) ? '' : path.parse(activePath).ext;
       const mappedExt = isNullOrEmpty(extension) ? '' : (FileExtensionToMappedExtensionMap.get(extension.substring(1)) || '');
-      const findType = ('finding ' + mappedExt + ' definition').replace('  ', ' ');
       const checkProcessPattern = getConfigValueOfActiveProject('autoDisableFindDefinitionPattern', true);
       const tipFileDisplayPath = getTipFileDisplayPath(DefaultTerminalType);
       let setEnVarCommand = getCommandToSetFinalTipVar(IsWindowsTerminalOnWindows, mappedExt, !isNullOrEmpty(checkProcessPattern), IsUniformSlashSupported, IsNotCheckInputPathSupported, getConfig().AutoUpdateSearchTool);
-      const tipCommand = setEnVarCommand + ' msr -p ' + tipFileDisplayPath + String.raw` -L 5 -N 5 -t "^\s*[#::]+\s*" -o "" -X -A`;
+      const tipCommand = setEnVarCommand + ' msr -p ' + tipFileDisplayPath + String.raw` -L 5 -N 5 -t "^\s*[#::]+\s*" -o "" -X -A` + (this.isTerminalOfWindows ? ' 2>nul ' : ' 2>/dev/null');
       runRawCommandInTerminal(tipCommand);
     }
 
@@ -476,7 +475,7 @@ export class ToolChecker {
         outputKeyInfoByTime('Found new version of ' + sourceExeName + ' which md5 = ' + latestMd5 + ' , source-info = ' + sourceMd5FileUrl);
         outputKeyInfoByTime('Current ' + sourceExeName + ' md5 = ' + currentMd5 + ' , path = ' + exeName64bitToPathMap.get(pureExeName));
       } else {
-        outputInfoByTime('Great! Your ' + sourceExeName + ' is latest! md5 = ' + latestMd5 + ' , exe = ' + exeName64bitToPathMap.get(pureExeName) + ' , sourceMD5 = ' + sourceMd5FileUrl);
+        outputInfoQuietByTime('Great! Your ' + sourceExeName + ' is latest! md5 = ' + latestMd5 + ' , exe = ' + exeName64bitToPathMap.get(pureExeName) + ' , sourceMD5 = ' + sourceMd5FileUrl);
       }
     }
 

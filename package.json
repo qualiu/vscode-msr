@@ -3,7 +3,7 @@
 	"displayName": "Code mining + Replace file + Find definition and reference for all types.",
 	"description": "Code mining + Replace file + Find definition and reference in multiple repository paths by msr for all coding languages + configuration + doc files.",
 	"author": "qualiu@microsoft.com",
-	"version": "2.1.77",
+	"version": "2.1.78",
 	"icon": "images/vscode-msr-icon.png",
 	"license": "completely free",
 	"publisher": "qualiu",
@@ -23,16 +23,15 @@
 		"replace file",
 		"regex replace",
 		"regex search",
+		"replace text",
 		"code mining",
 		"data mining",
 		"go to definition",
 		"jump to definition",
 		"automation",
 		"refactor",
-		"find all",
 		"find",
 		"search",
-		"all",
 		"definition",
 		"reference",
 		"C++",
@@ -43,10 +42,10 @@
 		"Java",
 		"Scala",
 		"Python",
-		"TypScript",
+		"TypeScript",
 		"JavaScript",
 		"golang",
-		"rust",
+		"Rust",
 		"Vue",
 		"PowerShell",
 		"Batch",
@@ -1144,27 +1143,27 @@
 				},
 				"msr.cmd.postInitTerminalCommandLine": {
 					"type": "string",
-					"default": "set MSR_OUT_INDEX=1 && set MSR_UNIX_SLASH=1 && echo Will output match index + forward slash for result paths.",
+					"default": "set MSR_OUT_INDEX=1 && set MSR_UNIX_SLASH=1 && set MSR_COLORS=x=Yellow_Black && echo Will output match index + forward slash for result paths. Use clear-msr-env to clear them or change settings.",
 					"description": "Initialize Windows CMD terminals (including MSR-RUN-CMD). set MSR_KEEP_COLOR=1 to keep color for output to file or pipe."
 				},
 				"msr.powerShell.postInitTerminalCommandLine": {
 					"type": "string",
-					"default": "$env:MSR_OUT_INDEX=1; $env:MSR_UNIX_SLASH=1; echo 'Will output match index + forward slash for result paths.'",
+					"default": "$env:MSR_OUT_INDEX=1; $env:MSR_UNIX_SLASH=1; $env:MSR_COLORS='x=Yellow_Black'; echo 'Will output match index + forward slash for result paths. Use clear-msr-env to clear them or change settings.'",
 					"description": "Initialize Windows PowerShell terminals. set MSR_KEEP_COLOR=1 to keep color for output to file or pipe."
 				},
 				"msr.mingwBash.postInitTerminalCommandLine": {
 					"type": "string",
-					"default": "export MSR_EXIT=gt127-to-127 && export MSR_OUT_INDEX=1 && export MSR_UNIX_SLASH=1 && echo Will limit big return value: \"$MSR_EXIT\" + Output match index + forward slash for result paths.",
+					"default": "export MSR_EXIT=gt127-to-127 && export MSR_OUT_INDEX=1 && export MSR_UNIX_SLASH=1 && export MSR_COLORS=x=Yellow_Black && echo Will limit big return value: \"$MSR_EXIT\" + Output match index + forward slash for result paths. Use clear-msr-env to clear them or change settings.",
 					"description": "Initialize MinGW bash terminals on Windows. export MSR_KEEP_COLOR=1 to keep color for output to file or pipe."
 				},
 				"msr.cygwinBash.postInitTerminalCommandLine": {
 					"type": "string",
-					"default": "export MSR_EXIT=gt255-to-255 && export MSR_OUT_INDEX=1 && export MSR_UNIX_SLASH=1 && echo Will limit big return value: \"$MSR_EXIT\" + Output match index + forward slash for result paths.",
+					"default": "export MSR_EXIT=gt255-to-255 && export MSR_OUT_INDEX=1 && export MSR_UNIX_SLASH=1 && export MSR_COLORS=x=Yellow_Black && echo Will limit big return value: \"$MSR_EXIT\" + Output match index + forward slash for result paths. Use clear-msr-env to clear them or change settings.",
 					"description": "Initialize Cygwin bash terminals."
 				},
 				"msr.bash.postInitTerminalCommandLine": {
 					"type": "string",
-					"default": "export MSR_EXIT=gt255-to-255 && export MSR_OUT_INDEX=1 && echo Will limit big return value: \"$MSR_EXIT\" + Output match index.",
+					"default": "export MSR_EXIT=gt255-to-255 && export MSR_OUT_INDEX=1 && export MSR_COLORS=x=Yellow_Black && echo Will limit big return value: \"$MSR_EXIT\" + Output match index. Use clear-msr-env to clear them or change settings.",
 					"description": "Initialize Bash terminals (including MSR-RUN-CMD)."
 				},
 				"msr.definition.searchAllRootFolders": {
@@ -1267,10 +1266,10 @@
 					"default": false,
 					"description": "Auto compare file lists if used '.gitignore' (enabled `msr.useGitIgnoreFile`) when opening a project folder."
 				},
-				"msr.skipDotFoldersIfUseGitIgnoreFile": {
-					"type": "boolean",
-					"default": true,
-					"description": "Skip dot/dollar folders like: .{folder-name} or '${folder-name}' when using '.gitignore' file."
+				"msr.ignorableDotFolderNameRegex": {
+					"type": "string",
+					"default": "^\\.(git|vscode|idea)$",
+					"description": "Regex pattern of ignorable dot folder names when using '.gitignore' file."
 				},
 				"msr.exportLongSkipGitPathsLength": {
 					"type": "integer",

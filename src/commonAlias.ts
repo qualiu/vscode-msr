@@ -70,6 +70,7 @@ const CommonAliasMap: Map<string, string> = new Map<string, string>()
   .set('gst', String.raw`git status $*`)
   .set('git-gc', String.raw`git reflog expire --all --expire=now && git gc --prune=now --aggressive`)
   .set('git-rb-list', String.raw`git for-each-ref --format="%(refname:short)" refs/remotes/origin`) // git ls-remote --heads origin | msr -t "^\w+\s+refs/.+?/" -o "" -PAC
+  .set('git-shallow-clone', String.raw`echo git clone --single-branch --depth 1 $* && git clone --single-branch --depth 1 $*`)
   .set('git-clean', String.raw`msr -z "git clean -xffd && git submodule foreach --recursive git clean -xffd" -t "&&" -o "\n" -PAC | msr -XM`)
   .set('git-sm-prune', String.raw`msr -XM -z "git prune" && msr -XMz "git submodule foreach git prune"`)
   .set('git-sm-init', String.raw`msr -XMz "git submodule sync" && echo git submodule update --init $* | msr -XM & git status`)

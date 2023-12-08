@@ -272,6 +272,10 @@ export function getFindingCommandByCurrentWord(toRunInTerminal: boolean, findCmd
             runRawCommandInTerminal(AddKeepColorArg(AddOutputToStderrArg(warningCommand)));
             return '';
         }
+
+        const escapedText = escapeRegExpForFindingCommand(searchText);
+        commandLine = commandLine.replace(/\s+(--nt|-t|--text-match)(\s+\S*)%~?1/g, ` $1$2${escapedText}`);
+        commandLine = commandLine.replace(/\s+(--nt|-t|--text-match)(\s+["'][^"']*)%~?1/g, ` $1$2${escapedText}`);
         commandLine = replaceSearchTextHolder(commandLine, searchText).trim();
         if (IsWindowsTerminalOnWindows) {
             // commandLine = commandLine.replace(new RegExp('/tmp/', 'g'), TempStorageFolder + '\\');

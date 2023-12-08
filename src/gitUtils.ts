@@ -11,8 +11,6 @@ import { runCommandInTerminal, runRawCommandInTerminal } from './runCommandUtils
 import { DefaultTerminalType, getTipFileDisplayPath, IsLinuxTerminalOnWindows, IsWindowsTerminalOnWindows, isWindowsTerminalOnWindows, toTerminalPath } from './terminalUtils';
 import { IsForwardingSlashSupportedOnWindows, RunCommandChecker } from './ToolChecker';
 import { changeToForwardSlash, getDefaultRootFolder, getElapsedSecondsToNow, isNullOrEmpty, quotePaths, RunCmdTerminalRootFolder } from './utils';
-// Another solution: (1) git ls-files --recurse-submodules > project-file-list.txt ; (2) msr -w project-file-list.txt  (3) file watcher + update list.
-// Show junk files: (1) git ls-files --recurse-submodules --ignored --others --exclude-standard (2) git ls-files --recurse-submodules --others --ignored -X .gitignore
 
 function isGitRecurseSubModuleSupported(): boolean {
   const execOption: ExecSyncOptions = { cwd: getDefaultRootFolder() };
@@ -66,7 +64,7 @@ export class GitIgnore {
   private IgnoreFilePath: string = '';
   private UseGitIgnoreFile: boolean;
   private OmitGitIgnoreExemptions: boolean;
-  private SkipDotFolders: boolean;
+  private SkipDotFolders: boolean = true;
   private SkipPathPattern: string = '';
   private RootFolder: string = '';
   private CheckUseForwardingSlashForCmd = true;
@@ -78,11 +76,10 @@ export class GitIgnore {
   private LastPrintSkipExportingTime: Date = new Date();
 
   constructor(ignoreFilePath: string, useGitIgnoreFile: boolean = false, omitGitIgnoreExemptions: boolean = false,
-    skipDotFolders: boolean = true, terminalType = DefaultTerminalType, checkUseForwardingSlashForCmd = true) {
+    ignorableDotFolderNamePattern: string = '', terminalType = DefaultTerminalType, checkUseForwardingSlashForCmd = true) {
     this.IgnoreFilePath = ignoreFilePath;
     this.UseGitIgnoreFile = useGitIgnoreFile;
     this.OmitGitIgnoreExemptions = omitGitIgnoreExemptions;
-    this.SkipDotFolders = skipDotFolders;
     this.Terminal = terminalType;
     this.CheckUseForwardingSlashForCmd = checkUseForwardingSlashForCmd;
     this.ExportLongSkipGitPathsLength = Number(getConfigValueOfActiveProject('exportLongSkipGitPathsLength'));
@@ -95,6 +92,28 @@ export class GitIgnore {
     }
 
     this.RootFolder = changeToForwardSlash(path.dirname(ignoreFilePath));
+    const options: ChildProcess.ExecSyncOptionsWithStringEncoding = {
+      encoding: 'utf8',
+      cwd: path.dirname(ignoreFilePath),
+    };
+
+    if (isNullOrEmpty(ignorableDotFolderNamePattern)) {
+      return;
+    }
+
+    try {
+      const ignorableDotFolderNameRegex = new RegExp(ignorableDotFolderNamePattern, 'i');
+      const folderNames = ChildProcess.execSync(String.raw`git ls-tree -d --name-only HEAD`, options).toString().split(/[\r?\n]+/);
+      for (let i = 0; i < folderNames.length; i++) {
+        if (folderNames[i].startsWith(".") && !folderNames[i].match(ignorableDotFolderNameRegex)) {
+          this.SkipDotFolders = false;
+          outputInfoQuietByTime(`Not skip all dot folders: Found repo-child-folder = ${folderNames[i]} , ignorableDotFolderNamePattern = "${ignorableDotFolderNamePattern}"`);
+          break;
+        }
+      }
+    } catch (error) {
+      outputInfoQuietByTime("Cannot use git ls-tree to check git folder: " + error);
+    }
   }
 
   public getSkipPathRegexPattern(toRunInTerminal: boolean, canUseVariable = true): string {
@@ -336,7 +355,7 @@ export class GitIgnore {
       );
 
       const command = `msr -XA -z "${setVarCmd} msr -p ${tipFileDisplayPath} ${replaceCmd} -XA"` // change -XA to -XMI for debug
-        + (this.IsCmdTerminal ? ' & use-this-alias -A' : '');
+        + (this.IsCmdTerminal ? ' 2>nul & use-this-alias -A' : ' 2>/dev/null');
       runRawCommandInTerminal(command);
     });
   }

@@ -18,18 +18,18 @@ export function comparePattern(parser: GitIgnore, rawPattern: string, expected: 
 }
 
 export function testNotSkipDotPaths() {
-  const parser = new GitIgnore('', true, true, false, TerminalType.LinuxBash);
-  comparePattern(parser, '.git', String.raw`\.git`);
+  const parser = new GitIgnore('', true, true, '^\.(git|vscode)$', TerminalType.LinuxBash);
+  comparePattern(parser, '.sub-modules', String.raw``);
 }
 
 export function testOmitExemptions() {
-  const parser = new GitIgnore('', true, false, true, TerminalType.LinuxBash);
+  const parser = new GitIgnore('', true, false, '^\.', TerminalType.LinuxBash);
   comparePattern(parser, '!out/my.txt', '');
 }
 
 export function testLinuxTerminal() {
   // Copy output from vscode: msr -p MSR-Def-Ref-output.txt -b "^Input_Git_Ignore =" -Q "^Skip_Paths_Regex|^\s*$" -S -t "^Input_Git_Ignore = (.+?)[\r\n]+Skip_Paths_Regex = (.+?)[\r\n]" -o "comparePattern(parser, '\1', String.raw`\2`);" -P
-  const parser = new GitIgnore('', true, true, true, TerminalType.LinuxBash);
+  const parser = new GitIgnore('', true, true, '^\.', TerminalType.LinuxBash);
   // Generate test below: msr -p src\test\suite\gitIgnoreTest.ts -b "function testLinuxTerminal" -q "^\s*\}" -t "^(\s*comparePattern\(\w+, [^,]+).*" -o "\1);" -P
   comparePattern(parser, '[Bb]in', String.raw`/Bin/`);
   comparePattern(parser, '[Bb]in/', String.raw`/Bin/`);
@@ -89,7 +89,7 @@ export function testLinuxTerminal() {
 }
 
 export function testCmdTerminalWithBackSlash() {
-  const parser = new GitIgnore('', true, true, true, TerminalType.CMD, false);
+  const parser = new GitIgnore('', true, true, '^\.', TerminalType.CMD, false);
   // Generate test below: msr -p src\test\suite\gitIgnoreTest.ts -b "function testLinuxTerminal" -q "^\s*\}" -t "^(\s*comparePattern\(\w+, [^,]+).*" -o "\1);" -P
   comparePattern(parser, '[Bb]in', String.raw`\\Bin\\`);
   comparePattern(parser, '[Bb]in/', String.raw`\\Bin\\`);
@@ -149,7 +149,7 @@ export function testCmdTerminalWithBackSlash() {
 }
 
 export function testCmdTerminalWithForwardSlash() {
-  const parser = new GitIgnore('', true, true, true, TerminalType.CMD, true);
+  const parser = new GitIgnore('', true, true, '^\.', TerminalType.CMD, true);
   // Generate test below: msr -p src\test\suite\gitIgnoreTest.ts -b "function testLinuxTerminal" -q "^\s*\}" -t "^(\s*comparePattern\(\w+, [^,]+).*" -o "\1);" -P
   comparePattern(parser, '[Bb]in', String.raw`/Bin/`);
   comparePattern(parser, '[Bb]in/', String.raw`/Bin/`);

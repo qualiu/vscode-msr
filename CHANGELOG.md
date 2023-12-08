@@ -2,6 +2,11 @@
 
 All notable changes to this "vscode-msr" extension will be documented in this file.
 
+## [2.1.78]
+- Added `rgfind-xxx` alias to recursively search in a folder of multiple git repositories using `gfind-xxx` (need cook-alias first).
+- Auto detect and skip dot folders (like not skip `.sub-modules` folder if it's a git repo-child-folder).
+- Improved cooking scripts + custom search(`msr.xxx.myFindOrReplaceSelectedTextCommand`) to auto escape text for Regex.
+
 ## [2.1.77]
 - Improved cooking alias to script files for `.bashrc` on Linux/MacOS.
 - Improved alias `git-cherry-pick-branch-new-old-commits` for all platform.

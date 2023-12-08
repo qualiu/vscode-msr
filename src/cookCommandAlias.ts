@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { IsFileTimeOffsetSupported, RunCommandChecker, ToolChecker, setNotCheckInputPathInCommandLine, setOutputColumnIndexInCommandLine } from './ToolChecker';
 import { getFindTopDistributionCommand, getSortCommandText } from "./commands";
-import { getCommandAliasText, getCommonAliasMap, replaceArgForLinuxCmdAlias, replaceArgForWindowsCmdAlias } from './commonAlias';
+import { getCommandAliasText, getCommonAliasMap, replaceArgForLinuxCmdAlias, replaceArgForWindowsCmdAlias, replaceForLoopVariableOnWindows } from './commonAlias';
 import { getConfigValueByPriorityList, getConfigValueByProjectAndExtension, getConfigValueOfActiveProject, getConfigValueOfProject } from "./configUtils";
 import { HomeFolder, IsLinux, IsWSL, IsWindows, RunCmdTerminalName, TempStorageFolder, TrimProjectNameRegex, getTipInfoTemplate } from "./constants";
 import { AdditionalFileExtensionMapNames, DefaultRootFolder, MappedExtToCodeFilePatternMap, MyConfig, getConfig, getGitIgnore, getSearchPathOptions } from "./dynamicConfig";
@@ -105,7 +105,7 @@ function getShellExeAndTerminalType(terminal: vscode.Terminal | undefined, isNew
   }
 }
 
-function duplicateSearchFileCmdAlias(rootFolder: string, terminalType: TerminalType, cmdAliasMap: Map<string, string>, isForProjectCmdAlias: boolean) {
+function duplicateSearchFileCmdAlias(rootFolder: string, terminalType: TerminalType, cmdAliasMap: Map<string, string>, isForProjectCmdAlias: boolean, writeToEachFile: boolean) {
   // Duplicate find-xxx to gfind-xxx for "git ls-file" & find-xxx; except find-nd / find-ndp
   const rootFolderName = getRootFolderName(rootFolder);
   const tmpFileName = isForProjectCmdAlias
@@ -114,6 +114,8 @@ function duplicateSearchFileCmdAlias(rootFolder: string, terminalType: TerminalT
   const isWindowsTerminal = isWindowsTerminalOnWindows(terminalType);
   const powerShellCmdHead = getPowerShellName(terminalType) + ' -Command';
   const sortedCmdKeys = Array.from(cmdAliasMap.keys()).sort();
+  const saveAliasFolder = getCmdAliasSaveFolder(true, false, terminalType);
+  const needReplaceArgForLoop = writeToEachFile && isWindowsTerminalOnWindows(terminalType);
   sortedCmdKeys.forEach(key => {
     const value = cmdAliasMap.get(key) || '';
     if (key.match(/^(find|sort)-/) && !key.startsWith('find-nd') && /msr(\.exe)? -rp/.test(value)) {
@@ -147,12 +149,25 @@ function duplicateSearchFileCmdAlias(rootFolder: string, terminalType: TerminalT
       if (isForProjectCmdAlias && TerminalType.CygwinBash === terminalType && isPowerShellCommand(newCommand, terminalType)) {
         newCommand = newCommand.replace(/\bmsr (-+\w+)/g, 'msr.exe $1'); // workaround for cygwin PowerShell
       }
+      const gitFindName = 'g' + key;;
       if (isWindowsTerminal) {
-        newCommand = newCommand.replace(new RegExp('^' + key), 'g' + key);
+        newCommand = newCommand.replace(new RegExp('^' + key), gitFindName);
       } else {
-        newCommand = newCommand.replace(new RegExp('^alias\\s+' + key), 'alias g' + key)
+        newCommand = newCommand.replace(new RegExp('^alias\\s+' + key), 'alias ' + gitFindName)
       }
-      cmdAliasMap.set('g' + key, newCommand);
+
+      cmdAliasMap.set(gitFindName, newCommand);
+      if (!isLinuxTerminalOnWindows(terminalType)) { // depends on alias scripts
+        const recursiveGitFindName = 'rg' + key;
+        let recursiveGitFindBody = isWindowsTerminal
+          ? `for /f "tokens=*" %a in ('dir /A:D /B .') do @pushd "%CD%\\%a" && ${gitFindName} $* -O & popd`
+          : `for folder in $(ls -d $PWD/*/); do pushd "$folder" >/dev/null && ${saveAliasFolder}/${gitFindName} $* -O; popd > /dev/null; done`;
+        if (needReplaceArgForLoop) {
+          recursiveGitFindBody = replaceForLoopVariableOnWindows(recursiveGitFindBody);
+        }
+        recursiveGitFindBody = getCommandAliasText(recursiveGitFindName, recursiveGitFindBody, true, terminalType, false, false, false);
+        cmdAliasMap.set(recursiveGitFindName, recursiveGitFindBody);
+      }
     }
   });
 }
@@ -338,7 +353,7 @@ export function cookCmdShortcutsOrFile(
   const outRelativePathsBody = getPathCmdAliasBody(false, cmdAliasFileStoragePath, true, false);
   cmdAliasMap.set('out-rp', getCommandAliasText('out-rp', outRelativePathsBody, false, terminalType, writeToEachFile, false, false));
 
-  duplicateSearchFileCmdAlias(rootFolder, terminalType, cmdAliasMap, isForProjectCmdAlias);
+  duplicateSearchFileCmdAlias(rootFolder, terminalType, cmdAliasMap, isForProjectCmdAlias, writeToEachFile);
 
   const skipWritingScriptNames = new Set<string>(['use-fp', 'use-rp', 'out-rp', 'out-fp', 'alias']);
   const canWriteScripts = writeToEachFile && createDirectory(singleScriptsSaveFolder);
@@ -350,7 +365,7 @@ export function cookCmdShortcutsOrFile(
   sortedKeys.forEach(key => {
     let scriptContent = cmdAliasMap.get(key) || '';
     if (writeToEachFile) {
-      if (canWriteScripts && !skipWritingScriptNames.has(key) && (dumpOtherCmdAlias || key.match(/^(g?find|sort)-|malias/))) {
+      if (canWriteScripts && !skipWritingScriptNames.has(key) && (dumpOtherCmdAlias || key.match(/^(r?g?find|sort)-|malias/))) {
         if (!writeOneAliasToFile(key, scriptContent, true)) {
           writeScriptFailureCount++;
         }

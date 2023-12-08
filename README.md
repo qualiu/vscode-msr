@@ -46,7 +46,7 @@ Then it's the **light** and **right** tool for you(just **2~3 MB** storage + **1
 
 - [Cook doskey/alias](#make-command-shortcuts-to-search-or-replace-in-or-out-of-vscode) if you want to use `find-xxx` **out of vscode** (in normal `CMD`/`Bash` console).
 - [**Set exclusions**](#avoid-security-software-downgrade-search-performance-on-windows) if you cannot get search results **in 1~2 seconds** for just **10000 code files** on Windows.
-- See [**here**](#adjust-your-color-theme-if-result-file-path-folder-color-is-not-clear) if **`folder color`** of output result file paths is not clear: add/change one color theme.
+- Two methods to [**adjust output colors**](#adjust-your-color-theme-if-result-file-path-folder-color-is-not-clear) of both **file paths** and **matched text**.
 - Please [manually **set PATH** for msr/nin](#or-manually-download--set-path-once-and-forever) if automation failed + [Explicitly set terminal type](#supported-4-terminal-types-on-windows) if caught problems.
 - [**Workaround**](#workaround-to-long-existing-vscode-bug-impact-to-finding-definition-and-reference) to [long existing VsCode bug](https://github.com/microsoft/vscode/issues/96754) impact to `Go To Definition` and `Find All Reference`.
 
@@ -119,6 +119,8 @@ See [manually downloading](Manually-Download-Tools.md) tool command lines on `Wi
 
 You might found the `folder color` of output result file paths is not clear to read when using default `dark-blue` color theme.
 
+### Adjust Colors Method-1
+
 To adjust the colors, for example, if it's default `dark-blue` color theme:
 
 - Open your [personal settings file](https://code.visualstudio.com/docs/getstarted/settings#_settings-file-locations) with `code` or other tools like:
@@ -133,6 +135,15 @@ To adjust the colors, for example, if it's default `dark-blue` color theme:
 ```
 
 More details or other color settings follow [official vscode doc](https://code.visualstudio.com/docs/getstarted/themes#_customizing-a-color-theme).
+
+### Adjust Colors Method-2
+
+You can set environment variable **MSR_COLORS** to [change color-groups](https://github.com/qualiu/msr#set-or-change-color-groups) of both **file paths** and **matched text**:
+
+- Windows example for color group of `result file paths`:
+  - `set MSR_COLORS=p=Green` or `set MSR_COLORS=d=Cyan,f=Green`
+- Linux/MacOS/FreeBSD example:
+  - `export MSR_COLORS=p=Green` or `export MSR_COLORS=p=Cyan,f=Green`
 
 ## Avoid Security Software Downgrade Search Performance on Windows
 
@@ -162,11 +173,12 @@ You can generate the command shortcuts (alias/doskey) to directly use for search
 ### Try to use gfind-xxx instead of find-xxx alias/doskey
 
 Try **gfind-xxx** alias/doskey/scripts which uses **accurate** source file paths by "`git ls-files`", though a bit slower than **find-xxx**.
-- You can change set `msr.refreshTmpGitFileListDuration` (default = `2 minutes`) to avoid writing temp file too frequently.
+- You can change set `msr.refreshTmpGitFileListDuration` (default = `5 seconds`) to avoid writing temp file too frequently.
   - It's very fast to run `git ls-files` for most projects.
   - You can set long duration(like `30days`) + Add/Use `git-pull` like below to auto refresh tmp-list :
     - Windows: `git-pull=git branch | msr -t "^\s*\*\s*(\S+).*" -o "git pull origin \1 $*" -XM && del %tmp%\tmp-list-*`.
     - Linux/MacOS/FreeBSD: `alias git-pull='git branch | msr -t "^\s*\*\s*(\S+).*" -o "git pull origin \1 $*" -XM && rm /tmp/tmp-list-*'`.
+- Try [**rgfind-xxx**](#try-rgfind-xxx-to-search-multiple-git-repositories) to search multiple git repositories.
 
 This's helpful if got [**git-exemption-warnings**](#use-git-ignore) when initializing new terminals.
 
@@ -210,7 +222,7 @@ This's helpful if got [**git-exemption-warnings**](#use-git-ignore) when initial
 
 - After you cooked command alias/doskeys, you'll see messages below: (You can **add**/**update** doskeys in file)
 - Automated command shortcuts on **MacOS**/**FreeBSD**/**Linux** + **WSL** + [**4 types of terminals** on Windows](#supported-4-terminal-types-on-windows) to [search](#search-files-with-rich-filters) or [**mining-code**](#code-mining-without-or-with-little-knowledge) or [replace files](#replace-files-with-preview-and-backup).
-- Try **gfind-xxx** instead of **find-xxx** if warned [**exemptions**](#try-to-use-gfind-xxx-instead-of-find-xxx-aliasdoskey) when initializing new terminals.
+- Try [**gfind-xxx**](#try-to-use-gfind-xxx-instead-of-find-xxx-aliasdoskey) instead of **find-xxx** if warned [**exemptions**](#try-to-use-gfind-xxx-instead-of-find-xxx-aliasdoskey) when initializing new terminals.
 - If it's not in vscode (like other IDEs or system terminals), you can run **use-this-alias** in the terminal (if current folder is in a git project) to load command shortcuts for current project.
 
 You can search **in vscode terminal** then **click** the results to **open and locate** them.
@@ -220,6 +232,15 @@ You can also start [**code-mining**](#code-mining-without-or-with-little-knowled
 If using alias(like `find-spring-ref`) in a **nested command** (like `for/while-loop` or `command|pipe`), or **script file** (like `*.bat/cmd` or `*.sh`):
    - Use **full-name** (like `find-spring-ref.cmd`) .
    - Or use **full script path** (like `~/cmdAlias/find-spring-ref`).
+
+### Try rgfind-xxx to Search Multiple git Repositories
+
+After [cooking alias scripts](#make-command-shortcuts-to-search-or-replace-in-or-out-of-vscode), you can use `rgfind-xxx` like `rgfind-cpp-ref MySearchWord` to **recursively** search multiple git repositories in a folder.
+- Difference to [**gfind-xxx**](#try-to-use-gfind-xxx-instead-of-find-xxx-aliasdoskey):
+  - `gfind-xxx` can only be used in a single git repository, not parent folder of multiple git repositories.
+- Difference to [**find-xxx**](#code-mining-without-or-with-little-knowledge):
+  - `find-xxx` cannot precisely search only git-repo-files, which means it will waste time on non-repo files and may provide inaccurate results.
+  - `gfind-xxx` / `rgfind-xxx` need to run `git ls-files` to get precise file list save to a tmp file.
 
 ```bash
 Now you can directly use the command shortcuts in/out-of vscode to search + replace like:
@@ -684,7 +705,7 @@ The 40+ [shortcuts](#command-shortcuts) like `find-xxx` are convenient wrappers 
 
 Code mining examples (run in vscode terminals: like `MSR-RUN-CMD` or add/open **new** terminals):
 
-- Fuzzy search a class/method: (Try [**gfind-xxx**](#try-to-use-gfind-xxx-instead-of-find-xxx-aliasdoskey) for all commands if got git exemptions)
+- Fuzzy search a class/method: (Try [**gfind-xxx**](#try-to-use-gfind-xxx-instead-of-find-xxx-aliasdoskey) for precise searching + [**rgfind-xxx**](#try-rgfind-xxx-to-search-multiple-git-repositories) for recursive precise searching in multi-repos)
   - **find-def** `"\w*Keyword\w*You-Heard-or-Knew\w*"`
     - **gfind-def** `"\w*Keyword\w*You-Heard-or-Knew\w*"` -x `class` --sp `"/common/,/lib"`
     - **gfind-def** `"\w*Keyword\w*You-Heard-or-Knew\w*"` -x `struct` -k `12`

@@ -85,8 +85,8 @@ export function updateGitIgnoreUsage() {
         const projectName = path.basename(rootFolder);
         const useGitIgnoreFile = getConfigValueOfProject(projectName, 'useGitIgnoreFile') === 'true';
         const omitGitIgnoreExemptions = getConfigValueOfProject(projectName, 'omitGitIgnoreExemptions') === 'true';
-        const skipDotFolders = getConfigValueOfProject(projectName, 'skipDotFoldersIfUseGitIgnoreFile') === 'true';
-        const gitIgnore = new GitIgnore(path.join(rootFolder, '.gitignore'), useGitIgnoreFile, omitGitIgnoreExemptions, skipDotFolders);
+        const ignorableDotFolderNamePattern = getConfigValueOfProject(projectName, 'ignorableDotFolderNameRegex') || '';
+        const gitIgnore = new GitIgnore(path.join(rootFolder, '.gitignore'), useGitIgnoreFile, omitGitIgnoreExemptions, ignorableDotFolderNamePattern);
         WorkspaceToGitIgnoreMap.set(rootFolder, gitIgnore);
 
         // TODD: record in file or env when creating terminal
@@ -189,7 +189,7 @@ export class DynamicConfig {
 
     public UseGitIgnoreFile: boolean = true;
     public OmitGitIgnoreExemptions: boolean = false;
-    public SkipDotFolders: boolean = true;
+    public IgnoreDotFolderNamePattern: string = '';
 
     // allFiles codeFiles codeFilesPlusUI codeAndConfig codeAndConfigDocs
     public AllFileExtensionMappingRegexList: RegExp[] = [];
@@ -369,7 +369,7 @@ export class DynamicConfig {
         this.ScriptFileExtensionRegex = createRegex(this.RootConfig.get('default.scriptFiles') || '\\.(bat|cmd|psm?1|sh|bash|[kzct]sh)$', 'i');
         this.UseGitIgnoreFile = getConfigValueOfActiveProject('useGitIgnoreFile') === 'true';
         this.OmitGitIgnoreExemptions = getConfigValueOfActiveProject('omitGitIgnoreExemptions') === 'true';
-        this.SkipDotFolders = getConfigValueOfActiveProject('skipDotFoldersIfUseGitIgnoreFile') === 'true';
+        this.IgnoreDotFolderNamePattern = getConfigValueOfActiveProject('ignorableDotFolderNameRegex') || '';
         this.ShowLongTip = getConfigValueOfActiveProject('cookCmdAlias.showLongTip') === 'true';
         this.AutoChangeSearchWordForReference = getConfigValueOfActiveProject('reference.autoChangeSearchWord') === 'true';
         this.RefreshTmpGitFileListDuration = (getConfigValueOfActiveProject('refreshTmpGitFileListDuration', true) || '10m').replace(/\s+/g, '');

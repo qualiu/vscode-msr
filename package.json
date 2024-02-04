@@ -3,7 +3,7 @@
 	"displayName": "Code mining + Replace file + Find definition and reference for all types.",
 	"description": "Code mining + Replace file + Find definition and reference in multiple repository paths by msr for all coding languages + configuration + doc files.",
 	"author": "qualiu@microsoft.com",
-	"version": "2.1.78",
+	"version": "2.1.79",
 	"icon": "images/vscode-msr-icon.png",
 	"license": "completely free",
 	"publisher": "qualiu",
@@ -1927,7 +1927,7 @@
 				"msr.default.autoDisableFindDefinitionPattern": {
 					"description": "Set non-empty Regex to auto disable finding definition if found language extension running, like: 'vscode\\S*extension\\S*java' (You can temporarily toggle enable/disable - check MSR-Def-Ref in OUTPUT tab).",
 					"type": "string",
-					"default": "vscode\\S*extension\\S*\\b#_MappedExtName_#"
+					"default": "vscode\\S*extension\\S*\\b#_MappedExtName_#|[\\\\/]bin[\\\\/]#_MappedExtName_#"
 				},
 				"msr.cs.autoDisableFindDefinitionPattern": {
 					"description": "Set non-empty Regex to auto disable finding C# definition if found language extension running, like: 'vscode\\S*extension\\S*java' (You can temporarily toggle enable/disable - check MSR-Def-Ref in OUTPUT tab).",

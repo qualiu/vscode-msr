@@ -466,7 +466,7 @@ export class DynamicConfig {
     private getCheckingLanguageProcessPattern(currentFilePath: string, extension: string, mappedExt: string): string {
         const rootFolderName = getRootFolderName(currentFilePath, true);
         return getConfigValueByProjectAndExtension(rootFolderName, extension, mappedExt, 'autoDisableFindDefinitionPattern', true)
-            .replace('#_MappedExtName_#', mappedExt)
+            .replace(/#_MappedExtName_#/g, mappedExt)
             .trim();
     }
 
@@ -491,11 +491,10 @@ export class DynamicConfig {
             const rootFolderName = getRootFolderName(currentFilePath, true);
             const languageProcessName = getConfigValueByProjectAndExtension(rootFolderName, extension, mappedExt, 'languageProcessName')
                 .replace(/\.exe$/i, '');
-            // const fastFilter = isNullOrEmpty(languageProcessName) ? '' : `- ProcessName '${languageProcessName}'`;
             const fastFilter = isNullOrEmpty(languageProcessName) ? '' : `where "Name = '${languageProcessName}.exe'"`;
             const checkCommand = IsWindows
                 // ? `PowerShell - Command "Get-Process ${fastFilter} | Where-Object { $_.Path -imatch '${checkProcessPattern}'} | Select-Object -Property Id, ProcessName, Path"`
-                ? `wmic process ${fastFilter} get ProcessId, CommandLine | msr -it "${checkProcessPattern}" -PAC`
+                ? `wmic process ${fastFilter} get ProcessId, CommandLine | msr -it "${checkProcessPattern}" --nt "msr\\s+-it" -PAC`
                 : `ps -ef | grep -iE '${checkProcessPattern}' | grep -v grep`
                 ;
             const output = runCommandGetOutput(checkCommand, IsWindows).trim().replace(/\s+(\d+)[ \t]*/g, ' $1')

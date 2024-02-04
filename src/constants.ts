@@ -42,7 +42,9 @@ export const SystemBinFolder = IsWindows ? (process.env['SystemRoot'] || String.
 export const TempStorageFolder = IsWindows ? os.tmpdir() : '/tmp/';
 
 const GitInfoTemplate = "Skip_Git_Paths length = $L. Parsed $P of $T patterns, omitted $E errors, ignored $X exemptions: see MSR-Def-Ref in OUTPUT tab.";
-const FinalTipTemplate = `echo Auto disable self finding $M definition = $D. Uniform slash = $U. Faster gfind-xxx = $F. Auto update search tool = $A. | msr -aPA -i -e true -t "false|Auto.*?(disable).*?definition"`;
+const FinalTipTemplate = `echo Auto disable self finding $M definition = $D. Uniform slash = $U. Faster gfind-xxx = $F. Auto update search tool = $A.`
+  + ` | msr -t "%[A-Z]% |\$[A-Z]\b " -o "" -aPAC` // Trim case like %M%
+  + ` | msr -aPA -i -e true -t "false|Auto.*?(disable).*?definition"`;
 
 export function getTipInfoTemplate(isCmdTerminal: boolean, isFinalTip: boolean): string {
   const tip = isFinalTip ? FinalTipTemplate : GitInfoTemplate;

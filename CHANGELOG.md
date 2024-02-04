@@ -2,115 +2,149 @@
 
 All notable changes to this "vscode-msr" extension will be documented in this file.
 
+## [2.1.79]
+
+- Improved alias args for Linux/MacOS (`$*` to `${@}`).
+- Improved `msr.default.autoDisableFindDefinitionPattern` to auto disable self finding definitions.
+- Removed alias `use-rp` + `use-fp` (which can be done by existing `out-rp` + `out-fp`).
+
 ## [2.1.78]
+
 - Added `rgfind-xxx` alias to recursively search in a folder of multiple git repositories using `gfind-xxx` (need cook-alias first).
 - Auto detect and skip dot folders (like not skip `.sub-modules` folder if it's a git repo-child-folder).
 - Improved cooking scripts + custom search(`msr.xxx.myFindOrReplaceSelectedTextCommand`) to auto escape text for Regex.
 
 ## [2.1.77]
+
 - Improved cooking alias to script files for `.bashrc` on Linux/MacOS.
 - Improved alias `git-cherry-pick-branch-new-old-commits` for all platform.
 
 ## [2.1.76]
+
 - Added config `msr.fileExtensionMapNames` to avoid too many `msr.fileExtensionMap.xxx` configs.
 
 ## [2.1.75]
+
 - Improved searching selected text on Linux/MacOS (when containing "\`").
 
 ## [2.1.74]
+
 - Supported adding custom common alias by new config `msr.commonAliasNameBodyList` with 2 examples: `gsf` + `update-repos`.
 - Added `~/cmdAlias/` to `PATH` for Linux/MacOS.
 
 ## [2.1.73]
+
 - Supported custom initialization command line by new config `msr.xxx.postInitTerminalCommandLine`.
 - Auto detect old git and skip `--recurse-submodules` for `git ls-files` command + shortcuts.
 - Added overriding of `C#` custom search command by config `msr.cs.myFindOrReplaceSelectedTextCommand`.
 - Added alias `clear-msr-env` + Added `trust-exe` on Windows.
 
 ## [2.1.72]
+
 - Improved custom search command `msr.xxx.myFindOrReplaceSelectedTextCommand`:
   - Supported short `%Skip_Git_Paths%` which not exported as a tmp env var.
   - Added macro `%SelectedWordVariation%` (similar with config `msr.reference.autoChangeSearchWord`).
 
 ## [2.1.71]
+
 - Improved finding definition: Enable adding `msr.{ext-or-fileExtMap}.definition` without `msr.xxx.isClassResult`.
 - Improved searching special file type like `Makefile` or `.extension`.
 
 ## [2.1.70]
+
 - Auto use `msr.xxx.definition` pattern for `msr.xxx.isClassResult` if not set (like `msr.proto.definition`).
 - Added `msr.myFindOrReplaceSelectedTextCommand` menu + custom command examples to find or replace selected text.
 
 ## [2.1.69]
+
 - Improved skipping dot folders + Reduced `Skip_Git_Paths` value.
 
 ## [2.1.68]
+
 - Fixed typo error for `find-def` + `gfind-def`.
 
 ## [2.1.67]
+
 - Overwrite inconsistent alias when dumping alias to script files.
 
 ## [2.1.66]
+
 - Added `file-file` / `gfind-file` + Updated alias of `find-all` / `gfind-all` / `gfind-ref` / `find-pure-ref` / etc. (will search all files, no name filter).
 - Fixed registering general alias file when cooking alias on Window.
 
 ## [2.1.65]
+
 - Updated `USERNAME` for `reload-env`/`reset-env` on Windows.
 
 ## [2.1.64]
+
 - Improved `reload-env` + Reduced running `add-user-path` on Windows.
 - Changed `msr.overwriteInconsistentCommonAliasByExtension` = `true`.
 
 ## [2.1.63]
+
 - Renamed 1 config `msr.overwriteInConsistentCommonAliasByExtension` to `msr.overwriteInconsistentCommonAliasByExtension`.
 - Corrected 1 script on Linux: `git-add-safe-dir`.
 
 ## [2.1.62]
+
 - Removed tail args for common alias.
 
 ## [2.1.61]
+
 - Fixed cooking common alias to each script file.
 - Separated temp alias files for 4 types of terminals on Windows: CMD + MinGW + Cygwin + WSL.
 
 ## [2.1.60]
+
 - Added common alias like `gpc`/`gph`/`git-sm-init`/`git-add-safe-dir` + `reset-env`/`reload-env`/`add-user-path`/`del-tmp-path` etc.
   - Added config `msr.overwriteInconsistentCommonAliasByExtension` (default = `false`).
 - Auto add tool folder to user PATH on Windows.
 
 ## [2.1.59]
+
 - Enabled cooking alias in any opened files/projects (not just git projects).
 - Supported updating new command alias from files in `MSR-RUN-CMD` terminal without reloading vscode.
 - Supported `use-this-alias` in descendant folders + Separated temp alias for `MinGW` + `Cygwin` on Windows.
 - Reduced `msr.refreshTmpGitFileListDuration` to avoid unexpected results as `git ls-files` is very fast.
 
 ## [2.1.58]
+
 - Improved command alias for `Cygwin` + `MacOS` terminals.
 - Improved tip + trimming "-c/-C" in command lines.
 
 ## [2.1.57]
+
 - Separated `cmdAlias` folders on Windows for `CMD` + `MinGW` + `Cygwin` + `WSL` terminals.
 - Improved terminal initialization + toggling enable/disable find-definitions.
 
 ## [2.1.56]
+
 - Improved checking professional language process and stop vscode-msr finding definition.
 
 ## [2.1.55]
+
 - Improved terminal initialization + Add `msr.fileExtensionMap.docx` + Added `.hxx` for C++.
 - Reduced `msr.refreshTmpGitFileListDuration` to `2 minutes`.
 
 ## [2.1.54]
+
 - Hide tmp file on Linux/MacOS when running `gfind-xxx` alias.
 - Skip showing alias list if not cooked `cmdAlias` folder.
 
 ## [2.1.53]
+
 - Improved `gfind-spring-ref` / `gfind-cpp-member-ref`.
 - Improved output full path `out-fp` and relative path `out-rp`.
 
 ## [2.1.52]
+
 - Auto disable finding definition if found language extension running by config `autoDisableFindDefinitionPattern`.
 - Supported auto updating search tool - (change default `autoUpdateSearchTool` = `true`).
 - Reduced writing temp file when using `gfind-xxx` (default `refreshTmpGitFileListDuration` = `2 minutes`).
 
 ## [2.1.51]
+
 - Improved initializing `doskey`/`alias` when reloading or recovering terminals.
 - Reset project specific alias after cooking general alias/files.
 - Added `--xd` to skip link folders as default extraOption.
@@ -118,31 +152,39 @@ All notable changes to this "vscode-msr" extension will be documented in this fi
 - Show backend trying when downloading search tool.
 
 ## [2.1.50]
+
 - Supported `gfind-spring-ref` as counter part of `find-spring-ref`.
 
 ## [2.1.49]
+
 - Auto change reference words for Java Spring when finding words from menu.
 - Added `find-spring-ref` alias for `CMD`/`Bash` - requires `PowerShell/pwsh`.
 - Added config `msr.reference.autoChangeSearchWord` = `true` as default.
 
 ## [2.1.48]
+
 - Added `msr.cookCmdAlias.showLongTip` to hide/show long tip for command alias in terminals.
 - Fixed issues in MacOS: Corrected `malias` + Fixed random command line break in `MSR-RUN-CMD` terminal.
 
 ## [2.1.47]
+
 - Trivial update for MacOS `MSR-RUN-CMD` terminal.
 
 ## [2.1.46]
+
 - Trivial update for MinGW terminal on Windows.
 
 ## [2.1.45]
+
 - Improved terminal initialization of MSR-RUN-CMD for MinGW + MacBook.
 
 ## [2.1.44]
+
 - Added `msr.disableReRunSearch` as default to suppress re-running commands in `MSR-RUN-CMD` terminal.
 - Removed improper shortcuts.
 
 ## [2.1.43]
+
 - Added alternative sources to fix downloading failures from GitHub.
 - Reused `MSR-RUN-CMD` terminal when reload window or load previous sessions.
 - Auto correlated command aliases other shells like `zsh` on `Linux`/`MacOS`.
@@ -153,14 +195,17 @@ All notable changes to this "vscode-msr" extension will be documented in this fi
   - `msr.fileExtensionMap.vue` to auto generate `find-vue` + `find-vue-def` + `find-vue-ref`.
 
 ## [2.1.42]
+
 - Solved random messy initialization command lines in `MSR-RUN-CMD` terminal on `MacOS`.
 - Updated doc to use `curl` instead of `wget`.
 
 ## [2.1.41]
+
 - Added `msr.fileExtensionMap.gradle` to support searching gradle project files by `find-gradle` / `gfind-gradle`.
 - Used `curl` instead of `wget` to auto download msr/nin.
 
 ## [2.1.40]
+
 - Moved temp script files to tmp folder to set git-ignore skip path environment variable `Skip_Git_Paths`.
 - Imported bash profile by adding command: "`source ~/.bashrc`" before importing `msr-cmd-alias.bashrc`
 - Improved multiple workspaces support.
@@ -168,6 +213,7 @@ All notable changes to this "vscode-msr" extension will be documented in this fi
 - Added new default priority: `msr.xxx` is prior to `msr.default.xxx` (like `msr.java.definition` is prior to `msr.default.definition`).
 
 ## [2.1.39]
+
 - Improved dumping other command `alias` on Linux + MacOS.
   - Add `#!/bin/bash` when dumping other `alias` scripts on Linux/MacOS (for MacOS).
 - Supported changing PowerShell to Bash on Linux + MacOS.
@@ -175,9 +221,11 @@ All notable changes to this "vscode-msr" extension will be documented in this fi
 - Moved tmp alias files to `%TMP%` folder for `MinGW`/`Cygwin`/`WSL` terminals on Windows.
 
 ## [2.1.38]
+
 - Robust cooking-alias message tip on Windows PowerShell + CMD.
 
 ## [2.1.37]
+
 - Supported MacOS of `Darwin`-`Arm64`.
 - Supported writing + keeping alias into **default file** (like `~/msr-cmd-alias.bashrc`) on Linux/MacOS as on Windows.
 - No longer force change `PowerShell` to `CMD` on Windows.
@@ -186,6 +234,7 @@ All notable changes to this "vscode-msr" extension will be documented in this fi
 - Changed default menu of `Cook-alias/doskey` to easy use (cook alias + dump scripts).
 
 ## [2.1.36]
+
 - Added config `msr.default.codeFileExtensionMappingTypes` to co-work with `msr.fileExtensionMap.xxx`:
   - Auto add new code type (file extension) in `msr.fileExtensionMap.xxx` (like adding `groovy` in `msr.fileExtensionMap.java`).
   - Also add to command shortcuts like: `find-all` , `find-code` and `find-def` etc.
@@ -195,23 +244,29 @@ All notable changes to this "vscode-msr" extension will be documented in this fi
 - Updated `activationEvents` to to fix warnings of new version `vsce package` command.
 
 ## [2.1.35]
+
 - Avoided initializing doskeys for `"PowerShell Integrated Console"` on Windows.
 - Disabled finding definition for `Vue` by updating `msr.disable.extensionPattern`.
 - Updated default skip folder pattern by updating `msr.default.skipFolders`.
 
 ## [2.1.34]
+
 - Fixed cooking command alias/doskeys of `sort-xxx` + `find-top-xxx` when cooking in non-repo files.
 
 ## [2.1.33]
+
 - Fixed sort-xxx command alias/doskey.
 
 ## [2.1.32]
+
 - Fixed/Enabled cooking command alias/doskeys for system.
 
 ## [2.1.31]
+
 - Removed constraints(like `--w1`/`--s1`) when running finding commands in current file via menu or command palette.
 
 ## [2.1.30]
+
 - Changed `msr.default.extraOptions` rule: `msr.{project}.extraOptions` will overwrite `msr.default.extraOptions`.
 
 ## [2.1.29]
@@ -307,7 +362,7 @@ All notable changes to this "vscode-msr" extension will be documented in this fi
 - Improved finding definition speed + precision.
 - Supported finding class from code comments of Python.
 - Improved extra search paths overriding granularity.
-- Skipped searching notebook(*.ipynb) when searching docs.
+- Skipped searching notebook(\*.ipynb) when searching docs.
 - Added a new menu: `msr.regexFindInSameTypeFiles`.
 - Added `msr.fileExtensionMap.rs` to support cooking `Rust` doskey/alias like `find-rs`.
 - Fixed latest vscode(1.54.1) issue: Enabled auto-initializing doskey if set cmd.exe as default terminal on Windows.

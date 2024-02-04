@@ -43,8 +43,8 @@ const LinuxAliasMap: Map<string, string> = new Map<string, string>()
   .set('clear-msr-env', String.raw`for name in $(printenv | msr -t "^(MSR_\w+)=.*" -o "\1" -PAC); do echo "Cleared $name=$(printenv $name)" | grep -iE "MSR_\w+" --color && eval "unset $name"; done`)
   ;
 
-const CheckUseFunctionRegex = /\$\d\b| \$\*/;
-const CheckExistingArgsRegex = /\$\*|\$\d+/;
+const ShouldUseFunctionRegex = /\$\d\b|[ "']+?\$[\*@]|"\$\{@\}"/; // Check $1 or $* or $@ or "${@}"
+const HasExistingArgsRegex = /\$\*|\$\d+|\$@\W*$|"\$\{@\}"/;
 const TrimMultilineRegex = /[\r\n]+\s*/mg;
 const TrimPowerShellCmdWhiteRegex = /(PowerShell)( 2>nul)? (-Command ")\s+/g;
 const TrimForLoopWhite = /(%[a-zA-Z]\s+in\s+\(')\s+/g;
@@ -78,7 +78,7 @@ const CommonAliasMap: Map<string, string> = new Map<string, string>()
   .set('git-sm-restore', String.raw`echo git restore . ${GitListFileRecursiveArg} $* | msr -XM & git status`)  // replace '&' to ';' for Linux
   .set('git-sm-reinit', String.raw`msr -XM -z "git submodule deinit -f ." && msr -XM -z "git submodule update --init" & git status`)
   .set('git-sm-update-remote', String.raw`msr -XMz "git submodule sync" && echo git submodule update --remote $* | msr -XM & git status`)
-  .set('git-cherry-pick-branch-new-old-commits', String.raw`git log $1 | msr -b "^commit $2" -q "^commit $3" -t "^commit (\w+)" -o "\1" -M -C | msr -s "^:(\d+):" -n --dsc -t "^:\d+:(?:\d+:)?\s+(\w+)" -o "git cherry-pick \1" $4 $5 $6 $7 $8 $9`)
+  .set('git-cherry-pick-branch-new-old-commits', String.raw`git log $1 | msr -b "^commit $2" -q "^commit $3" -t "^commit (\w+)" -o "\1" -M -C | msr -s "^:(\d+):" -n --dsc -t "^:\d+:(?:\d+:)?\s+(\w+)" -o "git cherry-pick \1" -X -V ne0 $4 $5 $6 $7 $8 $9`)
   .set('git-sm-check', String.raw`git status | msr -it "^\s*modified:\s+(\S+)\s*\(.*?$" -o "\1" -PAC
           | msr -x / -o \ -aPAC | msr -t "(.+)" -o "if exist \1\* pushd \1 && git status --untracked-files=all --short && git diff --name-only" -XM $*`)
   .set('git-sm-delete', String.raw`git status | msr -it "^\s*modified:\s+(\S+)\s*\(untracked content\)\s*$" -o "\1" -PAC
@@ -245,10 +245,15 @@ function getAliasBody(terminalType: TerminalType, name: string, body: string, wr
   body = trimAliasBody(body);
   if (!isWindowsTerminalOnWindows(terminalType)) {
     body = body.replace(/ & /g, '; ');
+    // case like 'gca -m "New message"' will get error on Linux terminal (including WSL/MinGW/Cygwin), need quote "${@}":
+    body = body.replace(/\$\*/g, '${@}')
+      .replace(/([^"])(\$\{@\})/g, '$1"$2"') // quote "${@}" if not quoted.
+      .replace(/"([^"]*?)"(\$\{@\})"([^"]*?)"/g, '"$1$*$3"') // replace "${@}" to ${@} if in a double quote, case like gph.
+      ;
   }
 
-  const useFunction = CheckUseFunctionRegex.test(body);
-  const addTailArgs = !CheckExistingArgsRegex.test(body);
+  const useFunction = ShouldUseFunctionRegex.test(body);
+  const addTailArgs = !HasExistingArgsRegex.test(body);
   return getCommandAliasText(name, body, useFunction, terminalType, writeToEachFile, addTailArgs, false, false);
 }
 
@@ -403,7 +408,7 @@ export function getCommandAliasText(
 
   let tailArgs = "";
   if (addTailArgs) {
-    // Generally should not add tail args if found arg-holders by CheckExistingArgsRegex, but special case for find-xxx-def
+    // Generally should not add tail args if found arg-holders by HasExistingArgsRegex, but special case for find-xxx-def
     addTailArgs = !CommonAliasMap.has(cmdName)
       && (isWindowsTerminal ? !WindowsAliasMap.has(cmdName) : !LinuxAliasMap.has(cmdName));
   }
@@ -421,7 +426,7 @@ export function getCommandAliasText(
         tailArgs = isWindowsTerminal ? ' $*' : ' "${@:2}"';
       }
     } else {
-      tailArgs = isWindowsTerminal ? ' $*' : ' "$@"';
+      tailArgs = isWindowsTerminal ? ' $*' : ' "${@}"';
     }
   }
 

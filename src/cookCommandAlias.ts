@@ -106,7 +106,7 @@ function getShellExeAndTerminalType(terminal: vscode.Terminal | undefined, isNew
 }
 
 function duplicateSearchFileCmdAlias(rootFolder: string, terminalType: TerminalType, cmdAliasMap: Map<string, string>, isForProjectCmdAlias: boolean, writeToEachFile: boolean) {
-  // Duplicate find-xxx to gfind-xxx for "git ls-file" & find-xxx; except find-nd / find-ndp
+  // Duplicate find-xxx to gfind-xxx (use "git ls-file" + find-xxx), except find-nd / find-ndp
   const rootFolderName = getRootFolderName(rootFolder);
   const tmpFileName = isForProjectCmdAlias
     ? 'tmp-list-' + (rootFolderName + '-' + path.basename(path.dirname(rootFolder))).replace(TrimProjectNameRegex, '-')
@@ -154,6 +154,7 @@ function duplicateSearchFileCmdAlias(rootFolder: string, terminalType: TerminalT
         newCommand = newCommand.replace(new RegExp('^' + key), gitFindName);
       } else {
         newCommand = newCommand.replace(new RegExp('^alias\\s+' + key), 'alias ' + gitFindName)
+          .replace(new RegExp("\\b_" + key.replace(/-/g, '_') + "\\b", 'g'), '_' + gitFindName.replace(/-/g, '_')); // [optional]: replace inner function name
       }
 
       cmdAliasMap.set(gitFindName, newCommand);
@@ -172,14 +173,21 @@ function duplicateSearchFileCmdAlias(rootFolder: string, terminalType: TerminalT
   });
 }
 
-function runPostInitCommands(terminal: vscode.Terminal, terminalType: TerminalType, rootFolderName: string) {
+function getPostInitCommands(terminalType: TerminalType, rootFolderName: string) {
   const terminalTypeName = TerminalType[terminalType].toString();
   const typeName = (terminalTypeName[0].toLowerCase() + terminalTypeName.substring(1))
     .replace(/CMD/i, 'cmd')
     .replace(/MinGW/i, 'mingw')
     .replace(/^(Linux|WSL)Bash/i, 'bash');
   const configTailKey = typeName + '.postInitTerminalCommandLine';
-  const postInitCommand = getConfigValueOfProject(rootFolderName, configTailKey, true);
+  return getConfigValueOfProject(rootFolderName, configTailKey, true);
+}
+
+function runPostInitCommands(terminal: vscode.Terminal | null | undefined, terminalType: TerminalType, rootFolderName: string) {
+  if (!terminal) {
+    return;
+  }
+  const postInitCommand = getPostInitCommands(terminalType, rootFolderName);
   if (isNullOrEmpty(postInitCommand)) {
     return;
   }
@@ -343,11 +351,6 @@ export function cookCmdShortcutsOrFile(
     cmdAliasMap.set(aliasName, getCommandAliasText(aliasName, sortBody, false, terminalType, writeToEachFile, false, false));
   });
 
-  const useFullPathsBody = getPathCmdAliasBody(true, cmdAliasFileStoragePath, false);
-  cmdAliasMap.set('use-fp', getCommandAliasText('use-fp', useFullPathsBody, false, terminalType, writeToEachFile, false, false));
-  const searchRelativePathsBody = getPathCmdAliasBody(false, cmdAliasFileStoragePath, false);
-  cmdAliasMap.set('use-rp', getCommandAliasText('use-rp', searchRelativePathsBody, false, terminalType, writeToEachFile, false, false));
-
   const outFullPathsBody = getPathCmdAliasBody(true, cmdAliasFileStoragePath, true, true);
   cmdAliasMap.set('out-fp', getCommandAliasText('out-fp', outFullPathsBody, false, terminalType, writeToEachFile, false, false));
   const outRelativePathsBody = getPathCmdAliasBody(false, cmdAliasFileStoragePath, true, false);
@@ -380,7 +383,7 @@ export function cookCmdShortcutsOrFile(
   const createCmdAliasTip = `You can create shortcuts in ${defaultAliasPathForBash}${isWindowsTerminal ? '' : ' or other files'} . `;
   const replaceTipValueArg = `-x S#C -o ${cmdAliasMap.size}`;
   const shortcutsExample = 'Now you can use S#C shortcuts like find-all gfind-all gfind-small find-def gfind-ref find-doc find-spring-ref'
-    + ' , find-top-folder gfind-top-type sort-code-by-time etc. See detail like: alias find-def or malias find-top or malias use-fp or malias sort-.+?= etc.';
+    + ' , find-top-folder gfind-top-type sort-code-by-time etc. See detail like: alias find-def or malias find-top or malias out-fp or malias sort-.+?= etc.';
   const finalGuide = createCmdAliasTip + shortcutsExample + ' You can change msr.skipInitCmdAliasForNewTerminalTitleRegex in user settings.'
     + ' Toggle-Enable/Disable finding definition + Speed-Up-if-Slowdown-by-Windows-Security + Adjust-Color + Fuzzy-Code-Mining + Preview-And-Replace-Files + Hide/Show-Menus'
     + ' + Use git-ignore + Use in external terminals/IDEs: use-this-alias / list-alias / out-fp / out-rp'
@@ -509,6 +512,7 @@ export function cookCmdShortcutsOrFile(
 
   const showLongTip = MyConfig.ShowLongTip && !isTooCloseCooking;
   if (TerminalType.PowerShell === terminalType && !useGitIgnore) {
+    runPostInitCommands(terminal, terminalType, rootFolderName); // Must be run before 'cmd /k' for PowerShell
     // runCmdInTerminal(getSetToolEnvCommand(terminalType, [generalScriptFilesFolder]));
     const quotedFileForPS = (quotedCmdAliasFileForTerminal === cmdAliasFileStoragePath ? cmdAliasFileStoragePath : '`"' + cmdAliasFileStoragePath + '`"').replace(TempStorageFolder, '%TMP%');
     const cmd = `cmd /k "doskey /MACROFILE=${quotedFileForPS}`
@@ -539,7 +543,7 @@ export function cookCmdShortcutsOrFile(
     runCmdInTerminal(getLoadAliasFileCommand(projectAliasFilePath, isWindowsTerminal));
   }
 
-  if (terminal) {
+  if (TerminalType.PowerShell !== terminalType) {
     runPostInitCommands(terminal, terminalType, rootFolderName);
   }
 
@@ -1033,10 +1037,7 @@ function outputCmdAliasGuide(cmdAliasFile: string, singleScriptFolder: string = 
   outputInfoQuiet('malias find -x all -H 9');
   outputInfoQuiet('malias "find[\\w-]*ref"');
   outputInfoQuiet('malias ".*?(find-\\S+)=.*" -o "\\2"  :  To see all find-xxx alias/doskeys.');
-  outputInfoQuiet("malias use-rp :  To see matched alias/doskeys like 'use-rp', 'out-rp', 'use-fp' and 'out-fp' etc.");
-  outputInfoQuiet('use-rp  - Search relative path(.) as input path: Output relative paths if no -W.');
-  outputInfoQuiet('use-fp  - Search workspace root paths: Output absolute/full paths (regardless of -W).');
-  outputInfoQuiet('out-rp  - Output relative path. This will not effect if use-fp which input full paths of current workspace.');
+  outputInfoQuiet('out-rp  - Output relative path.');
   outputInfoQuiet('out-fp  - Output full path.');
   outputInfoQuiet('Add -W to output full path; -I to suppress warnings; -o to replace text, -j to preview changes, -R to replace files.');
   outputInfoQuiet('You can also create your own command shortcuts in the file: ' + cmdAliasFile);

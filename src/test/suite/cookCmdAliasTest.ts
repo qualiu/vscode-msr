@@ -4,8 +4,9 @@ import { getCommandAliasMap } from '../../cookCommandAlias';
 import { TerminalType } from '../../enums';
 import { IsWindows } from '../../constants';
 
-const TailArgsRegex: RegExp = /\$\*\W*$/; // Linux + Windows-doskey-file
-const LinuxFunctionTailArgsRegex: RegExp = /\$\*\W*[\r\n]+/; // Linux-bash-file
+// Tail args: $* or $@ or ${@} or "${@}"
+const TailArgsRegex: RegExp = /\$([\*@]|\{@\})\W*$/; // Linux + Windows-doskey-file
+const LinuxFunctionTailArgsRegex: RegExp = /\$([\*@]|\{@\})\W*[\r\n]+/; // Linux-bash-file
 const WindowsBatchScriptArg1Regex: RegExp = /%~?1\b/; // Windows-batch-file (.cmd or .bat)
 const WindowsBatchScriptTailArgsRegex: RegExp = /%\*\W*$/; // Windows-batch-file (.cmd or .bat)
 const IsForLoopExists: RegExp = /\bfor\s+\/f\b(\s+".+?")?\s+%+[a-z]\s+in\s+\(/i;

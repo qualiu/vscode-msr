@@ -1,5 +1,5 @@
 import { getConfigValueOfActiveProject } from "./configUtils";
-import { GetCommandOutput, HomeFolder, Is64BitOS, IsDarwinArm64, IsDebugMode, IsLinuxArm64, IsWindows, OutputChannelName, getCommandToSetFinalTipVar } from "./constants";
+import { GetCommandOutput, HomeFolder, Is64BitOS, IsDarwinArm64, IsDebugMode, IsLinuxArm64, IsWindows, OutputChannelName, getCommandToSetFinalTipVar, getRunTipFileCommand } from "./constants";
 import { cookCmdShortcutsOrFile } from "./cookCommandAlias";
 import { FileExtensionToMappedExtensionMap, getConfig } from "./dynamicConfig";
 import { TerminalType } from "./enums";
@@ -262,8 +262,8 @@ export class ToolChecker {
       const checkProcessPattern = getConfigValueOfActiveProject('autoDisableFindDefinitionPattern', true);
       const tipFileDisplayPath = getTipFileDisplayPath(DefaultTerminalType);
       let setEnVarCommand = getCommandToSetFinalTipVar(IsWindowsTerminalOnWindows, mappedExt, !isNullOrEmpty(checkProcessPattern), IsUniformSlashSupported, IsNotCheckInputPathSupported, getConfig().AutoUpdateSearchTool);
-      const tipCommand = setEnVarCommand + ' msr -p ' + tipFileDisplayPath + String.raw` -L 5 -N 5 -t "^\s*[#::]+\s*" -o "" -X -A` + (this.isTerminalOfWindows ? ' 2>nul ' : ' 2>/dev/null');
-      runRawCommandInTerminal(tipCommand);
+      const tipCommand = getRunTipFileCommand(tipFileDisplayPath, 9, String.raw`-t "^\s*[#::]+\s*" -o ""`) + (this.isTerminalOfWindows ? ' 2>nul ' : ' 2>/dev/null');
+      runRawCommandInTerminal(setEnVarCommand + ' ' + tipCommand);
     }
 
     this.checkAndDownloadTool('nin');

@@ -2,17 +2,17 @@
 
 Have you suffered issues below in your daily work?
 
-- **Find definition**: Unable to `jump-to-definition`?
+- **Find Definition**: Unable to `jump-to-definition`?
   - Lack of dependency packages / build , or failed to build?
   - IDE/extension often caught some problems?
   - Cannot cross `multiple languages`? `C#` , `C++` , `Java`/`Scala`, `Python`, `Vue`, etc.
   - Cannot cross `multiple repositories`?
-- **Search code**:
+- **Search Code**:
   - Clumsy and slow in IDE? Too **narrow** `vscode` panel to preview?
   - Wasting time to click and expand **each** item?
   - Lack of a powerful tool to [**learn/ramp-up code by yourself**](#code-mining-without-or-with-little-knowledge) ? (filter + stats + compare/analogy).
   - `What if` a **colorful** + **fast** glance for **all search results** + [**rich and powerful filters**](#search-files-with-rich-filters)?
-- **Replace files**:
+- **Replace File Text**:
   - **Missed changes to some files**(like `doc`/`config`) or **other languages** not loaded in IDE?
   - Your replacing tool **added** or **removed** the `tail empty line` ? And cause wrong `git diff` ?
   - Your replacing tool changed your file time even nothing changed?
@@ -245,7 +245,7 @@ If using alias(like `find-spring-ref`) in a **nested command** (like `for/while-
 - Use **full-name** (like `find-spring-ref.cmd`) .
 - Or use **full script path** (like `~/cmdAlias/find-spring-ref`).
 
-### Try rgfind-xxx to Search Multiple git Repositories
+### Try rgfind-xxx to Search Multiple Git Repositories
 
 After [cooking alias scripts](#make-command-shortcuts-to-search-or-replace-in-or-out-of-vscode), you can use `rgfind-xxx` like `rgfind-cpp-ref MySearchWord` to **recursively** search multiple git repositories in a folder.
 

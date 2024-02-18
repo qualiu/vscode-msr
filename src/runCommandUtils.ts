@@ -48,7 +48,7 @@ export function getRunCmdTerminalWithInfo(autoInitTerminal: boolean = true): [vs
   }
 
   // init command alias for MSR-RUN-CMD terminal if it's recovered or just created.
-  cookCmdShortcutsOrFile(false, currentProjectFolder, true, false, RunCmdTerminal, hasCreated);
+  cookCmdShortcutsOrFile(false, currentProjectFolder, false, false, RunCmdTerminal, hasCreated);
   const gitIgnore = WorkspaceToGitIgnoreMap.get(currentProjectFolder);
   if (gitIgnore) {
     gitIgnore.exportSkipPathVariable(true);
@@ -61,7 +61,7 @@ export function disposeTerminal() {
   RunCmdTerminal = undefined;
 }
 
-export function runCommandInTerminal(command: string, showTerminal = false, clearAtFirst = true, isLinuxOnWindows = IsLinuxTerminalOnWindows) {
+export function runCommandInTerminal(command: string, showTerminal = false, clearAtFirst = false, isLinuxOnWindows = IsLinuxTerminalOnWindows) {
   command = enableColorAndHideCommandLine(command);
   sendCommandToTerminal(command, getRunCmdTerminal(), showTerminal, clearAtFirst, isLinuxOnWindows);
 }
@@ -70,7 +70,7 @@ export function runRawCommandInTerminal(command: string, showTerminal = true, cl
   sendCommandToTerminal(command, getRunCmdTerminal(), showTerminal, clearAtFirst, isLinuxOnWindows);
 }
 
-export function sendCommandToTerminal(command: string, terminal: vscode.Terminal, showTerminal = false, clearAtFirst = true, isLinuxOnWindows = IsLinuxTerminalOnWindows) {
+export function sendCommandToTerminal(command: string, terminal: vscode.Terminal, showTerminal = false, clearAtFirst = false, isLinuxOnWindows = IsLinuxTerminalOnWindows) {
   if (isNullOrEmpty(command)) {
     return;
   }

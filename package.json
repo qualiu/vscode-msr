@@ -1,9 +1,9 @@
 {
 	"name": "vscode-msr",
-	"displayName": "Code mining + Replace file + Find definition and reference for all types.",
-	"description": "Code mining + Replace file + Find definition and reference in multiple repository paths by msr for all coding languages + configuration + doc files.",
+	"displayName": "Code mining + Replace file text + Find definition and reference for all types.",
+	"description": "Code mining + Replace file text + Find definition and reference in multiple repository paths by msr for all coding languages + configuration + doc files.",
 	"author": "qualiu@microsoft.com",
-	"version": "2.1.79",
+	"version": "2.1.80",
 	"icon": "images/vscode-msr-icon.png",
 	"license": "completely free",
 	"publisher": "qualiu",
@@ -1270,11 +1270,6 @@
 					"type": "string",
 					"default": "^\\.(git|vscode|idea)$",
 					"description": "Regex pattern of ignorable dot folder names when using '.gitignore' file."
-				},
-				"msr.exportLongSkipGitPathsLength": {
-					"type": "integer",
-					"default": 200,
-					"description": "Export to a temp variable Skip_Git_Paths (for --np like using '.gitignore') if length exceeds this value (avoid long git-ignore pattern)."
 				},
 				"msr.default.allFiles": {
 					"type": "string",

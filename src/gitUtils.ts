@@ -2,15 +2,13 @@ import path = require('path');
 import fs = require('fs');
 import ChildProcess = require('child_process');
 import { ExecSyncOptions } from 'child_process';
-import { getConfigValueOfActiveProject } from './configUtils';
-import { getCommandToSetGitInfoVar, OutputChannelName, RunCmdTerminalName, TempStorageFolder, TrimProjectNameRegex } from './constants';
+import { getCommandToSetGitInfoVar, getRunTipFileCommand, OutputChannelName } from './constants';
 import { TerminalType } from './enums';
-import { saveTextToFile } from './fileUtils';
 import { outputError, outputErrorByTime, outputInfoByDebugMode, outputInfoByTime, outputInfoQuiet, outputInfoQuietByTime, outputWarnByTime } from './outputUtils';
-import { runCommandInTerminal, runRawCommandInTerminal } from './runCommandUtils';
-import { DefaultTerminalType, getTipFileDisplayPath, IsLinuxTerminalOnWindows, IsWindowsTerminalOnWindows, isWindowsTerminalOnWindows, toTerminalPath } from './terminalUtils';
+import { runRawCommandInTerminal } from './runCommandUtils';
+import { DefaultTerminalType, getTipFileDisplayPath, IsLinuxTerminalOnWindows, isWindowsTerminalOnWindows } from './terminalUtils';
 import { IsForwardingSlashSupportedOnWindows, RunCommandChecker } from './ToolChecker';
-import { changeToForwardSlash, getDefaultRootFolder, getElapsedSecondsToNow, isNullOrEmpty, quotePaths, RunCmdTerminalRootFolder } from './utils';
+import { changeToForwardSlash, getDefaultRootFolder, getElapsedSecondsToNow, isNullOrEmpty, RunCmdTerminalRootFolder } from './utils';
 
 function isGitRecurseSubModuleSupported(): boolean {
   const execOption: ExecSyncOptions = { cwd: getDefaultRootFolder() };
@@ -34,7 +32,7 @@ export const IsGitRecurseSubModuleSupported = isGitRecurseSubModuleSupported();
 export const GitListFileRecursiveArg = IsGitRecurseSubModuleSupported ? '--recurse-submodules' : '';
 export const GitListFileHead = `git ls-files ${GitListFileRecursiveArg}`.trimRight();
 
-export const SkipPathVariableName: string = 'Skip_Git_Paths';
+export const SkipPathVariableName: string = 'Skip_Junk_Paths';
 const RunCmdFolderWithForwardSlash: string = changeToForwardSlash(RunCmdTerminalRootFolder);
 
 let ProjectFolderToHasSkipGitPathsEnvMap = new Map<string, boolean>();
@@ -43,18 +41,6 @@ let ProjectFolderToShortSkipGitPathEnvValueMap = new Map<string, string>();
 export function hasValidGitSkipPathsEnv(projectGitFolder: string): boolean {
   projectGitFolder = changeToForwardSlash(projectGitFolder);
   return ProjectFolderToHasSkipGitPathsEnvMap.get(projectGitFolder) || false;
-}
-
-export function getSkipGitPathEnvOrValue(projectGitFolder: string): string {
-  if (!hasValidGitSkipPathsEnv(projectGitFolder)) {
-    return '';
-  }
-  projectGitFolder = changeToForwardSlash(projectGitFolder);
-  const shortEnvValue = ProjectFolderToShortSkipGitPathEnvValueMap.get(projectGitFolder);
-  if (shortEnvValue && !isNullOrEmpty(shortEnvValue)) {
-    return shortEnvValue;
-  }
-  return IsWindowsTerminalOnWindows ? `%${SkipPathVariableName}%` : `$${SkipPathVariableName}`;
 }
 
 export class GitIgnore {
@@ -68,12 +54,8 @@ export class GitIgnore {
   private SkipPathPattern: string = '';
   private RootFolder: string = '';
   private CheckUseForwardingSlashForCmd = true;
-  private ExportLongSkipGitPathsLength: number = 200;
-  private LastExportedSkipPaths: string = '';
-  private SetSkipPathEnvFile: string = '';
   private IsCmdTerminal: boolean;
   private MaxCommandLength: number;
-  private LastPrintSkipExportingTime: Date = new Date();
 
   constructor(ignoreFilePath: string, useGitIgnoreFile: boolean = false, omitGitIgnoreExemptions: boolean = false,
     ignorableDotFolderNamePattern: string = '', terminalType = DefaultTerminalType, checkUseForwardingSlashForCmd = true) {
@@ -82,10 +64,8 @@ export class GitIgnore {
     this.OmitGitIgnoreExemptions = omitGitIgnoreExemptions;
     this.Terminal = terminalType;
     this.CheckUseForwardingSlashForCmd = checkUseForwardingSlashForCmd;
-    this.ExportLongSkipGitPathsLength = Number(getConfigValueOfActiveProject('exportLongSkipGitPathsLength'));
     this.IsCmdTerminal = isWindowsTerminalOnWindows(this.Terminal);
     this.MaxCommandLength = this.IsCmdTerminal ? 8163 : 131072;
-    this.LastPrintSkipExportingTime.setFullYear(this.LastPrintSkipExportingTime.getFullYear() - 1);
 
     if (isNullOrEmpty(ignoreFilePath)) {
       return;
@@ -122,56 +102,28 @@ export class GitIgnore {
       return '';
     }
 
-    if (pattern.length <= this.ExportLongSkipGitPathsLength) {
-      return ' --np "' + pattern + '"';
-    }
-
     this.exportSkipPathVariable();
     return toRunInTerminal && canUseVariable
-      ? ' --np ' + this.getSkipPathsVariable()
-      : ' --np "' + pattern + '"';
+      ? this.getSkipPathsVariable()
+      : pattern;
   }
 
   private getSkipPathsVariable() {
     return this.IsCmdTerminal ? '"%' + SkipPathVariableName + '%"' : '"$' + SkipPathVariableName + '"';
   }
 
-
   public exportSkipPathVariable(forceExport: boolean = false): boolean {
     if (!forceExport && RunCmdFolderWithForwardSlash !== this.RootFolder) {
-      const passedSeconds = (new Date().getTime() - this.LastPrintSkipExportingTime.getTime()) / 1000;
-      if (passedSeconds > 5) {
-        this.LastPrintSkipExportingTime = new Date();
-        outputInfoByTime(`Skip exporting ${SkipPathVariableName} due to workspace = ${this.RootFolder} != ${RunCmdFolderWithForwardSlash} of ${RunCmdTerminalName} terminal.`);
-      }
-
       return false;
     }
 
-    const pattern = this.SkipPathPattern;
-    if (isNullOrEmpty(pattern)) {
+    if (isNullOrEmpty(this.SkipPathPattern)) {
       return false;
-    }
-
-    if (pattern.length <= this.ExportLongSkipGitPathsLength) {
-      return false;
-    }
-
-    if (forceExport || pattern !== this.LastExportedSkipPaths) {
-      this.LastExportedSkipPaths = pattern;
-      const command = (this.IsCmdTerminal ? 'call ' : 'source ') + quotePaths(toTerminalPath(this.SetSkipPathEnvFile, this.Terminal));
-      runCommandInTerminal(command, true, false, IsLinuxTerminalOnWindows);
     }
 
     return true;
   }
 
-  private getExportCommand(pattern: string): string {
-    const command = this.IsCmdTerminal
-      ? '@set "' + SkipPathVariableName + '=' + pattern + '"'
-      : "export " + SkipPathVariableName + "='" + pattern + "'";
-    return command;
-  }
 
   public replaceToSkipPathVariable(command: string): string {
     if (this.exportSkipPathVariable()) {
@@ -185,32 +137,26 @@ export class GitIgnore {
       return;
     }
 
-    const setVariableCommand = this.SkipPathPattern.length <= this.ExportLongSkipGitPathsLength
-      ? this.getExportCommand(this.SkipPathPattern)
-      : '';
-
     const commands = this.IsCmdTerminal
       ? [
-        setVariableCommand,
         String.raw`${GitListFileHead} > %tmp%\git-file-list.txt`,
-        String.raw`msr -rp . --np "%Skip_Git_Paths%" -l -PIC | msr -x \ -o / -aPAC > %tmp%\ext-file-list.txt`,
+        String.raw`msr -rp . --np "%Skip_Junk_Paths%" -l -PIC | msr -x \ -o / -aPAC > %tmp%\ext-file-list.txt`,
         String.raw`nin %tmp%\git-file-list.txt %tmp%\ext-file-list.txt --nt "^\.|/\." -H 5 -T 5`,
         String.raw`nin %tmp%\git-file-list.txt %tmp%\ext-file-list.txt --nt "^\.|/\." -S -H 5 -T 5`,
         String.raw`nin %tmp%\git-file-list.txt %tmp%\ext-file-list.txt --nt "^\.|/\." -PAC | msr -t "^(\S+.+)" -o "./\1" -PIC > %tmp%\files-only-in-git.txt`,
         String.raw`nin %tmp%\git-file-list.txt %tmp%\ext-file-list.txt --nt "^\.|/\." -S -PAC | msr -t "^(\S+.+)" -o "./\1" -PIC > %tmp%\files-only-in-ext.txt`,
-        String.raw`for /f "tokens=*" %a in ('msr -z "%Skip_Git_Paths%" -t "\|" -o "\n" -PIC ^| msr -PIC') do @msr -p %tmp%\files-only-in-git.txt -it "%a" -H 3 -T 3 -O -c "Skip_Paths_Regex = %a"`,
-        String.raw`for /f "tokens=*" %a in ('msr -z "%Skip_Git_Paths%" -t "\|" -o "\n" -PIC ^| msr -PIC') do @msr -p %tmp%\files-only-in-ext.txt -it "%a" -H 3 -T 3 -O -c "Skip_Paths_Regex = %a"`,
+        String.raw`for /f "tokens=*" %a in ('msr -z "%Skip_Junk_Paths%" -t "\|" -o "\n" -PIC ^| msr -PIC') do @msr -p %tmp%\files-only-in-git.txt -it "%a" -H 3 -T 3 -O -c "Skip_Paths_Regex = %a"`,
+        String.raw`for /f "tokens=*" %a in ('msr -z "%Skip_Junk_Paths%" -t "\|" -o "\n" -PIC ^| msr -PIC') do @msr -p %tmp%\files-only-in-ext.txt -it "%a" -H 3 -T 3 -O -c "Skip_Paths_Regex = %a"`,
       ]
       : [
-        setVariableCommand,
         String.raw`${GitListFileHead} > /tmp/git-file-list.txt`,
-        String.raw`msr -rp . --np "$Skip_Git_Paths" -l -PIC > /tmp/ext-file-list.txt`,
+        String.raw`msr -rp . --np "$Skip_Junk_Paths" -l -PIC > /tmp/ext-file-list.txt`,
         String.raw`nin /tmp/git-file-list.txt /tmp/ext-file-list.txt --nt "^\.|/\." -H 5 -T 5`,
         String.raw`nin /tmp/git-file-list.txt /tmp/ext-file-list.txt --nt "^\.|/\." -S -H 5 -T 5`,
         String.raw`nin /tmp/git-file-list.txt /tmp/ext-file-list.txt --nt "^\.|/\." -PAC | msr -t "^(\S+.+)" -o "./\1" -PIC > /tmp/files-only-in-git.txt`,
         String.raw`nin /tmp/git-file-list.txt /tmp/ext-file-list.txt --nt "^\.|/\." -S -PAC | msr -t "^(\S+.+)" -o "./\1" -PIC > /tmp/files-only-in-ext.txt`,
-        String.raw`msr -z "$Skip_Git_Paths" -t "\|" -o "\n" -PIC | msr -PIC | while IFS= read -r p; do msr -p /tmp/files-only-in-git.txt -it "$p" -H 3 -T 3 -O -c "Skip_Paths_Regex = $p"; done`,
-        String.raw`msr -z "$Skip_Git_Paths" -t "\|" -o "\n" -PIC | msr -PIC | while IFS= read -r p; do msr -p /tmp/files-only-in-ext.txt -it "$p" -H 3 -T 3 -O -c "Skip_Paths_Regex = $p"; done`
+        String.raw`msr -z "$Skip_Junk_Paths" -t "\|" -o "\n" -PIC | msr -PIC | while IFS= read -r p; do msr -p /tmp/files-only-in-git.txt -it "$p" -H 3 -T 3 -O -c "Skip_Paths_Regex = $p"; done`,
+        String.raw`msr -z "$Skip_Junk_Paths" -t "\|" -o "\n" -PIC | msr -PIC | while IFS= read -r p; do msr -p /tmp/files-only-in-ext.txt -it "$p" -H 3 -T 3 -O -c "Skip_Paths_Regex = $p"; done`
       ];
 
     commands.forEach((cmd, _idx, _commands) => {
@@ -319,7 +265,7 @@ export class GitIgnore {
       const isInMaxLength = setVarCmdLength < this.MaxCommandLength;
       this.Valid = this.SkipPathPattern.length > 0 && isInMaxLength;
       ProjectFolderToHasSkipGitPathsEnvMap.set(this.RootFolder, this.Valid);
-      if (this.Valid && this.SkipPathPattern.length < this.ExportLongSkipGitPathsLength) {
+      if (this.Valid) {
         ProjectFolderToShortSkipGitPathEnvValueMap.set(this.RootFolder, this.SkipPathPattern);
       }
       if (errorList.length > 0) {
@@ -335,10 +281,6 @@ export class GitIgnore {
       const message = 'Cost ' + getElapsedSecondsToNow(beginTime).toFixed(3) + ' s: ' + parsedInfo;
       outputInfoByTime(message);
 
-      const tmpScriptName = path.basename(this.RootFolder).replace(TrimProjectNameRegex, '-') + '.set-git-skip-paths-env.tmp';
-      this.SetSkipPathEnvFile = path.join(TempStorageFolder, tmpScriptName + (this.IsCmdTerminal ? '.cmd' : '.sh'));
-      const setEnvCommands = this.getExportCommand(this.SkipPathPattern);
-      saveTextToFile(this.SetSkipPathEnvFile, setEnvCommands);
       callbackWhenSucceeded();
 
       const shouldDisplayTip = this.RootFolder === RunCmdFolderWithForwardSlash;
@@ -348,14 +290,11 @@ export class GitIgnore {
 
       const tipFileDisplayPath = getTipFileDisplayPath(this.Terminal);
       const setVarCmd = getCommandToSetGitInfoVar(this.IsCmdTerminal, this.SkipPathPattern.length, readPatternCount, skipPatterns.size, errorList.length, this.ExemptionCount);
-      const replaceCmd = (this.IsCmdTerminal ? `-x ::` : `-x '#'`) + ` -o echo ` + (
-        !isInMaxLength
-          ? `-L 4 -N4`
-          : (this.ExemptionCount > 0 ? `-L 3 -N3` : `-L 2 -N2`)
-      );
-
-      const command = `msr -XA -z "${setVarCmd} msr -p ${tipFileDisplayPath} ${replaceCmd} -XA"` // change -XA to -XMI for debug
-        + (this.IsCmdTerminal ? ' 2>nul & use-this-alias -A' : ' 2>/dev/null');
+      const tipRow = !isInMaxLength ? 8 : (this.ExemptionCount > 0 ? 7 : 6);
+      const replaceCmd = (this.IsCmdTerminal ? `-x ::` : `-x '#'`) + ` -o echo `;
+      const tipCommand = getRunTipFileCommand(tipFileDisplayPath, tipRow, replaceCmd);
+      // change -XA to -XMI for debug
+      const command = `msr -XA -z "${setVarCmd} ${tipCommand}"` + (this.IsCmdTerminal ? ' 2>nul & use-this-alias -A' : ' 2>/dev/null');
       runRawCommandInTerminal(command);
     });
   }

@@ -40,10 +40,11 @@ export const ShouldQuotePathRegex = IsWindows ? /[^\w,\.\\/:~-]/ : /[^\w,\.\\/~-
 export const HomeFolder = IsWindows ? path.join(process.env['USERPROFILE'] || '.') : process.env['HOME'] || '.';
 export const SystemBinFolder = IsWindows ? (process.env['SystemRoot'] || String.raw`C:\WINDOWS\system32`) : (IsMacOS ? '/usr/local/bin/' : '/usr/bin/');
 export const TempStorageFolder = IsWindows ? os.tmpdir() : '/tmp/';
+export const InitLinuxTerminalFileName = 'init-linux-terminal.sh';
 
-const GitInfoTemplate = "Skip_Git_Paths length = $L. Parsed $P of $T patterns, omitted $E errors, ignored $X exemptions: see MSR-Def-Ref in OUTPUT tab.";
+const GitInfoTemplate = "Skip_Junk_Paths length = $L. Parsed $P of $T patterns, omitted $E errors, ignored $X exemptions: see MSR-Def-Ref in OUTPUT tab.";
 const FinalTipTemplate = `echo Auto disable self finding $M definition = $D. Uniform slash = $U. Faster gfind-xxx = $F. Auto update search tool = $A.`
-  + ` | msr -t "%[A-Z]% |\$[A-Z]\b " -o "" -aPAC` // Trim case like %M%
+  + String.raw` | msr -t "%[A-Z]% |\$[A-Z]\b " -o "" -aPAC` // Trim case like %M%
   + ` | msr -aPA -i -e true -t "false|Auto.*?(disable).*?definition"`;
 
 export function getTipInfoTemplate(isCmdTerminal: boolean, isFinalTip: boolean): string {
@@ -61,4 +62,20 @@ export function getCommandToSetFinalTipVar(isCmdTerminal: boolean, mappedExt: st
   return isCmdTerminal
     ? `set M=${mappedExt} & set D=${hasDisabledFindDefinition} & set U=${isUniversalSlash} & set F=${isFastGitFind} & set A=${isAutoUpdate} &`.replace(/ &/g, '&')
     : `export M=${mappedExt}; export D=${hasDisabledFindDefinition}; export U=${isUniversalSlash}; export F=${isFastGitFind}; export A=${isAutoUpdate};`; //.replace(/export ([A-Z])/g, '$1');
+}
+
+export function getRunTipFileCommand(tipFileDisplayPath: string, row: number, otherArgs: string): string {
+  return `msr -p ${tipFileDisplayPath} ${otherArgs} -L ${row} -N ${row} -XA`;
+}
+
+export function getBashFileHeader(isWindowsTerminal: boolean, addNewLine = "\n"): string {
+  return isWindowsTerminal ? "" : "#!/bin/bash" + addNewLine;
+}
+
+export function getTipGuideFileName(isWindowsTerminal: boolean): string {
+  return 'tip-guide' + (isWindowsTerminal ? '.cmd' : '.sh');
+}
+
+export function getAliasFileName(isWindowsTerminal: boolean, isForProjectCmdAlias = false): string {
+  return 'msr-cmd-alias' + (isWindowsTerminal ? (isForProjectCmdAlias ? ".cmd" : '.doskeys') : '.bashrc');
 }

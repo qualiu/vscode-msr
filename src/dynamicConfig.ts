@@ -1,8 +1,9 @@
 import path = require('path');
 import * as vscode from 'vscode';
-import { GetConfigPriorityPrefixes, getConfigValueByAllParts, getConfigValueByProjectAndExtension, getConfigValueOfActiveProject, getConfigValueOfProject } from './configUtils';
+import { getSkipFolderCommandOption } from './JunkPathArgs';
+import { GetConfigPriorityPrefixes, getConfigValueByProjectAndExtension, getConfigValueOfActiveProject, getConfigValueOfProject } from './configUtils';
 import { HomeFolder, IsDebugMode, IsLinux, IsSupportedSystem, IsWSL, IsWindows } from './constants';
-import { cookCmdShortcutsOrFile, mergeSkipFolderPattern } from './cookCommandAlias';
+import { cookCmdShortcutsOrFile } from './cookCommandAlias';
 import { FindType, TerminalType } from './enums';
 import { GitIgnore } from './gitUtils';
 import { MessageLevel, clearOutputChannelByTimes, outputDebug, outputDebugByTime, outputErrorByTime, outputInfoByDebugModeByTime, outputInfoByTime, outputInfoClearByTime, outputKeyInfoByTime, outputWarnByTime, updateOutputChannel } from './outputUtils';
@@ -607,14 +608,8 @@ export function getSearchPathOptions(
     const folderKey = isForProjectCmdAlias ? rootFolderName : '';
 
     const subName = isFindingDefinition ? 'definition' : 'reference';
-    let skipFoldersPattern = getConfigValueByAllParts(folderKey, extension, mappedExt, subName, 'skipFolders');
-    skipFoldersPattern = mergeSkipFolderPattern(skipFoldersPattern);
-
     const terminalType = !toRunInTerminal && isLinuxTerminalOnWindows() ? TerminalType.CMD : DefaultTerminalType;
-    const gitIgnoreInfo = getGitIgnore(rootFolder);
-    const skipFolderOptions = isForProjectCmdAlias && gitIgnoreInfo.Valid && (!toRunInTerminal || allRootFolders.length < 2)
-        ? gitIgnoreInfo.getSkipPathRegexPattern(toRunInTerminal)
-        : (useSkipFolders && skipFoldersPattern.length > 1 ? ' --nd "' + skipFoldersPattern + '"' : '');
+    const skipFolderOptions = getSkipFolderCommandOption(rootFolder, isForProjectCmdAlias, useSkipFolders, toRunInTerminal, allRootFolders.length, extension, mappedExt, subName);
 
     const shouldSearchExtraPaths = isFindingDefinition && useExtraSearchPathsForDefinition || !isFindingDefinition && useExtraSearchPathsForReference;
     if (!shouldSearchExtraPaths) {
@@ -623,7 +618,7 @@ export function getSearchPathOptions(
             return '-p ' + searchPaths;
         } else {
             const searchPaths = quotePaths(toTerminalPathsText(replaceToRelativeSearchPath(toRunInTerminal, rootPaths, rootFolder), terminalType));
-            return recursiveOption + searchPaths + skipFolderOptions;
+            return recursiveOption + searchPaths + ' ' + skipFolderOptions;
         }
     }
 
@@ -647,7 +642,7 @@ export function getSearchPathOptions(
 
     const readPathListOptions = usePathListFiles && pathListFileSet.size > 0 ? ' -w "' + pathFilesText + '"' : '';
     const searchPaths = replaceToRelativeSearchPath(toRunInTerminal, pathsText, rootFolder);
-    const otherOptions = isNullOrEmpty(rootPaths) ? '' : readPathListOptions + skipFolderOptions;
+    const otherOptions = isNullOrEmpty(rootPaths) ? '' : readPathListOptions + ' ' + skipFolderOptions;
     return recursiveOption + quotePaths(searchPaths) + otherOptions;
 }
 
@@ -736,4 +731,32 @@ export function printConfigInfo(config: vscode.WorkspaceConfiguration) {
     outputDebug('msr.disable.projectRootFolderNamePattern = ' + config.get('disable.projectRootFolderNamePattern'));
     outputDebug('msr.initProjectCmdAliasForNewTerminals = ' + config.get('initProjectCmdAliasForNewTerminals'));
     outputDebug('msr.autoMergeSkipFolders = ' + config.get('autoMergeSkipFolders'));
+}
+
+export function mergeSkipFolderPattern(skipFoldersPattern: string) {
+    if (!isNullOrEmpty(skipFoldersPattern) && MyConfig.ExcludeFoldersFromSettings.size > 0) {
+        try {
+            const existedExcludeRegex = new RegExp(skipFoldersPattern);
+            const extraExcludeFolders = Array.from(MyConfig.ExcludeFoldersFromSettings).filter(a => !existedExcludeRegex.test(a));
+            if (extraExcludeFolders.length > 0) {
+                if (skipFoldersPattern.indexOf('|node_modules|') > 0) {
+                    skipFoldersPattern = skipFoldersPattern.replace('|node_modules|', '|node_modules|' + extraExcludeFolders.join('|') + '|');
+                }
+                else if (skipFoldersPattern.indexOf('|Debug|') > 0) {
+                    skipFoldersPattern = skipFoldersPattern.replace('|Debug|', '|Debug|' + extraExcludeFolders.join('|') + '|');
+                }
+                else {
+                    skipFoldersPattern += '|^(' + extraExcludeFolders.join('|') + ')$';
+                }
+            }
+        }
+        catch (error) {
+            outputDebugByTime('Failed to add exclude folder from settings:' + error);
+        }
+    }
+    else if (isNullOrEmpty(skipFoldersPattern) && MyConfig.ExcludeFoldersFromSettings.size > 0) {
+        skipFoldersPattern = '^(' + Array.from(MyConfig.ExcludeFoldersFromSettings).join('|') + ')$';
+    }
+
+    return skipFoldersPattern;
 }

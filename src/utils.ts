@@ -324,6 +324,8 @@ export function isPowerShellCommand(cmd: string, terminalType: TerminalType): bo
 }
 
 export function getLoadAliasFileCommand(file: string, isWindowsTerminal: boolean, autoQuote: boolean = true): string {
-    const head = isWindowsTerminal ? 'doskey /MACROFILE=' : 'source ';
+    const head = isWindowsTerminal
+        ? (file.endsWith('doskeys') ? 'doskey /MACROFILE=' : "")
+        : 'source ';
     return head + (autoQuote ? quotePaths(file) : file);
 }

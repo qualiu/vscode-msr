@@ -2,6 +2,11 @@
 
 All notable changes to this "vscode-msr" extension will be documented in this file.
 
+## [2.1.80]
+
+- Improved alias files for all platforms with common body + variables.
+- Improved terminal initialization.
+
 ## [2.1.79]
 
 - Improved alias args for Linux/MacOS (`$*` to `${@}`).

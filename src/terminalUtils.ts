@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { Terminal } from 'vscode';
-import { IsLinux, IsWindows, IsWSL, TempStorageFolder } from './constants';
+import { getTipGuideFileName, HomeFolder, IsLinux, IsWindows, IsWSL, TempStorageFolder } from './constants';
 import { TerminalType } from './enums';
 import { outputDebugByTime, outputErrorByTime } from './outputUtils';
 import { getErrorMessage, isNullOrEmpty, MatchWindowsDiskRegex, quotePaths, replaceToForwardSlash, runCommandGetOutput } from './utils';
@@ -15,9 +15,36 @@ export function getTerminalExeFromVsCodeSettings(): string {
   return exePath;
 }
 
+export function getCmdAliasScriptFolder(): string {
+  const folder = vscode.workspace.getConfiguration('msr').get('cmdAlias.saveFolder') as string;
+  return isNullOrEmpty(folder) ? HomeFolder : folder.trim();
+}
+
+// return ~/cmdAlias/ or ~/cmdAlias/cygwin/ or /tmp/
+export function getCmdAliasSaveFolder(isMultipleScripts: boolean, isForProjectCmdAlias: boolean, terminalType: TerminalType): string {
+  // avoid random folder in Darwin like: '/var/folders/7m/f0z72nfn3nn6_mnb_0000gn/T'
+  const terminalTypeText = TerminalType[terminalType].toLowerCase()
+    .replace(/bash$/i, '')
+    .replace(/PowerShell$/i, 'cmd');
+
+  const generalFolder = toStoragePath(getCmdAliasScriptFolder());
+  const isNativeTerminal = isWindowsTerminalOnWindows(terminalType) || !IsWindows;
+  if (isNativeTerminal && !isMultipleScripts && !isForProjectCmdAlias) {
+    return generalFolder;
+  }
+
+  const parentFolder = isForProjectCmdAlias && !isMultipleScripts ? TempStorageFolder : path.join(generalFolder, 'cmdAlias');
+  const shouldSeparate = isLinuxTerminalOnWindows(terminalType) || (isMultipleScripts && (IsWSL || IsWindows));
+
+  return shouldSeparate
+    ? path.join(parentFolder, terminalTypeText)
+    : parentFolder;
+}
+
 export function getTipFileStoragePath(terminalType: TerminalType): string {
-  const name = isWindowsTerminalOnWindows(terminalType) ? 'tip-guide.cmd' : 'tip-guide.sh';
-  return path.join(TempStorageFolder, name);
+  const isWindowsTerminal = isWindowsTerminalOnWindows(terminalType);
+  const tmpAliasStorageFolder = getCmdAliasSaveFolder(false, true, terminalType);
+  return toStoragePath(path.join(tmpAliasStorageFolder, getTipGuideFileName(isWindowsTerminal)));
 }
 
 export function getTipFileDisplayPath(terminalType: TerminalType): string {
@@ -379,3 +406,4 @@ export function toWSLPath(path: string, isWslTerminal: boolean = IsWSL): string 
     return shortPath;
   }
 }
+

@@ -100,11 +100,12 @@ export function getSetToolEnvCommand(terminalType: TerminalType, foldersToAddPat
 	}
 
 	const toolFolders = Array.from(toTerminalPaths(toolFolderSet, terminalType));
-	const pathEnv = TerminalType.CMD === terminalType ? `"%PATH%;"` : `"$PATH"`;
-	const checkPathsPattern = TerminalType.CMD === terminalType
+	const isWindowsTerminal = isWindowsTerminalOnWindows(terminalType);
+	const pathEnv = isWindowsTerminal ? `"%PATH%;"` : `"$PATH"`;
+	const checkPathsPattern = isWindowsTerminal // // if merged into cmd file for PowerShell
 		? `-it "^(${toolFolders.join('|').replace(/[\\]/g, '\\\\')})$"`
 		: `-t "^(${toolFolders.join('|')})$"`;
-	const splitPattern = TerminalType.CMD === terminalType || TerminalType.MinGWBash === terminalType
+	const splitPattern = isWindowsTerminal || TerminalType.MinGWBash === terminalType
 		? String.raw`\\*\s*;\s*`
 		: String.raw`\s*:\s*`;
 	const checkCountPattern = "^Matched [" + toolFolders.length + "-9]";
@@ -113,8 +114,8 @@ export function getSetToolEnvCommand(terminalType: TerminalType, foldersToAddPat
 		: '';
 	switch (terminalType) {
 		case TerminalType.CMD:
-			return checkDuplicate + 'SET "PATH=%PATH%;' + toolFolders.join(';') + ';"';
-		case TerminalType.PowerShell:
+		case TerminalType.PowerShell: // if merged into cmd file for PowerShell
+			return '@' + checkDuplicate + 'SET "PATH=%PATH%;' + toolFolders.join(';') + ';"';
 		case TerminalType.Pwsh:
 			return `$env:Path += ";${toolFolders.join(';')};"`;
 		case TerminalType.LinuxBash:

@@ -3,7 +3,7 @@ import path = require('path');
 
 import { outputErrorByTime, outputInfoByDebugModeByTime, outputInfoByTime } from "./outputUtils";
 
-export function saveTextToFile(filePath: string, text: string, info: string = 'file', checkSkipSameContent: boolean = false, tryTimes: number = 3): boolean {
+export function saveTextToFile(filePath: string, text: string, info: string = 'file', checkSkipSameContent: boolean = true, tryTimes: number = 3): boolean {
   for (let k = 1; k <= tryTimes; k++) {
     try {
       if (checkSkipSameContent) {

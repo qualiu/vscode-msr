@@ -1,11 +1,11 @@
 import * as vscode from 'vscode';
+import { getIgnoreFolderCommand } from './JunkPathArgs';
 import { AddKeepColorArg, AddOutputToStderrArg, ToolChecker, setOutputColumnIndexInCommandLine, setTimeoutInCommandLine } from './ToolChecker';
 import { getConfigValueByAllParts, getConfigValueByProjectAndExtension, getConfigValueOfProject } from './configUtils';
 import { HomeFolder, RemoveJumpRegex, SkipJumpOutForHeadResultsRegex } from './constants';
-import { mergeSkipFolderPattern } from './cookCommandAlias';
 import { FileExtensionToMappedExtensionMap, MyConfig, getConfig, getFileNamePattern, getGitIgnore, getSearchPathOptions, removeSearchTextForCommandLine, replaceToRelativeSearchPath } from './dynamicConfig';
 import { FindCommandType, TerminalType } from './enums';
-import { GitListFileHead, SkipPathVariableName, getSkipGitPathEnvOrValue, hasValidGitSkipPathsEnv } from './gitUtils';
+import { GitListFileHead, SkipPathVariableName } from './gitUtils';
 import { enableColorAndHideCommandLine, outputDebugByTime, outputInfoByTime } from './outputUtils';
 import { Ranker } from './ranker';
 import { NormalTextRegex, escapeRegExp } from './regexUtils';
@@ -167,18 +167,15 @@ export function getFindTopDistributionCommand(toRunInTerminal: boolean, isForPro
     return command.trimRight();
 }
 
-function setCustomSearchCommand(projectGitFolder: string, sourceProjectFolders: string, parsedFile: path.ParsedPath, searchWord: string, commandLine: string): string {
-    const extension = getExtensionNoHeadDot(parsedFile.ext);
-    const mappedExt = FileExtensionToMappedExtensionMap.get(extension) || extension;
+function setCustomSearchCommand(sourceProjectFolders: string, parsedFile: path.ParsedPath, searchWord: string, commandLine: string): string {
     // Check %AutoDecideSkipFolderToSearch% + %UseGitFileListToSearch% + %ProjectsFolders%
-    const hasValidGitEnv = hasValidGitSkipPathsEnv(projectGitFolder);
-    const skipPathPattern = getSkipGitPathEnvOrValue(projectGitFolder);
+    const skipPathPattern = getIgnoreFolderCommand(IsWindowsTerminalOnWindows);
     const useGitFileListToSearch = `${GitListFileHead} > /tmp/tmp-git-file-list && msr --no-check -w /tmp/tmp-git-file-list`;
     if (commandLine.match(/\s+-t\s+\S+/)) {
         searchWord = escapeRegExpForFindingCommand(searchWord);
     }
-    commandLine = commandLine.replace(new RegExp('%UseGitFileListToSearch%', 'g'), useGitFileListToSearch);
 
+    commandLine = commandLine.replace(new RegExp('%UseGitFileListToSearch%', 'g'), useGitFileListToSearch);
     commandLine = commandLine.replace(new RegExp('%ProjectsFolders%', 'g'), sourceProjectFolders);
     commandLine = commandLine.replace(new RegExp('%FileExtMap%', 'g'), `"${getFileNamePattern(parsedFile)}"`);
     commandLine = commandLine.replace(new RegExp('%FileExt%', 'g'), `"${getFileNamePattern(parsedFile, false)}"`);
@@ -188,7 +185,7 @@ function setCustomSearchCommand(projectGitFolder: string, sourceProjectFolders: 
         if (isNullOrEmpty(skipPathPattern)) {
             commandLine = commandLine.replace(findAutoDecideRegex, useGitFileListToSearch);
         } else {
-            commandLine = commandLine.replace(findAutoDecideRegex, `msr -rp ${sourceProjectFolders} --np "${skipPathPattern}"`);
+            commandLine = commandLine.replace(findAutoDecideRegex, `msr -rp ${sourceProjectFolders} ${skipPathPattern}`);
         }
     }
 
@@ -200,7 +197,6 @@ function setCustomSearchCommand(projectGitFolder: string, sourceProjectFolders: 
     if (IsWindowsTerminalOnWindows) {
         commandLine = commandLine.replace(new RegExp('/tmp/', 'g'), "%TMP%\\");
     } else {
-        // commandLine = commandLine.replace(new RegExp('%' + SkipPathVariableName + '%', 'g'), '$' + SkipPathVariableName);
         commandLine = commandLine.replace(/%(\w+)%/g, '$$$1');
     }
 
@@ -208,14 +204,7 @@ function setCustomSearchCommand(projectGitFolder: string, sourceProjectFolders: 
         return commandLine;
     }
 
-    if (hasValidGitEnv) {
-        return commandLine;
-    }
-
-    const folderName = getRootFolderName(projectGitFolder, true);
-    let skipFoldersPattern = getConfigValueByAllParts(folderName, extension, mappedExt, 'reference', 'skipFolders');
-    skipFoldersPattern = mergeSkipFolderPattern(skipFoldersPattern);
-    commandLine = commandLine.replace(new RegExp('--np \"[\\$%]' + SkipPathVariableName + '\\b', 'g'), '--nd \"' + skipFoldersPattern);
+    commandLine = commandLine.replace(new RegExp('--(np|nd) \"[\\$%]' + SkipPathVariableName + '%?"', 'g'), skipPathPattern);
     return commandLine;
 }
 
@@ -281,7 +270,7 @@ export function getFindingCommandByCurrentWord(toRunInTerminal: boolean, findCmd
             // commandLine = commandLine.replace(new RegExp('/tmp/', 'g'), TempStorageFolder + '\\');
             commandLine = commandLine.replace(new RegExp('/tmp/', 'g'), '%TMP%' + '\\');
         }
-        return setCustomSearchCommand(rootFolder, sourceProjectFolders, parsedFile, searchText, commandLine);
+        return setCustomSearchCommand(sourceProjectFolders, parsedFile, searchText, commandLine);
     }
 
     const isFindDefinition = findCmdText.includes('Definition');

@@ -1,17 +1,14 @@
 import path = require('path');
 import * as vscode from 'vscode';
-import { getSkipFolderCommandOption } from './JunkPathArgs';
-import { GetConfigPriorityPrefixes, getConfigValueByProjectAndExtension, getConfigValueOfActiveProject, getConfigValueOfProject } from './configUtils';
-import { HomeFolder, IsDebugMode, IsLinux, IsSupportedSystem, IsWSL, IsWindows } from './constants';
-import { cookCmdShortcutsOrFile } from './cookCommandAlias';
+import { GetConfigPriorityPrefixes, getConfigValueByAllParts, getConfigValueByProjectAndExtension, getConfigValueOfActiveProject, getConfigValueOfProject } from './configUtils';
+import { DefaultRepoFolderName, DefaultWorkspaceFolder, HomeFolder, IsDebugMode, IsLinux, IsWSL, IsWindows, WorkspaceCount, getDefaultRepoFolderByActiveFile, getRepoFolder, getSkipJunkPathArgs, isNullOrEmpty } from './constants';
 import { FindType, TerminalType } from './enums';
 import { GitIgnore } from './gitUtils';
 import { MessageLevel, clearOutputChannelByTimes, outputDebug, outputDebugByTime, outputErrorByTime, outputInfoByDebugModeByTime, outputInfoByTime, outputInfoClearByTime, outputKeyInfoByTime, outputWarnByTime, updateOutputChannel } from './outputUtils';
 import { createRegex, escapeRegExp } from './regexUtils';
-import { getRunCmdTerminalWithInfo } from './runCommandUtils';
 import { SearchConfig } from './searchConfig';
 import { DefaultTerminalType, IsLinuxTerminalOnWindows, IsWindowsTerminalOnWindows, isLinuxTerminalOnWindows, toStoragePaths, toTerminalPath, toTerminalPaths, toTerminalPathsText } from './terminalUtils';
-import { getDefaultRootFolderByActiveFile, getDefaultRootFolderName, getElapsedSecondsToNow, getExtensionNoHeadDot, getRootFolder, getRootFolderName, getRootFolders, getUniqueStringSetNoCase, isNullOrEmpty, nowText, quotePaths, runCommandGetOutput } from './utils';
+import { getElapsedSecondsToNow, getExtensionNoHeadDot, getRepoFolderName, getRepoFolders, getUniqueStringSetNoCase, nowText, quotePaths, runCommandGetOutput } from './utils';
 
 const SplitPathsRegex = /\s*[,;]\s*/;
 const SplitPathGroupsRegex = /\s*;\s*/;
@@ -28,7 +25,7 @@ function needCheckLanguageProcess(mappedExt: string): boolean {
     return elapsedMinutes >= MyConfig.CheckLanguageProcessIntervalMinutes;
 }
 
-export const DefaultRootFolder = getDefaultRootFolderByActiveFile(true);
+export const DefaultRepoFolder = getDefaultRepoFolderByActiveFile(true);
 
 export let MyConfig: DynamicConfig;
 
@@ -41,9 +38,9 @@ export let FileExtensionToMappedExtensionMap = new Map<string, string>();
 // 	;
 
 export let MappedExtToCodeFilePatternMap = new Map<string, string>()
-    // .set('java', RootConfig.get('java.codeFiles') as string)
-    // .set('ui', RootConfig.get('ui.codeFiles') as string)
-    // .set('cpp', RootConfig.get('cpp.codeFiles') as string)
+    // .set('java', RepoConfig.get('java.codeFiles') as string)
+    // .set('ui', RepoConfig.get('ui.codeFiles') as string)
+    // .set('cpp', RepoConfig.get('cpp.codeFiles') as string)
     .set('', 'default')
     ;
 
@@ -68,58 +65,9 @@ export function removeSearchTextForCommandLine(cmd: string): string {
 }
 
 export function getGitIgnore(currentPath: string): GitIgnore {
-    const rootFolder = getRootFolder(currentPath);
-    const gitIgnore = WorkspaceToGitIgnoreMap.get(rootFolder);
+    const repoFolder = getRepoFolder(currentPath);
+    const gitIgnore = WorkspaceToGitIgnoreMap.get(repoFolder);
     return gitIgnore || new GitIgnore('');
-}
-
-export function updateGitIgnoreUsage() {
-    WorkspaceToGitIgnoreMap.clear();
-
-    if (!IsSupportedSystem || !vscode.workspace.workspaceFolders || vscode.workspace.workspaceFolders.length < 1) {
-        return;
-    }
-
-    for (let k = 0; k < vscode.workspace.workspaceFolders.length; k++) {
-        const workspaceFolder = vscode.workspace.workspaceFolders[k].uri.fsPath;
-        const rootFolder = getRootFolder(workspaceFolder);
-        const projectName = path.basename(rootFolder);
-        const useGitIgnoreFile = getConfigValueOfProject(projectName, 'useGitIgnoreFile') === 'true';
-        const omitGitIgnoreExemptions = getConfigValueOfProject(projectName, 'omitGitIgnoreExemptions') === 'true';
-        const ignorableDotFolderNamePattern = getConfigValueOfProject(projectName, 'ignorableDotFolderNameRegex') || '';
-        const gitIgnore = new GitIgnore(path.join(rootFolder, '.gitignore'), useGitIgnoreFile, omitGitIgnoreExemptions, ignorableDotFolderNamePattern);
-        WorkspaceToGitIgnoreMap.set(rootFolder, gitIgnore);
-
-        // TODD: record in file or env when creating terminal
-        const canInitGitIgnore = workspaceFolder === DefaultRootFolder;
-        const onlyCookFile = !canInitGitIgnore;
-        function actionWhenSuccessfullyParsedGitIgnore() {
-            if (!canInitGitIgnore) {
-                return;
-            }
-
-            MyConfig.setGitIgnoreStatus(rootFolder, gitIgnore.ExemptionCount < 1);
-            const [runCmdTerminal, isNewlyCreated] = getRunCmdTerminalWithInfo(false);
-            if (!isNewlyCreated) {
-                cookCmdShortcutsOrFile(false, rootFolder, true, false, runCmdTerminal, false, false, false, onlyCookFile, true);
-            }
-            gitIgnore.exportSkipPathVariable(); //true
-            const autoCompare = getConfigValueOfActiveProject('autoCompareFileListsIfUsedGitIgnore') === 'true';
-            if (autoCompare) {
-                gitIgnore.compareFileList();
-            }
-        }
-
-        function actionWhenFailedToParseGitIgnore() {
-            const [runCmdTerminal, isNewlyCreated] = getRunCmdTerminalWithInfo(false);
-            if (!isNewlyCreated) {
-                cookCmdShortcutsOrFile(false, rootFolder, true, false, runCmdTerminal, false, false, false, onlyCookFile);
-            }
-            MyConfig.setGitIgnoreStatus(rootFolder, false);
-        }
-
-        gitIgnore.parse(actionWhenSuccessfullyParsedGitIgnore, actionWhenFailedToParseGitIgnore);
-    }
 }
 
 export function addExtensionToPattern(ext: string, fileExtensionsRegex: RegExp) {
@@ -143,8 +91,8 @@ export function addExtensionToPattern(ext: string, fileExtensionsRegex: RegExp) 
     return fileExtensionsRegex;
 }
 
-export class DynamicConfig {
-    public RootConfig: vscode.WorkspaceConfiguration = vscode.workspace.getConfiguration('msr');
+class DynamicConfig {
+    public RepoConfig: vscode.WorkspaceConfiguration = vscode.workspace.getConfiguration('msr');
 
     // Temp toggle enable/disable finding definition and reference
     public IsEnabledFindingDefinition: boolean = true;
@@ -166,7 +114,7 @@ export class DynamicConfig {
 
     public GetSearchTextHolderInCommandLine: RegExp = /\s+-c\s+.*?%~?1/;
     public DisabledFileExtensionRegex: RegExp = new RegExp('to-load');
-    public DisabledRootFolderNameRegex: RegExp = new RegExp('to-load');
+    public DisabledRepoFolderNameRegex: RegExp = new RegExp('to-load');
     public DisableFindDefinitionFileExtensionRegex: RegExp = new RegExp('to-load');
     public DisableFindReferenceFileExtensionRegex: RegExp = new RegExp('to-load');
 
@@ -208,24 +156,24 @@ export class DynamicConfig {
 
     public ScriptFileExtensionRegex: RegExp = new RegExp('to-load msr.default.scriptFiles');
     public ConfigAndDocFilesRegex: RegExp = new RegExp('to-load msr.default.configAndDocs');
-    public ShowLongTip: boolean = true;
     public AutoChangeSearchWordForReference: boolean = true;
     public RefreshTmpGitFileListDuration: string = '10m';
     public AutoUpdateSearchTool: boolean = false;
     public CheckLanguageProcessIntervalMinutes = 15;
     public OverwriteInconsistentCommonAliasByExtension = true;
 
+    private UseGitFileListToSearchSingleWorkspace: string = 'auto';
     private TmpToggleEnabledExtensionToValueMap = new Map<string, boolean>();
     private ProjectToGitIgnoreStatusMap = new Map<String, boolean>();
     private ChangePowerShellTerminalToCmdOrBashConfig: string = "auto";
 
     public getCmdAliasScriptFolder(): string {
-        const folder = this.RootConfig.get('cmdAlias.saveFolder') as string;
+        const folder = this.RepoConfig.get('cmdAlias.saveFolder') as string;
         return isNullOrEmpty(folder) ? HomeFolder : folder.trim();
     }
 
     public isKnownLanguage(extension: string): boolean {
-        return FileExtensionToMappedExtensionMap.has(extension) || this.RootConfig.get(extension) !== undefined;
+        return FileExtensionToMappedExtensionMap.has(extension) || this.RepoConfig.get(extension) !== undefined;
     }
 
     public isUnknownFileType(extension: string): boolean {
@@ -270,30 +218,53 @@ export class DynamicConfig {
         outputKeyInfoByTime(`Status = '${(isEnabled ? 'disabled' : 'enabled')}' for finding ${mappedExt} definition. HasFoundLanguageProcess = ${hasFoundLanguageProcess}.`);
     }
 
-    public update() {
-        this.RootConfig = vscode.workspace.getConfiguration('msr');
-        const rootFolderName = getDefaultRootFolderName();
-        this.ConfigAndDocFilesRegex = new RegExp(getConfigValueOfProject(rootFolderName, 'configAndDocs') || '\\.(json|xml|ini|ya?ml|md)|readme', 'i');
+    public useGitFileList(treatAutoAsTrueForInit: boolean = true): boolean {
+        if (WorkspaceCount !== 1) {
+            return false;
+        }
 
-        const codeFileExtensionMappingTypes = getConfigValueOfProject(rootFolderName, 'codeFileExtensionMappingTypes') || '^(cpp|cs|java|py|go|rs|ui)$';
+        const gitIgnore = getGitIgnore(DefaultWorkspaceFolder);
+        switch (this.UseGitFileListToSearchSingleWorkspace) {
+            case 'false':
+                return false;
+            case 'true':
+                return true;
+            case 'auto':
+                if (!gitIgnore.Valid) {
+                    return gitIgnore.Completed ? false : treatAutoAsTrueForInit;
+                }
+                return gitIgnore.ExemptionCount > 0;
+            default:
+                outputErrorByTime(`Invalid value for 'msr.useGitFileListToSearchSingleWorkspace' = '${this.UseGitFileListToSearchSingleWorkspace}'.`);
+                return false;
+        }
+    }
+
+    public update() {
+        this.RepoConfig = vscode.workspace.getConfiguration('msr');
+        const repoFolderName = DefaultRepoFolderName;
+        this.ConfigAndDocFilesRegex = new RegExp(getConfigValueOfProject(repoFolderName, 'configAndDocs') || '\\.(json|xml|ini|ya?ml|md)|readme', 'i');
+
+        const codeFileExtensionMappingTypes = getConfigValueOfProject(repoFolderName, 'codeFileExtensionMappingTypes') || '^(cpp|cs|java|py|go|rs|ui)$';
         this.CodeFileExtensionMappingTypesRegex = new RegExp(codeFileExtensionMappingTypes.trim(), 'i');
 
-        this.AllFilesRegex = new RegExp(getConfigValueOfProject(rootFolderName, 'allFiles') || '\.(cp*|hp*|cs|java|scala|py|go|tsx?)$', 'i');
+        this.AllFilesRegex = new RegExp(getConfigValueOfProject(repoFolderName, 'allFiles') || '\.(cp*|hp*|cs|java|scala|py|go|tsx?)$', 'i');
         this.AllFilesDefaultRegex = new RegExp(getConfigValueOfProject('', 'allFiles') || '\.(cp*|hp*|cs|java|scala|py|go|tsx?)$', 'i');
-        this.CodeFilesRegex = new RegExp(getConfigValueOfProject(rootFolderName, 'codeFiles') || '\.(cp*|hp*|cs|java|scala|py|go)$', 'i');
+        this.CodeFilesRegex = new RegExp(getConfigValueOfProject(repoFolderName, 'codeFiles') || '\.(cp*|hp*|cs|java|scala|py|go)$', 'i');
         this.CodeFilesDefaultRegex = new RegExp(getConfigValueOfProject('', 'codeFiles') || '\.(cp*|hp*|cs|java|scala|py|go)$', 'i');
-        this.CodeAndConfigRegex = new RegExp(getConfigValueOfProject(rootFolderName, 'codeAndConfig') || '\.(cp*|hp*|cs|java|scala|py|go|md)$', 'i');
+        this.CodeAndConfigRegex = new RegExp(getConfigValueOfProject(repoFolderName, 'codeAndConfig') || '\.(cp*|hp*|cs|java|scala|py|go|md)$', 'i');
         this.CodeAndConfigDefaultRegex = new RegExp(getConfigValueOfProject('', 'codeAndConfig') || '\.(cp*|hp*|cs|java|scala|py|go|md)$', 'i');
-        this.CodeFilesPlusUIRegex = new RegExp(getConfigValueOfProject(rootFolderName, 'codeFilesPlusUI') || '\.(cp*|hp*|cs|java|scala|py|go|tsx?)$', 'i');
+        this.CodeFilesPlusUIRegex = new RegExp(getConfigValueOfProject(repoFolderName, 'codeFilesPlusUI') || '\.(cp*|hp*|cs|java|scala|py|go|tsx?)$', 'i');
         this.CodeFilesPlusUIDefaultRegex = new RegExp(getConfigValueOfProject('', 'codeFilesPlusUI') || '\.(cp*|hp*|cs|java|scala|py|go|tsx?)$', 'i');
-        this.CodeAndConfigDocsRegex = new RegExp(getConfigValueOfProject(rootFolderName, 'codeAndConfigDocs') || '\\.(cs\\w*|nuspec|config|c[px]*|h[px]*|java|scala|py|go|php|vue|tsx?|jsx?|json|ya?ml|xml|ini|md)$|readme', 'i');
+        this.CodeAndConfigDocsRegex = new RegExp(getConfigValueOfProject(repoFolderName, 'codeAndConfigDocs') || '\\.(cs\\w*|nuspec|config|c[px]*|h[px]*|java|scala|py|go|php|vue|tsx?|jsx?|json|ya?ml|xml|ini|md)$|readme', 'i');
         this.CodeAndConfigDocsDefaultRegex = new RegExp(getConfigValueOfProject('', 'codeAndConfigDocs') || '\\.(cs\\w*|nuspec|config|c[px]*|h[px]*|java|scala|py|go|php|vue|tsx?|jsx?|json|ya?ml|xml|ini|md)$|readme', 'i');
+        this.UseGitFileListToSearchSingleWorkspace = (getConfigValueOfProject(repoFolderName, 'useGitFileListToSearchSingleWorkspace') || '').toLowerCase();
 
         this.AllFileExtensionMappingRegexList = [];
-        const fileExtensionMapInConfig = this.RootConfig.get('fileExtensionMap') as {};
+        const fileExtensionMapInConfig = this.RepoConfig.get('fileExtensionMap') as {};
         if (fileExtensionMapInConfig) {
             Object.keys(fileExtensionMapInConfig).forEach((mapExt) => {
-                const extensions = (this.RootConfig.get('fileExtensionMap.' + mapExt) as string).split(/\s+/);
+                const extensions = (this.RepoConfig.get('fileExtensionMap.' + mapExt) as string).split(/\s+/);
                 // exempt \w* case // const regexExtensions = extensions.map(ext => escapeRegExp(ext));
                 const regexExtensions = extensions.map(ext => ext.replace(/[.+^${}()|[\]]/g, '\\$&').replace(/"/g, '\\"'));
                 const extensionsRegex = new RegExp('\\.(' + regexExtensions.join('|') + ')$', 'i');
@@ -317,7 +288,7 @@ export class DynamicConfig {
             });
         }
 
-        const fileExtensionMapNames = getConfigValueOfProject(rootFolderName, "fileExtensionMapNames") as string || '';
+        const fileExtensionMapNames = getConfigValueOfProject(repoFolderName, "fileExtensionMapNames") as string || '';
         const extensionNameSet = new Set<string>(fileExtensionMapNames.split(/\s+/));
         AdditionalFileExtensionMapNames.clear();
         extensionNameSet.forEach(ext => {
@@ -350,7 +321,7 @@ export class DynamicConfig {
         this.DisableReRunSearch = getConfigValueOfActiveProject("disableReRunSearch") === 'true';
         this.DefaultConstantsRegex = new RegExp(getConfigValueOfActiveProject('isFindConstant'));
 
-        this.DisabledRootFolderNameRegex = createRegex(getConfigValueOfActiveProject('disable.projectRootFolderNamePattern'));
+        this.DisabledRepoFolderNameRegex = createRegex(getConfigValueOfActiveProject('disable.projectRepoFolderNamePattern'));
 
         this.DisabledFileExtensionRegex = createRegex(getConfigValueOfActiveProject('disable.extensionPattern'), 'i', true);
         this.DisableFindDefinitionFileExtensionRegex = createRegex(getConfigValueOfActiveProject('disable.findDef.extensionPattern'), 'i', true);
@@ -367,11 +338,10 @@ export class DynamicConfig {
 
         this.MaxWaitSecondsForSearchDefinition = Number(getConfigValueOfActiveProject('searchDefinition.timeoutSeconds'));
         this.MaxWaitSecondsForAutoReSearchDefinition = Number(getConfigValueOfActiveProject('autoRunSearchDefinition.timeoutSeconds'));
-        this.ScriptFileExtensionRegex = createRegex(this.RootConfig.get('default.scriptFiles') || '\\.(bat|cmd|psm?1|sh|bash|[kzct]sh)$', 'i');
+        this.ScriptFileExtensionRegex = createRegex(this.RepoConfig.get('default.scriptFiles') || '\\.(bat|cmd|psm?1|sh|bash|[kzct]sh)$', 'i');
         this.UseGitIgnoreFile = getConfigValueOfActiveProject('useGitIgnoreFile') === 'true';
         this.OmitGitIgnoreExemptions = getConfigValueOfActiveProject('omitGitIgnoreExemptions') === 'true';
         this.IgnoreDotFolderNamePattern = getConfigValueOfActiveProject('ignorableDotFolderNameRegex') || '';
-        this.ShowLongTip = getConfigValueOfActiveProject('cookCmdAlias.showLongTip') === 'true';
         this.AutoChangeSearchWordForReference = getConfigValueOfActiveProject('reference.autoChangeSearchWord') === 'true';
         this.RefreshTmpGitFileListDuration = (getConfigValueOfActiveProject('refreshTmpGitFileListDuration', true) || '10m').replace(/\s+/g, '');
         this.AutoUpdateSearchTool = getConfigValueOfActiveProject('autoUpdateSearchTool') === 'true';
@@ -387,16 +357,16 @@ export class DynamicConfig {
     }
 
     // If has git-exemptions, should not use git-ignore and thus better to use PowerShell (general search).
-    public setGitIgnoreStatus(rootFolder: string, isGood: boolean) {
-        MyConfig.ProjectToGitIgnoreStatusMap.set(rootFolder, isGood);
+    public setGitIgnoreStatus(repoFolder: string, isGood: boolean) {
+        MyConfig.ProjectToGitIgnoreStatusMap.set(repoFolder, isGood);
     }
 
-    public canUseGoodGitIgnore(rootFolder: string) {
+    public canUseGoodGitIgnore(repoFolder: string) {
         if (/false/i.test(MyConfig.ChangePowerShellTerminalToCmdOrBashConfig)) {
             return false;
         }
 
-        if (MyConfig.ProjectToGitIgnoreStatusMap.get(rootFolder)) {
+        if (MyConfig.ProjectToGitIgnoreStatusMap.get(repoFolder)) {
             return true;
         }
 
@@ -446,13 +416,13 @@ export class DynamicConfig {
 
         if (checkRegex.test(extension)) {
             const configName = FindType.Definition === findType ? 'disable.findDef.extensionPattern' : 'disable.findRef.extensionPattern';
-            outputInfoClearByTime(`Disabled ${findTypeText} by '${configName}' = '${this.RootConfig.get(configName)}'. ${toggleTip}`.trim());
+            outputInfoClearByTime(`Disabled ${findTypeText} by '${configName}' = '${this.RepoConfig.get(configName)}'. ${toggleTip}`.trim());
             return true;
         }
 
-        const rootFolderName = getRootFolderName(currentFilePath, true);
-        if (MyConfig.DisabledRootFolderNameRegex.test(rootFolderName)) {
-            outputInfoClearByTime(`Disabled ${findTypeText} by 'msr.disable.projectRootFolderNamePattern' = '${MyConfig.DisabledRootFolderNameRegex.source}'. ${toggleTip}`.trim());
+        const repoFolderName = getRepoFolderName(currentFilePath, true);
+        if (MyConfig.DisabledRepoFolderNameRegex.test(repoFolderName)) {
+            outputInfoClearByTime(`Disabled ${findTypeText} by 'msr.disable.projectRepoFolderNamePattern' = '${MyConfig.DisabledRepoFolderNameRegex.source}'. ${toggleTip}`.trim());
             return true;
         }
 
@@ -465,8 +435,8 @@ export class DynamicConfig {
     }
 
     private getCheckingLanguageProcessPattern(currentFilePath: string, extension: string, mappedExt: string): string {
-        const rootFolderName = getRootFolderName(currentFilePath, true);
-        return getConfigValueByProjectAndExtension(rootFolderName, extension, mappedExt, 'autoDisableFindDefinitionPattern', true)
+        const repoFolderName = getRepoFolderName(currentFilePath, true);
+        return getConfigValueByProjectAndExtension(repoFolderName, extension, mappedExt, 'autoDisableFindDefinitionPattern', true)
             .replace(/#_MappedExtName_#/g, mappedExt)
             .trim();
     }
@@ -489,8 +459,8 @@ export class DynamicConfig {
         try {
             clearOutputChannelByTimes();
             new RegExp(checkProcessPattern); // to catch Regex error.
-            const rootFolderName = getRootFolderName(currentFilePath, true);
-            const languageProcessName = getConfigValueByProjectAndExtension(rootFolderName, extension, mappedExt, 'languageProcessName')
+            const repoFolderName = getRepoFolderName(currentFilePath, true);
+            const languageProcessName = getConfigValueByProjectAndExtension(repoFolderName, extension, mappedExt, 'languageProcessName')
                 .replace(/\.exe$/i, '');
             const fastFilter = isNullOrEmpty(languageProcessName) ? '' : `where "Name = '${languageProcessName}.exe'"`;
             const checkCommand = IsWindows
@@ -553,32 +523,50 @@ export function getConfig(reload: boolean = false): DynamicConfig {
     }
 
     MyConfig.update();
-
     outputDebug('----- vscode-msr configuration loaded: ' + nowText() + ' -----');
-    printConfigInfo(MyConfig.RootConfig);
-
-    updateGitIgnoreUsage();
+    printConfigInfo(MyConfig.RepoConfig);
 
     return MyConfig;
 }
 
-export function replaceToRelativeSearchPath(toRunInTerminal: boolean, searchPaths: string, rootFolder: string) {
+export function replaceToRelativeSearchPath(toRunInTerminal: boolean, searchPaths: string, repoFolder: string) {
     if (!SearchConfig.shouldUseRelativeSearchPath(toRunInTerminal)
-        || isNullOrEmpty(searchPaths) || isNullOrEmpty(rootFolder)
+        || isNullOrEmpty(searchPaths) || isNullOrEmpty(repoFolder)
+        || WorkspaceCount > 1
         // || searchPaths.includes(',')
     ) {
         return searchPaths;
     }
 
     const paths = searchPaths.split(',').map(a => {
-        if (a === rootFolder) {
+        if (a === repoFolder) {
             return ".";
         }
-        return IsWindows ? a.replace(rootFolder + '\\', ".\\") : a.replace(rootFolder + "/", "./");
+        return IsWindows ? a.replace(repoFolder + '\\', ".\\") : a.replace(repoFolder + "/", "./");
     });
 
     searchPaths = paths.join(',');
     return searchPaths;
+}
+
+function getJunkFolderForProject(projectGitFolder: string, extension: string, mappedExt: string, subName = 'reference'): string {
+    const folderName = getRepoFolderName(projectGitFolder, true);
+    let skipFoldersPattern = getConfigValueByAllParts(folderName, extension, mappedExt, subName, 'skipFolders');
+    return mergeSkipFolderPattern(skipFoldersPattern);
+}
+
+function getSkipFolderCommandOption(repoFolder: string, isForProjectCmdAlias: boolean, useSkipFolders: boolean, toRunInTerminal: boolean, repoFolderCount: number, extension: string, mappedExt: string, subName: string): string {
+    if (toRunInTerminal) {
+        return repoFolderCount < 2
+            ? getSkipJunkPathArgs(IsWindowsTerminalOnWindows) :
+            ` --nd "${getJunkFolderForProject('', extension, mappedExt, subName)}"`;
+    }
+    const gitIgnoreInfo = getGitIgnore(repoFolder);
+    const skipFoldersPattern = getJunkFolderForProject(isForProjectCmdAlias ? repoFolder : '', extension, mappedExt, subName);
+    const skipFolderOptions = isForProjectCmdAlias && gitIgnoreInfo.Valid && (!toRunInTerminal || repoFolderCount < 2)
+        ? ` --np "${gitIgnoreInfo.getSkipPathRegexPattern(toRunInTerminal)}"`
+        : (useSkipFolders && skipFoldersPattern.length > 1 ? ` --nd "${skipFoldersPattern}"` : '');
+    return skipFolderOptions;
 }
 
 export function getSearchPathOptions(
@@ -593,31 +581,31 @@ export function getSearchPathOptions(
     usePathListFiles: boolean = true,
     forceSetSearchPath: string = '',
     isRecursive: boolean = true): string {
-    const allRootFolders = getRootFolders(codeFilePath);
-    const rootFolder = allRootFolders.includes(forceSetSearchPath) ? getRootFolder(forceSetSearchPath) : getRootFolder(codeFilePath);
+    const allRepoFolders = getRepoFolders(codeFilePath);
+    const repoFolder = allRepoFolders.includes(forceSetSearchPath) ? getRepoFolder(forceSetSearchPath) : getRepoFolder(codeFilePath);
     const extension = getExtensionNoHeadDot(path.parse(codeFilePath).ext, '');
-    const rootFolderName = getRootFolderName(codeFilePath, true);
-    const findDefinitionInAllFolders = getConfigValueByProjectAndExtension(rootFolderName, extension, mappedExt, 'definition.searchAllRootFolders') === "true";
-    const findReferencesInAllRootFolders = getConfigValueByProjectAndExtension(rootFolderName, extension, mappedExt, 'reference.searchAllRootFolders') === "true";
-    const findAllFolders = isFindingDefinition ? findDefinitionInAllFolders : findReferencesInAllRootFolders;
+    const repoFolderName = getRepoFolderName(codeFilePath, true);
+    const findDefinitionInAllFolders = getConfigValueByProjectAndExtension(repoFolderName, extension, mappedExt, 'definition.searchAllRepoFolders') === "true";
+    const findReferencesInAllRepoFolders = getConfigValueByProjectAndExtension(repoFolderName, extension, mappedExt, 'reference.searchAllRepoFolders') === "true";
+    const findAllFolders = isFindingDefinition ? findDefinitionInAllFolders : findReferencesInAllRepoFolders;
     const rootPaths = !isNullOrEmpty(forceSetSearchPath)
         ? forceSetSearchPath
-        : (findAllFolders ? getRootFolders(codeFilePath).join(',') : getRootFolder(codeFilePath));
+        : (findAllFolders ? getRepoFolders(codeFilePath).join(',') : getRepoFolder(codeFilePath));
 
     const recursiveOption = isRecursive || isNullOrEmpty(rootPaths) ? '-rp ' : '-p ';
-    const folderKey = isForProjectCmdAlias ? rootFolderName : '';
+    const folderKey = isForProjectCmdAlias ? repoFolderName : '';
 
     const subName = isFindingDefinition ? 'definition' : 'reference';
     const terminalType = !toRunInTerminal && isLinuxTerminalOnWindows() ? TerminalType.CMD : DefaultTerminalType;
-    const skipFolderOptions = getSkipFolderCommandOption(rootFolder, isForProjectCmdAlias, useSkipFolders, toRunInTerminal, allRootFolders.length, extension, mappedExt, subName);
+    const skipFolderOptions = getSkipFolderCommandOption(repoFolder, isForProjectCmdAlias, useSkipFolders, toRunInTerminal, allRepoFolders.length, extension, mappedExt, subName);
 
     const shouldSearchExtraPaths = isFindingDefinition && useExtraSearchPathsForDefinition || !isFindingDefinition && useExtraSearchPathsForReference;
     if (!shouldSearchExtraPaths) {
         if (isNullOrEmpty(rootPaths)) { // files not in project
-            const searchPaths = quotePaths(isFindingDefinition ? toTerminalPath(replaceToRelativeSearchPath(toRunInTerminal, path.dirname(codeFilePath), rootFolder), terminalType) : codeFilePath);
+            const searchPaths = quotePaths(isFindingDefinition ? toTerminalPath(replaceToRelativeSearchPath(toRunInTerminal, path.dirname(codeFilePath), repoFolder), terminalType) : codeFilePath);
             return '-p ' + searchPaths;
         } else {
-            const searchPaths = quotePaths(toTerminalPathsText(replaceToRelativeSearchPath(toRunInTerminal, rootPaths, rootFolder), terminalType));
+            const searchPaths = quotePaths(toTerminalPathsText(replaceToRelativeSearchPath(toRunInTerminal, rootPaths, repoFolder), terminalType));
             return recursiveOption + searchPaths + ' ' + skipFolderOptions;
         }
     }
@@ -641,7 +629,7 @@ export function getSearchPathOptions(
     pathFilesText = quotePaths(pathFilesText);
 
     const readPathListOptions = usePathListFiles && pathListFileSet.size > 0 ? ' -w "' + pathFilesText + '"' : '';
-    const searchPaths = replaceToRelativeSearchPath(toRunInTerminal, pathsText, rootFolder);
+    const searchPaths = replaceToRelativeSearchPath(toRunInTerminal, pathsText, repoFolder);
     const otherOptions = isNullOrEmpty(rootPaths) ? '' : readPathListOptions + ' ' + skipFolderOptions;
     return recursiveOption + quotePaths(searchPaths) + otherOptions;
 }
@@ -658,13 +646,13 @@ export function getExtraSearchPaths(folderKey: string, extension: string, mapped
     return [extraSearchPathSet, extraSearchPathFileListSet];
 }
 
-export function getExtraSearchPathsOrFileLists(configKeyTailName: string, rootFolderName: string, extension: string, mappedExt: string): Set<string> {
+function getExtraSearchPathsOrFileLists(configKeyTailName: string, repoFolderName: string, extension: string, mappedExt: string): Set<string> {
     let extraSearchPaths = new Set<string>();
     let extraSearchPathGroups: string[] = [];
-    const prefixSet = GetConfigPriorityPrefixes(rootFolderName, extension, mappedExt);
+    const prefixSet = GetConfigPriorityPrefixes(repoFolderName, extension, mappedExt);
     for (let k = 0; k < prefixSet.length; k++) {
         const configKey = prefixSet[k] + '.' + configKeyTailName;
-        const extraPathObject = MyConfig.RootConfig.get(configKey);
+        const extraPathObject = MyConfig.RepoConfig.get(configKey);
         if (extraPathObject === undefined || extraPathObject === null) {
             continue;
         }
@@ -699,7 +687,7 @@ export function getExtraSearchPathsOrFileLists(configKeyTailName: string, rootFo
         }
     });
 
-    const specificPaths = folderNameToPathMap.get(rootFolderName) || '';
+    const specificPaths = folderNameToPathMap.get(repoFolderName) || '';
     splitPathList(specificPaths).forEach(a => extraSearchPaths.add(a));
     return toStoragePaths(getUniqueStringSetNoCase(extraSearchPaths));
 }
@@ -728,7 +716,7 @@ export function printConfigInfo(config: vscode.WorkspaceConfiguration) {
     outputDebug('msr.debug = ' + config.get('debug'));
     outputDebug('msr.disable.extensionPattern = ' + config.get('disable.extensionPattern'));
     outputDebug('msr.disable.findDef.extensionPattern = ' + config.get('disable.findDef.extensionPattern'));
-    outputDebug('msr.disable.projectRootFolderNamePattern = ' + config.get('disable.projectRootFolderNamePattern'));
+    outputDebug('msr.disable.projectRepoFolderNamePattern = ' + config.get('disable.projectRepoFolderNamePattern'));
     outputDebug('msr.initProjectCmdAliasForNewTerminals = ' + config.get('initProjectCmdAliasForNewTerminals'));
     outputDebug('msr.autoMergeSkipFolders = ' + config.get('autoMergeSkipFolders'));
 }

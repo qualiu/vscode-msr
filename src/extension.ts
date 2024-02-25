@@ -3,25 +3,27 @@
 import * as vscode from 'vscode';
 import { RunCommandChecker } from './ToolChecker';
 import { getFindingCommandByCurrentWord, runFindingCommand } from './commands';
-import { getConfigValueByProjectAndExtension } from './configUtils';
-import { IsWindows, RunCmdTerminalName } from './constants';
-import { cookCmdShortcutsOrFile } from './cookCommandAlias';
-import { FileExtensionToMappedExtensionMap, MappedExtToCodeFilePatternMap, MyConfig, getConfig, getExtraSearchPaths, getGitIgnore, printConfigInfo } from './dynamicConfig';
+import { getConfigValueByProjectAndExtension, getConfigValueOfActiveProject, getConfigValueOfProject } from './configUtils';
+import { DefaultWorkspaceFolder, IsSupportedSystem, IsWindows, RunCmdTerminalName, WorkspaceCount, getDefaultRepoFolderByActiveFile, getRepoFolder, isNullOrEmpty } from './constants';
+import { CookAliasArgs, cookCmdShortcutsOrFile } from './cookCommandAlias';
+import { DefaultRepoFolder, FileExtensionToMappedExtensionMap, MappedExtToCodeFilePatternMap, MyConfig, WorkspaceToGitIgnoreMap, getConfig, getExtraSearchPaths, getGitIgnore, printConfigInfo } from './dynamicConfig';
 import { FindCommandType, FindType, ForceFindType } from './enums';
+import { GitIgnore } from './gitUtils';
 import { clearOutputChannelByTimes, outputDebugByTime, outputInfoByDebugMode, outputInfoByDebugModeByTime } from './outputUtils';
 import { Ranker } from './ranker';
-import { disposeTerminal } from './runCommandUtils';
+import { disposeTerminal, getRunCmdTerminalWithInfo } from './runCommandUtils';
 import { SearchChecker } from './searchChecker';
 import { Searcher, createCommandSearcher, createSearcher, getCurrentFileSearchInfo, setReRunMark, stopAllSearchers } from './searcher';
-import { getRootFolderFromTerminalCreation, getTerminalInitialPath, getTerminalNameOrShellExeName } from './terminalUtils';
+import { getRepoFolderFromTerminalCreation, getTerminalInitialPath, getTerminalNameOrShellExeName } from './terminalUtils';
 import { MsrExe } from './toolSource';
-import { getDefaultRootFolder, getDefaultRootFolderByActiveFile, getElapsedSecondsToNow, getRootFolder, getRootFolderName, getRootFolders, isNullOrEmpty, quotePaths, replaceSearchTextHolder, toPath } from './utils';
+import { getElapsedSecondsToNow, getRepoFolderName, getRepoFolders, quotePaths, replaceSearchTextHolder, toPath } from './utils';
 import path = require('path');
 
 outputDebugByTime('Start loading extension and initialize ...');
 
 // avoid prompting 'cmd.exe exit error'
 RunCommandChecker.checkToolAndInitRunCmdTerminal();
+updateGitIgnoreUsage();
 
 // vscode.languages.getLanguages().then((languages: string[]) => { console.log("Known languages: " + languages); });
 
@@ -43,8 +45,56 @@ export function activate(context: vscode.ExtensionContext) {
 			getConfig(true);
 			const config = vscode.workspace.getConfiguration('msr');
 			printConfigInfo(config);
+			updateGitIgnoreUsage();
+			cookCmdShortcutsOrFile({ FilePath: DefaultWorkspaceFolder, ForProject: true, SilentAll: true } as CookAliasArgs);
 		}
 	}));
+}
+
+function updateGitIgnoreUsage() {
+	WorkspaceToGitIgnoreMap.clear();
+
+	if (!IsSupportedSystem || WorkspaceCount < 1 || !vscode.workspace.workspaceFolders) {
+		return;
+	}
+
+	for (let k = 0; k < WorkspaceCount; k++) {
+		const workspaceFolder = vscode.workspace.workspaceFolders[k].uri.fsPath;
+		const repoFolder = getRepoFolder(workspaceFolder);
+		const projectName = path.basename(repoFolder);
+		const useGitIgnoreFile = getConfigValueOfProject(projectName, 'useGitIgnoreFile') === 'true';
+		const omitGitIgnoreExemptions = getConfigValueOfProject(projectName, 'omitGitIgnoreExemptions') === 'true';
+		const ignorableDotFolderNamePattern = getConfigValueOfProject(projectName, 'ignorableDotFolderNameRegex') || '';
+		const gitIgnore = new GitIgnore(path.join(repoFolder, '.gitignore'), useGitIgnoreFile, omitGitIgnoreExemptions, ignorableDotFolderNamePattern);
+		WorkspaceToGitIgnoreMap.set(repoFolder, gitIgnore);
+
+		// TODD: record in file or env when creating terminal
+		const canInitGitIgnore = workspaceFolder === DefaultRepoFolder;
+		const onlyCookFile = !canInitGitIgnore;
+		gitIgnore.parse(actionWhenSuccessfullyParsedGitIgnore, actionWhenFailedToParseGitIgnore);
+
+		function actionWhenSuccessfullyParsedGitIgnore() {
+			if (!canInitGitIgnore) {
+				return;
+			}
+
+			MyConfig.setGitIgnoreStatus(repoFolder, gitIgnore.ExemptionCount < 1);
+			const [runCmdTerminal, isNewlyCreated] = getRunCmdTerminalWithInfo();
+			cookCmdShortcutsOrFile({ FilePath: repoFolder, ForProject: true, Terminal: runCmdTerminal, OnlyCookFile: onlyCookFile, GitCheckSucceeded: true, IsNewlyCreated: isNewlyCreated } as CookAliasArgs);
+			const autoCompare = getConfigValueOfActiveProject('autoCompareFileListsIfUsedGitIgnore') === 'true';
+			if (autoCompare) {
+				gitIgnore.compareFileList();
+			}
+			cookCmdShortcutsOrFile({ FilePath: repoFolder, Terminal: runCmdTerminal, IsNewlyCreated: isNewlyCreated } as CookAliasArgs);
+		}
+
+		function actionWhenFailedToParseGitIgnore() {
+			const [runCmdTerminal, isNewlyCreated] = getRunCmdTerminalWithInfo();
+			cookCmdShortcutsOrFile({ FilePath: repoFolder, ForProject: true, Terminal: runCmdTerminal, OnlyCookFile: onlyCookFile, GitCheckFailed: true, IsNewlyCreated: isNewlyCreated } as CookAliasArgs);
+			MyConfig.setGitIgnoreStatus(repoFolder, false);
+		}
+
+	}
 }
 
 export function registerExtension(context: vscode.ExtensionContext) {
@@ -64,11 +114,9 @@ export function registerExtension(context: vscode.ExtensionContext) {
 			return;
 		}
 
-		const folders = vscode.workspace.workspaceFolders;
-		const firstFolder = folders && folders.length > 0 ? folders[0].uri.fsPath : '';
 		const initialPath = getTerminalInitialPath(terminal);
-		const workspaceFolder = getRootFolderFromTerminalCreation(terminal) || getDefaultRootFolderByActiveFile()
-			|| initialPath || firstFolder;
+		const workspaceFolder = getRepoFolderFromTerminalCreation(terminal) || getDefaultRepoFolderByActiveFile()
+			|| initialPath || DefaultWorkspaceFolder;
 		const exeNameByInitPath = isNullOrEmpty(initialPath) ? '' : path.basename(initialPath);
 		const terminalName = !isNullOrEmpty(exeNameByInitPath) ? exeNameByInitPath : getTerminalNameOrShellExeName(terminal);
 		const terminalTitle = !isNullOrEmpty(terminal.name) ? terminal.name : terminalName;
@@ -85,7 +133,7 @@ export function registerExtension(context: vscode.ExtensionContext) {
 				initialPath === workspaceFolder // default shell, no value set.
 				|| (!IsWindows || isNullOrEmpty(terminalName) || matchNameRegex.test(terminalName) || matchNameRegex.test(initialPath))
 			)) {
-			cookCmdShortcutsOrFile(false, workspaceFolder || '.', true, false, terminal, true);
+			cookCmdShortcutsOrFile({ FilePath: workspaceFolder || '.', ForProject: true, Terminal: terminal, IsNewlyCreated: true } as CookAliasArgs);
 		} else {
 			outputInfoByDebugMode(`Skip cooking alias: terminalName = ${terminalName}, title = ${terminalTitle}, initialPath = ${initialPath}, matchNameRegex = ${matchNameRegex.source}`);
 		}
@@ -199,35 +247,40 @@ export function registerExtension(context: vscode.ExtensionContext) {
 
 	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.cookCmdAlias',
 		(textEditor: vscode.TextEditor, _edit: vscode.TextEditorEdit, ..._args: any[]) =>
-			cookCmdShortcutsOrFile(true, textEditor.document.uri.fsPath, false, false)));
+			cookCmdShortcutsOrFile({ FromMenu: true, FilePath: textEditor.document.uri.fsPath } as CookAliasArgs)
+	));
 
 	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.cookCmdAliasByProject',
 		(textEditor: vscode.TextEditor, _edit: vscode.TextEditorEdit, ..._args: any[]) =>
-			cookCmdShortcutsOrFile(true, textEditor.document.uri.fsPath, true, false)));
+			cookCmdShortcutsOrFile({ FromMenu: true, FilePath: textEditor.document.uri.fsPath, ForProject: true } as CookAliasArgs)
+	));
 
 	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.cookCmdAliasFiles',
 		(textEditor: vscode.TextEditor, _edit: vscode.TextEditorEdit, ..._args: any[]) =>
-			cookCmdShortcutsOrFile(true, textEditor.document.uri.fsPath, false, true)));
+			cookCmdShortcutsOrFile({ FromMenu: true, FilePath: textEditor.document.uri.fsPath, WriteToEachFile: true } as CookAliasArgs)
+	));
 
 	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.cookCmdAliasFilesByProject',
 		(textEditor: vscode.TextEditor, _edit: vscode.TextEditorEdit, ..._args: any[]) =>
-			cookCmdShortcutsOrFile(true, textEditor.document.uri.fsPath, true, true)));
+			cookCmdShortcutsOrFile({ FromMenu: true, FilePath: textEditor.document.uri.fsPath, ForProject: true, WriteToEachFile: true } as CookAliasArgs)
+	));
 
 	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.cookCmdAliasDumpWithOthersToFiles',
 		(textEditor: vscode.TextEditor, _edit: vscode.TextEditorEdit, ..._args: any[]) => {
-			cookCmdShortcutsOrFile(true, textEditor.document.uri.fsPath, false, false, undefined, false, true);
-			cookCmdShortcutsOrFile(true, textEditor.document.uri.fsPath, false, true, undefined, false, true);
-			if (!isNullOrEmpty(getDefaultRootFolder())) {
-				cookCmdShortcutsOrFile(true, textEditor.document.uri.fsPath, true, false, undefined, false, false, false, true);
+			cookCmdShortcutsOrFile({ FromMenu: true, FilePath: textEditor.document.uri.fsPath, DumpOtherCmdAlias: true } as CookAliasArgs);
+			cookCmdShortcutsOrFile({ FromMenu: true, FilePath: textEditor.document.uri.fsPath, WriteToEachFile: true, DumpOtherCmdAlias: true } as CookAliasArgs);
+
+			if (!isNullOrEmpty(DefaultWorkspaceFolder)) {
+				cookCmdShortcutsOrFile({ FromMenu: true, FilePath: textEditor.document.uri.fsPath, ForProject: true, OnlyCookFile: true } as CookAliasArgs);
 			}
 		}));
 
 	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.cookCmdAliasDumpWithOthersToFilesByProject',
 		(textEditor: vscode.TextEditor, _edit: vscode.TextEditorEdit, ..._args: any[]) => {
-			cookCmdShortcutsOrFile(true, textEditor.document.uri.fsPath, true, false, undefined, false, true);
-			cookCmdShortcutsOrFile(true, textEditor.document.uri.fsPath, true, true, undefined, false, true);
-			if (!isNullOrEmpty(getDefaultRootFolder())) {
-				cookCmdShortcutsOrFile(true, textEditor.document.uri.fsPath, true, false, undefined, false, false, false, true);
+			cookCmdShortcutsOrFile({ FromMenu: true, FilePath: textEditor.document.uri.fsPath, ForProject: true, DumpOtherCmdAlias: true } as CookAliasArgs);
+			cookCmdShortcutsOrFile({ FromMenu: true, FilePath: textEditor.document.uri.fsPath, ForProject: true, WriteToEachFile: true, DumpOtherCmdAlias: true } as CookAliasArgs);
+			if (!isNullOrEmpty(DefaultWorkspaceFolder)) {
+				cookCmdShortcutsOrFile({ FromMenu: true, FilePath: textEditor.document.uri.fsPath, ForProject: true, OnlyCookFile: true } as CookAliasArgs);
 			}
 		}));
 
@@ -262,7 +315,7 @@ export function registerExtension(context: vscode.ExtensionContext) {
 
 	context.subscriptions.push(vscode.commands.registerCommand('msr.compareFileListsWithGitIgnore',
 		(..._args: any[]) => {
-			const gitIgnore = getGitIgnore(getDefaultRootFolderByActiveFile());
+			const gitIgnore = getGitIgnore(getDefaultRepoFolderByActiveFile());
 			gitIgnore.compareFileList();
 		}));
 }
@@ -319,13 +372,13 @@ export class DefinitionFinder implements vscode.DefinitionProvider {
 
 		const mappedExt = FileExtensionToMappedExtensionMap.get(extension) || extension;
 
-		// rootFolder is empty for external file:
-		const rootFolder = getRootFolder(document.fileName);
-		const rootFolderName = isNullOrEmpty(rootFolder) ? path.basename(getDefaultRootFolderByActiveFile()) : path.basename(rootFolder);
-		const defaultRootFolderName = isNullOrEmpty(rootFolderName) ? path.basename(getDefaultRootFolder()) : rootFolderName;
-		const [extraSearchPaths] = getExtraSearchPaths(rootFolderName || defaultRootFolderName, extension, mappedExt);
-		const extraRootSearchPaths = Array.from(extraSearchPaths).filter(a => document.fileName.startsWith(a)).sort((a, b) => a.length - b.length);
-		const isExternalFile = isNullOrEmpty(rootFolder) && extraRootSearchPaths.length < 1;
+		// repoFolder is empty for external file:
+		const repoFolder = getRepoFolder(document.fileName);
+		const repoFolderName = isNullOrEmpty(repoFolder) ? path.basename(getDefaultRepoFolderByActiveFile()) : path.basename(repoFolder);
+		const defaultRepoFolderName = isNullOrEmpty(repoFolderName) ? path.basename(DefaultWorkspaceFolder) : repoFolderName;
+		const [extraSearchPaths] = getExtraSearchPaths(repoFolderName || defaultRepoFolderName, extension, mappedExt);
+		const extraRepoSearchPaths = Array.from(extraSearchPaths).filter(a => document.fileName.startsWith(a)).sort((a, b) => a.length - b.length);
+		const isExternalFile = isNullOrEmpty(repoFolder) && extraRepoSearchPaths.length < 1;
 		const sourceFileFolder = path.parse(document.fileName).dir;
 
 		const searchChecker = new SearchChecker(document, FindType.Definition, position, currentWord, currentWordRange, currentText, parsedFile, mappedExt);
@@ -366,7 +419,7 @@ export class DefinitionFinder implements vscode.DefinitionProvider {
 		}
 
 		// check and add same name file for class searching:
-		const preferSearchingSpeedOverPrecision = getConfigValueByProjectAndExtension(rootFolderName, extension, mappedExt, 'preferSearchingSpeedOverPrecision') === 'true';
+		const preferSearchingSpeedOverPrecision = getConfigValueByProjectAndExtension(repoFolderName, extension, mappedExt, 'preferSearchingSpeedOverPrecision') === 'true';
 		function addClassNameFileSearcher(searcherGroup: (Searcher | null)[], searcherToClone: Searcher | null): Searcher | null {
 			if (!preferSearchingSpeedOverPrecision || !searcherToClone || isNullOrEmpty(searchChecker.classFileNamePattern)) {
 				return null;
@@ -438,7 +491,7 @@ export class DefinitionFinder implements vscode.DefinitionProvider {
 		const diskRegex = IsWindows ? /^[A-Z]:\\.+?\\\w+/i : new RegExp('^/[^/]+/[^/]+$');
 		for (let k = 0; k < 4; k++) {
 			// avoid searching disk root for external files + avoid out of repo folder for internal files.
-			if (isNullOrEmpty(rootFolder) || !parentFolder.startsWith(rootFolder) || !parentFolder.match(diskRegex)) {
+			if (isNullOrEmpty(repoFolder) || !parentFolder.startsWith(repoFolder) || !parentFolder.match(diskRegex)) {
 				break;
 			}
 			let searcher = createSearcher(searchChecker, "Search-Parent-Up-" + (k + 1), parentFolder, true, defaultForceFindClassMethodMember, 16, 9);
@@ -462,15 +515,15 @@ export class DefinitionFinder implements vscode.DefinitionProvider {
 			slowSearchers = addClassSearchers(slowSearchers);
 		}
 
-		const repoSearcher = isNullOrEmpty(rootFolder) ? null : createSearcher(searchChecker, "Search-This-Repo", rootFolder);
-		addClassNameFileSearcher(classFileNameSearchers, createSearcher(searchChecker, "Search-This-Repo", rootFolder));
+		const repoSearcher = isNullOrEmpty(repoFolder) ? null : createSearcher(searchChecker, "Search-This-Repo", repoFolder);
+		addClassNameFileSearcher(classFileNameSearchers, createSearcher(searchChecker, "Search-This-Repo", repoFolder));
 
 		addSearcher(slowSearchers, repoSearcher);
 
 		const forbidReRunSearchers = new Set<Searcher | null>();
-		function addExtraOtherSearchers(searcherGroup: (Searcher | null)[], rootFolders: string[], isExtra: boolean) {
-			rootFolders.forEach(folder => {
-				const name = (isExtra ? 'Search-Extra-Path-' : 'Search-Other-Root-') + path.basename(folder);
+		function addExtraOtherSearchers(searcherGroup: (Searcher | null)[], repoFolders: string[], isExtra: boolean) {
+			repoFolders.forEach(folder => {
+				const name = (isExtra ? 'Search-Extra-Path-' : 'Search-Other-Repo-') + path.basename(folder);
 				const extraSearcher = createSearcher(searchChecker, name, folder);
 				if (extraSearcher) {
 					extraSearcher.Ranker.canRunCommandInTerminalWhenNoResult = false;
@@ -482,12 +535,12 @@ export class DefinitionFinder implements vscode.DefinitionProvider {
 			});
 		}
 
-		const allRootFolders = getRootFolders(rootFolder);
-		const otherRootFolders = allRootFolders.filter(a => a !== rootFolder);
-		const extraRootSearchFolders = Array.from(extraSearchPaths).filter(a => !allRootFolders.includes(a));
+		const allRepoFolders = getRepoFolders(repoFolder);
+		const otherRepoFolders = allRepoFolders.filter(a => a !== repoFolder);
+		const extraRepoSearchFolders = Array.from(extraSearchPaths).filter(a => !allRepoFolders.includes(a));
 
-		addExtraOtherSearchers(slowSearchers, extraRootSearchFolders, true);
-		addExtraOtherSearchers(slowSearchers, otherRootFolders, false);
+		addExtraOtherSearchers(slowSearchers, extraRepoSearchFolders, true);
+		addExtraOtherSearchers(slowSearchers, otherRepoFolders, false);
 
 		if (!enableLastSearcherToRunCommand(slowSearchers)) {
 			enableLastSearcherToRunCommand(currentFileSearchers);
@@ -556,7 +609,7 @@ export class DefinitionFinder implements vscode.DefinitionProvider {
 			let match = /\s+-t (\S+|"[^"]+")\s+/.exec(command);
 			if (match) {
 				command = command.substring(0, match.index) + ' -t "' + getSearchPatternForLocalVariableOrConstant(currentWord) + '" ' + command.substring(match.index + match[0].length);
-				const constSearcher = createCommandSearcher('Search-Constant', rootFolder, command, ranker);
+				const constSearcher = createCommandSearcher('Search-Constant', repoFolder, command, ranker);
 				finalGroup.push(constSearcher);
 			}
 		}
@@ -636,7 +689,7 @@ function getCommandToSearchLocalVariableOrConstant(searchChecker: SearchChecker,
 	let ranker = new Ranker(searchChecker, true, ForceFindType.FindLocalVariable);
 	const pattern = isVariableInit || isSimpleDefineAndInit
 		? getSearchPatternForLocalVariableOrConstant(currentWord, isSimpleDefineAndInit)
-		: getConfigValueByProjectAndExtension(getRootFolderName(searchChecker.Document.fileName), extension, mappedExt, 'definition') + '|^\\w*[^;]{0,120}\\s+' + currentWord + '\\s*;\\s*$';
+		: getConfigValueByProjectAndExtension(getRepoFolderName(searchChecker.Document.fileName), extension, mappedExt, 'definition') + '|^\\w*[^;]{0,120}\\s+' + currentWord + '\\s*;\\s*$';
 
 	const filePath = quotePaths(searchChecker.Document.fileName);
 	let command = MsrExe + ' -p ' + filePath + ' -t "' + pattern + '"' + ' -N ' + searchChecker.Position.line + ' -T 1 -I -C';

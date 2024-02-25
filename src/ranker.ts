@@ -1,15 +1,15 @@
 import { ParsedPath } from 'path';
 import * as vscode from 'vscode';
+import { ResultType } from './ScoreTypeResult';
 import { GetConfigPriorityPrefixes, getConfigValueByAllParts, getConfigValueByPriorityList, getConfigValueByProjectAndExtension, getConfigValueOfProject } from './configUtils';
-import { SearchTextHolder } from './constants';
-import { addExtensionToPattern, getConfig, MappedExtToCodeFilePatternMap, MyConfig } from './dynamicConfig';
+import { SearchTextHolder, isNullOrEmpty } from './constants';
+import { MappedExtToCodeFilePatternMap, MyConfig, addExtensionToPattern, getConfig } from './dynamicConfig';
 import { FindType, ForceFindType } from './enums';
 import { ForceSetting } from './forceSettings';
 import { outputDebug, outputDebugByTime, outputErrorByTime } from './outputUtils';
 import { EmptyRegex, getAllSingleWords } from './regexUtils';
-import { ResultType } from './ScoreTypeResult';
 import { SearchChecker } from './searchChecker';
-import { getRootFolderName, isNullOrEmpty } from './utils';
+import { getRepoFolderName } from './utils';
 import path = require('path');
 
 export class Ranker {
@@ -17,7 +17,7 @@ export class Ranker {
 	public isOneFileOrFolder: boolean;
 	public canRunCommandInTerminalWhenNoResult: boolean = false;
 	public canRunCommandInTerminalWhenManyResults: boolean = true;
-	public rootFolderName: string;
+	public repoFolderName: string;
 
 	public scoreWordsText: string;
 	private scoreWordSet: Set<string>;
@@ -43,7 +43,7 @@ export class Ranker {
 		this.isOneFileOrFolder = isOneFileOrFolder;
 		this.ForceSetting = new ForceSetting(forceFindType);
 		const MyConfig = getConfig();
-		this.rootFolderName = getRootFolderName(searchChecker.currentFilePath);
+		this.repoFolderName = getRepoFolderName(searchChecker.currentFilePath);
 
 		this.isFindClass = this.ForceSetting.hasFlag(ForceFindType.FindClass) && searchChecker.isFindClass;
 		this.isFindMethod = this.ForceSetting.hasFlag(ForceFindType.FindMethod) && searchChecker.isFindMethod;
@@ -130,8 +130,8 @@ export class Ranker {
 
 	public getConfigValueOfActiveProject(configKeyTail: string, addDefault: boolean = true, allowEmpty: boolean = true): string {
 		let prefixes = this.searchChecker.ForceUseDefaultFindingDefinition
-			? GetConfigPriorityPrefixes(this.rootFolderName, '', '', true)
-			: GetConfigPriorityPrefixes(this.rootFolderName, this.searchChecker.extension, this.searchChecker.mappedExt, addDefault);
+			? GetConfigPriorityPrefixes(this.repoFolderName, '', '', true)
+			: GetConfigPriorityPrefixes(this.repoFolderName, this.searchChecker.extension, this.searchChecker.mappedExt, addDefault);
 		const pattern = getConfigValueByPriorityList(prefixes, configKeyTail, allowEmpty) as string || '';
 		if (!isNullOrEmpty(pattern) && configKeyTail.includes('definition') && !configKeyTail.includes('skip') && pattern.indexOf(SearchTextHolder) < 0) {
 			const keys = prefixes.join('.' + configKeyTail + ' or ');
@@ -144,8 +144,8 @@ export class Ranker {
 
 	public getConfigValueByAllParts(subKey: string, configKeyTail: string, _addDefault: boolean = true, allowEmpty: boolean = true): string {
 		const pattern = this.searchChecker.ForceUseDefaultFindingDefinition
-			? getConfigValueByAllParts(this.rootFolderName, '', '', subKey, configKeyTail, allowEmpty)
-			: getConfigValueByAllParts(this.rootFolderName, this.searchChecker.extension, this.searchChecker.mappedExt, subKey, configKeyTail, allowEmpty);
+			? getConfigValueByAllParts(this.repoFolderName, '', '', subKey, configKeyTail, allowEmpty)
+			: getConfigValueByAllParts(this.repoFolderName, this.searchChecker.extension, this.searchChecker.mappedExt, subKey, configKeyTail, allowEmpty);
 		if (!isNullOrEmpty(pattern) && configKeyTail.includes('definition') && !configKeyTail.includes('skip') && pattern.indexOf(SearchTextHolder) < 0) {
 			const keys = subKey + '.' + configKeyTail;
 			outputErrorByTime('Not found word-holder: "' + SearchTextHolder + '" in search option, please check configuration of ' + keys + ', searchPattern = ' + pattern);
@@ -221,8 +221,8 @@ export class Ranker {
 		const rootConfig = vscode.workspace.getConfiguration('msr');
 		const codeFilesPattern = this.searchChecker.mappedExt === 'ui' ? MyConfig.CodeFilesPlusUIRegex.source : MyConfig.CodeFilesRegex.source;
 		let filePattern = MappedExtToCodeFilePatternMap.get(this.searchChecker.mappedExt) || '\\.' + extension + '$';
-		const searchAllFilesForReferences = getConfigValueByProjectAndExtension(this.rootFolderName, extension, this.searchChecker.mappedExt, 'searchAllFilesForReferences') === 'true';
-		const searchAllFilesForDefinition = getConfigValueByProjectAndExtension(this.rootFolderName, extension, this.searchChecker.mappedExt, 'searchAllFilesForDefinitions') === 'true';
+		const searchAllFilesForReferences = getConfigValueByProjectAndExtension(this.repoFolderName, extension, this.searchChecker.mappedExt, 'searchAllFilesForReferences') === 'true';
+		const searchAllFilesForDefinition = getConfigValueByProjectAndExtension(this.repoFolderName, extension, this.searchChecker.mappedExt, 'searchAllFilesForDefinitions') === 'true';
 		if (searchAllFilesForReferences && configKeyName === 'reference') {
 			filePattern = config.AllFilesRegex.source;
 			const defaultFindRef = rootConfig.get('default.reference') as string;

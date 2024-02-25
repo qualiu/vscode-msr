@@ -1,5 +1,5 @@
+import { isNullOrEmpty } from '../constants';
 import { SearchChecker } from '../searchChecker';
-import { isNullOrEmpty } from '../utils';
 import { ClassResultFilter } from './ClassResultFilter';
 import fs = require('fs');
 

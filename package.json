@@ -3,7 +3,7 @@
 	"displayName": "Code mining + Replace file text + Find definition and reference for all types.",
 	"description": "Code mining + Replace file text + Find definition and reference in multiple repository paths by msr for all coding languages + configuration + doc files.",
 	"author": "qualiu@microsoft.com",
-	"version": "2.1.80",
+	"version": "2.1.81",
 	"icon": "images/vscode-msr-icon.png",
 	"license": "completely free",
 	"publisher": "qualiu",
@@ -1011,14 +1011,14 @@
 				"msr.default.removeLowScoreResultsFactor": {
 					"type": "number",
 					"default": 0.8,
-					"description": "Remove low score definition search results (if enabled sortResults) which score lower than average plus this factor. To disable this: set a large value like 10. Overwrite with `msr.{root-folder-name}.removeLowScoreResultsFactor`."
+					"description": "Remove low score definition search results (if enabled sortResults) which score lower than average plus this factor. To disable this: set a large value like 10. Overwrite with `msr.{repo-folder-name}.removeLowScoreResultsFactor`."
 				},
 				"msr.default.keepHighScoreResultCount": {
 					"type": "number",
 					"default": -1,
-					"description": "Keep high score result count. Default -1 means keep all results. Overwrite with `msr.{root-folder-name}.keepHighScoreResultCount`."
+					"description": "Keep high score result count. Default -1 means keep all results. Overwrite with `msr.{repo-folder-name}.keepHighScoreResultCount`."
 				},
-				"msr.disable.projectRootFolderNamePattern": {
+				"msr.disable.projectRepoFolderNamePattern": {
 					"type": "string",
 					"default": "",
 					"description": "Regex pattern of project root folder names to disable finding definition and references."
@@ -1143,35 +1143,35 @@
 				},
 				"msr.cmd.postInitTerminalCommandLine": {
 					"type": "string",
-					"default": "set MSR_OUT_INDEX=1 && set MSR_UNIX_SLASH=1 && set MSR_COLORS=x=Yellow_Black && echo Will output match index + forward slash for result paths. Use clear-msr-env to clear them or change settings.",
+					"default": "set MSR_OUT_INDEX=1 && set MSR_UNIX_SLASH=1 && set MSR_COLORS=x=Yellow_Black && @REM Use clear-msr-env to clear them or change settings.",
 					"description": "Initialize Windows CMD terminals (including MSR-RUN-CMD). set MSR_KEEP_COLOR=1 to keep color for output to file or pipe."
 				},
 				"msr.powerShell.postInitTerminalCommandLine": {
 					"type": "string",
-					"default": "$env:MSR_OUT_INDEX=1; $env:MSR_UNIX_SLASH=1; $env:MSR_COLORS='x=Yellow_Black'; echo 'Will output match index + forward slash for result paths. Use clear-msr-env to clear them or change settings.'",
+					"default": "$env:MSR_OUT_INDEX=1; $env:MSR_UNIX_SLASH=1; $env:MSR_COLORS='x=Yellow_Black'; echo 'Use clear-msr-env to clear them or change settings.'",
 					"description": "Initialize Windows PowerShell terminals. set MSR_KEEP_COLOR=1 to keep color for output to file or pipe."
 				},
 				"msr.mingwBash.postInitTerminalCommandLine": {
 					"type": "string",
-					"default": "export MSR_EXIT=gt127-to-127 && export MSR_OUT_INDEX=1 && export MSR_UNIX_SLASH=1 && export MSR_COLORS=x=Yellow_Black && echo Will limit big return value: \"$MSR_EXIT\" + Output match index + forward slash for result paths. Use clear-msr-env to clear them or change settings.",
+					"default": "export MSR_EXIT=gt127-to-127 && export MSR_OUT_INDEX=1 && export MSR_UNIX_SLASH=1 && export MSR_COLORS=x=Yellow_Black && Tip='Use clear-msr-env to clear them or change settings'",
 					"description": "Initialize MinGW bash terminals on Windows. export MSR_KEEP_COLOR=1 to keep color for output to file or pipe."
 				},
 				"msr.cygwinBash.postInitTerminalCommandLine": {
 					"type": "string",
-					"default": "export MSR_EXIT=gt255-to-255 && export MSR_OUT_INDEX=1 && export MSR_UNIX_SLASH=1 && export MSR_COLORS=x=Yellow_Black && echo Will limit big return value: \"$MSR_EXIT\" + Output match index + forward slash for result paths. Use clear-msr-env to clear them or change settings.",
+					"default": "export MSR_EXIT=gt255-to-255 && export MSR_OUT_INDEX=1 && export MSR_UNIX_SLASH=1 && export MSR_COLORS=x=Yellow_Black && Tip='Use clear-msr-env to clear them or change settings'",
 					"description": "Initialize Cygwin bash terminals."
 				},
 				"msr.bash.postInitTerminalCommandLine": {
 					"type": "string",
-					"default": "export MSR_EXIT=gt255-to-255 && export MSR_OUT_INDEX=1 && export MSR_COLORS=x=Yellow_Black && echo Will limit big return value: \"$MSR_EXIT\" + Output match index. Use clear-msr-env to clear them or change settings.",
+					"default": "export MSR_EXIT=gt255-to-255 && export MSR_OUT_INDEX=1 && export MSR_COLORS=x=Yellow_Black && Tip='Use clear-msr-env to clear them or change settings'",
 					"description": "Initialize Bash terminals (including MSR-RUN-CMD)."
 				},
-				"msr.definition.searchAllRootFolders": {
+				"msr.definition.searchAllRepoFolders": {
 					"type": "boolean",
 					"default": true,
 					"description": "Find definition in all root folders of current vscode workspace (if have multiple root folders)."
 				},
-				"msr.reference.searchAllRootFolders": {
+				"msr.reference.searchAllRepoFolders": {
 					"type": "boolean",
 					"default": true,
 					"description": "Find references in all root folders of current vscode workspace (if have multiple root folders)."
@@ -1219,12 +1219,12 @@
 				"msr.default.extraSearchPaths": {
 					"type": "string",
 					"default": "",
-					"description": "Default extra search paths. Use ';' to separate groups (`global-paths` or `root-folder-name=paths` pairs), use ',' to separate paths. You can also set `msr.{root-folder-name}.extraSearchPaths` in your personal settings file like `%APPDATA%\\Code\\User\\settings.json` on Windows (See doc: https://github.com/qualiu/vscode-msr/blob/master/README.md#extra-paths-settings)"
+					"description": "Default extra search paths. Use ';' to separate groups (`global-paths` or `repo-folder-name=paths` pairs), use ',' to separate paths. You can also set `msr.{repo-folder-name}.extraSearchPaths` in your personal settings file like `%APPDATA%\\Code\\User\\settings.json` on Windows (See doc: https://github.com/qualiu/vscode-msr/blob/master/README.md#extra-paths-settings)"
 				},
 				"msr.default.extraSearchPathListFiles": {
 					"type": "string",
 					"default": "",
-					"description": "Default extra search path list files (one path at one line in each file). Use ';' to separate groups (`global-paths` or `root-folder-name=paths` pairs), use ',' to separate paths. (See doc: https://github.com/qualiu/vscode-msr/blob/master/README.md#extra-paths-settings)"
+					"description": "Default extra search path list files (one path at one line in each file). Use ';' to separate groups (`global-paths` or `repo-folder-name=paths` pairs), use ',' to separate paths. (See doc: https://github.com/qualiu/vscode-msr/blob/master/README.md#extra-paths-settings)"
 				},
 				"msr.default.skip.pureReference": {
 					"type": "string",
@@ -1249,7 +1249,7 @@
 				"msr.default.skipFolders": {
 					"type": "string",
 					"default": "^([\\.\\$]|(Release|Debug|objd?|bin|node_modules|static|dist|target|(Js)?Packages|\\w+-packages?|wwwroot)$|__pycache__)",
-					"description": "Default Regex pattern to skip folders. You can set each project's additional skip patterns: `msr.{root-folder-name}.definition.skipFolders` or `msr.{root-folder-name}.reference.skipFolders` in your personal settings file like `%APPDATA%\\Code\\User\\settings.json` on Windows (See doc: https://github.com/qualiu/vscode-msr/blob/master/README.md#extra-paths-settings)."
+					"description": "Default Regex pattern to skip folders. You can set each project's additional skip patterns: `msr.{repo-folder-name}.definition.skipFolders` or `msr.{repo-folder-name}.reference.skipFolders` in your personal settings file like `%APPDATA%\\Code\\User\\settings.json` on Windows (See doc: https://github.com/qualiu/vscode-msr/blob/master/README.md#extra-paths-settings)."
 				},
 				"msr.useGitIgnoreFile": {
 					"type": "boolean",
@@ -1265,6 +1265,16 @@
 					"type": "boolean",
 					"default": false,
 					"description": "Auto compare file lists if used '.gitignore' (enabled `msr.useGitIgnoreFile`) when opening a project folder."
+				},
+				"msr.useGitFileListToSearchSingleWorkspace": {
+					"type": "string",
+					"default": "auto",
+					"description": "Use git file list to search single workspace(project/repository): 'true' = use; 'false' = not; 'auto' = found git exemptions then use."
+				},
+				"msr.searchGitSubModuleFolders": {
+					"type": "boolean",
+					"default": true,
+					"description": "Recursively search git submodules (folders) of a git repository(workspace)."
 				},
 				"msr.ignorableDotFolderNameRegex": {
 					"type": "string",
@@ -1349,7 +1359,7 @@
 				"msr.allSmallFiles.extraOptions": {
 					"type": "string",
 					"default": "--xd --s1 1B --s2 1.6MB -I -C -c",
-					"description": "Default extra searching options for small files. Will merge `msr.{root-folder-name}.extraOptions` if you set in your personal settings file like `%APPDATA%\\Code\\User\\settings.json` on Windows (See doc: https://github.com/qualiu/vscode-msr/blob/master/README.md#extra-paths-settings)."
+					"description": "Default extra searching options for small files. Will merge `msr.{repo-folder-name}.extraOptions` if you set in your personal settings file like `%APPDATA%\\Code\\User\\settings.json` on Windows (See doc: https://github.com/qualiu/vscode-msr/blob/master/README.md#extra-paths-settings)."
 				},
 				"msr.default.scriptFiles": {
 					"type": "string",
@@ -1406,11 +1416,6 @@
 					"default": "",
 					"description": "Add '@SetLocal EnableExtensions EnableDelayedExpansion' or set to empty when cooking each command alias/doskeys to a batch script file named alias.cmd"
 				},
-				"msr.cookCmdAlias.showLongTip": {
-					"type": "boolean",
-					"default": true,
-					"description": "Show long tip guide for command alias in terminals."
-				},
 				"msr.searchRelativePathForLinuxTerminalsOnWindows": {
 					"type": "boolean",
 					"default": true,
@@ -1429,12 +1434,12 @@
 				"msr.definition.extraOptions": {
 					"type": "string",
 					"default": "--xd --s1 1B --s2 1.6MB -H 10 -J -I -C -c",
-					"description": "Default extra searching options for finding definitions: Get top {N} results and jump out. Will merge `msr.{root-folder-name}.extraOptions` if you set in your personal settings file like `%APPDATA%\\Code\\User\\settings.json` on Windows (See doc: https://github.com/qualiu/vscode-msr/blob/master/README.md#extra-paths-settings)."
+					"description": "Default extra searching options for finding definitions: Get top {N} results and jump out. Will merge `msr.{repo-folder-name}.extraOptions` if you set in your personal settings file like `%APPDATA%\\Code\\User\\settings.json` on Windows (See doc: https://github.com/qualiu/vscode-msr/blob/master/README.md#extra-paths-settings)."
 				},
 				"msr.reference.extraOptions": {
 					"type": "string",
 					"default": "--xd --s1 1B --s2 3.6MB -H 30 -J -I -C -c",
-					"description": "Default extra searching options for finding references: Get top {N} results and jump out. Will merge `msr.{root-folder-name}.extraOptions` if you set in your personal settings file like `%APPDATA%\\Code\\User\\settings.json` on Windows (See doc: https://github.com/qualiu/vscode-msr/blob/master/README.md#extra-paths-settings)."
+					"description": "Default extra searching options for finding references: Get top {N} results and jump out. Will merge `msr.{repo-folder-name}.extraOptions` if you set in your personal settings file like `%APPDATA%\\Code\\User\\settings.json` on Windows (See doc: https://github.com/qualiu/vscode-msr/blob/master/README.md#extra-paths-settings)."
 				},
 				"msr.default.preferSearchingSpeedOverPrecision": {
 					"type": "boolean",
@@ -1900,7 +1905,7 @@
 					"default": "\\b\\w+\\.(%1)\\b"
 				},
 				"msr.go.skipFolders": {
-					"description": "Regex pattern to skip folders for GoLang. You can set each project's additional skip patterns: `msr.{root-folder-name}.definition.skipFolders` or `msr.{root-folder-name}.reference.skipFolders` in your personal settings file like `%APPDATA%\\Code\\User\\settings.json` on Windows (See doc: https://github.com/qualiu/vscode-msr/blob/master/README.md#extra-paths-settings).",
+					"description": "Regex pattern to skip folders for GoLang. You can set each project's additional skip patterns: `msr.{repo-folder-name}.definition.skipFolders` or `msr.{repo-folder-name}.reference.skipFolders` in your personal settings file like `%APPDATA%\\Code\\User\\settings.json` on Windows (See doc: https://github.com/qualiu/vscode-msr/blob/master/README.md#extra-paths-settings).",
 					"type": "string",
 					"default": "^([\\.\\$]|(github.com|golang.com|golang.org|pkg|Release|Debug|objd?|bin|node_modules|static|dist|target|(Js)?Packages|\\w+-packages?|wwwroot)$|__pycache__)"
 				},
@@ -1975,9 +1980,9 @@
 					"default": "%AutoDecideSkipFolderToSearch% -f \"\\.(c\\+\\+|cpp|cxx|cc|c|hp*|hxx)$\" --xd --s1 1B --s2 3.6MB --out-index --nt \"^\\s*(#include|/|\\*)|^.{360,}\" -t \"\\b%1\\b\" --xp test,mock,deprecate"
 				},
 				"msr.cxx.myFindOrReplaceSelectedTextCommand": {
-					"description": "Example of custom command line to find selected text in C/C++. Auto change `%Skip_Git_Paths%` to `$Skip_Git_Paths` on Linux/MacOS + Auto change to `--nd \"Skip-Folder-Regex\"` if Skip_Git_Paths is not set due to git exemptions.",
+					"description": "Example of custom command line to find selected text in C/C++. Auto change `%Skip_Junk_Paths%` to `$Skip_Junk_Paths` on Linux/MacOS + Auto change to `--nd \"Skip-Folder-Regex\"` if Skip_Junk_Paths is not set due to git exemptions.",
 					"type": "string",
-					"default": "msr -rp %ProjectsFolders% --np \"%Skip_Git_Paths%\" -f %FileExtMap% --xd --s1 1B --s2 3.6MB --out-index --nt \"^\\s*(#include|/|\\*)|^.{360,}\" -t \"\\b%1\\b\" --xp test,mock,deprecate"
+					"default": "msr -rp %ProjectsFolders% --np \"%Skip_Junk_Paths%\" -f %FileExtMap% --xd --s1 1B --s2 3.6MB --out-index --nt \"^\\s*(#include|/|\\*)|^.{360,}\" -t \"\\b%1\\b\" --xp test,mock,deprecate"
 				},
 				"msr.proto.myFindOrReplaceSelectedTextCommand": {
 					"description": "Example of custom command line to find selected text in Protocol Buffers files.",

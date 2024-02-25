@@ -2,6 +2,12 @@
 
 All notable changes to this "vscode-msr" extension will be documented in this file.
 
+## [2.1.81]
+
+- Accelerated terminal initialization on some **Windows**.
+- Added `msr.useGitFileListToSearchSingleWorkspace` = `auto` for menu search using git file list.
+- Added `msr.searchGitSubModuleFolders` = `true` to enable skip git submodule folders.
+
 ## [2.1.80]
 
 - Improved alias files for all platforms with common body + variables.

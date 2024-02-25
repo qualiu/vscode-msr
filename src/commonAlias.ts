@@ -1,10 +1,10 @@
 import * as vscode from 'vscode';
 import { AliasNameBody } from './AliasNameBody';
+import { isNullOrEmpty } from './constants';
 import { TerminalType } from "./enums";
-import { GitListFileRecursiveArg } from "./gitUtils";
 import { enableColorAndHideCommandLine, outputInfoByDebugModeByTime, outputWarnByTime } from "./outputUtils";
 import { isWindowsTerminalOnWindows } from "./terminalUtils";
-import { getPowerShellName, isNullOrEmpty, replaceSearchTextHolder, replaceTextByRegex } from "./utils";
+import { getPowerShellName, replaceSearchTextHolder, replaceTextByRegex } from "./utils";
 
 export function replaceArgForLinuxCmdAlias(body: string, forMultipleFiles: boolean): string {
   // function or simple alias
@@ -75,7 +75,7 @@ const CommonAliasMap: Map<string, string> = new Map<string, string>()
   .set('git-sm-prune', String.raw`msr -XM -z "git prune" && msr -XMz "git submodule foreach git prune"`)
   .set('git-sm-init', String.raw`msr -XMz "git submodule sync" && echo git submodule update --init $* | msr -XM & git status`)
   .set('git-sm-reset', String.raw`msr -XMz "git submodule sync" && msr -XMz "git submodule init" && echo git submodule update -f $* | msr -XM & git status`)
-  .set('git-sm-restore', String.raw`echo git restore . ${GitListFileRecursiveArg} $* | msr -XM & git status`)  // replace '&' to ';' for Linux
+  .set('git-sm-restore', String.raw`echo git restore . --recurse-submodules $* | msr -XM & git status`)  // replace '&' to ';' for Linux
   .set('git-sm-reinit', String.raw`msr -XM -z "git submodule deinit -f ." && msr -XM -z "git submodule update --init" & git status`)
   .set('git-sm-update-remote', String.raw`msr -XMz "git submodule sync" && echo git submodule update --remote $* | msr -XM & git status`)
   .set('git-cherry-pick-branch-new-old-commits', String.raw`git log $1 | msr -b "^commit $2" -q "^commit $3" -t "^commit (\w+)" -o "\1" -M -C | msr -s "^:(\d+):" -n --dsc -t "^:\d+:(?:\d+:)?\s+(\w+)" -o "git cherry-pick \1" -X -V ne0 $4 $5 $6 $7 $8 $9`)
@@ -352,6 +352,7 @@ const WindowsAliasMap: Map<string, string> = new Map<string, string>()
   .set('mingw-unMock', String.raw`set "MSR_UNIX_SLASH=" && echo Now will output backslash '\' for result paths in this CMD terminal.`)
   .set('clear-msr-env', String.raw`for /f "tokens=*" %a in ('set ^| msr -t "^(MSR_\w+)=.*" -o "\1" -PAC') do @msr -z "%a" -t "(.+)" -o "echo Cleared \1=%\1% | msr -aPA -t MSR_\\w+ -e =.*" -XA || @set "%a="`)
   .set('trust-exe', String.raw`PowerShell -Command "Write-Host 'Please run as Admin to add process exclusion, will auto fetch exe path by name, example: trust-exe msr,nin,git,scp' -ForegroundColor Cyan; foreach ($exe in ('$1'.Trim() -split '\s*[,;]\s*')) { if (-not [IO.File]::Exists($exe)) { $exe = $(Get-Command $exe).Source; } Write-Host ('Will add exe to exclusion: ' + $exe) -ForegroundColor Green; Add-MpPreference -ExclusionPath $exe; }"`)
+  .set('restart-net', String.raw`echo PowerShell -Command "Get-NetAdapter | Restart-NetAdapter -Confirm:$false" | msr -XM`)
   ;
 
 export function getCommonAliasMap(terminalType: TerminalType, writeToEachFile: boolean): Map<string, string> {

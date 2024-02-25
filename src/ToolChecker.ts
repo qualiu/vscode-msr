@@ -1,14 +1,14 @@
 import { getConfigValueOfActiveProject } from "./configUtils";
-import { GetCommandOutput, HomeFolder, Is64BitOS, IsDarwinArm64, IsDebugMode, IsLinuxArm64, IsWindows, OutputChannelName, getCommandToSetFinalTipVar, getRunTipFileCommand } from "./constants";
-import { cookCmdShortcutsOrFile } from "./cookCommandAlias";
+import { DefaultWorkspaceFolder, GetCommandOutput, HomeFolder, Is64BitOS, IsDarwinArm64, IsDebugMode, IsLinuxArm64, IsWindows, OutputChannelName, getActiveFilePath, getCommandToSetFinalTipVar, getLastTipRow, getRunTipFileCommand, isNullOrEmpty } from "./constants";
+import { CookAliasArgs, cookCmdShortcutsOrFile } from "./cookCommandAlias";
 import { FileExtensionToMappedExtensionMap, getConfig } from "./dynamicConfig";
 import { TerminalType } from "./enums";
-import { createDirectory } from "./fileUtils";
+import { createDirectory, isDirectory, isFileExists } from "./fileUtils";
 import { DefaultMessageLevel, MessageLevel, checkIfSupported, outputDebugByTime, outputErrorByTime, outputInfoByDebugMode, outputInfoByDebugModeByTime, outputInfoByTime, outputInfoQuietByTime, outputKeyInfo, outputKeyInfoByTime, outputWarnByTime, updateOutputChannel } from "./outputUtils";
 import { getRunCmdTerminal, runRawCommandInTerminal } from "./runCommandUtils";
 import { DefaultTerminalType, IsLinuxTerminalOnWindows, IsWindowsTerminalOnWindows, checkAddFolderToPath, getHomeFolderForLinuxTerminalOnWindows, getTerminalShellExePath, getTipFileDisplayPath, isBashTerminalType, isLinuxTerminalOnWindows, isTerminalUsingWindowsUtils, isToolExistsInPath, isWindowsTerminalOnWindows, toCygwinPath, toTerminalPath } from "./terminalUtils";
 import { SourceHomeUrlArray, getDownloadUrl, getFileMd5, getHomeUrl, updateToolNameToPathMap } from "./toolSource";
-import { PathEnvName, getActiveFilePath, getDefaultRootFolder, getElapsedSecondsToNow, isDirectory, isFileExists, isNullOrEmpty, isWeeklyCheckTime, quotePaths, runCommandGetOutput } from "./utils";
+import { PathEnvName, getElapsedSecondsToNow, isWeeklyCheckTime, quotePaths, runCommandGetOutput } from "./utils";
 import path = require('path');
 import fs = require('fs');
 import https = require('https');
@@ -175,7 +175,7 @@ export class ToolChecker {
     const [downloadCmd, targetExePath] = this.getDownloadCommandAndSavePath(pureExeName, '~/', GoodSourceUrlIndex);
     const exportCommand = 'export PATH=~:$PATH';
     const checkExistCommand = 'ls -al ' + targetExePath + ' 2>/dev/null | grep -E "^-[rw-]*?x.*?/' + pureExeName + '\\s*$"';
-    const firstCheck = 'which ' + pureExeName + ' 2>/dev/null | grep -E "/' + pureExeName + '"';
+    const firstCheck = 'which ' + pureExeName + ' 2>/dev/null | grep -E "/' + pureExeName + '$" >/dev/null';
     const lastCheck = '( ' + checkExistCommand + ' || ( ' + downloadCmd + ' && ' + exportCommand + ' ) )';
     return firstCheck + ' || ' + lastCheck;
   }
@@ -254,7 +254,7 @@ export class ToolChecker {
     }
 
     const config = getConfig();
-    const shouldActivate = config.UseGitIgnoreFile || isNullOrEmpty(getDefaultRootFolder());// || !getGitIgnore(getDefaultRootFolder()).Valid;
+    const shouldActivate = config.UseGitIgnoreFile || isNullOrEmpty(DefaultWorkspaceFolder);// || !getGitIgnore(DefaultWorkspaceFolder).Valid;
     if (shouldActivate && PlatformToolChecker.IsToolExists) {
       const activePath = getActiveFilePath() || '';
       const extension = isNullOrEmpty(activePath) ? '' : path.parse(activePath).ext;
@@ -262,7 +262,8 @@ export class ToolChecker {
       const checkProcessPattern = getConfigValueOfActiveProject('autoDisableFindDefinitionPattern', true);
       const tipFileDisplayPath = getTipFileDisplayPath(DefaultTerminalType);
       let setEnVarCommand = getCommandToSetFinalTipVar(IsWindowsTerminalOnWindows, mappedExt, !isNullOrEmpty(checkProcessPattern), IsUniformSlashSupported, IsNotCheckInputPathSupported, getConfig().AutoUpdateSearchTool);
-      const tipCommand = getRunTipFileCommand(tipFileDisplayPath, 9, String.raw`-t "^\s*[#::]+\s*" -o ""`) + (this.isTerminalOfWindows ? ' 2>nul ' : ' 2>/dev/null');
+      const tipRow = getLastTipRow(this.isTerminalOfWindows);
+      const tipCommand = getRunTipFileCommand(tipFileDisplayPath, tipRow, String.raw`-t "^\s*[#::]+\s*" -o ""`) + (this.isTerminalOfWindows ? ' 2>nul ' : ' 2>/dev/null');
       runRawCommandInTerminal(setEnVarCommand + ' ' + tipCommand);
     }
 
@@ -299,7 +300,7 @@ export class ToolChecker {
       this.updateHelpText('msr', this.MsrExePath);
       outputDebugByTime('Found msr = ' + this.MsrExePath + ' , will check new version ...');
       if (this.hasDownloaded) {
-        cookCmdShortcutsOrFile(false, getActiveFilePath(), true, false, getRunCmdTerminal(false), true);
+        cookCmdShortcutsOrFile({ FilePath: getActiveFilePath(), ForProject: true, Terminal: getRunCmdTerminal(), IsNewlyCreated: true } as CookAliasArgs);
       }
       this.checkToolNewVersion();
     }
@@ -326,12 +327,11 @@ export class ToolChecker {
     return [true, targetExePath];
   }
 
-
   private tryAllSourcesToDownload(pureExeName: string, sourceExeName: string, tmpSaveExePath: string, targetExePath: string): boolean {
     for (let tryTimes = 0; tryTimes < SourceHomeUrlArray.length; tryTimes++) {
-      outputKeyInfoByTime(`Will try to download the tiny tool "${sourceExeName}" by command:`);
-      runRawCommandInTerminal(`echo Times-${tryTimes + 1}: Try to download ${sourceExeName} from source-${tryTimes + 1}, see: "${TipUrl}"`)
       const tryUrlIndex = GoodSourceUrlIndex + tryTimes;
+      outputKeyInfoByTime(`Will try to download the tiny tool "${sourceExeName}" by command:`);
+      runRawCommandInTerminal(`echo Trying to download ${sourceExeName} from source-${tryTimes + 1}, see doc: "${TipUrl}"`)
       const [downloadCommand, _] = this.getDownloadCommandAndSavePath(pureExeName, tmpSaveExePath, tryUrlIndex);
       outputKeyInfo(downloadCommand);
       if (isDirectory(tmpSaveExePath)) {

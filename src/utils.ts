@@ -1,10 +1,8 @@
 import { ParsedPath } from 'path';
 import * as vscode from 'vscode';
-import { IsWindows, ShouldQuotePathRegex, TrimSearchTextRegex } from './constants';
+import { IsWindows, ShouldQuotePathRegex, TrimSearchTextRegex, getRepoFolder, isNullOrEmpty } from './constants';
 import { TerminalType } from './enums';
-import { outputInfoByDebugModeByTime } from './outputUtils';
 import path = require('path');
-import fs = require('fs');
 import ChildProcess = require('child_process');
 
 export const PathEnvName = IsWindows ? '%PATH%' : '$PATH';
@@ -41,36 +39,6 @@ export function getErrorMessage(error: unknown): string {
         console.log('Failed to stringify error message.');
         console.log(err);
         return 'Unknown error';
-    }
-}
-
-export function isSymbolicLink(path: string): boolean {
-    try {
-        const stat = fs.lstatSync(path);
-        return stat.isSymbolicLink();
-    } catch (err) {
-        outputInfoByDebugModeByTime('Failed to check link of file: ' + path + ', error: ' + getErrorMessage(err));
-        return false;
-    }
-}
-
-export function isDirectory(path: string): boolean {
-    try {
-        const stat = fs.lstatSync(path);
-        return stat.isDirectory();
-    } catch (err) {
-        outputInfoByDebugModeByTime('Failed to check link of file: ' + path + ', error: ' + getErrorMessage(err));
-        return false;
-    }
-}
-
-export function isFileExists(path: string): boolean {
-    try {
-        const stat = fs.lstatSync(path);
-        return stat.isFile();
-    } catch (err) {
-        outputInfoByDebugModeByTime('Failed to check link of file: ' + path + ', error: ' + getErrorMessage(err));
-        return false;
     }
 }
 
@@ -139,10 +107,6 @@ export function getElapsedSecondsToNow(begin: Date): number {
     return (Date.now() - begin.valueOf()) / 1000;
 }
 
-export function isNullOrEmpty(obj: string | undefined): boolean {
-    return obj === null || obj === undefined || obj.length === 0;
-}
-
 export function getCurrentWordAndText(document: vscode.TextDocument, position: vscode.Position, textEditor: vscode.TextEditor | undefined = undefined)
     : [string, vscode.Range | undefined, string] {
 
@@ -195,7 +159,6 @@ export function replaceToForwardSlash(sourceText: string): string {
     return sourceText.replace(/\\/g, '/');
 }
 
-
 export function replaceSearchTextHolder(command: string, searchText: string): string {
     const searchTextHolderReplaceRegex = /%~?1/g;
     // Regex bug case:
@@ -236,41 +199,6 @@ export function getExtensionNoHeadDot(extension: string | undefined, defaultValu
     return extension.replace(/^\./, '').toLowerCase();
 }
 
-export function getRootFolder(filePath: string, useFirstFolderIfNotFound = false): string {
-    const folderUri = isNullOrEmpty(filePath) ? '' : vscode.workspace.getWorkspaceFolder(vscode.Uri.file(filePath));
-    if (!folderUri || !folderUri.uri || !folderUri.uri.fsPath) {
-        if (useFirstFolderIfNotFound && vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders.length > 0) {
-            return vscode.workspace.workspaceFolders[0].uri.fsPath;
-        }
-        return '';
-    }
-
-    return folderUri.uri.fsPath;
-}
-
-export function getDefaultRootFolder(): string {
-    if (vscode.workspace.workspaceFolders && vscode.workspace.workspaceFolders.length > 0) {
-        return vscode.workspace.workspaceFolders[0].uri.fsPath;
-    } else {
-        return '';
-    }
-}
-
-export function getDefaultRootFolderName(): string {
-    const folder = getDefaultRootFolder();
-    return isNullOrEmpty(folder) ? '' : path.basename(folder);
-}
-
-export function getActiveFilePath() {
-    if (vscode.window.activeTextEditor
-        && vscode.window.activeTextEditor.document
-        && !isNullOrEmpty(vscode.window.activeTextEditor.document.fileName)) {
-        return vscode.window.activeTextEditor.document.fileName;
-    } else {
-        return '';
-    }
-}
-
 export function changeToForwardSlash(pathString: string, addTailSlash: boolean = true): string {
     let newPath = pathString.replace(/\\/g, '/').replace(/\\$/, '');
     if (addTailSlash && !newPath.endsWith('/')) {
@@ -279,39 +207,20 @@ export function changeToForwardSlash(pathString: string, addTailSlash: boolean =
     return newPath;
 }
 
-export function getDefaultRootFolderByActiveFile(useDefaultProjectIfEmpty = false) {
-    const activePath = getActiveFilePath();
-    const defaultFolder = getDefaultRootFolder();
-    let folder = !isNullOrEmpty(activePath) && activePath.startsWith(defaultFolder)
-        ? getRootFolder(activePath)
-        : defaultFolder;
-    if (useDefaultProjectIfEmpty && isNullOrEmpty(folder) && !isNullOrEmpty(activePath)) {
-        folder = defaultFolder;
-    }
-
-    // if (appendSlash && !folder.endsWith(path.sep)) {
-    //     folder += path.sep;
-    // }
-
-    return folder;
-}
-
-export const RunCmdTerminalRootFolder: string = getDefaultRootFolderByActiveFile(true);
-
-export function getRootFolderName(filePath: string, useFirstFolderIfNotFound = false): string {
-    const folder = getRootFolder(filePath, useFirstFolderIfNotFound);
+export function getRepoFolderName(filePath: string, useFirstFolderIfNotFound = false): string {
+    const folder = getRepoFolder(filePath, useFirstFolderIfNotFound);
     return isNullOrEmpty(folder) ? '' : path.parse(folder).base;
 }
 
-export function getRootFolders(currentFilePath: string): string[] {
+export function getRepoFolders(currentFilePath: string): string[] {
     if (!vscode.workspace.workspaceFolders || vscode.workspace.workspaceFolders.length < 1) {
         return [''];
     }
 
-    let rootFolderSet = new Set<string>().add(getRootFolder(currentFilePath));
-    vscode.workspace.workspaceFolders.forEach(a => rootFolderSet.add(a.uri.fsPath));
-    rootFolderSet.delete('');
-    return Array.from(rootFolderSet);
+    let repoFolderSet = new Set<string>().add(getRepoFolder(currentFilePath));
+    vscode.workspace.workspaceFolders.forEach(a => repoFolderSet.add(a.uri.fsPath));
+    repoFolderSet.delete('');
+    return Array.from(repoFolderSet);
 }
 
 export function getPowerShellName(terminalType: TerminalType) {

@@ -1,9 +1,8 @@
 import path = require('path');
 import * as vscode from 'vscode';
-import { IsWindows } from './constants';
+import { IsWindows, isNullOrEmpty } from './constants';
 import { TerminalType } from './enums';
 import { isWindowsTerminalOnWindows, toTerminalPaths } from './terminalUtils';
-import { isNullOrEmpty } from './utils';
 import fs = require('fs');
 import crypto = require('crypto');
 

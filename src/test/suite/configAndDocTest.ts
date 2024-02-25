@@ -2,16 +2,17 @@ import * as assert from 'assert';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
+import { isNullOrEmpty } from '../../constants';
 import { getConfig } from '../../dynamicConfig';
-import { isNullOrEmpty, nowText } from '../../utils';
+import { nowText } from '../../utils';
 
-const GitRootPath = path.resolve(__dirname, '../../../');
-const ConfigFilePath = path.join(GitRootPath, 'package.json');
-const DocFilePath = path.join(GitRootPath, 'README.md');
+const GitRepoPath = path.resolve(__dirname, '../../../');
+const ConfigFilePath = path.join(GitRepoPath, 'package.json');
+const DocFilePath = path.join(GitRepoPath, 'README.md');
 const KeyRegex = /["`](msr\.\w+[\.\w]*)/g;
 const SkipKeysRegex = /^(msr|nin)\.(exe|cygwin|gcc48|xxx|tmp)|\.project\d+|default.extra\w*Groups|\.My|^msr.py.extra\w*|^msr.\w+(\.\w+)?.definition|msr.\w+.codeFiles|fileExtensionMap|\.default\.$|bat\w*\.skipFolders|preferSearchingSpeedOverPrecision/i;
 const ExemptDuplicateKeyRegex = /^(msr\.)?\w*(find|sort|make)\w+$|^msr.cookCmdAlias\w*|^msr.\w*GitIgnore\w*$/i;
-const ExemptNoValueKeyRegex = /extra|skip.definition|extensionPattern|projectRootFolderNamePattern|cmdAlias\w*|^\w*(find|sort)\w+$|^msr.fileExtensionMap.xxx/i;
+const ExemptNoValueKeyRegex = /extra|skip.definition|extensionPattern|projectRepoFolderNamePattern|cmdAlias\w*|^\w*(find|sort)\w+$|^msr.fileExtensionMap.xxx/i;
 const NonStringValueRegex = /^(\d+|bool\w*$)/;
 
 const [AllConfigKeys, AllKeyToNameMap] = readAllKeysAndRegexPatterns();
@@ -19,7 +20,7 @@ const [AllConfigKeys, AllKeyToNameMap] = readAllKeysAndRegexPatterns();
 function readAllKeysAndRegexPatterns(): [Set<string>, Map<string, string>] {
   assert.ok(fs.existsSync(ConfigFilePath), 'Should exist config file: ' + ConfigFilePath);
   const lines = fs.readFileSync(ConfigFilePath).toString();
-  const rootConfig = getConfig().RootConfig;
+  const rootConfig = getConfig().RepoConfig;
 
   // Roughly get all possible Regex blocks + Compare and check
   // msr -p package.json -b "^\s*.msr.\w+" -Q "^^\s*\}" -t "^\s*.default.:.*?\\\\[sbwS]|^\s*.description.:.*?Regex" -aPI > %tmp%\all-possible-Regex-blocks.txt
@@ -107,7 +108,7 @@ export function checkConfigKeysInDoc() {
   assert.ok(fs.existsSync(DocFilePath), 'Should exist doc file: ' + DocFilePath);
   const lines = fs.readFileSync(DocFilePath).toString();
   let errorMessages = [];
-  const rootConfig = getConfig().RootConfig;
+  const rootConfig = getConfig().RepoConfig;
 
   let keyCount = 0;
   let m;

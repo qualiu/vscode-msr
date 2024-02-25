@@ -1,20 +1,20 @@
 import { ParsedPath } from 'path';
 import * as vscode from 'vscode';
 import { GetConfigPriorityPrefixes, getConfigValueByPriorityList, getConfigValueByProjectAndExtension } from './configUtils';
-import { SearchTextHolder } from './constants';
+import { SearchTextHolder, isNullOrEmpty } from './constants';
 import { MyConfig, getConfig } from './dynamicConfig';
 import { FindType, ForceFindType } from './enums';
 import { ForceSetting } from './forceSettings';
 import { outputDebug, outputDebugByTime, outputErrorByTime } from './outputUtils';
 import { EmptyRegex, createRegex, getAllSingleWords } from './regexUtils';
-import { getExtensionNoHeadDot, getRootFolderName, isNullOrEmpty, replaceSearchTextHolder, toPath } from './utils';
+import { getExtensionNoHeadDot, getRepoFolderName, replaceSearchTextHolder, toPath } from './utils';
 
 export class SearchChecker {
 	public currentFile: ParsedPath;
 	public currentFilePath: string;
 	public extension: string;
 	public mappedExt: string;
-	public rootFolderName: string;
+	public repoFolderName: string;
 
 	public isCodeFile: boolean;
 	public isScriptFile: boolean;
@@ -122,7 +122,7 @@ export class SearchChecker {
 		this.currentFilePath = toPath(currentFile);
 		this.mappedExt = mappedExt;
 		this.extension = getExtensionNoHeadDot(currentFile.ext, '');
-		this.rootFolderName = getRootFolderName(this.currentFilePath);
+		this.repoFolderName = getRepoFolderName(this.currentFilePath);
 		this.isCodeFile = MyConfig.isCodeFiles(this.extension);
 		this.isScriptFile = MyConfig.isScriptFile(this.extension);
 
@@ -324,19 +324,19 @@ export class SearchChecker {
 		const enumPattern = replaceSearchTextHolder(this.getSpecificConfigValue('enum.definition', false), currentWord);
 		this.enumDefinitionRegex = enumPattern.length < 1 ? EmptyRegex : new RegExp(enumPattern);
 
-		const promoteFolderPattern = getConfigValueByProjectAndExtension(this.rootFolderName, this.extension, mappedExt, 'promoteFolderPattern');
-		const promotePathPattern = getConfigValueByProjectAndExtension(this.rootFolderName, this.extension, mappedExt, 'promotePathPattern');
+		const promoteFolderPattern = getConfigValueByProjectAndExtension(this.repoFolderName, this.extension, mappedExt, 'promoteFolderPattern');
+		const promotePathPattern = getConfigValueByProjectAndExtension(this.repoFolderName, this.extension, mappedExt, 'promotePathPattern');
 		this.promoteFolderRegex = createRegex(promoteFolderPattern, 'i');
 		this.promotePathRegex = createRegex(promotePathPattern, 'i');
-		this.promoteFolderScore = parseInt(getConfigValueByProjectAndExtension(this.rootFolderName, this.extension, mappedExt, 'promoteFolderScore') || '200');
-		this.promotePathScore = parseInt(getConfigValueByProjectAndExtension(this.rootFolderName, this.extension, mappedExt, 'promotePathScore') || '200');
+		this.promoteFolderScore = parseInt(getConfigValueByProjectAndExtension(this.repoFolderName, this.extension, mappedExt, 'promoteFolderScore') || '200');
+		this.promotePathScore = parseInt(getConfigValueByProjectAndExtension(this.repoFolderName, this.extension, mappedExt, 'promotePathScore') || '200');
 
-		const demoteFolderPattern = getConfigValueByProjectAndExtension(this.rootFolderName, this.extension, mappedExt, 'demoteFolderPattern');
-		const demotePathPattern = getConfigValueByProjectAndExtension(this.rootFolderName, this.extension, mappedExt, 'demotePathPattern');
+		const demoteFolderPattern = getConfigValueByProjectAndExtension(this.repoFolderName, this.extension, mappedExt, 'demoteFolderPattern');
+		const demotePathPattern = getConfigValueByProjectAndExtension(this.repoFolderName, this.extension, mappedExt, 'demotePathPattern');
 		this.demoteFolderRegex = createRegex(demoteFolderPattern, 'i');
 		this.demotePathRegex = createRegex(demotePathPattern, 'i');
-		this.demoteFolderScore = parseInt(getConfigValueByProjectAndExtension(this.rootFolderName, this.extension, mappedExt, 'demoteFolderScore') || '200');
-		this.demotePathScore = parseInt(getConfigValueByProjectAndExtension(this.rootFolderName, this.extension, mappedExt, 'demotePathScore') || '200');
+		this.demoteFolderScore = parseInt(getConfigValueByProjectAndExtension(this.repoFolderName, this.extension, mappedExt, 'demoteFolderScore') || '200');
+		this.demotePathScore = parseInt(getConfigValueByProjectAndExtension(this.repoFolderName, this.extension, mappedExt, 'demotePathScore') || '200');
 	}
 
 	public getDefaultForceSettings(): ForceSetting {
@@ -396,16 +396,16 @@ export class SearchChecker {
 			if (isNullOrEmpty(checkConfigTails[k])) {
 				continue;
 			}
-			rawPattern = getConfigValueByProjectAndExtension(this.rootFolderName, this.extension, this.mappedExt, checkConfigTails[k], allowEmpty, addDefault);
+			rawPattern = getConfigValueByProjectAndExtension(this.repoFolderName, this.extension, this.mappedExt, checkConfigTails[k], allowEmpty, addDefault);
 			if (!isNullOrEmpty(rawPattern)) {
 				break;
 			}
 		}
 
 		if (isNullOrEmpty(rawPattern) && !addDefault) {
-			rawPattern = getConfigValueByProjectAndExtension(this.rootFolderName, this.extension, this.mappedExt, configKeyTail, allowEmpty, true);
+			rawPattern = getConfigValueByProjectAndExtension(this.repoFolderName, this.extension, this.mappedExt, configKeyTail, allowEmpty, true);
 			if (isNullOrEmpty(rawPattern) && !isNullOrEmpty(fallBackToConfigKeyTail)) {
-				rawPattern = getConfigValueByProjectAndExtension(this.rootFolderName, this.extension, this.mappedExt, fallBackToConfigKeyTail, allowEmpty, true);
+				rawPattern = getConfigValueByProjectAndExtension(this.repoFolderName, this.extension, this.mappedExt, fallBackToConfigKeyTail, allowEmpty, true);
 			}
 		}
 
@@ -415,8 +415,8 @@ export class SearchChecker {
 
 	public getSpecificConfigValue(configKeyTail: string, addDefault: boolean = true, allowEmpty: boolean = true): string {
 		let prefixes = this.ForceUseDefaultFindingDefinition
-			? GetConfigPriorityPrefixes(this.rootFolderName, '', '', true)
-			: GetConfigPriorityPrefixes(this.rootFolderName, this.extension, this.mappedExt, addDefault);
+			? GetConfigPriorityPrefixes(this.repoFolderName, '', '', true)
+			: GetConfigPriorityPrefixes(this.repoFolderName, this.extension, this.mappedExt, addDefault);
 		const pattern = getConfigValueByPriorityList(prefixes, configKeyTail, allowEmpty) as string || '';
 		if (!isNullOrEmpty(pattern) && configKeyTail.includes('definition') && !configKeyTail.includes('skip') && pattern.indexOf(SearchTextHolder) < 0) {
 			const keys = prefixes.join('.' + configKeyTail + ' or ');

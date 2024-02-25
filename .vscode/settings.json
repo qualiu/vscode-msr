@@ -54,6 +54,7 @@
     "current",
     "cygdrive",
     "cygwin",
+    "deinit",
     "difftool",
     "doskey",
     "doskeys",
@@ -119,10 +120,13 @@
     "USERPROFILE",
     "viasf",
     "vscode",
+    "wcopy",
     "whereis",
     "windir",
+    "wpaste",
     "wwwroot",
     "xargs",
+    "xffd",
     "zc"
   ]
 }

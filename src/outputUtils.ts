@@ -1,4 +1,3 @@
-import { execSync } from 'child_process';
 import * as vscode from 'vscode';
 import { IsDebugMode, IsSupportedSystem, IsWindows, OutputChannelName } from './constants';
 import { nowText, replaceTextByRegex } from './utils';
@@ -12,6 +11,9 @@ const SearchRegexList: RegExp[] = [
 	/\s+(-t|--text-match)\s+(\w+\S*|'(.+?)'|"(.+?)")/,
 	/\s+(-x|--has-text)\s+(\w+\S*|'(.+?)'|"(.+?)")/
 ];
+
+// MSR-Def-Ref output channel
+let MessageChannel: vscode.OutputChannel;
 
 let OutputTimes: number = 0;
 
@@ -51,23 +53,6 @@ export function outputMessage(level: MessageLevel, message: string, showWindow: 
 			break;
 	}
 }
-
-export function runCommandGetInfo(command: string, showCmdLevel: MessageLevel = MessageLevel.INFO, errorOutputLevel: MessageLevel = MessageLevel.ERROR, outputLevel: MessageLevel = MessageLevel.INFO): [string, any] {
-	try {
-		outputMessage(showCmdLevel, command);
-		const output = execSync(command).toString();
-		if (output.length > 0) {
-			outputMessage(outputLevel, output);
-		}
-		return [output, null];
-	} catch (err) {
-		outputMessage(errorOutputLevel, '\n' + err);
-		return ['', err];
-	}
-}
-
-// MSR-Def-Ref output channel
-let MessageChannel: vscode.OutputChannel;
 
 export function outputWarn(message: string, showWindow: boolean = true) {
 	if (MessageLevel.WARN >= LogLevel) {
@@ -207,7 +192,7 @@ export function checkIfSupported(): boolean {
 	return false;
 }
 
-export function showOutputChannel(showWindow: boolean = true, ignoreQuiet: boolean = false) {
+function showOutputChannel(showWindow: boolean = true, ignoreQuiet: boolean = false) {
 	if (showWindow && (ignoreQuiet || !IsQuiet)) {
 		getOutputChannel().show(true);
 	}

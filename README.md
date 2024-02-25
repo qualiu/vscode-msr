@@ -190,6 +190,14 @@ Try **gfind-xxx** alias/doskey/scripts which uses **accurate** source file paths
     - Windows: `git-pull=git branch | msr -t "^\s*\*\s*(\S+).*" -o "git pull origin \1 $*" -XM && del %tmp%\tmp-list-*`.
     - Linux/MacOS/FreeBSD: `alias git-pull='git branch | msr -t "^\s*\*\s*(\S+).*" -o "git pull origin \1 $*" -XM && rm /tmp/tmp-list-*'`.
 - Try [**rgfind-xxx**](#try-rgfind-xxx-to-search-multiple-git-repositories) to search multiple git repositories.
+- Use `msr.useGitFileListToSearchSingleWorkspace` for menu search using git file list.
+  - Default = `auto` which use git-file-list only when it's a git repo + found git exemptions.
+    - If no git exemptions, `find-xxx` is same with `gfind-xxx`.
+  - Change to `true` if you always want to use git-file-list to search. 
+  - Change value to `false` if get slower than not-git search.
+  - You can set `msr.refreshTmpGitFileListDuration` to larger value like `5m`/ `1h` / `1d` / etc.
+- To skip huge dependent git submodules(sub-repos) for a large project/repository:
+  - Set `msr.searchGitSubModuleFolders` = `false`.
 
 This's helpful if got [**git-exemption-warnings**](#use-git-ignore) when initializing new terminals.
 
@@ -332,14 +340,14 @@ And many other [**common shortcuts**](/src/commonAlias.ts) like (run `alias` to 
 
 ## Use git-ignore
 
-Open [user settings](https://code.visualstudio.com/docs/getstarted/settings#_settings-editor), set `msr.useGitIgnoreFile` = `true` (or `msr.{project-folder-name}.useGitIgnoreFile` = `true`)
+Open [user settings](https://code.visualstudio.com/docs/getstarted/settings#_settings-editor), set `msr.useGitIgnoreFile` = `true` (or `msr.{repo-folder-name}.useGitIgnoreFile` = `true`)
 
 - This use the `.gitignore` file only in top folder of the project, without other kinds/folders of git-ignore files.
 - Omit file/folder exemptions (like `!not-exclude.txt`) as **default** (will **ignore** such git exemptions).
   - Set `msr.omitGitIgnoreExemptions` = `false` to not use git-ignore if found exemptions.
 - Change `skipDotFoldersIfUseGitIgnoreFile` to `false` if some code files in **dot folders** like `".submodules"`:
   - Method-1: Change for the project only (choose `workspace` when open user settings menu).
-  - Method-2: Change [settings.json](#adjust-your-color-theme-if-result-file-path-folder-color-is-not-clear): Add `msr.{project-repo-folder-name}.skipDotFoldersIfUseGitIgnoreFile` = `false`.
+  - Method-2: Change [settings.json](#adjust-your-color-theme-if-result-file-path-folder-color-is-not-clear): Add `msr.{repo-folder-name}.skipDotFoldersIfUseGitIgnoreFile` = `false`.
     - [Full overriding rule](Add-New-Language-Support-For-Developers.md#full-priority-order-of-config-override-rule) for more details.
 
 Parsing result of `.gitignore` file: see `MSR-Def-Ref` output channel (with `msr.debug` = `true` or launched in debug mode).
@@ -354,7 +362,7 @@ Run command **`"npm run test"`** in vscode-msr folder if you want to see the tra
 ### Enable or Disable git-ignore for All Projects or One Project
 
 - For all projects: Set `msr.useGitIgnoreFile` to `true` or `false`.
-- For one project: Add `msr.{project-folder-name}.useGitIgnoreFile` = `true` or `false` in [user settings](#extension-settings-if-you-want-to-change).
+- For one project: Add `msr.{repo-folder-name}.useGitIgnoreFile` = `true` or `false` in [user settings](#extension-settings-if-you-want-to-change).
 
 ### Custom Search Command with Menu
 
@@ -376,11 +384,11 @@ You can add custom search/replace command by adding config `msr.xxx.myFindOrRepl
 - `%ProjectsFolders%` =
   - Current path(`"."`) - if it's a single project/workspace.
   - Absolute paths of all projects/workspaces in current vscode, separated by comma(`","`).
-- `%Skip_Git_Paths%` = **Skip_Git_Path** environment variable in `MSR-RUN-CMD` of vscode (if enabled [git-ignore](#use-git-ignore) and no exemptions or [omitted exemptions](#use-git-ignore)).
-  - Will be replaced to `$Skip_Git_Paths` on Linux/MacOS/FreeBSD.
+- `%Skip_Junk_Paths%` = **Skip_Junk_Paths** environment variable in `MSR-RUN-CMD` of vscode (if enabled [git-ignore](#use-git-ignore) and no exemptions or [omitted exemptions](#use-git-ignore)).
+  - Will be replaced to `$Skip_Junk_Paths` on Linux/MacOS/FreeBSD.
 - `%AutoDecideSkipFolderToSearch%` =
   - if [ignored/no git-exemptions](#use-git-ignore).
-    - `msr -rp %ProjectsFolders%" --np "%Skip_Git_Paths%"`
+    - `msr -rp %ProjectsFolders%" --np "%Skip_Junk_Paths%"`
   - Otherwise:
     - `%UseGitFileListToSearch%` (see above).
 - `%SelectedWordVariation%` = Replace selected word `%1` like below (a bit similar with config `msr.reference.autoChangeSearchWord`):
@@ -393,7 +401,7 @@ You can add custom search/replace command by adding config `msr.xxx.myFindOrRepl
 
 - You can set any other command lines like below using `find-xxx` or [gfind-xxx](#try-to-use-gfind-xxx-instead-of-find-xxx-aliasdoskey):
   - `"gfind-file -t \"^\\s*struct\\s+%1\\b\" -f %FileExt% -t \"\\b%1\\b\" ..."`
-  - `"msr -rp %ProjectsFolders% --np \"%Skip_Git_Paths%\" -f %FileExtMap% -t \"\\b%1\\b\" ..."`
+  - `"msr -rp %ProjectsFolders% --np \"%Skip_Junk_Paths%\" -f %FileExtMap% -t \"\\b%1\\b\" ..."`
 - You can hide the custom search menu by unchecking/setting `msr.myFindOrReplaceSelectedTextCommand.menu.visible` = `true` in [user settings](#extension-settings-if-you-want-to-change).
 - The override rule of config is same with [**full priority rule**](/Add-New-Language-Support-For-Developers.md#full-priority-order-of-config-override-rule) like below (from high to low priority):
   - msr.**my-repo-folder-name**.**proto**.myFindOrReplaceSelectedTextCommand
@@ -552,7 +560,7 @@ This **temporarily ignores all other settings** like below to enable/disable fin
   - Known language **type** means exist "msr.fileExtensionMap.**{name}**" like "msr.fileExtensionMap.**python**".
 - `msr.disable.extensionPattern`
 - `msr.disable.findDef.extensionPattern`
-- `msr.disable.projectRootFolderNamePattern`
+- `msr.disable.projectRepoFolderNamePattern`
 
 There're another 2 ways to toggle besides the hot key (`Alt+F2`):
 
@@ -582,7 +590,7 @@ There're another 2 ways to toggle besides the hot key (`Alt+F2`):
 
 ### Disable Finding Definition + References for Specific Projects By Root Folder Name
 
-- `msr.disable.projectRootFolderNamePattern` (**case sensitive**)
+- `msr.disable.projectRepoFolderNamePattern` (**case sensitive**)
 
   Regex pattern of `git root folder name` to **disable** `find definition and references` functions for specific projects.
 
@@ -631,11 +639,21 @@ This doc listed a few configuration names. Finding more by pressing `F1` to [Ope
 
   ![change-settings-example](images/change-settings-example.png)
 
-- You can add `msr.{project-folder-name}.xxx` in [settings file](https://code.visualstudio.com/docs/getstarted/settings#_settings-file-locations) to override all config values, like:
-  - `msr.{git-folder-name}.useGitIgnoreFile` or `msr.{git-folder-name}.skipFolders` etc.
+- You can add `msr.{repo-folder-name}.xxx` in [settings file](https://code.visualstudio.com/docs/getstarted/settings#_settings-file-locations) to override all config values, like:
+  - `msr.{repo-folder-name}.useGitIgnoreFile` or `msr.{repo-folder-name}.skipFolders` etc.
 - Full priority/order: See [**overriding rule + order**](Add-New-Language-Support-For-Developers.md#full-priority-order-of-config-override-rule).
 
 Note: Check [**your personal settings**](https://code.visualstudio.com/docs/getstarted/settings#_settings-file-locations) (`msr.xxx` in file) with the latest tuned github settings, especially for `Regex` patterns.
+
+### Repository Name As Config Key Name
+
+In above config name example `msr.{repo-folder-name}.xxx` (add into user settings file):
+
+- Key `{repo-folder-name}` = git repository folder name (like `my-project` for `D:\code\my-project`)
+- Key must matches Regex `"^([\w\.-]+)$"`:
+  - You can simply test it like command below (will print `"Matched"`):
+    - msr -t `"^([\w\.-]+)$"` -z `my-project_2.1`
+  - The valid(trimmed) name is also auto displayed in project-alias-file path in vscode terminals.
 
 ### General/Default Settings Examples
 
@@ -718,6 +736,8 @@ root = /
 options = "metadata"
 ```
 
+After changed mounting style from `/mnt/c/` to `/c/`, you can click + locate file paths in vscode (and other IDEs).
+
 ### Code Mining without or with Little Knowledge
 
 You may need fuzzy code searching for cases like below:
@@ -733,7 +753,7 @@ The 40+ [shortcuts](#command-shortcuts) like `find-xxx` are convenient wrappers 
 
 Code mining examples (run in vscode terminals: like `MSR-RUN-CMD` or add/open **new** terminals):
 
-- Fuzzy search a class/method: (Try [**gfind-xxx**](#try-to-use-gfind-xxx-instead-of-find-xxx-aliasdoskey) for precise searching + [**rgfind-xxx**](#try-rgfind-xxx-to-search-multiple-git-repositories) for recursive precise searching in multi-repos)
+- Fuzzy search a class/method: (Try [**gfind-xxx**](#try-to-use-gfind-xxx-instead-of-find-xxx-aliasdoskey) for precise searching + [**rgfind-xxx**](#try-rgfind-xxx-to-search-multiple-git-repositories) for multi-repos)
 
   - **find-def** `"\w*Keyword\w*You-Heard-or-Knew\w*"`
     - **gfind-def** `"\w*Keyword\w*You-Heard-or-Knew\w*"` -x `class` --sp `"/common/,/lib"`

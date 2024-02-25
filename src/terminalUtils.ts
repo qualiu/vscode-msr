@@ -1,9 +1,9 @@
 import * as vscode from 'vscode';
 import { Terminal } from 'vscode';
-import { getTipGuideFileName, HomeFolder, IsLinux, IsWindows, IsWSL, TempStorageFolder } from './constants';
+import { getTipGuideFileName, HomeFolder, IsLinux, isNullOrEmpty, IsWindows, IsWSL, TempStorageFolder } from './constants';
 import { TerminalType } from './enums';
 import { outputDebugByTime, outputErrorByTime } from './outputUtils';
-import { getErrorMessage, isNullOrEmpty, MatchWindowsDiskRegex, quotePaths, replaceToForwardSlash, runCommandGetOutput } from './utils';
+import { getErrorMessage, MatchWindowsDiskRegex, quotePaths, replaceToForwardSlash, runCommandGetOutput } from './utils';
 import fs = require('fs');
 import path = require('path');
 import os = require('os');
@@ -54,8 +54,8 @@ export function getTipFileDisplayPath(terminalType: TerminalType): string {
     : displayPath;
 }
 
-export const TerminalExePath = getTerminalExeFromVsCodeSettings();
-export function getTerminalTypeFromExePath(terminalExePath: string = TerminalExePath): TerminalType {
+const TerminalExePath = getTerminalExeFromVsCodeSettings();
+function getTerminalTypeFromExePath(terminalExePath: string = TerminalExePath): TerminalType {
   if (IsLinux) {
     return TerminalType.LinuxBash;
   } else if (IsWSL) {
@@ -132,7 +132,7 @@ export function getTerminalInitialPath(terminal: vscode.Terminal | null | undefi
   return terminalPath;
 }
 
-export function getRootFolderFromTerminalCreation(terminal: Terminal): string {
+export function getRepoFolderFromTerminalCreation(terminal: Terminal): string {
   try {
     const creationOptions = Reflect.get(terminal, 'creationOptions');
     const terminalCwd = Reflect.get(creationOptions, 'cwd');
@@ -142,7 +142,7 @@ export function getRootFolderFromTerminalCreation(terminal: Terminal): string {
     const fsPath = !terminalCwd ? '' : Reflect.get(terminalCwd, 'fsPath') as string || '';
     return fsPath;
   } catch (err) {
-    console.error('Cannot get creationOptions.cwd.fsPath from terminal: ' + terminal.name + ' in getRootFolderFromTerminalCreation.');
+    console.error('Cannot get creationOptions.cwd.fsPath from terminal: ' + terminal.name + ' in getRepoFolderFromTerminalCreation.');
     return '';
   }
 }
@@ -264,7 +264,6 @@ export function isToolExistsInPath(exeToolName: string, terminalType: TerminalTy
   return [false, ''];
 }
 
-
 export function changeFindingCommandForLinuxTerminalOnWindows(command: string): string {
   if (!IsLinuxTerminalOnWindows) {
     return command;
@@ -282,7 +281,8 @@ export function changeFindingCommandForLinuxTerminalOnWindows(command: string): 
 
   return match[1] + ' ' + quotePaths(newPaths.join(',')) + command.substring(match[0].length);
 }
-export function getPathEnvSeparator(terminalType: TerminalType) {
+
+function getPathEnvSeparator(terminalType: TerminalType) {
   return isWindowsTerminalOnWindows(terminalType) ? ";" : ":";
 }
 

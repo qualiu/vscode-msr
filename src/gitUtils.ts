@@ -1,50 +1,23 @@
 import path = require('path');
 import fs = require('fs');
 import ChildProcess = require('child_process');
-import { ExecSyncOptions } from 'child_process';
-import { getCommandToSetGitInfoVar, getRunTipFileCommand, OutputChannelName } from './constants';
+import { GitListFileHead } from './configUtils';
+import { DefaultWorkspaceFolder, getCommandToSetGitInfoVar, getLastJunkPathTipRow, getRunTipFileCommand, isNullOrEmpty, OutputChannelName } from './constants';
 import { TerminalType } from './enums';
 import { outputError, outputErrorByTime, outputInfoByDebugMode, outputInfoByTime, outputInfoQuiet, outputInfoQuietByTime, outputWarnByTime } from './outputUtils';
 import { runRawCommandInTerminal } from './runCommandUtils';
 import { DefaultTerminalType, getTipFileDisplayPath, IsLinuxTerminalOnWindows, isWindowsTerminalOnWindows } from './terminalUtils';
 import { IsForwardingSlashSupportedOnWindows, RunCommandChecker } from './ToolChecker';
-import { changeToForwardSlash, getDefaultRootFolder, getElapsedSecondsToNow, isNullOrEmpty, RunCmdTerminalRootFolder } from './utils';
-
-function isGitRecurseSubModuleSupported(): boolean {
-  const execOption: ExecSyncOptions = { cwd: getDefaultRootFolder() };
-  try {
-    ChildProcess.execSync('git ls-files --recurse-submodules .git', execOption);
-    return true;
-  } catch (err) {
-    if (err) {
-      const errorText = err.toString();  // error: unknown option `recurse-submodules'
-      const shortError = errorText.replace(/[\r\n]+\s*usage\s*:.*/is, '');
-      if (errorText.match(/unknown option \W*recurse-submodules/i)) {
-        outputInfoQuietByTime(`Detected '--recurse-submodules' not supported in 'git ls-files': ${shortError}`);
-        return false;
-      }
-    }
-    return false;
-  }
-}
-
-export const IsGitRecurseSubModuleSupported = isGitRecurseSubModuleSupported();
-export const GitListFileRecursiveArg = IsGitRecurseSubModuleSupported ? '--recurse-submodules' : '';
-export const GitListFileHead = `git ls-files ${GitListFileRecursiveArg}`.trimRight();
+import { changeToForwardSlash, getElapsedSecondsToNow, getRepoFolderName } from './utils';
 
 export const SkipPathVariableName: string = 'Skip_Junk_Paths';
-const RunCmdFolderWithForwardSlash: string = changeToForwardSlash(RunCmdTerminalRootFolder);
+const RunCmdFolderWithForwardSlash: string = changeToForwardSlash(DefaultWorkspaceFolder);
 
-let ProjectFolderToHasSkipGitPathsEnvMap = new Map<string, boolean>();
 let ProjectFolderToShortSkipGitPathEnvValueMap = new Map<string, string>();
-
-export function hasValidGitSkipPathsEnv(projectGitFolder: string): boolean {
-  projectGitFolder = changeToForwardSlash(projectGitFolder);
-  return ProjectFolderToHasSkipGitPathsEnvMap.get(projectGitFolder) || false;
-}
 
 export class GitIgnore {
   public Valid: boolean = false;
+  public Completed: boolean = false;
   public ExemptionCount: number = 0;
   private Terminal: TerminalType;
   private IgnoreFilePath: string = '';
@@ -52,7 +25,8 @@ export class GitIgnore {
   private OmitGitIgnoreExemptions: boolean;
   private SkipDotFolders: boolean = true;
   private SkipPathPattern: string = '';
-  private RootFolder: string = '';
+  private RepoFolder: string = '';
+  private RepoFolderName: string = '';
   private CheckUseForwardingSlashForCmd = true;
   private IsCmdTerminal: boolean;
   private MaxCommandLength: number;
@@ -71,7 +45,8 @@ export class GitIgnore {
       return;
     }
 
-    this.RootFolder = changeToForwardSlash(path.dirname(ignoreFilePath));
+    this.RepoFolder = changeToForwardSlash(path.dirname(ignoreFilePath));
+    this.RepoFolderName = getRepoFolderName(ignoreFilePath);
     const options: ChildProcess.ExecSyncOptionsWithStringEncoding = {
       encoding: 'utf8',
       cwd: path.dirname(ignoreFilePath),
@@ -102,7 +77,6 @@ export class GitIgnore {
       return '';
     }
 
-    this.exportSkipPathVariable();
     return toRunInTerminal && canUseVariable
       ? this.getSkipPathsVariable()
       : pattern;
@@ -112,21 +86,8 @@ export class GitIgnore {
     return this.IsCmdTerminal ? '"%' + SkipPathVariableName + '%"' : '"$' + SkipPathVariableName + '"';
   }
 
-  public exportSkipPathVariable(forceExport: boolean = false): boolean {
-    if (!forceExport && RunCmdFolderWithForwardSlash !== this.RootFolder) {
-      return false;
-    }
-
-    if (isNullOrEmpty(this.SkipPathPattern)) {
-      return false;
-    }
-
-    return true;
-  }
-
-
   public replaceToSkipPathVariable(command: string): string {
-    if (this.exportSkipPathVariable()) {
+    if (!isNullOrEmpty(this.SkipPathPattern) && RunCmdFolderWithForwardSlash === this.RepoFolder) {
       command = command.replace('"' + this.SkipPathPattern + '"', this.getSkipPathsVariable());
     }
     return command;
@@ -139,7 +100,7 @@ export class GitIgnore {
 
     const commands = this.IsCmdTerminal
       ? [
-        String.raw`${GitListFileHead} > %tmp%\git-file-list.txt`,
+        String.raw`${GitListFileHead(this.RepoFolderName)} > %tmp%\git-file-list.txt`,
         String.raw`msr -rp . --np "%Skip_Junk_Paths%" -l -PIC | msr -x \ -o / -aPAC > %tmp%\ext-file-list.txt`,
         String.raw`nin %tmp%\git-file-list.txt %tmp%\ext-file-list.txt --nt "^\.|/\." -H 5 -T 5`,
         String.raw`nin %tmp%\git-file-list.txt %tmp%\ext-file-list.txt --nt "^\.|/\." -S -H 5 -T 5`,
@@ -149,7 +110,7 @@ export class GitIgnore {
         String.raw`for /f "tokens=*" %a in ('msr -z "%Skip_Junk_Paths%" -t "\|" -o "\n" -PIC ^| msr -PIC') do @msr -p %tmp%\files-only-in-ext.txt -it "%a" -H 3 -T 3 -O -c "Skip_Paths_Regex = %a"`,
       ]
       : [
-        String.raw`${GitListFileHead} > /tmp/git-file-list.txt`,
+        String.raw`${GitListFileHead(this.RepoFolderName)} > /tmp/git-file-list.txt`,
         String.raw`msr -rp . --np "$Skip_Junk_Paths" -l -PIC > /tmp/ext-file-list.txt`,
         String.raw`nin /tmp/git-file-list.txt /tmp/ext-file-list.txt --nt "^\.|/\." -H 5 -T 5`,
         String.raw`nin /tmp/git-file-list.txt /tmp/ext-file-list.txt --nt "^\.|/\." -S -H 5 -T 5`,
@@ -167,15 +128,17 @@ export class GitIgnore {
   }
 
   public parse(callbackWhenSucceeded: (...args: any[]) => void, callbackWhenFailed: (...args: any[]) => void) {
-    ProjectFolderToHasSkipGitPathsEnvMap.set(this.RootFolder, false);
     this.Valid = false;
+    this.Completed = false;
     this.ExemptionCount = 0;
     if (!this.UseGitIgnoreFile || isNullOrEmpty(this.IgnoreFilePath)) {
+      this.Completed = true;
       callbackWhenFailed();
       return;
     }
 
     if (!fs.existsSync(this.IgnoreFilePath)) {
+      this.Completed = true;
       outputWarnByTime('Not exist git ignore file: ' + this.IgnoreFilePath);
       callbackWhenFailed();
       return;
@@ -187,11 +150,13 @@ export class GitIgnore {
         const message = 'Failed to read file: ' + this.IgnoreFilePath + ' , error: ' + err;
         outputErrorByTime(message);
         this.showErrorInRunCmdTerminal(message);
+        this.Completed = true;
         callbackWhenFailed();
         return;
       }
 
       if (isNullOrEmpty(text)) {
+        this.Completed = true;
         const message = 'Read empty content from file: ' + this.IgnoreFilePath;
         outputErrorByTime(message);
         this.showErrorInRunCmdTerminal(message);
@@ -229,6 +194,7 @@ export class GitIgnore {
             outputWarnByTime('Ignore exemption: "' + line + '" at ' + this.IgnoreFilePath + ':' + (row + 1) + ' while msr.omitGitIgnoreExemptions = true.');
             continue;
           } else {
+            this.Completed = true;
             const message = 'Skip using git-ignore due to found exemption: "' + line + '" at ' + this.IgnoreFilePath + ':' + (row + 1) + ' while msr.omitGitIgnoreExemptions = false.';
             outputErrorByTime(message);
             this.showErrorInRunCmdTerminal(message);
@@ -264,10 +230,10 @@ export class GitIgnore {
       const setVarCmdLength = this.SkipPathPattern.length + (this.IsCmdTerminal ? '@set "="'.length : 'export =""'.length) + SkipPathVariableName.length;
       const isInMaxLength = setVarCmdLength < this.MaxCommandLength;
       this.Valid = this.SkipPathPattern.length > 0 && isInMaxLength;
-      ProjectFolderToHasSkipGitPathsEnvMap.set(this.RootFolder, this.Valid);
       if (this.Valid) {
-        ProjectFolderToShortSkipGitPathEnvValueMap.set(this.RootFolder, this.SkipPathPattern);
+        ProjectFolderToShortSkipGitPathEnvValueMap.set(this.RepoFolder, this.SkipPathPattern);
       }
+      this.Completed = true;
       if (errorList.length > 0) {
         outputError(errorList.join('\n'));
       }
@@ -283,14 +249,15 @@ export class GitIgnore {
 
       callbackWhenSucceeded();
 
-      const shouldDisplayTip = this.RootFolder === RunCmdFolderWithForwardSlash;
+      const shouldDisplayTip = this.RepoFolder === RunCmdFolderWithForwardSlash;
       if (!shouldDisplayTip || !RunCommandChecker.IsToolExists) {
         return;
       }
 
       const tipFileDisplayPath = getTipFileDisplayPath(this.Terminal);
       const setVarCmd = getCommandToSetGitInfoVar(this.IsCmdTerminal, this.SkipPathPattern.length, readPatternCount, skipPatterns.size, errorList.length, this.ExemptionCount);
-      const tipRow = !isInMaxLength ? 8 : (this.ExemptionCount > 0 ? 7 : 6);
+      const beginRow = getLastJunkPathTipRow(this.IsCmdTerminal);
+      const tipRow = !isInMaxLength ? beginRow : (this.ExemptionCount > 0 ? beginRow - 1 : beginRow - 2);
       const replaceCmd = (this.IsCmdTerminal ? `-x ::` : `-x '#'`) + ` -o echo `;
       const tipCommand = getRunTipFileCommand(tipFileDisplayPath, tipRow, replaceCmd);
       // change -XA to -XMI for debug
@@ -338,7 +305,7 @@ export class GitIgnore {
 
   public getPattern(line: string): string {
     // https://git-scm.com/docs/gitignore#_pattern_format,
-    // 1. Root paths skip: folder name with or without begin slash '/' like: folder1/fileOrFolder or /folder1/fileOrFolder
+    // 1. Repo paths skip: folder name with or without begin slash '/' like: folder1/fileOrFolder or /folder1/fileOrFolder
     // 2. Skip folder not file if slash '/' at tail, like: folder1/folder2/
     // 3.1 An asterisk "*" matches anything except a slash.
     // 3.2 The character "?" matches any one character except "/". 

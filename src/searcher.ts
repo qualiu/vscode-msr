@@ -2,7 +2,7 @@ import { exec, ExecException, ExecOptions } from 'child_process';
 import * as vscode from 'vscode';
 import { runFindingCommandByCurrentWord } from './commands';
 import { getConfigValueByAllParts, getConfigValueByProjectAndExtension } from './configUtils';
-import { IsWindows, RemoveJumpRegex } from './constants';
+import { getRepoFolder, isNullOrEmpty, IsWindows, RemoveJumpRegex } from './constants';
 import { FileExtensionToMappedExtensionMap, getConfig, getGitIgnore, getSearchPathOptions, MyConfig } from './dynamicConfig';
 import { FindCommandType, FindType, ForceFindType } from './enums';
 import { filterClassResults } from './filter/filterClassResults';
@@ -14,7 +14,7 @@ import { ResultType, ScoreTypeResult } from './ScoreTypeResult';
 import { SearchChecker } from './searchChecker';
 import { changeFindingCommandForLinuxTerminalOnWindows } from './terminalUtils';
 import { IsOutputColumnSupported, RunCommandChecker, setOutputColumnIndexInCommandLine, setSearchDepthInCommandLine, setTimeoutInCommandLine } from './ToolChecker';
-import { getCurrentWordAndText, getErrorMessage, getExtensionNoHeadDot, getRootFolder, getRootFolderName, getSearchPathInCommand, isNullOrEmpty, nowText, quotePaths, replaceSearchTextHolder, toPath } from './utils';
+import { getCurrentWordAndText, getErrorMessage, getExtensionNoHeadDot, getRepoFolderName, getSearchPathInCommand, nowText, quotePaths, replaceSearchTextHolder, toPath } from './utils';
 import ChildProcess = require('child_process');
 import path = require('path');
 
@@ -140,7 +140,7 @@ function getSearchCommandLineAndRanker(searchChecker: SearchChecker, findType: F
     return ['', null];
   }
 
-  const rootFolderName = getRootFolderName(document.uri.fsPath);
+  const repoFolderName = getRepoFolderName(document.uri.fsPath);
 
   const mappedExt = FileExtensionToMappedExtensionMap.get(extension) || extension;
   if (MyConfig.IsDebug) {
@@ -165,7 +165,7 @@ function getSearchCommandLineAndRanker(searchChecker: SearchChecker, findType: F
   if (isSearchOneFile) {
     extraOptions = "-I -C " + (isFindDefinition ? '-J -H 60' : '-J -H 360');
   } else {
-    extraOptions = getConfigValueByAllParts(rootFolderName, extension, mappedExt, configKeyName, 'extraOptions', true);
+    extraOptions = getConfigValueByAllParts(repoFolderName, extension, mappedExt, configKeyName, 'extraOptions', true);
     // if (skipTestPathFiles && /test/i.test(document.fileName) === false && /\s+--np\s+/.test(extraOptions) === false) {
     // 	extraOptions = '--np test ' + extraOptions;
     // }
@@ -173,10 +173,10 @@ function getSearchCommandLineAndRanker(searchChecker: SearchChecker, findType: F
   extraOptions = setOutputColumnIndexInCommandLine(extraOptions);
 
   const useExtraPathsForDefinition = isNullOrEmpty(forceSetSearchPath)
-    && getConfigValueByProjectAndExtension(rootFolderName, extension, mappedExt, 'findDefinition.useExtraPaths') === "true";
+    && getConfigValueByProjectAndExtension(repoFolderName, extension, mappedExt, 'findDefinition.useExtraPaths') === "true";
 
   const useExtraPathsForReference = isNullOrEmpty(forceSetSearchPath)
-    && getConfigValueByProjectAndExtension(rootFolderName, extension, mappedExt, 'findReference.useExtraPaths') === "true";
+    && getConfigValueByProjectAndExtension(repoFolderName, extension, mappedExt, 'findReference.useExtraPaths') === "true";
 
   const useSkipFolders = forceSetSearchPath !== document.uri.fsPath;
   const usePathListFiles = isNullOrEmpty(forceSetSearchPath);
@@ -226,7 +226,7 @@ export function getCurrentFileSearchInfo(document: vscode.TextDocument, position
 
 export function getMatchedLocationsAsync(findType: FindType, cmd: string, ranker: Ranker, token: vscode.CancellationToken, searcher: Searcher | null = null): Thenable<vscode.Location[]> {
   const options: ExecOptions = {
-    cwd: getRootFolder(toPath(ranker.searchChecker.currentFile), true) || ranker.searchChecker.currentFile.dir,
+    cwd: getRepoFolder(toPath(ranker.searchChecker.currentFile), true) || ranker.searchChecker.currentFile.dir,
     env: process.env,
     // timeout: 60 * 1000,
     maxBuffer: 10240000,
@@ -326,7 +326,7 @@ function findAndProcessSummary(filteredResultCount: number, skipIfNotMatch: bool
     outputDebugByTime('Got matched count = ' + matchCount + ' and time cost = ' + costSeconds + ' from summary, search word = ' + ranker.searchChecker.currentWord);
     sumTimeCost(findType, costSeconds, lineCount);
     if (!MyConfig.DisableReRunSearch) {
-      if (matchCount < 1 && MyConfig.RootConfig.get('enable.useGeneralFindingWhenNoResults') as boolean) {
+      if (matchCount < 1 && MyConfig.RepoConfig.get('enable.useGeneralFindingWhenNoResults') as boolean) {
         const findCmd = findType === FindType.Definition ? FindCommandType.RegexFindAsClassOrMethodDefinitionInCodeFiles : FindCommandType.RegexFindAsClassOrMethodDefinitionInCodeFiles;
         if (!HasAlreadyReRunSearch && !ranker.isOneFileOrFolder && ranker.canRunCommandInTerminalWhenNoResult) {
           HasAlreadyReRunSearch = true;
@@ -404,9 +404,9 @@ function parseCommandOutput(stdout: string, findType: FindType, cmd: string, ran
     return allResults;
   }
 
-  const rootFolderName = getRootFolderName(toPath(ranker.searchChecker.currentFile));
-  const removeLowScoreResultsFactor = Number(getConfigValueByProjectAndExtension(rootFolderName, ranker.searchChecker.extension, ranker.searchChecker.mappedExt, 'removeLowScoreResultsFactor') || 0.8);
-  const keepHighScoreResultCount = Number(getConfigValueByProjectAndExtension(rootFolderName, ranker.searchChecker.extension, ranker.searchChecker.mappedExt, 'keepHighScoreResultCount') || -1);
+  const repoFolderName = getRepoFolderName(toPath(ranker.searchChecker.currentFile));
+  const removeLowScoreResultsFactor = Number(getConfigValueByProjectAndExtension(repoFolderName, ranker.searchChecker.extension, ranker.searchChecker.mappedExt, 'removeLowScoreResultsFactor') || 0.8);
+  const keepHighScoreResultCount = Number(getConfigValueByProjectAndExtension(repoFolderName, ranker.searchChecker.extension, ranker.searchChecker.mappedExt, 'keepHighScoreResultCount') || -1);
 
   let scoreSum = 0;
   let scoreList: number[] = [];

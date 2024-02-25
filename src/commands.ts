@@ -1,11 +1,10 @@
 import * as vscode from 'vscode';
-import { getIgnoreFolderCommand } from './JunkPathArgs';
 import { AddKeepColorArg, AddOutputToStderrArg, ToolChecker, setOutputColumnIndexInCommandLine, setTimeoutInCommandLine } from './ToolChecker';
-import { getConfigValueByAllParts, getConfigValueByProjectAndExtension, getConfigValueOfProject } from './configUtils';
-import { HomeFolder, RemoveJumpRegex, SkipJumpOutForHeadResultsRegex } from './constants';
+import { GitListFileHead, getConfigValueByAllParts, getConfigValueByProjectAndExtension, getConfigValueOfProject } from './configUtils';
+import { DefaultWorkspaceFolder, HomeFolder, RemoveJumpRegex, ReplaceJunkPattern, SkipJumpOutForHeadResultsRegex, getDefaultRepoFolderByActiveFile, getRepoFolder, getSkipJunkPathArgs, isNullOrEmpty } from './constants';
 import { FileExtensionToMappedExtensionMap, MyConfig, getConfig, getFileNamePattern, getGitIgnore, getSearchPathOptions, removeSearchTextForCommandLine, replaceToRelativeSearchPath } from './dynamicConfig';
 import { FindCommandType, TerminalType } from './enums';
-import { GitListFileHead, SkipPathVariableName } from './gitUtils';
+import { SkipPathVariableName } from './gitUtils';
 import { enableColorAndHideCommandLine, outputDebugByTime, outputInfoByTime } from './outputUtils';
 import { Ranker } from './ranker';
 import { NormalTextRegex, escapeRegExp } from './regexUtils';
@@ -13,11 +12,13 @@ import { runCommandInTerminal, runRawCommandInTerminal } from './runCommandUtils
 import { SearchConfig } from './searchConfig';
 import { DefaultTerminalType, IsLinuxTerminalOnWindows, IsWindowsTerminalOnWindows, changeFindingCommandForLinuxTerminalOnWindows, isLinuxTerminalOnWindows, toTerminalPath } from './terminalUtils';
 import { MsrExe } from './toolSource';
-import { RunCmdTerminalRootFolder, getCurrentWordAndText, getDefaultRootFolderByActiveFile, getExtensionNoHeadDot, getRootFolder, getRootFolderName, isNullOrEmpty, quotePaths, replaceSearchTextHolder, replaceTextByRegex, setSearchPathInCommand, toPath } from './utils';
+import { getCurrentWordAndText, getExtensionNoHeadDot, getRepoFolderName, quotePaths, replaceSearchTextHolder, replaceTextByRegex, setSearchPathInCommand, toPath } from './utils';
 import { changeSearchWordToVariationPattern, getSearchWordVariationPattern } from './wordReferenceUtils';
 import path = require('path');
 
 const ReplaceSearchPathRegex = /-r?p\s+\S+|-r?p\s+\".+?\"/g;
+
+export let ProjectToGitFindFileExtraOptionsMap = new Map<string, RegExp>();
 
 function replaceSearchPathToDot(searchPathsOptions: string): string {
     return replaceTextByRegex(searchPathsOptions, ReplaceSearchPathRegex, '-rp .');
@@ -78,6 +79,16 @@ export function runFindingCommand(findCmd: FindCommandType, textEditor: vscode.T
         }
     }
 
+    if (MyConfig.useGitFileList(false)) {
+        const repoFolder = getRepoFolder(toPath(parsedFile), true) || '.';
+        const repoFolderName = getRepoFolderName(repoFolder, true);
+        command = command.replace(ReplaceJunkPattern, 'gfind-file');
+        const pattern = ProjectToGitFindFileExtraOptionsMap.get(repoFolderName);
+        if (pattern) {
+            command = command.replace(pattern, ' ');
+        }
+    }
+
     runCommandInTerminal(command, true, getConfig().ClearTerminalBeforeExecutingCommands);
 }
 
@@ -96,14 +107,14 @@ export function runFindingCommandByCurrentWord(findCmd: FindCommandType, searchT
     runCommandInTerminal(command, !myConfig.IsQuiet, myConfig.ClearTerminalBeforeExecutingCommands);
 }
 
-export function getSortCommandText(toRunInTerminal: boolean, isForProjectCmdAlias: boolean, addOptionalArgs: boolean, findCmd: FindCommandType, rootFolder = '', isCookingCmdAlias = false): string {
+export function getSortCommandText(toRunInTerminal: boolean, isForProjectCmdAlias: boolean, addOptionalArgs: boolean, findCmd: FindCommandType, repoFolder = '', isCookingCmdAlias = false): string {
     const findCmdText = FindCommandType[findCmd];
-    if (isNullOrEmpty(rootFolder)) {
-        rootFolder = isForProjectCmdAlias ? getDefaultRootFolderByActiveFile() || '.' : '.';
+    if (isNullOrEmpty(repoFolder)) {
+        repoFolder = isForProjectCmdAlias ? getDefaultRepoFolderByActiveFile() || '.' : '.';
     }
 
-    const rootFolderName = getRootFolderName(rootFolder, isForProjectCmdAlias);
-    const folderKey = isForProjectCmdAlias ? rootFolderName : 'default';
+    const repoFolderName = getRepoFolderName(repoFolder, isForProjectCmdAlias);
+    const folderKey = isForProjectCmdAlias ? repoFolderName : 'default';
     let filePattern = '';
     if (findCmdText.includes('SortSource')) {
         filePattern = isForProjectCmdAlias ? MyConfig.AllFilesRegex.source : MyConfig.AllFilesDefaultRegex.source;
@@ -120,7 +131,7 @@ export function getSortCommandText(toRunInTerminal: boolean, isForProjectCmdAlia
     extraOptions += (findCmdText.match(/BySize/i) ? ' --sz --wt' : ' --wt --sz');
     extraOptions += ' ' + getConfigValueOfProject(folderKey, 'listSortingFilesOptions') as string || '-l -H 10 -T 10';
 
-    let searchPathsOptions = getSearchPathOptions(toRunInTerminal, isForProjectCmdAlias, rootFolder, '', FindCommandType.RegexFindAsClassOrMethodDefinitionInCodeFiles === findCmd);
+    let searchPathsOptions = getSearchPathOptions(toRunInTerminal, isForProjectCmdAlias, repoFolder, '', FindCommandType.RegexFindAsClassOrMethodDefinitionInCodeFiles === findCmd);
     if (isCookingCmdAlias) {
         extraOptions = replaceTextByRegex(extraOptions, /(^|\s+)(-[lICc]\s+|-[HT]\s*\d+)/g, ' ');
         extraOptions = replaceTextByRegex(extraOptions, /(^|\s+)(--s[12])\s+\S+\s*/g, ' ');
@@ -133,14 +144,14 @@ export function getSortCommandText(toRunInTerminal: boolean, isForProjectCmdAlia
     return command.trimRight();
 }
 
-export function getFindTopDistributionCommand(toRunInTerminal: boolean, isForProjectCmdAlias: boolean, addOptionalArgs: boolean, findCmd: FindCommandType, rootFolder = ''): string {
+export function getFindTopDistributionCommand(toRunInTerminal: boolean, isForProjectCmdAlias: boolean, addOptionalArgs: boolean, findCmd: FindCommandType, repoFolder = ''): string {
     const findCmdText = FindCommandType[findCmd];
-    if (isNullOrEmpty(rootFolder)) {
-        rootFolder = isForProjectCmdAlias ? getDefaultRootFolderByActiveFile() || '.' : '.';
+    if (isNullOrEmpty(repoFolder)) {
+        repoFolder = isForProjectCmdAlias ? getDefaultRepoFolderByActiveFile() || '.' : '.';
     }
 
-    const rootFolderName = getRootFolderName(rootFolder, isForProjectCmdAlias);
-    const folderKey = isForProjectCmdAlias ? rootFolderName : 'default';
+    const repoFolderName = getRepoFolderName(repoFolder, isForProjectCmdAlias);
+    const folderKey = isForProjectCmdAlias ? repoFolderName : 'default';
     let filePattern = '';
     if (findCmdText.includes('TopSource')) {
         filePattern = isForProjectCmdAlias ? MyConfig.AllFilesRegex.source : MyConfig.AllFilesDefaultRegex.source;
@@ -155,7 +166,7 @@ export function getFindTopDistributionCommand(toRunInTerminal: boolean, isForPro
     const optionalArgs = addOptionalArgs ? ' $*' : '';
     const extraOptions = "-l -PAC --xd -k 18";
     const useExtraPaths = 'true' === getConfigValueByProjectAndExtension(folderKey, '', '', 'findingCommands.useExtraPaths');
-    let searchPathsOptions = getSearchPathOptions(toRunInTerminal, isForProjectCmdAlias, rootFolder, '', FindCommandType.RegexFindAsClassOrMethodDefinitionInCodeFiles === findCmd, useExtraPaths, useExtraPaths);
+    let searchPathsOptions = getSearchPathOptions(toRunInTerminal, isForProjectCmdAlias, repoFolder, '', FindCommandType.RegexFindAsClassOrMethodDefinitionInCodeFiles === findCmd, useExtraPaths, useExtraPaths);
     searchPathsOptions = replaceSearchPathToDot(searchPathsOptions);
     let command = MsrExe + ' ' + searchPathsOptions + filePattern + ' ' + extraOptions.trim();
     if (findCmdText.includes('Folder')) {
@@ -169,8 +180,8 @@ export function getFindTopDistributionCommand(toRunInTerminal: boolean, isForPro
 
 function setCustomSearchCommand(sourceProjectFolders: string, parsedFile: path.ParsedPath, searchWord: string, commandLine: string): string {
     // Check %AutoDecideSkipFolderToSearch% + %UseGitFileListToSearch% + %ProjectsFolders%
-    const skipPathPattern = getIgnoreFolderCommand(IsWindowsTerminalOnWindows);
-    const useGitFileListToSearch = `${GitListFileHead} > /tmp/tmp-git-file-list && msr --no-check -w /tmp/tmp-git-file-list`;
+    const skipPathArgs = getSkipJunkPathArgs(IsWindowsTerminalOnWindows);
+    const useGitFileListToSearch = `${GitListFileHead(getRepoFolderName(parsedFile.dir))} > /tmp/tmp-git-file-list && msr --no-check -w /tmp/tmp-git-file-list`;
     if (commandLine.match(/\s+-t\s+\S+/)) {
         searchWord = escapeRegExpForFindingCommand(searchWord);
     }
@@ -182,10 +193,10 @@ function setCustomSearchCommand(sourceProjectFolders: string, parsedFile: path.P
 
     if (commandLine.includes('%AutoDecideSkipFolderToSearch%')) {
         const findAutoDecideRegex = new RegExp('%AutoDecideSkipFolderToSearch%', 'g');
-        if (isNullOrEmpty(skipPathPattern)) {
+        if (isNullOrEmpty(skipPathArgs)) {
             commandLine = commandLine.replace(findAutoDecideRegex, useGitFileListToSearch);
         } else {
-            commandLine = commandLine.replace(findAutoDecideRegex, `msr -rp ${sourceProjectFolders} ${skipPathPattern}`);
+            commandLine = commandLine.replace(findAutoDecideRegex, `msr -rp ${sourceProjectFolders} ${skipPathArgs}`);
         }
     }
 
@@ -204,7 +215,7 @@ function setCustomSearchCommand(sourceProjectFolders: string, parsedFile: path.P
         return commandLine;
     }
 
-    commandLine = commandLine.replace(new RegExp('--(np|nd) \"[\\$%]' + SkipPathVariableName + '%?"', 'g'), skipPathPattern);
+    commandLine = commandLine.replace(new RegExp('--(np|nd) \"[\\$%]' + SkipPathVariableName + '%?"', 'g'), skipPathArgs);
     return commandLine;
 }
 
@@ -212,14 +223,14 @@ export function getFindingCommandByCurrentWord(toRunInTerminal: boolean, findCmd
     parsedFile: path.ParsedPath, rawSearchText: string = '', ranker: Ranker | undefined, onlyRemoveJump: boolean = false): string {
     const extension = getExtensionNoHeadDot(parsedFile.ext);
     const mappedExt = FileExtensionToMappedExtensionMap.get(extension) || extension;
-    const rootFolder = getRootFolder(toPath(parsedFile), true) || '.';
-    const rootFolderName = getRootFolderName(rootFolder, true);
-    const rootFolderOsPath = toTerminalPath(rootFolder);
-    const shouldChangeFolder = rootFolderOsPath.startsWith('/') && toRunInTerminal && IsLinuxTerminalOnWindows && SearchConfig.SearchRelativePathForLinuxTerminalsOnWindows;
+    const repoFolder = getRepoFolder(toPath(parsedFile), true) || '.';
+    const repoFolderName = getRepoFolderName(repoFolder, true);
+    const repoFolderOsPath = toTerminalPath(repoFolder);
+    const shouldChangeFolder = repoFolderOsPath.startsWith('/') && toRunInTerminal && IsLinuxTerminalOnWindows && SearchConfig.SearchRelativePathForLinuxTerminalsOnWindows;
     const findCmdText = FindCommandType[findCmd];
     function changeSearchFolderInCommand(command: string): string {
         if (shouldChangeFolder) {
-            const pattern = new RegExp(' (-r?p) ' + rootFolderOsPath);
+            const pattern = new RegExp(' (-r?p) ' + repoFolderOsPath);
             command = command.replace(pattern, ' $1 .');
             command = command.replace(/ -W /, ' ');
         }
@@ -228,12 +239,12 @@ export function getFindingCommandByCurrentWord(toRunInTerminal: boolean, findCmd
     }
 
     if (findCmdText.includes('Sort')) {
-        const command = getSortCommandText(toRunInTerminal, true, false, findCmd, rootFolder);
+        const command = getSortCommandText(toRunInTerminal, true, false, findCmd, repoFolder);
         return changeSearchFolderInCommand(command);
     }
 
     if (findCmdText.includes('Top')) {
-        const command = getFindTopDistributionCommand(toRunInTerminal, true, false, findCmd, rootFolder);
+        const command = getFindTopDistributionCommand(toRunInTerminal, true, false, findCmd, repoFolder);
         return changeSearchFolderInCommand(command);
     }
 
@@ -244,18 +255,18 @@ export function getFindingCommandByCurrentWord(toRunInTerminal: boolean, findCmd
     const terminalType = !toRunInTerminal && isLinuxTerminalOnWindows() ? TerminalType.CMD : DefaultTerminalType;
     const parsedFilePath = toPath(parsedFile);
     const osFilePath = toTerminalPath(parsedFilePath, terminalType);
-    const useExtraPaths = 'true' === getConfigValueByProjectAndExtension(rootFolderName, extension, mappedExt, 'findingCommands.useExtraPaths');
+    const useExtraPaths = 'true' === getConfigValueByProjectAndExtension(repoFolderName, extension, mappedExt, 'findingCommands.useExtraPaths');
     const searchPathsOptions = getSearchPathOptions(toRunInTerminal, true, parsedFilePath, mappedExt, FindCommandType.RegexFindAsClassOrMethodDefinitionInCodeFiles === findCmd, useExtraPaths, useExtraPaths);
     const sourceProjectFolders = searchPathsOptions.replace(/-r?p\s+("[^"]+"|\S+).*/, '$1').trim();
 
     if (FindCommandType.MyFindOrReplaceSelectedText === findCmd) {
-        let commandLine = getConfigValueByProjectAndExtension(rootFolderName, extension, mappedExt, 'myFindOrReplaceSelectedTextCommand', true, true);
+        let commandLine = getConfigValueByProjectAndExtension(repoFolderName, extension, mappedExt, 'myFindOrReplaceSelectedTextCommand', true, true);
         if (isNullOrEmpty(commandLine)) {
             const configNameSet = new Set<string>()
                 .add(`msr.${extension}.myFindOrReplaceSelectedTextCommand`)
                 .add(`msr.${mappedExt}.myFindOrReplaceSelectedTextCommand`)
-                .add(`msr.${rootFolderName}.${extension}.myFindOrReplaceSelectedTextCommand`)
-                .add(`msr.${rootFolderName}.${mappedExt}.myFindOrReplaceSelectedTextCommand`);
+                .add(`msr.${repoFolderName}.${extension}.myFindOrReplaceSelectedTextCommand`)
+                .add(`msr.${repoFolderName}.${mappedExt}.myFindOrReplaceSelectedTextCommand`);
 
             const warningCommand = `echo Please add any of following ${configNameSet.size} configs in user settings: ${Array.from(configNameSet).join(', ')} reference existing config examples or doc.You can also hide this menu by unchecking msr.myFindOrReplaceSelectedTextCommand.menu.visible or set it to false.| msr - aPA - e "\\w*\\.(\\w+)" - x Examples - i - t "please.*?(Any).*?:|Hide.*?menu|msr.\\S+visible|false"`;
             runRawCommandInTerminal(AddKeepColorArg(AddOutputToStderrArg(warningCommand)));
@@ -280,18 +291,18 @@ export function getFindingCommandByCurrentWord(toRunInTerminal: boolean, findCmd
     rawSearchText = rawSearchText.length < 1 ? searchText : rawSearchText;
 
     let extraOptions = isFindDefinition
-        ? getConfigValueByAllParts(rootFolderName, extension, mappedExt, 'definition', 'extraOptions')
+        ? getConfigValueByAllParts(repoFolderName, extension, mappedExt, 'definition', 'extraOptions')
         : (isFindReference
-            ? getConfigValueByAllParts(rootFolderName, extension, mappedExt, 'reference', 'extraOptions')
-            : getConfigValueByProjectAndExtension(rootFolderName, extension, mappedExt, 'extraOptions')
+            ? getConfigValueByAllParts(repoFolderName, extension, mappedExt, 'reference', 'extraOptions')
+            : getConfigValueByProjectAndExtension(repoFolderName, extension, mappedExt, 'extraOptions')
         );
 
     let searchPattern = '';
     if (isFindDefinition) {
-        searchPattern = getConfigValueByProjectAndExtension(rootFolderName, extension, mappedExt, 'definition');
+        searchPattern = getConfigValueByProjectAndExtension(repoFolderName, extension, mappedExt, 'definition');
     } else {
         searchPattern = isFindReference
-            ? getConfigValueByProjectAndExtension(rootFolderName, extension, mappedExt, 'reference')
+            ? getConfigValueByProjectAndExtension(repoFolderName, extension, mappedExt, 'reference')
             : '';
     }
 
@@ -311,9 +322,9 @@ export function getFindingCommandByCurrentWord(toRunInTerminal: boolean, findCmd
     }
 
     let skipTextPattern = isFindDefinition
-        ? getConfigValueByProjectAndExtension(rootFolderName, extension, mappedExt, 'skip.definition')
+        ? getConfigValueByProjectAndExtension(repoFolderName, extension, mappedExt, 'skip.definition')
         : (isFindReference
-            ? getConfigValueByProjectAndExtension(rootFolderName, extension, mappedExt, 'skip.reference')
+            ? getConfigValueByProjectAndExtension(repoFolderName, extension, mappedExt, 'skip.reference')
             : ''
         );
 
@@ -325,15 +336,15 @@ export function getFindingCommandByCurrentWord(toRunInTerminal: boolean, findCmd
             const useDefaultValues = [false, true];
             for (let k = 0; k < useDefaultValues.length; k++) {
                 const allowEmpty = k === 0;
-                definitionPatterns.add(getConfigValueByProjectAndExtension(rootFolderName, extension, mappedExt, 'class.definition', allowEmpty, useDefaultValues[k]))
-                    .add(getConfigValueByProjectAndExtension(rootFolderName, extension, mappedExt, 'member.definition', allowEmpty, useDefaultValues[k]))
-                    .add(getConfigValueByProjectAndExtension(rootFolderName, extension, mappedExt, 'constant.definition', allowEmpty, useDefaultValues[k]))
-                    .add(getConfigValueByProjectAndExtension(rootFolderName, extension, mappedExt, 'enum.definition', allowEmpty, useDefaultValues[k]))
-                    .add(getConfigValueByProjectAndExtension(rootFolderName, extension, mappedExt, 'method.definition', allowEmpty, useDefaultValues[k]));
+                definitionPatterns.add(getConfigValueByProjectAndExtension(repoFolderName, extension, mappedExt, 'class.definition', allowEmpty, useDefaultValues[k]))
+                    .add(getConfigValueByProjectAndExtension(repoFolderName, extension, mappedExt, 'member.definition', allowEmpty, useDefaultValues[k]))
+                    .add(getConfigValueByProjectAndExtension(repoFolderName, extension, mappedExt, 'constant.definition', allowEmpty, useDefaultValues[k]))
+                    .add(getConfigValueByProjectAndExtension(repoFolderName, extension, mappedExt, 'enum.definition', allowEmpty, useDefaultValues[k]))
+                    .add(getConfigValueByProjectAndExtension(repoFolderName, extension, mappedExt, 'method.definition', allowEmpty, useDefaultValues[k]));
 
                 definitionPatterns.delete('');
                 if (definitionPatterns.size < 1) {
-                    definitionPatterns.add((getConfigValueByProjectAndExtension(rootFolderName, extension, mappedExt, 'definition', allowEmpty, useDefaultValues[k])));
+                    definitionPatterns.add((getConfigValueByProjectAndExtension(repoFolderName, extension, mappedExt, 'definition', allowEmpty, useDefaultValues[k])));
                     definitionPatterns.delete('');
                 }
                 if (definitionPatterns.size > 0) {
@@ -342,7 +353,7 @@ export function getFindingCommandByCurrentWord(toRunInTerminal: boolean, findCmd
             }
 
             searchPattern = Array.from(definitionPatterns).join('|');
-            skipTextPattern = ranker ? ranker.getSkipPatternForDefinition() : getConfigValueByProjectAndExtension(rootFolderName, extension, mappedExt, 'skip.definition');
+            skipTextPattern = ranker ? ranker.getSkipPatternForDefinition() : getConfigValueByProjectAndExtension(repoFolderName, extension, mappedExt, 'skip.definition');
             break;
 
         case FindCommandType.RegexFindReferencesInCurrentFile:
@@ -358,12 +369,12 @@ export function getFindingCommandByCurrentWord(toRunInTerminal: boolean, findCmd
 
         case FindCommandType.RegexFindReferencesInDocs:
         case FindCommandType.FindPlainTextInDocFiles:
-            filePattern = getConfigValueOfProject(rootFolderName, 'docFiles') as string;
+            filePattern = getConfigValueOfProject(repoFolderName, 'docFiles') as string;
             break;
 
         case FindCommandType.RegexFindReferencesInConfigFiles:
         case FindCommandType.FindPlainTextInConfigFiles:
-            filePattern = getConfigValueOfProject(rootFolderName, 'configFiles') as string;
+            filePattern = getConfigValueOfProject(repoFolderName, 'configFiles') as string;
             break;
 
         case FindCommandType.RegexFindReferencesInCodeAndConfig:
@@ -386,16 +397,16 @@ export function getFindingCommandByCurrentWord(toRunInTerminal: boolean, findCmd
         default:
             filePattern = '';
             const smallFileExtraOptions = isFindReference
-                ? getConfigValueByAllParts(rootFolderName, extension, mappedExt, 'reference', 'allSmallFiles.extraOptions')
-                : getConfigValueByProjectAndExtension(rootFolderName, extension, mappedExt, 'allSmallFiles.extraOptions');
+                ? getConfigValueByAllParts(repoFolderName, extension, mappedExt, 'reference', 'allSmallFiles.extraOptions')
+                : getConfigValueByProjectAndExtension(repoFolderName, extension, mappedExt, 'allSmallFiles.extraOptions');
             if (!isNullOrEmpty(smallFileExtraOptions)) {
                 extraOptions = smallFileExtraOptions;
             }
             break;
     }
 
-    // if (!isSorting && ('.' + extension).match(new RegExp(getConfigValueOfProject(rootFolderName, 'scriptFiles') as string))) {
-    //     filePattern = (MappedExtToCodeFilePatternMap.get(mappedExt) || getConfigValueOfProject(rootFolderName, 'scriptFiles')) as string;
+    // if (!isSorting && ('.' + extension).match(new RegExp(getConfigValueOfProject(repoFolderName, 'scriptFiles') as string))) {
+    //     filePattern = (MappedExtToCodeFilePatternMap.get(mappedExt) || getConfigValueOfProject(repoFolderName, 'scriptFiles')) as string;
     // }
 
     if (isFindInCurrentFile && !isNullOrEmpty(extraOptions)) {
@@ -424,7 +435,7 @@ export function getFindingCommandByCurrentWord(toRunInTerminal: boolean, findCmd
 
     // FindCommandType.RegexFindPureReferencesInCodeFiles || FindCommandType.RegexFindPureReferencesInAllSourceFiles
     if (findCmdText.includes('RegexFindPureReference')) {
-        const skipPattern = getConfigValueByProjectAndExtension(rootFolderName, extension, mappedExt, 'skip.pureReference', true).trim();
+        const skipPattern = getConfigValueByProjectAndExtension(repoFolderName, extension, mappedExt, 'skip.pureReference', true).trim();
         if (skipPattern.length > 0 && /\s+--nt\s+/.test(searchPattern) !== true) {
             skipTextPattern = skipPattern;
         }
@@ -435,7 +446,7 @@ export function getFindingCommandByCurrentWord(toRunInTerminal: boolean, findCmd
     }
 
     const filePath = quotePaths(osFilePath);
-    const oneFilePath = osFilePath.startsWith(RunCmdTerminalRootFolder) ? replaceToRelativeSearchPath(toRunInTerminal, filePath, rootFolder) : filePath;
+    const oneFilePath = osFilePath.startsWith(DefaultWorkspaceFolder) ? replaceToRelativeSearchPath(toRunInTerminal, filePath, repoFolder) : filePath;
 
     if (skipTextPattern && skipTextPattern.length > 1) {
         skipTextPattern = ' --nt "' + skipTextPattern + '"';

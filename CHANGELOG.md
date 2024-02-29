@@ -2,6 +2,12 @@
 
 All notable changes to this "vscode-msr" extension will be documented in this file.
 
+## [2.1.82]
+
+- Improved git list file searching (`gfind-xxx` + menu):
+  - Added `del-this-tmp-list` + integrated with `gpc`/`gpc-sm` + changed `msr.refreshTmpGitFileListDuration` = `1hour`.
+- Improved terminal initialization.
+
 ## [2.1.81]
 
 - Accelerated terminal initialization on some **Windows**.

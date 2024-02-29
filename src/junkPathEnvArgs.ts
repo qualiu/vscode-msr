@@ -1,7 +1,7 @@
 import path = require('path');
 import ChildProcess = require('child_process');
 import { GitListFileRecursiveArg, getConfigValueOfProject } from './configUtils';
-import { GitRepoEnvName, SearchGitSubModuleEnvName, SkipJunkPathEnvArgName, SkipJunkPathEnvArgValue, WorkspaceCount, getEnvNameRef, getProjectFolderKey, isNullOrEmpty } from './constants';
+import { GitFileListExpirationTimeEnvName, GitRepoEnvName, SearchGitSubModuleEnvName, SkipJunkPathEnvArgName, SkipJunkPathEnvArgValue, TmpGitFileListExpiration, WorkspaceCount, getEnvNameRef, getProjectFolderKey, isNullOrEmpty } from './constants';
 import { getGitIgnore, mergeSkipFolderPattern } from './dynamicConfig';
 import { TerminalType } from './enums';
 import { isWindowsTerminalOnWindows } from './terminalUtils';
@@ -39,24 +39,23 @@ function getJunkFolderValue(projectKey: string, isForProjectCmdAlias: boolean): 
   return skipFoldersPattern;
 }
 
-function getSetEnvCommand(isWindowsTerminal: boolean, name: string, value: string, permanent: boolean, hideCommand: boolean = true, addCheck: boolean = true): string {
-  const head = hideCommand && isWindowsTerminal ? "@" : "";
+function getSetEnvCommand(isWindowsTerminal: boolean, name: string, value: string, permanent: boolean, addCheck: boolean = true): string {
   const setEnvCmd = !isWindowsTerminal
     ? `export ${name}='${value}'`
     : (permanent
-      ? `SETX ${name} "${value}" > nul`
+      ? `SETX ${name} "${value}"`
       : `SET "${name}=${value}"`
     );
 
   if (!addCheck) {
-    return head + setEnvCmd;
+    return setEnvCmd;
   }
 
   const checkCmd = isWindowsTerminal
     ? `if not defined ${name} `
     : `[ -z "$${name}" ] && `;
 
-  return head + checkCmd + setEnvCmd;
+  return checkCmd + setEnvCmd;
 }
 
 export function getJunkEnvCommandForTipFile(isWindowsTerminal: boolean, asyncRunning = false) {
@@ -64,15 +63,15 @@ export function getJunkEnvCommandForTipFile(isWindowsTerminal: boolean, asyncRun
     return '';
   }
 
+  const permanent = asyncRunning;
+  const addCheck = !asyncRunning;
   const newLine = isWindowsTerminal ? "\r\n" : "\n";
   const [name, value] = getJunkPathEnvValue('', false);
-  const permanent = asyncRunning;
-  const hideCommand = !asyncRunning;
-  const addCheck = !asyncRunning;
-  const command = getSetEnvCommand(true, SkipJunkPathEnvArgName, name, permanent, hideCommand, addCheck) + newLine
-    + getSetEnvCommand(true, SkipJunkPathEnvArgValue, value, permanent, hideCommand, addCheck) + newLine
-    + getSetEnvCommand(true, GitRepoEnvName, 'tmp-list', permanent, hideCommand, addCheck) + newLine
-    + getSetEnvCommand(true, SearchGitSubModuleEnvName, '--recurse-submodules', permanent, hideCommand, addCheck);
+  const command = getSetEnvCommand(true, SkipJunkPathEnvArgName, name, permanent, addCheck) + newLine
+    + getSetEnvCommand(true, SkipJunkPathEnvArgValue, value, permanent, addCheck) + newLine
+    + getSetEnvCommand(true, GitRepoEnvName, 'tmp-list', permanent, addCheck) + newLine
+    + getSetEnvCommand(true, SearchGitSubModuleEnvName, '--recurse-submodules', permanent, addCheck) + newLine
+    + getSetEnvCommand(true, GitFileListExpirationTimeEnvName, TmpGitFileListExpiration, permanent, addCheck);
   return command;
 }
 
@@ -94,12 +93,14 @@ export function getSkipJunkPathEnvCommand(terminalType: TerminalType, repoFolder
   const trimmedRepoName = !isForProjectCmdAlias || isNullOrEmpty(repoFolder) ? 'tmp-list' : getProjectFolderKey(path.basename(repoFolder));
   const newLine = isWindowsTerminal ? "\r\n" : "\n";
   const searchSubModuleArg = GitListFileRecursiveArg(isForProjectCmdAlias ? getRepoFolderName(repoFolder) : '');
+  const repoFolderName = path.basename(repoFolder);
+  const expirationTime = isForProjectCmdAlias ? getConfigValueOfProject(repoFolderName, "refreshTmpGitFileListDuration") : TmpGitFileListExpiration;
 
-  // Sync update row numbers (search getRunTipFileCommand) whenever added/removed command line count below:
-  let setEnvCommandLines = getSetEnvCommand(isWindowsTerminal, SkipJunkPathEnvArgName, name, false, false, !isForProjectCmdAlias)
-    + newLine + getSetEnvCommand(isWindowsTerminal, SkipJunkPathEnvArgValue, value, false, false, !isForProjectCmdAlias)
-    + newLine + getSetEnvCommand(isWindowsTerminal, GitRepoEnvName, trimmedRepoName, false, false, !isForProjectCmdAlias)
-    + newLine + getSetEnvCommand(isWindowsTerminal, SearchGitSubModuleEnvName, searchSubModuleArg, false, false, !isForProjectCmdAlias)
+  let setEnvCommandLines = getSetEnvCommand(isWindowsTerminal, SkipJunkPathEnvArgName, name, false, !isForProjectCmdAlias)
+    + newLine + getSetEnvCommand(isWindowsTerminal, SkipJunkPathEnvArgValue, value, false, !isForProjectCmdAlias)
+    + newLine + getSetEnvCommand(isWindowsTerminal, GitRepoEnvName, trimmedRepoName, false, !isForProjectCmdAlias)
+    + newLine + getSetEnvCommand(isWindowsTerminal, SearchGitSubModuleEnvName, searchSubModuleArg, false, !isForProjectCmdAlias)
+    + newLine + getSetEnvCommand(isWindowsTerminal, GitFileListExpirationTimeEnvName, expirationTime, false, !isForProjectCmdAlias)
     + newLine;
 
   if (isWindowsTerminal && isForProjectCmdAlias) {
@@ -117,10 +118,19 @@ export function getSkipJunkPathEnvCommand(terminalType: TerminalType, repoFolder
 
 export function getResetJunkPathEnvCommand(isWindowsTerminal: boolean): string {
   const [name, value] = getJunkPathEnvValue('', false);
-  if (isWindowsTerminal) {
-    return `set "${SkipJunkPathEnvArgName}=${name}" && set "${SkipJunkPathEnvArgValue}=${value}" && set "${GitRepoEnvName}=tmp-list" && set "${SearchGitSubModuleEnvName}=--recurse-submodules"`;
-  } else {
-    return `export ${SkipJunkPathEnvArgName}="${name}" && export ${SkipJunkPathEnvArgValue}="${value}" && export ${GitRepoEnvName}=tmp-list && export ${SearchGitSubModuleEnvName}='--recurse-submodules'`;
-  }
+  const command = isWindowsTerminal
+    ?
+    `set "${SkipJunkPathEnvArgName}=${name}" 
+    && set "${SkipJunkPathEnvArgValue}=${value}" 
+    && set "${GitRepoEnvName}=tmp-list" 
+    && set "${SearchGitSubModuleEnvName}=--recurse-submodules"
+    && set "${GitFileListExpirationTimeEnvName}=${TmpGitFileListExpiration}"`
+    : `export ${SkipJunkPathEnvArgName}="${name}" 
+    && export ${SkipJunkPathEnvArgValue}="${value}" 
+    && export ${GitRepoEnvName}=tmp-list 
+    && export ${SearchGitSubModuleEnvName}='--recurse-submodules'
+    && export ${GitFileListExpirationTimeEnvName}=${TmpGitFileListExpiration}`
+    ;
+  return command.replace(/\s*[\r\n]+\s*/g, ' ');
 }
 

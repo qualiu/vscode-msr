@@ -9,7 +9,7 @@ import { CookAliasArgs, cookCmdShortcutsOrFile } from './cookCommandAlias';
 import { DefaultRepoFolder, FileExtensionToMappedExtensionMap, MappedExtToCodeFilePatternMap, MyConfig, WorkspaceToGitIgnoreMap, getConfig, getExtraSearchPaths, getGitIgnore, printConfigInfo } from './dynamicConfig';
 import { FindCommandType, FindType, ForceFindType } from './enums';
 import { GitIgnore } from './gitUtils';
-import { clearOutputChannelByTimes, outputDebugByTime, outputInfoByDebugMode, outputInfoByDebugModeByTime } from './outputUtils';
+import { clearOutputChannelByTimes, outputDebugByTime, outputInfoByDebugModeByTime, outputInfoQuietByTime } from './outputUtils';
 import { Ranker } from './ranker';
 import { disposeTerminal, getRunCmdTerminalWithInfo } from './runCommandUtils';
 import { SearchChecker } from './searchChecker';
@@ -47,6 +47,42 @@ export function activate(context: vscode.ExtensionContext) {
 			printConfigInfo(config);
 			updateGitIgnoreUsage();
 			cookCmdShortcutsOrFile({ FilePath: DefaultWorkspaceFolder, ForProject: true, SilentAll: true } as CookAliasArgs);
+		}
+	}));
+
+	context.subscriptions.push(vscode.window.onDidCloseTerminal(terminal => {
+		if (terminal.name === RunCmdTerminalName) {
+			disposeTerminal();
+		}
+	}));
+
+	context.subscriptions.push(vscode.window.onDidOpenTerminal(terminal => {
+		if (terminal.name === RunCmdTerminalName) {
+			return;
+		}
+
+		const initialPath = getTerminalInitialPath(terminal);
+		const workspaceFolder = getRepoFolderFromTerminalCreation(terminal) || getDefaultRepoFolderByActiveFile()
+			|| initialPath || DefaultWorkspaceFolder;
+		const exeNameByInitPath = isNullOrEmpty(initialPath) ? '' : path.basename(initialPath);
+		const terminalName = !isNullOrEmpty(exeNameByInitPath) ? exeNameByInitPath : getTerminalNameOrShellExeName(terminal);
+		const terminalTitle = !isNullOrEmpty(terminal.name) ? terminal.name : terminalName;
+
+		if (MyConfig.SkipInitCmdAliasForNewTerminalTitleRegex.test(terminalTitle)) {
+			outputInfoQuietByTime(`Skip cooking alias: terminalTitle = ${terminalTitle} , regex = ${MyConfig.SkipInitCmdAliasForNewTerminalTitleRegex.source}`)
+			return;
+		}
+
+		const matchNameRegex = /^(PowerShell|CMD|Command(\s+Prompt)?)|bash|\w*sh.exe$|cmd.exe|wsl.exe/i;
+		if (MyConfig.InitProjectCmdAliasForNewTerminals
+			&& !initialPath.endsWith('/pwsh') // skip PowerShell on Linux/MacOS
+			&& (
+				initialPath === workspaceFolder // default shell, no value set.
+				|| (!IsWindows || isNullOrEmpty(terminalName) || matchNameRegex.test(terminalName) || matchNameRegex.test(initialPath))
+			)) {
+			cookCmdShortcutsOrFile({ FilePath: workspaceFolder || '.', ForProject: true, Terminal: terminal, IsNewlyCreated: true } as CookAliasArgs);
+		} else {
+			outputInfoQuietByTime(`Skip cooking alias: terminalName = ${terminalName}, title = ${terminalTitle}, initialPath = ${initialPath}, matchNameRegex = ${matchNameRegex.source}`);
 		}
 	}));
 }
@@ -108,42 +144,6 @@ export function registerExtension(context: vscode.ExtensionContext) {
 	if (!getConfig().DisableFindReferenceFileExtensionRegex.source.match(/(^|\|)\.\*/)) {
 		context.subscriptions.push(vscode.languages.registerReferenceProvider(selector, new ReferenceFinder));
 	}
-
-	context.subscriptions.push(vscode.window.onDidOpenTerminal(terminal => {
-		if (terminal.name === RunCmdTerminalName) {
-			return;
-		}
-
-		const initialPath = getTerminalInitialPath(terminal);
-		const workspaceFolder = getRepoFolderFromTerminalCreation(terminal) || getDefaultRepoFolderByActiveFile()
-			|| initialPath || DefaultWorkspaceFolder;
-		const exeNameByInitPath = isNullOrEmpty(initialPath) ? '' : path.basename(initialPath);
-		const terminalName = !isNullOrEmpty(exeNameByInitPath) ? exeNameByInitPath : getTerminalNameOrShellExeName(terminal);
-		const terminalTitle = !isNullOrEmpty(terminal.name) ? terminal.name : terminalName;
-
-		if (MyConfig.SkipInitCmdAliasForNewTerminalTitleRegex.test(terminalTitle)) {
-			outputInfoByDebugMode(`Skip cooking alias: terminalTitle = ${terminalTitle} , regex = ${MyConfig.SkipInitCmdAliasForNewTerminalTitleRegex.source}`)
-			return;
-		}
-
-		const matchNameRegex = /^(PowerShell|CMD|Command(\s+Prompt)?)|bash|\w*sh.exe$|cmd.exe|wsl.exe/i;
-		if (MyConfig.InitProjectCmdAliasForNewTerminals
-			&& !initialPath.endsWith('/pwsh') // skip PowerShell on Linux/MacOS
-			&& (
-				initialPath === workspaceFolder // default shell, no value set.
-				|| (!IsWindows || isNullOrEmpty(terminalName) || matchNameRegex.test(terminalName) || matchNameRegex.test(initialPath))
-			)) {
-			cookCmdShortcutsOrFile({ FilePath: workspaceFolder || '.', ForProject: true, Terminal: terminal, IsNewlyCreated: true } as CookAliasArgs);
-		} else {
-			outputInfoByDebugMode(`Skip cooking alias: terminalName = ${terminalName}, title = ${terminalTitle}, initialPath = ${initialPath}, matchNameRegex = ${matchNameRegex.source}`);
-		}
-	}));
-
-	context.subscriptions.push(vscode.window.onDidCloseTerminal(terminal => {
-		if (terminal.name === RunCmdTerminalName) {
-			disposeTerminal();
-		}
-	}));
 
 	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.myFindOrReplaceSelectedTextCommand',
 		(textEditor: vscode.TextEditor, _edit: vscode.TextEditorEdit, ..._args: any[]) =>
@@ -267,21 +267,18 @@ export function registerExtension(context: vscode.ExtensionContext) {
 
 	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.cookCmdAliasDumpWithOthersToFiles',
 		(textEditor: vscode.TextEditor, _edit: vscode.TextEditorEdit, ..._args: any[]) => {
-			cookCmdShortcutsOrFile({ FromMenu: true, FilePath: textEditor.document.uri.fsPath, DumpOtherCmdAlias: true } as CookAliasArgs);
+			// Cook 1 common alias file -> Dump alias to script files -> Cook 1 project alias file to recover settings.
+			cookCmdShortcutsOrFile({ FromMenu: true, FilePath: textEditor.document.uri.fsPath, DumpOtherCmdAlias: true, SilentAll: true } as CookAliasArgs);
 			cookCmdShortcutsOrFile({ FromMenu: true, FilePath: textEditor.document.uri.fsPath, WriteToEachFile: true, DumpOtherCmdAlias: true } as CookAliasArgs);
-
-			if (!isNullOrEmpty(DefaultWorkspaceFolder)) {
-				cookCmdShortcutsOrFile({ FromMenu: true, FilePath: textEditor.document.uri.fsPath, ForProject: true, OnlyCookFile: true } as CookAliasArgs);
-			}
+			cookCmdShortcutsOrFile({ FromMenu: true, FilePath: textEditor.document.uri.fsPath, ForProject: true, OnlyCookFile: true } as CookAliasArgs);
 		}));
 
 	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.cookCmdAliasDumpWithOthersToFilesByProject',
 		(textEditor: vscode.TextEditor, _edit: vscode.TextEditorEdit, ..._args: any[]) => {
-			cookCmdShortcutsOrFile({ FromMenu: true, FilePath: textEditor.document.uri.fsPath, ForProject: true, DumpOtherCmdAlias: true } as CookAliasArgs);
+			// Cook 1 project related alias file -> Dump alias to script files -> Cook 1 project alias file to recover settings.
+			cookCmdShortcutsOrFile({ FromMenu: true, FilePath: textEditor.document.uri.fsPath, ForProject: true, DumpOtherCmdAlias: true, SilentAll: true } as CookAliasArgs);
 			cookCmdShortcutsOrFile({ FromMenu: true, FilePath: textEditor.document.uri.fsPath, ForProject: true, WriteToEachFile: true, DumpOtherCmdAlias: true } as CookAliasArgs);
-			if (!isNullOrEmpty(DefaultWorkspaceFolder)) {
-				cookCmdShortcutsOrFile({ FromMenu: true, FilePath: textEditor.document.uri.fsPath, ForProject: true, OnlyCookFile: true } as CookAliasArgs);
-			}
+			cookCmdShortcutsOrFile({ FromMenu: true, FilePath: textEditor.document.uri.fsPath, ForProject: true, OnlyCookFile: true } as CookAliasArgs);
 		}));
 
 	context.subscriptions.push(vscode.commands.registerTextEditorCommand('msr.tmpToggleEnableFindingDefinition',

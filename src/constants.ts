@@ -51,7 +51,11 @@ export const CheckReCookAliasFileSeconds = 3600; // mitigate alias file inconsis
 export const SkipJunkPathEnvArgName: string = "Skip_Junk_Name";
 export const SkipJunkPathEnvArgValue: string = "Skip_Junk_Paths";
 export const SearchGitSubModuleEnvName: string = "Git_List_Args";
+export const GitFileListExpirationTimeEnvName: string = "Git_List_Expire";
 export const GitRepoEnvName: string = "GitRepoTmpName";
+export const TmpGitFileListExpiration = "+1day"; // avoid missing update to different repo.
+
+export const GitTmpListFilePrefix = "git-paths-";
 
 export const ReplaceJunkPattern = new RegExp(String.raw`msr -rp \S+\s+\W+${SkipJunkPathEnvArgName}\W*\s+\W+${SkipJunkPathEnvArgValue}\S*`, 'g');
 
@@ -59,6 +63,8 @@ const GitInfoTemplate = "Skip_Junk_Paths length = $L. Parsed $P of $T patterns, 
 const FinalTipTemplate = `echo Auto disable self finding $M definition = $D. Uniform slash = $U. Faster gfind-xxx = $F. Auto update search tool = $A.`
   + String.raw` | msr -t "%[A-Z]% |\$[A-Z]\b " -o "" -aPAC` // Trim case like %M%
   + ` | msr -aPA -i -e true -t "false|Auto.*?(disable).*?definition"`;
+
+export const WslCheckingCommand = String.raw`grep -E '^root\s*=\s*/\s*$' /etc/wsl.conf >/dev/null || echo 'Please check: https://github.com/qualiu/vscode-msr/blob/master/README.md#use-short-mount-paths-for-wsl-bash-terminal-on-windows' | GREP_COLOR='01;31' grep -E .+ --color=always`;
 
 export function getEnvNameRef(envName: string, isWindowsTerminal: boolean): string {
   return isWindowsTerminal ? `%${envName}%` : `$${envName}`;
@@ -76,37 +82,29 @@ export function getProjectFolderKey(repoFolderName: string): string {
   return !repoFolderName ? '' : repoFolderName.replace(TrimProjectNameRegex, '-');
 }
 
-export function getLastTipRow(isWindowsTerminal: boolean): number {
-  return isWindowsTerminal ? 10 : 9;
-}
-
-export function getLastJunkPathTipRow(isWindowsTerminal: boolean): number {
-  return isWindowsTerminal ? 9 : 8;
-}
-
 export function getTipInfoTemplate(isCmdTerminal: boolean, isFinalTip: boolean): string {
   const tip = isFinalTip ? FinalTipTemplate : GitInfoTemplate;
-  return isCmdTerminal ? tip.replace(/\$([A-Z])\b/g, '%$1%') : tip; //.replace(/%([A-Z])%/, '$1')
+  return isCmdTerminal ? tip.replace(/\$([A-Z])\b/g, '%$1%') : tip;
 }
 
 export function getCommandToSetGitInfoVar(isCmdTerminal: boolean, skipGitRegexLength: number, totalPatterns: number, parsedPatterns: number, errors: number, exemptions: number): string {
   return isCmdTerminal
     ? `set L=${skipGitRegexLength} & set T=${totalPatterns} & set P=${parsedPatterns} & set E=${errors} & set X=${exemptions} &`.replace(/ &/g, '&')
-    : `export L=${skipGitRegexLength}; export T=${totalPatterns}; export P=${parsedPatterns}; export E=${errors}; export X=${exemptions};`; //.replace(/export ([A-Z])/g, '$1');
+    : `export L=${skipGitRegexLength}; export T=${totalPatterns}; export P=${parsedPatterns}; export E=${errors}; export X=${exemptions};`;
 }
 
 export function getCommandToSetFinalTipVar(isCmdTerminal: boolean, mappedExt: string, hasDisabledFindDefinition: boolean, isUniversalSlash: boolean, isFastGitFind: boolean, isAutoUpdate: boolean): string {
   return isCmdTerminal
     ? `set M=${mappedExt} & set D=${hasDisabledFindDefinition} & set U=${isUniversalSlash} & set F=${isFastGitFind} & set A=${isAutoUpdate} &`.replace(/ &/g, '&')
-    : `export M=${mappedExt}; export D=${hasDisabledFindDefinition}; export U=${isUniversalSlash}; export F=${isFastGitFind}; export A=${isAutoUpdate};`; //.replace(/export ([A-Z])/g, '$1');
+    : `export M=${mappedExt}; export D=${hasDisabledFindDefinition}; export U=${isUniversalSlash}; export F=${isFastGitFind}; export A=${isAutoUpdate};`;
 }
 
-export function getRunTipFileCommand(tipFileDisplayPath: string, row: number, otherArgs: string): string {
-  return `msr -p ${tipFileDisplayPath} ${otherArgs.trim()} -L ${row} -N ${row} -XA`;
+export function getRunTipFileCommand(tipFileDisplayPath: string, otherArgs: string): string {
+  return `msr -p ${tipFileDisplayPath} ${otherArgs.trim()} -XA`;
 }
 
 export function getBashFileHeader(isWindowsTerminal: boolean, addNewLine = "\n"): string {
-  return isWindowsTerminal ? "" : "#!/bin/bash" + addNewLine;
+  return isWindowsTerminal ? '' : "#!/bin/bash" + addNewLine;
 }
 
 export function getTipGuideFileName(isWindowsTerminal: boolean): string {

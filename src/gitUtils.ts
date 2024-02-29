@@ -2,7 +2,7 @@ import path = require('path');
 import fs = require('fs');
 import ChildProcess = require('child_process');
 import { GitListFileHead } from './configUtils';
-import { DefaultWorkspaceFolder, getCommandToSetGitInfoVar, getLastJunkPathTipRow, getRunTipFileCommand, isNullOrEmpty, OutputChannelName } from './constants';
+import { DefaultWorkspaceFolder, getCommandToSetGitInfoVar, getRunTipFileCommand, isNullOrEmpty, OutputChannelName } from './constants';
 import { TerminalType } from './enums';
 import { outputError, outputErrorByTime, outputInfoByDebugMode, outputInfoByTime, outputInfoQuiet, outputInfoQuietByTime, outputWarnByTime } from './outputUtils';
 import { runRawCommandInTerminal } from './runCommandUtils';
@@ -256,12 +256,11 @@ export class GitIgnore {
 
       const tipFileDisplayPath = getTipFileDisplayPath(this.Terminal);
       const setVarCmd = getCommandToSetGitInfoVar(this.IsCmdTerminal, this.SkipPathPattern.length, readPatternCount, skipPatterns.size, errorList.length, this.ExemptionCount);
-      const beginRow = getLastJunkPathTipRow(this.IsCmdTerminal);
-      const tipRow = !isInMaxLength ? beginRow : (this.ExemptionCount > 0 ? beginRow - 1 : beginRow - 2);
-      const replaceCmd = (this.IsCmdTerminal ? `-x ::` : `-x '#'`) + ` -o echo `;
-      const tipCommand = getRunTipFileCommand(tipFileDisplayPath, tipRow, replaceCmd);
-      // change -XA to -XMI for debug
-      const command = `msr -XA -z "${setVarCmd} ${tipCommand}"` + (this.IsCmdTerminal ? ' 2>nul & use-this-alias -A' : ' 2>/dev/null');
+      const referencePattern = !isInMaxLength ? "too.long" : (this.ExemptionCount > 0 ? "instead.of.find" : "Free.to.use");
+      const replaceCmd = (this.IsCmdTerminal ? `-x ::` : `-x '#'`) + ` -o echo`;
+      const tipCommand = getRunTipFileCommand(tipFileDisplayPath, `${replaceCmd} -t ${referencePattern}`);
+      // Use msr to discard tmp variables after execution
+      const command = `msr -XA -z "${setVarCmd} ${tipCommand}"` + (this.IsCmdTerminal ? ' 2>nul & use-this-alias' : ' 2>/dev/null');
       runRawCommandInTerminal(command);
     });
   }

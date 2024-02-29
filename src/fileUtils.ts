@@ -7,7 +7,6 @@ import { getErrorMessage } from './utils';
 export function saveTextToFile(filePath: string, text: string, info: string = 'file', checkSkipSameContent: boolean = true, tryTimes: number = 3): boolean {
   for (let k = 1; k <= tryTimes; k++) {
     try {
-      createDirectory(path.dirname(filePath));
       if (checkSkipSameContent) {
         const existingContent = readTextFile(filePath);
         if (existingContent === text) {

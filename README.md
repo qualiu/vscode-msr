@@ -178,11 +178,21 @@ More override settings see: [**full priority rule**](Add-New-Language-Support-Fo
 
 ## Make Command Shortcuts to Search or Replace In or Out of VSCODE
 
-You can generate the command shortcuts (alias/doskey) to directly use for searching or replacing in or out of vscode.
+Transform each alias/doskey to script file to directly use for searching or replacing in or out of vscode.
+
+- Open any file in vscode, right click, choose menu: **"Cook general + Dump other alias to scripts."** to dump scripts.
+
+![cook-command-menu](images/cook-command-menu.png)
+
+### Best Practice to Update Git Repo + Search Code
+
+- Please use alias `gpc` or `gpc-sm`/`gpc-sm-reset` to pull/update your git repository.
+  - You can also run `gpc` or `del-this-tmp-list` whenever you want to delete the tmp-path-list used by **gfind-xxx** from menu or command you type.
+- Set `msr.refreshTmpGitFileListDuration` to large value(like `12hours` / `3days`) if you always update code by `gpc` / `gpc-sm` / etc.
 
 ### Try to use gfind-xxx instead of find-xxx alias/doskey
 
-Try **gfind-xxx** alias/doskey/scripts which uses **accurate** source file paths by "`git ls-files`", though a bit slower than **find-xxx**.
+Use **gfind-xxx** alias/doskey/scripts which uses **accurate** source file paths by "`git ls-files`", though a bit slower than **find-xxx**.
 
 - You can change set `msr.refreshTmpGitFileListDuration` (default = `5 seconds`) to avoid writing temp file too frequently.
   - It's very fast to run `git ls-files` for most projects.
@@ -193,15 +203,13 @@ Try **gfind-xxx** alias/doskey/scripts which uses **accurate** source file paths
 - Use `msr.useGitFileListToSearchSingleWorkspace` for menu search using git file list.
   - Default = `auto` which use git-file-list only when it's a git repo + found git exemptions.
     - If no git exemptions, `find-xxx` is same with `gfind-xxx`.
-  - Change to `true` if you always want to use git-file-list to search. 
+  - Change to `true` if you always want to use git-file-list to search.
   - Change value to `false` if get slower than not-git search.
   - You can set `msr.refreshTmpGitFileListDuration` to larger value like `5m`/ `1h` / `1d` / etc.
 - To skip huge dependent git submodules(sub-repos) for a large project/repository:
   - Set `msr.searchGitSubModuleFolders` = `false`.
 
 This's helpful if got [**git-exemption-warnings**](#use-git-ignore) when initializing new terminals.
-
-![cook-command-menu](images/cook-command-menu.png)
 
 - One single shortcuts file: (Press `F1` if not shown in right-pop menu, then search `msr Cook xxx` as below)
   - **General command shortcuts**
@@ -255,12 +263,12 @@ If using alias(like `find-spring-ref`) in a **nested command** (like `for/while-
 
 ### Try rgfind-xxx to Search Multiple Git Repositories
 
-After [cooking alias scripts](#make-command-shortcuts-to-search-or-replace-in-or-out-of-vscode), you can use `rgfind-xxx` like `rgfind-cpp-ref MySearchWord` to **recursively** search multiple git repositories in a folder.
+After [cooking alias scripts](#make-command-shortcuts-to-search-or-replace-in-or-out-of-vscode), you can use **rgfind-xxx** like `rgfind-cpp-ref MySearchWord` to **recursively** search multiple git repositories in a folder.
 
 - Difference to [**gfind-xxx**](#try-to-use-gfind-xxx-instead-of-find-xxx-aliasdoskey):
   - `gfind-xxx` can only be used in a single git repository, not parent folder of multiple git repositories.
 - Difference to [**find-xxx**](#code-mining-without-or-with-little-knowledge):
-  - `find-xxx` cannot precisely search only git-repo-files, which means it will waste time on non-repo files and may provide inaccurate results.
+  - `find-xxx` may waste time on non-repo files thus **may not** provide accurate results as `gfind-xxx`.
   - `gfind-xxx` / `rgfind-xxx` need to run `git ls-files` to get precise file list save to a tmp file.
 
 ```bash
@@ -321,7 +329,7 @@ And many other [**common shortcuts**](/src/commonAlias.ts) like (run `alias` to 
   - git shortcuts:
     - Type `gpc` to pull current branch + `gph` to push current branch + `gfc` to fetch current branch.
     - Type `gpc-sm` to pull submodules + `git-sm-reset` to reset submodules + `git-sm-reinit` to fix tough issues, etc.
-    - Type `git-cherry-pick-branch-new-old-commits` to cherry pick commits of a branch from old to new commits (add "`-X -V ne0`" to execute commands).
+    - Type `git-cherry-pick-branch-new-old-commits` to cherry pick commits of a branch from old to new commits.
 - Windows CMD only:
   - Type `mingw-mock` to output forward slash('`/`') on Windows + `mingw-unmock` to restore backslash('`\`').
     - Now auto output forward slash **temporarily** in `VsCode` terminals by config `msr.xxx.postInitTerminalCommandLine`.
@@ -679,8 +687,11 @@ In above config name example `msr.{repo-folder-name}.xxx` (add into user setting
   - You can **disable** `msr.autoMergeSkipFolders` to not auto merge excluded folders.
   - You can **disable** `msr.overwriteProjectCmdAliasForNewTerminals` to use the existing temp command shortcuts of each project.
 - Auto switch to `CMD` console other than `Powershell` on Windows to use command shortcuts.
-
   - Due to `Powershell` cannot use `doskey` command shortcuts. (You can [cook command **script files**](#make-command-shortcuts-to-search-or-replace-in-or-out-of-vscode) then add the script folder to `%PATH%` or `$PATH`)
+
+#### Run use-this-alias for Restored Terminals
+
+Type `use-this-alias` when you saw `"History restored"` in terminal (except `MSR-RUN-CMD`) - due to vscode doesn't support auto restoring environment variables.
 
 #### Supported 4 Terminal Types on Windows
 

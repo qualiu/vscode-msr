@@ -1,6 +1,6 @@
 import * as vscode from 'vscode';
 import { Terminal } from 'vscode';
-import { getTipGuideFileName, HomeFolder, IsLinux, isNullOrEmpty, IsWindows, IsWSL, TempStorageFolder } from './constants';
+import { getTipGuideFileName, HomeFolder, InitLinuxTerminalFileName, IsLinux, isNullOrEmpty, IsWindows, IsWSL, TempStorageFolder } from './constants';
 import { TerminalType } from './enums';
 import { outputDebugByTime, outputErrorByTime } from './outputUtils';
 import { getErrorMessage, MatchWindowsDiskRegex, quotePaths, replaceToForwardSlash, runCommandGetOutput } from './utils';
@@ -52,6 +52,16 @@ export function getTipFileDisplayPath(terminalType: TerminalType): string {
   return isWindowsTerminalOnWindows(terminalType)
     ? displayPath.replace(TempStorageFolder, '%TMP%')
     : displayPath;
+}
+
+export function getInitLinuxScriptStoragePath(terminalType: TerminalType,): string {
+  const folder = path.dirname(getTipFileStoragePath(terminalType));
+  return path.join(folder, InitLinuxTerminalFileName);
+}
+
+export function getInitLinuxScriptDisplayPath(terminalType: TerminalType): string {
+  const storagePath = getInitLinuxScriptStoragePath(terminalType);
+  return toTerminalPath(storagePath, terminalType);
 }
 
 const TerminalExePath = getTerminalExeFromVsCodeSettings();

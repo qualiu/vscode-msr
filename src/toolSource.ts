@@ -2,7 +2,7 @@ import path = require('path');
 import * as vscode from 'vscode';
 import { IsWindows, isNullOrEmpty } from './constants';
 import { TerminalType } from './enums';
-import { isWindowsTerminalOnWindows, toTerminalPaths } from './terminalUtils';
+import { isPowerShellTerminal, isWindowsTerminalOnWindows, toTerminalPaths } from './terminalUtils';
 import fs = require('fs');
 import crypto = require('crypto');
 
@@ -80,7 +80,7 @@ export function getToolExportFolder(terminalType: TerminalType): string {
 	return '';
 }
 
-export function getSetToolEnvCommand(terminalType: TerminalType, foldersToAddPath: string[] = []): string {
+export function getSetToolEnvCommand(terminalType: TerminalType, foldersToAddPath: string[] = [], directRun = false): string {
 	let toolFolderSet = new Set<string>();
 	const toolNameToPathMap = TerminalTypeToToolNamePathMap.get(terminalType);
 	const isToolInPath = !toolNameToPathMap;
@@ -101,7 +101,7 @@ export function getSetToolEnvCommand(terminalType: TerminalType, foldersToAddPat
 	const toolFolders = Array.from(toTerminalPaths(toolFolderSet, terminalType));
 	const isWindowsTerminal = isWindowsTerminalOnWindows(terminalType);
 	const pathEnv = isWindowsTerminal ? `"%PATH%;"` : `"$PATH"`;
-	const checkPathsPattern = isWindowsTerminal // // if merged into cmd file for PowerShell
+	const checkPathsPattern = isWindowsTerminal
 		? `-it "^(${toolFolders.join('|').replace(/[\\]/g, '\\\\')})$"`
 		: `-t "^(${toolFolders.join('|')})$"`;
 	const splitPattern = isWindowsTerminal || TerminalType.MinGWBash === terminalType
@@ -111,10 +111,15 @@ export function getSetToolEnvCommand(terminalType: TerminalType, foldersToAddPat
 	const checkDuplicate = isToolInPath
 		? `msr -z ${pathEnv} -t "${splitPattern}" -o "\\n" -aPAC | msr ${checkPathsPattern} -H 0 -C | msr -t "${checkCountPattern}" -M -H 0 && `
 		: '';
+
+	if (directRun && isPowerShellTerminal(terminalType)) {
+		return `$env:Path += ";${toolFolders.join(';')};"`;
+	}
+
 	switch (terminalType) {
 		case TerminalType.CMD:
 		case TerminalType.PowerShell: // if merged into cmd file for PowerShell
-			return '@' + checkDuplicate + 'SET "PATH=%PATH%;' + toolFolders.join(';') + ';"';
+			return checkDuplicate + 'SET "PATH=%PATH%;' + toolFolders.join(';') + ';"';
 		case TerminalType.Pwsh:
 			return `$env:Path += ";${toolFolders.join(';')};"`;
 		case TerminalType.LinuxBash:

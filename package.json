@@ -3,7 +3,7 @@
 	"displayName": "Code mining + Replace file text + Find definition and reference for all types.",
 	"description": "Code mining + Replace file text + Find definition and reference in multiple repository paths by msr for all coding languages + configuration + doc files.",
 	"author": "qualiu@microsoft.com",
-	"version": "2.1.81",
+	"version": "2.1.82",
 	"icon": "images/vscode-msr-icon.png",
 	"license": "completely free",
 	"publisher": "qualiu",
@@ -1917,7 +1917,7 @@
 				"msr.refreshTmpGitFileListDuration": {
 					"description": "Time duration to refresh tmp-git-list-file (only refresh when running gfind-xxx commands). Value like: 1day, 3hours, 5minutes, 7seconds. It's not useful for most projects - it's very fast (less than 1s) to run git command `git ls-files`. Here just a config to avoid frequent writing tmp file.",
 					"type": "string",
-					"default": "5seconds"
+					"default": "1hour"
 				},
 				"msr.autoUpdateSearchTool": {
 					"description": "Auto update search tool when weekly checking and found new version.",

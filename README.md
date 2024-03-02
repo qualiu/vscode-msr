@@ -28,6 +28,15 @@ Then it's the **light** and **right** tool for you(just **2~3 MB** storage + **1
 
 **Note**: ([**Temp-toggle**](#get-the-best-combined-power) or [**change settings**](#disable-finding-definition-and-references-for-specific-file-types) for languages disabled by default settings.)
 
+### **You Can Start Using this without Doing Anything**
+
+You can start [**search**](#search-files-with-rich-filters) + [**replace**](#replace-files-with-preview-and-backup) + [**code mining**](#code-mining-without-or-with-little-knowledge) via [**mouse**/**menus**](#hide-or-show-more-context-menus) + [**keys**](#get-the-best-combined-power) + [**terminals**](#make-command-shortcuts-to-search-or-replace-in-or-out-of-vscode) **without** reading/doing anything **except**:
+
+- [Cook doskey/alias](#make-command-shortcuts-to-search-or-replace-in-or-out-of-vscode) if you want to search/replace **out of vscode** (in normal `CMD`/`Bash` console).
+  - See [**Best practice** to search/update repo](#best-practice-to-update-git-repo--search-code) + [Get **combined power**](#get-the-best-combined-power).
+- [**Set exclusions**](#avoid-security-software-downgrade-search-performance-on-windows) if you cannot get search results **in 1~2 seconds** for just **10000 code files** on Windows.
+- [**Adjust output colors**](#adjust-your-color-theme-if-result-file-path-folder-color-is-not-clear) of both **file paths** and **matched text** with 2 methods.
+
 ### Supported Platforms
 
 - **Windows**
@@ -40,16 +49,6 @@ Then it's the **light** and **right** tool for you(just **2~3 MB** storage + **1
   - `Arm64`: **Darwin Arm64**.
 - **FreeBSD**
   - `amd64`: Version >= `11.0` (older versions not tested).
-
-### **You Can Start Using this without Doing Anything**
-
-You can start [**search**](#search-files-with-rich-filters) + [**replace**](#replace-files-with-preview-and-backup) + [**code mining**](#code-mining-without-or-with-little-knowledge) via [**mouse**/**menus**](#hide-or-show-more-context-menus) + [**keys**](#get-the-best-combined-power) + [**terminals**](#make-command-shortcuts-to-search-or-replace-in-or-out-of-vscode) **without** reading/doing anything **except**:
-
-- [Cook doskey/alias](#make-command-shortcuts-to-search-or-replace-in-or-out-of-vscode) if you want to use `find-xxx` **out of vscode** (in normal `CMD`/`Bash` console).
-- [**Set exclusions**](#avoid-security-software-downgrade-search-performance-on-windows) if you cannot get search results **in 1~2 seconds** for just **10000 code files** on Windows.
-- Two methods to [**adjust output colors**](#adjust-your-color-theme-if-result-file-path-folder-color-is-not-clear) of both **file paths** and **matched text**.
-- Please [manually **set PATH** for msr/nin](#or-manually-download--set-path-once-and-forever) if automation failed + [Explicitly set terminal type](#supported-4-terminal-types-on-windows) if caught problems.
-- [**Workaround**](#workaround-to-long-existing-vscode-bug-impact-to-finding-definition-and-reference) to [long existing VsCode bug](https://github.com/microsoft/vscode/issues/96754) impact to `Go To Definition` and `Find All Reference`.
 
 ## Features
 
@@ -116,9 +115,12 @@ To copy and use `msr` [command lines](#reuse-the-command-to-search-further-or-re
 
 See [manually downloading](Manually-Download-Tools.md) tool command lines on `Windows`/`Linux`/`MacOS`/`FreeBSD`.
 
+- You can also get downloading command line from `MSR-Def-Ref` channel in `OUTPUT` tab.
+- Delete existing `msr`/`nin` if now show command or if you want to update immediately.
+
 ## Adjust Your Color Theme if Result File Path Folder Color is Not Clear
 
-You might found the `folder color` of output result file paths is not clear to read when using default `dark-blue` color theme.
+If the `color` of output result file paths is not clear to read when using default `dark-blue` color theme.
 
 ### Adjust Colors Method-1
 
@@ -178,72 +180,84 @@ More override settings see: [**full priority rule**](Add-New-Language-Support-Fo
 
 ## Make Command Shortcuts to Search or Replace In or Out of VSCODE
 
-Transform each alias/doskey to script file to directly use for searching or replacing in or out of vscode.
+Transform each alias/doskey to a script file to help searching or replacing in or out of vscode.
 
-- Open any file in vscode, right click, choose menu: **"Cook general + Dump other alias to scripts."** to dump scripts.
+- Open any file in vscode, right click, choose menu: **"Cook general + Dump other alias to scripts"** to dump scripts.
+- Or use menu like below to dump scripts:
 
 ![cook-command-menu](images/cook-command-menu.png)
 
 ### Best Practice to Update Git Repo + Search Code
 
 - Please use alias `gpc` or `gpc-sm`/`gpc-sm-reset` to pull/update your git repository.
-  - You can also run `gpc` or `del-this-tmp-list` whenever you want to delete the tmp-path-list used by **gfind-xxx** from menu or command you type.
+  - You can also run `gpc` or `del-this-tmp-list` whenever you want to delete the tmp path list used by **gfind-xxx** from menu or command you type.
 - Set `msr.refreshTmpGitFileListDuration` to large value(like `12hours` / `3days`) if you always update code by `gpc` / `gpc-sm` / etc.
 
 ### Try to use gfind-xxx instead of find-xxx alias/doskey
 
 Use **gfind-xxx** alias/doskey/scripts which uses **accurate** source file paths by "`git ls-files`", though a bit slower than **find-xxx**.
 
-- You can change set `msr.refreshTmpGitFileListDuration` (default = `5 seconds`) to avoid writing temp file too frequently.
-  - It's very fast to run `git ls-files` for most projects.
-  - You can set long duration(like `30days`) + Add/Use `git-pull` like below to auto refresh tmp-list :
-    - Windows: `git-pull=git branch | msr -t "^\s*\*\s*(\S+).*" -o "git pull origin \1 $*" -XM && del %tmp%\tmp-list-*`.
-    - Linux/MacOS/FreeBSD: `alias git-pull='git branch | msr -t "^\s*\*\s*(\S+).*" -o "git pull origin \1 $*" -XM && rm /tmp/tmp-list-*'`.
+- You can change `msr.refreshTmpGitFileListDuration` to avoid writing temp file too frequently.
+  - See above [best practice](#best-practice-to-update-git-repo--search-code) of integrating update-repo + search/replace code.
 - Try [**rgfind-xxx**](#try-rgfind-xxx-to-search-multiple-git-repositories) to search multiple git repositories.
 - Use `msr.useGitFileListToSearchSingleWorkspace` for menu search using git file list.
   - Default = `auto` which use git-file-list only when it's a git repo + found git exemptions.
     - If no git exemptions, `find-xxx` is same with `gfind-xxx`.
-  - Change to `true` if you always want to use git-file-list to search.
-  - Change value to `false` if get slower than not-git search.
-  - You can set `msr.refreshTmpGitFileListDuration` to larger value like `5m`/ `1h` / `1d` / etc.
+  - Set to `true` if you always want to use git-file-list to search.
+  - Set to `false` if get slower than not-git search.
+  - You can set `msr.refreshTmpGitFileListDuration` to larger value like `5m`/ `1hour` / `30days` / etc.
+    - How to validate refresh duration besides checking environment variable `Git_List_Expire`?
+      - Add `-c` to any `gfind-xxx` command from menu or you typed.
+      - Check `File Time >= xxx` in final output command line (below search results - if found).
 - To skip huge dependent git submodules(sub-repos) for a large project/repository:
+
   - Set `msr.searchGitSubModuleFolders` = `false`.
+  - This's helpful if got [**git-exemption-warnings**](#use-git-ignore) when initializing new terminals.
 
-This's helpful if got [**git-exemption-warnings**](#use-git-ignore) when initializing new terminals.
+### Cooked Alias Script File Output Types
 
-- One single shortcuts file: (Press `F1` if not shown in right-pop menu, then search `msr Cook xxx` as below)
-  - **General command shortcuts**
-    - Click/Choose **`"Cook alias/doskey: Only general finding commands to 1 file"`** to make **general command shortcuts**.
-    - Please **re-cook** this if [**added new languages support**](#easy-to-support-new-languages) including [**fastest adding**](#fastest-and-easiest-way-to-support-new-language).
-      - Will not **auto update** if once cooked + nothing changed (like `msr.xxx.definition` settings).
-  - **Project specific shortcuts**
-    - Choose `"Cook alias/doskey by project: Only finding commands to 1 file"` to make shortcuts based on current project setting.
-    - Not recommended unless you only work with 1 project.
-  - Notes for both **general + specific** shortcuts in **single** file:
-    - **Auto initialized and effect in vscode** when opening new terminals (including `MSR-RUN-CMD`) with path/folder skip patterns:
-      - Skip paths Regex: `--np "skip-by-git-ignore"` (if enabled [git-ignore](#use-git-ignore)).
-      - Skip folders Regex: `--nd "default-and-project-exclude"`
-    - If not cooked general nor specific shortcuts (`doskey/alias`):
-      - You can only use them in vscode but **not outside**, since they're auto-initialized only in vscode terminals.
-    - If cooked command shortcuts (`doskey/alias`):
-      - System console (`CMD/bash`) will auto load these `doskey/alias` when opening new consoles.
-- Multiple **script files** choose menus below: More freely to use (**in other script files** or **nested command lines** like pipe)
-  - `"Cook script files: Only general finding command alias/doskey."`
-  - `"Cook script files by project: Only finding command alias/doskey."`
-  - **`"Cook general finding + Dump with other command alias/doskey to script files."`**
-    - Tip for [**msr advantage**](https://github.com/qualiu/msr#tip-for-captured-groups-reference-to-replace-files-or-transform-text) on **Windows**(including `MinGW` + `Cygwin`) + **Linux**/**MacOS**/**FreeBSD**:
-      - You can use `"\1"` instead of `"$1"` to avoid conflict if your `doskey`/`alias` contains **`Regex-Replacing`** commands:
-        - `Regex replace-to` conflict with `doskey macro` variables like **$1** on Windows.
-        - `Regex replace-to` conflict with `bash` variables like **$1** on Linux/MacOS/FreeBSD.
-      - Same to use **\2** + **\3** better than **$2** **$3** and etc.
-    - To hide command + set local variable scope for Windows `doskey` shortcuts to script files:
-      - Change `msr.cookCmdAlias.addEchoOff` (default: added) to **`@REM echo off`** if you want to show command line.
-      - Change `msr.cookCmdAlias.setVariablesToLocalScope` to **`SetLocal EnableExtensions EnableDelayedExpansion`** to avoid global scope.
-    - This **enables you to use alias/doskeys (like `find-def`) everywhere** like:
-      - Nested commands/pipe like `for-loop` in CMD/Bash + `while-loop`, etc.
-      - Script files (like `*.cmd` + `*.bat` + `*.sh` + `*.ps1` etc.)
-      - Interactive `PowerShell` terminal/console (`PowerShell` cannot use `doskey/alias`).
-  - `"Cook finding by project + Dump with other command alias/doskey to script files."`
+#### One Single Alias File
+
+Press `F1` if not shown in right-pop menu, then search `msr Cook xxx` as below:
+
+- **General command shortcuts**
+  - Click/Choose **`"Cook general alias to 1 file"`** to cook **general command shortcuts**.
+  - Please **re-cook** this if [**added new languages support**](#easy-to-support-new-languages) including [**fastest adding**](#fastest-and-easiest-way-to-support-new-language).
+    - Will not **auto update** if once cooked + nothing changed (like `msr.xxx.definition` settings).
+- **Project specific shortcuts**
+  - Choose `"Cook project specific alias to 1 file"` to cook shortcuts based on current project setting.
+  - Not recommended unless you only work with 1 project.
+- Notes for both **general + specific** shortcuts in **single** file:
+  - **Auto initialized and effect in vscode** when opening new terminals (including `MSR-RUN-CMD`) with path/folder skip patterns:
+    - Skip paths Regex: `--np "skip-by-git-ignore"` (if enabled [git-ignore](#use-git-ignore)).
+    - Skip folders Regex: `--nd "default-and-project-exclude"`
+  - If not cooked general nor specific shortcuts (`doskey/alias`):
+    - You can only use them in vscode but **not outside**, since they're auto-initialized only in vscode terminals.
+  - If cooked command shortcuts (`doskey/alias`):
+    - System console (`CMD/bash`) will auto load these `doskey/alias` when opening new consoles.
+
+#### Multiple Script Files
+
+Choose menus below: More freely to use (**in other script files** or **nested command lines** like pipe)
+
+- `"Cook scripts: General alias"`
+- `"Cook scripts: Project specific alias"`
+- **`"Cook general + Dump other alias to scripts"`**
+
+#### Tips
+
+- Tip for [**msr advantage**](https://github.com/qualiu/msr#tip-for-captured-groups-reference-to-replace-files-or-transform-text) on **Windows**(including `MinGW` + `Cygwin`) + **Linux**/**MacOS**/**FreeBSD**:
+  - You can use `"\1"` instead of `"$1"` to avoid conflict if your `doskey`/`alias` contains **`Regex-Replacing`** commands:
+    - `Regex replace-to` conflict with `doskey macro` variables like **$1** on Windows.
+    - `Regex replace-to` conflict with `bash` variables like **$1** on Linux/MacOS/FreeBSD.
+  - Same to use **\2** + **\3** better than **$2** **$3** and etc.
+- To hide command + set local variable scope for Windows `doskey` shortcuts to script files:
+  - Change `msr.cookCmdAlias.addEchoOff` (default: added) to **`@REM echo off`** if you want to show command line.
+  - Change `msr.cookCmdAlias.setVariablesToLocalScope` to **`SetLocal EnableExtensions EnableDelayedExpansion`** to avoid global scope.
+- This **enables you to use alias/doskeys (like `find-def`) everywhere** like:
+  - Nested commands/pipe like `for-loop` in CMD/Bash + `while-loop`, etc.
+  - Script files (like `*.cmd` + `*.bat` + `*.sh` + `*.ps1` etc.)
+  - Interactive `PowerShell` terminal/console (`PowerShell` cannot use `doskey/alias`).
 
 ### Command Shortcuts
 

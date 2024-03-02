@@ -524,7 +524,7 @@ export function cookCmdShortcutsOrFile(cookArgs: CookAliasArgs) {
   if (args.WriteToEachFile) {
     if (canWriteScripts && writeScriptFailureCount < cmdAliasMap.size) {
       if (!isWindowsTerminal) {
-        runCmdInTerminal('chmod +x ' + singleScriptsFolderForTerminal + (args.DumpOtherCmdAlias ? '/*' : '/*find-*'));
+        runCmdInTerminal('chmod 700 ' + singleScriptsFolderForTerminal + (args.DumpOtherCmdAlias ? '/*' : '/*find-*'));
       }
       outputCmdAliasGuide(args.Terminal ? defaultCmdAliasFilePath : cmdAliasFileStoragePath, saveAliasFolder);
     }
@@ -725,7 +725,7 @@ export function cookCmdShortcutsOrFile(cookArgs: CookAliasArgs) {
       initLinuxCommands += `echo "$PATH" | grep -E "^/usr/bin/?:" > /dev/null || export PATH="/usr/bin:$PATH"` + "\n";
     }
 
-    initLinuxCommands += `chmod +x ${generalAliasFolderForBash}/*` + "\n";
+    initLinuxCommands += `chmod 700 ${generalAliasFolderForBash}/*` + "\n";
     if (bashConfigFile !== '~/.bashrc') {
       initLinuxCommands += `source ~/.bashrc 2>/dev/null` + "\n";
     }
@@ -748,7 +748,7 @@ export function cookCmdShortcutsOrFile(cookArgs: CookAliasArgs) {
     return command;
   }
 
-  function runCmdInTerminal(cmd: string, showTerminal: boolean = true) {
+  function runCmdInTerminal(cmd: string, showTerminal: boolean = false) {
     const clearAtFirst = MyConfig.ClearTerminalBeforeExecutingCommands;
     if (args.Terminal) {
       sendCommandToTerminal(cmd, args.Terminal, showTerminal, clearAtFirst, isLinuxTerminalOnWindows);

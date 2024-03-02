@@ -2,6 +2,10 @@
 
 All notable changes to this "vscode-msr" extension will be documented in this file.
 
+## [2.1.83]
+
+- Changed permission to 700 for dumped alias script files for Linux/MacOS/FreeBSD + WSL/Cygwin/MinGW.
+
 ## [2.1.82]
 
 - Improved git list file searching (`gfind-xxx` + menu):

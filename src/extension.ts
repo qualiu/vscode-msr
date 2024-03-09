@@ -4,14 +4,14 @@ import * as vscode from 'vscode';
 import { RunCommandChecker } from './ToolChecker';
 import { getFindingCommandByCurrentWord, runFindingCommand } from './commands';
 import { getConfigValueByProjectAndExtension, getConfigValueOfActiveProject, getConfigValueOfProject } from './configUtils';
-import { DefaultWorkspaceFolder, IsSupportedSystem, IsWindows, RunCmdTerminalName, WorkspaceCount, getDefaultRepoFolderByActiveFile, getRepoFolder, isNullOrEmpty } from './constants';
-import { CookAliasArgs, cookCmdShortcutsOrFile } from './cookCommandAlias';
+import { DefaultRepoFolderName, DefaultWorkspaceFolder, IsSupportedSystem, IsWindows, RunCmdTerminalName, WorkspaceCount, getDefaultRepoFolderByActiveFile, getRepoFolder, isNullOrEmpty } from './constants';
+import { CookAliasArgs, cookCmdShortcutsOrFile, getPostInitCommands } from './cookCommandAlias';
 import { DefaultRepoFolder, FileExtensionToMappedExtensionMap, MappedExtToCodeFilePatternMap, MyConfig, WorkspaceToGitIgnoreMap, getConfig, getExtraSearchPaths, getGitIgnore, printConfigInfo } from './dynamicConfig';
-import { FindCommandType, FindType, ForceFindType } from './enums';
+import { FindCommandType, FindType, ForceFindType, TerminalType } from './enums';
 import { GitIgnore } from './gitUtils';
 import { clearOutputChannelByTimes, outputDebugByTime, outputInfoByDebugModeByTime, outputInfoQuietByTime } from './outputUtils';
 import { Ranker } from './ranker';
-import { disposeTerminal, getRunCmdTerminalWithInfo } from './runCommandUtils';
+import { disposeTerminal, getRunCmdTerminalWithInfo, sendCommandToTerminal } from './runCommandUtils';
 import { SearchChecker } from './searchChecker';
 import { Searcher, createCommandSearcher, createSearcher, getCurrentFileSearchInfo, setReRunMark, stopAllSearchers } from './searcher';
 import { getRepoFolderFromTerminalCreation, getTerminalInitialPath, getTerminalNameOrShellExeName } from './terminalUtils';
@@ -24,6 +24,8 @@ outputDebugByTime('Start loading extension and initialize ...');
 // avoid prompting 'cmd.exe exit error'
 RunCommandChecker.checkToolAndInitRunCmdTerminal();
 updateGitIgnoreUsage();
+
+let RestoredEnvAliasTerminalMap = new Map<vscode.Terminal, boolean>();
 
 // vscode.languages.getLanguages().then((languages: string[]) => { console.log("Known languages: " + languages); });
 
@@ -56,7 +58,35 @@ export function activate(context: vscode.ExtensionContext) {
 		}
 	}));
 
+	const terminalNameToTypeMap = new Map<string, TerminalType>()
+		.set('cmd', TerminalType.CMD)
+		.set('powershell', TerminalType.PowerShell)
+		.set('pwsh', TerminalType.Pwsh)
+		.set('bash', TerminalType.LinuxBash)
+		.set('wsl', TerminalType.WslBash)
+		.set('mingw', TerminalType.MinGWBash)
+		.set('cygwin', TerminalType.CygwinBash)
+		;
+
+	// Process terminal restore event from vscode (when vscode show message "History restored"):
+	context.subscriptions.push(vscode.window.onDidChangeActiveTerminal((terminal => {
+		if (terminal && !isNullOrEmpty(terminal.name) && terminal.name.match(MyConfig.AutoRestoreEnvAliasTerminalNameRegex)) {
+			if (!RestoredEnvAliasTerminalMap.get(terminal)) {
+				RestoredEnvAliasTerminalMap.set(terminal, true);
+				let terminalType = terminalNameToTypeMap.get(terminal.name.toLowerCase().replace(/\..*$/, ''));
+				if (!terminalType) {
+					terminalType = IsWindows ? TerminalType.CMD : TerminalType.LinuxBash;
+				}
+				const postInitCommand = getPostInitCommands(terminalType, DefaultRepoFolderName);
+				sendCommandToTerminal(postInitCommand, terminal);
+				sendCommandToTerminal("use-this-alias || echo Please open a new same terminal to auto cook alias if not found.", terminal);
+			}
+		}
+	})));
+
+	// Process new terminal event:
 	context.subscriptions.push(vscode.window.onDidOpenTerminal(terminal => {
+		RestoredEnvAliasTerminalMap.set(terminal, true);
 		if (terminal.name === RunCmdTerminalName) {
 			return;
 		}

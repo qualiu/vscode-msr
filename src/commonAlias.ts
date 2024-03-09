@@ -6,6 +6,18 @@ import { enableColorAndHideCommandLine, outputInfoByDebugModeByTime, outputWarnB
 import { isWindowsTerminalOnWindows } from "./terminalUtils";
 import { getPowerShellName, replaceSearchTextHolder, replaceTextByRegex } from "./utils";
 
+const ShouldUseFunctionRegex = /\$\d\b|[ "']+?\$[\*@]|"\$\{@\}"/; // Check $1 or $* or $@ or "${@}"
+const HasExistingArgsRegex = /\$\*|\$\d+|\$@\W*$|"\$\{@\}"/;
+const TrimMultilineRegex = /[\r\n]+\s*/mg;
+const TrimPowerShellCmdWhiteRegex = /(PowerShell)( 2>nul)? (-Command ")\s+/g;
+const TrimForLoopWhite = /(%[a-zA-Z]\s+in\s+\(')\s+/g;
+
+function trimAliasBody(value: string): string {
+  return value.replace(TrimMultilineRegex, ' ')
+    .replace(TrimPowerShellCmdWhiteRegex, '$1$2 $3')
+    .replace(TrimForLoopWhite, '$1');
+}
+
 export function replaceArgForLinuxCmdAlias(body: string, forMultipleFiles: boolean): string {
   // function or simple alias
   if (forMultipleFiles) {
@@ -31,7 +43,7 @@ export function replaceArgForWindowsCmdAlias(body: string, forScriptFile: boolea
   return body;
 }
 
-const LinuxAliasMap: Map<string, string> = new Map<string, string>()
+let LinuxAliasMap: Map<string, string> = new Map<string, string>()
   .set('vim-to-row', String.raw`msr -z "$1" -t "^(.+?):(\d+)(:.*)?$" -o "vim +\2 +\"set number\" \"\1\"" -XM`)
   .set('git-add-safe-dir', String.raw`repoRootDir=$(git rev-parse --show-toplevel);
       git config --global --get-all safe.directory
@@ -43,21 +55,10 @@ const LinuxAliasMap: Map<string, string> = new Map<string, string>()
   .set('clear-msr-env', String.raw`for name in $(printenv | msr -t "^(MSR_\w+)=.*" -o "\1" -PAC); do echo "Cleared $name=$(printenv $name)" | grep -iE "MSR_\w+" --color && eval "unset $name"; done`)
   ;
 
-const ShouldUseFunctionRegex = /\$\d\b|[ "']+?\$[\*@]|"\$\{@\}"/; // Check $1 or $* or $@ or "${@}"
-const HasExistingArgsRegex = /\$\*|\$\d+|\$@\W*$|"\$\{@\}"/;
-const TrimMultilineRegex = /[\r\n]+\s*/mg;
-const TrimPowerShellCmdWhiteRegex = /(PowerShell)( 2>nul)? (-Command ")\s+/g;
-const TrimForLoopWhite = /(%[a-zA-Z]\s+in\s+\(')\s+/g;
-function trimAliasBody(value: string): string {
-  return value.replace(TrimMultilineRegex, ' ')
-    .replace(TrimPowerShellCmdWhiteRegex, '$1$2 $3')
-    .replace(TrimForLoopWhite, '$1');
-}
-
 const CommonAliasMap: Map<string, string> = new Map<string, string>()
   .set('gpc', String.raw`git branch | msr -t "^\s*\*\s*(\S+).*" -o "git pull origin \1 $*" -XM & del-this-tmp-list`)
   .set('gph', String.raw`git branch | msr -t "^\s*\*\s*(\S+).*" -o "git push origin \1 $*" -XM`)
-  .set('gpc-sm', String.raw`git rev-parse --abbrev-ref HEAD | msr -t "(.+)" -o "git pull origin \1 --no-recurse-submodules" -XM && del-this-tmp-list && msr -z "git submodule sync && git submodule update --init" -t "&&" -o "\n" -PAC | msr -XM -V ne0`)
+  .set('gpc-sm', String.raw`git rev-parse --abbrev-ref HEAD | msr -t "(.+)" -o "git pull origin \1 --no-recurse-submodules" -XM & del-this-tmp-list & msr -z "git submodule sync && git submodule update --init" -t "&&" -o "\n" -PAC | msr -XM -V ne0`)
   .set('gpc-sm-reset', String.raw`git rev-parse --abbrev-ref HEAD | msr -t "(.+)" -o "git pull origin \1 --no-recurse-submodules" -XM
           && msr -z "git submodule sync && git submodule update --init && git submodule update -f" -t "&&" -o "\n" -PAC | msr -XM -V ne0
           & del-this-tmp-list
@@ -80,9 +81,9 @@ const CommonAliasMap: Map<string, string> = new Map<string, string>()
   .set('git-sm-reinit', String.raw`msr -XM -z "git submodule deinit -f ." && msr -XM -z "git submodule update --init" & git status`)
   .set('git-sm-update-remote', String.raw`msr -XMz "git submodule sync" && echo git submodule update --remote $* | msr -XM & git status`)
   .set('git-cherry-pick-branch-new-old-commits', String.raw`git log $1 | msr -b "^commit $2" -q "^commit $3" -t "^commit (\w+)" -o "\1" -M -C | msr -s "^:(\d+):" -n --dsc -t "^:\d+:(?:\d+:)?\s+(\w+)" -o "git cherry-pick \1" -X -V ne0 $4 $5 $6 $7 $8 $9`)
-  .set('git-sm-check', String.raw`git status | msr -it "^\s*modified:\s+(\S+)\s*\(.*?$" -o "\1" -PAC
+  .set('git-sm-check', String.raw`git diff --name-only HEAD
           | msr -x / -o \ -aPAC | msr -t "(.+)" -o "if exist \1\* pushd \1 && git status --untracked-files=all --short && git diff --name-only" -XM $*`)
-  .set('git-sm-delete', String.raw`git status | msr -it "^\s*modified:\s+(\S+)\s*\(untracked content\)\s*$" -o "\1" -PAC
+  .set('git-sm-delete', String.raw`git diff --name-only HEAD
           | msr -x / -o \ -aPAC | msr -t "(.+)" -o "if exist \1\* pushd \1
               && git status --untracked-files=all --short
               && git diff --name-only
@@ -91,6 +92,13 @@ const CommonAliasMap: Map<string, string> = new Map<string, string>()
   .set('sfs', String.raw`msr -l --sz --wt -p $*`)
   .set('sft', String.raw`msr -l --wt --sz -p $*`)
   ;
+
+['git-sm-check', 'git-sm-delete'].forEach(name => {
+  const value = (CommonAliasMap.get(name) || '')
+    .replace(String.raw`if exist \1\* pushd `, String.raw`[ -d \1 ] && cd `)
+    .replace(String.raw` msr -x / -o \ -aPAC |`, "");
+  LinuxAliasMap.set(name, value);
+});
 
 function getPathEnv(targets: string[] = ['User']): string {
   let pathSet = new Set<string>();

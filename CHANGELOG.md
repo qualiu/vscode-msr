@@ -2,6 +2,11 @@
 
 All notable changes to this "vscode-msr" extension will be documented in this file.
 
+## [2.1.84]
+
+- Auto recover missing env/alias for terminals `"History restored"` by vscode.
+- Updated doc/tip + Improved `del-this-tmp-list` integration with `gpc-sm` + `git-sm-xxx`.
+
 ## [2.1.83]
 
 - Changed permission to 700 for dumped alias script files for Linux/MacOS/FreeBSD + WSL/Cygwin/MinGW.

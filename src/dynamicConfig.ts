@@ -161,6 +161,7 @@ class DynamicConfig {
     public AutoUpdateSearchTool: boolean = false;
     public CheckLanguageProcessIntervalMinutes = 15;
     public OverwriteInconsistentCommonAliasByExtension = true;
+    public AutoRestoreEnvAliasTerminalNameRegex: RegExp = new RegExp('to-load');
 
     private UseGitFileListToSearchSingleWorkspace: string = 'auto';
     private TmpToggleEnabledExtensionToValueMap = new Map<string, boolean>();
@@ -259,6 +260,7 @@ class DynamicConfig {
         this.CodeAndConfigDocsRegex = new RegExp(getConfigValueOfProject(repoFolderName, 'codeAndConfigDocs') || '\\.(cs\\w*|nuspec|config|c[px]*|h[px]*|java|scala|py|go|php|vue|tsx?|jsx?|json|ya?ml|xml|ini|md)$|readme', 'i');
         this.CodeAndConfigDocsDefaultRegex = new RegExp(getConfigValueOfProject('', 'codeAndConfigDocs') || '\\.(cs\\w*|nuspec|config|c[px]*|h[px]*|java|scala|py|go|php|vue|tsx?|jsx?|json|ya?ml|xml|ini|md)$|readme', 'i');
         this.UseGitFileListToSearchSingleWorkspace = (getConfigValueOfProject(repoFolderName, 'useGitFileListToSearchSingleWorkspace') || '').toLowerCase();
+        this.AutoRestoreEnvAliasTerminalNameRegex = createRegex(getConfigValueOfProject(repoFolderName, 'autoRestoreEnvAliasTerminalNameRegex'), 'i');
 
         this.AllFileExtensionMappingRegexList = [];
         const fileExtensionMapInConfig = this.RepoConfig.get('fileExtensionMap') as {};

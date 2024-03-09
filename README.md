@@ -7,16 +7,16 @@ Have you suffered issues below in your daily work?
   - IDE/extension often caught some problems?
   - Cannot cross `multiple languages`? `C#` , `C++` , `Java`/`Scala`, `Python`, `Vue`, etc.
   - Cannot cross `multiple repositories`?
-- **Search Code**:
+- **Search Code**
   - Clumsy and slow in IDE? Too **narrow** `vscode` panel to preview?
   - Wasting time to click and expand **each** item?
   - Lack of a powerful tool to [**learn/ramp-up code by yourself**](#code-mining-without-or-with-little-knowledge) ? (filter + stats + compare/analogy).
   - `What if` a **colorful** + **fast** glance for **all search results** + [**rich and powerful filters**](#search-files-with-rich-filters)?
-- **Replace File Text**:
+- **Replace File Text**
   - **Missed changes to some files**(like `doc`/`config`) or **other languages** not loaded in IDE?
   - Your replacing tool **added** or **removed** the `tail empty line` ? And cause wrong `git diff` ?
   - Your replacing tool changed your file time even nothing changed?
-  - `What if` a fast way to replace? [**Just reuse**](#reuse-the-command-to-search-further-or-replace-files) the **`powerful search used above`**?
+  - `What if` a fast way to replace? [**Just reuse**](#reuse-the-command-to-search-further-or-replace-file-text) the **`powerful search used above`**?
 - Just **read code** but **inefficient** ? or **insufficient** resource on laptop?
   - Too slow + hard to prepare environment for IDE to load code? Especially from other teams?
   - Must install **X GB language plugins**?
@@ -24,31 +24,33 @@ Have you suffered issues below in your daily work?
   - Must build **Z GB outputs** to the disk (like C#) before you can read code?
   - Offer **N GB running memory** to the `official/professional` language extensions?
 
-Then it's the **light** and **right** tool for you(just **2~3 MB** storage + **1~5+ MB** running memory) to search definition(near precise) + replace files.
+Then it's the **light** and **right** tool for you(just **2~3 MB** storage + **1~5+ MB** running memory) to search definition(near precise) + replace file text.
 
 **Note**: ([**Temp-toggle**](#get-the-best-combined-power) or [**change settings**](#disable-finding-definition-and-references-for-specific-file-types) for languages disabled by default settings.)
 
 ### **You Can Start Using this without Doing Anything**
 
-You can start [**search**](#search-files-with-rich-filters) + [**replace**](#replace-files-with-preview-and-backup) + [**code mining**](#code-mining-without-or-with-little-knowledge) via [**mouse**/**menus**](#hide-or-show-more-context-menus) + [**keys**](#get-the-best-combined-power) + [**terminals**](#make-command-shortcuts-to-search-or-replace-in-or-out-of-vscode) **without** reading/doing anything **except**:
+You can start [**search**](#search-files-with-rich-filters) + [**replace**](#replace-file-text-with-preview-and-backup) + [**code mining**](#code-mining-without-or-with-little-knowledge) via [**mouse**/**menus**](#hide-or-show-more-context-menus) + [**keys**](#get-the-best-combined-power) + [**terminals**](#make-command-shortcuts-to-search-or-replace-in-or-out-of-vscode) **without** reading/doing anything **except**:
 
-- [Cook doskey/alias](#make-command-shortcuts-to-search-or-replace-in-or-out-of-vscode) if you want to search/replace **out of vscode** (in normal `CMD`/`Bash` console).
-  - See [**Best practice** to search/update repo](#best-practice-to-update-git-repo--search-code) + [Get **combined power**](#get-the-best-combined-power).
-- [**Set exclusions**](#avoid-security-software-downgrade-search-performance-on-windows) if you cannot get search results **in 1~2 seconds** for just **10000 code files** on Windows.
+- [Cook doskey/alias](#make-command-shortcuts-to-search-or-replace-in-or-out-of-vscode) if you want to search/replace **out of vscode** (in `CMD`/`Bash` + other IDEs).
+  - See [**Best Practice** to search/update repo](#best-practice-to-update-git-repo-and-search-code) + [Get **Combined Power**](#get-the-best-combined-power).
+- [**Set exclusions**](#avoid-security-software-downgrade-search-performance-on-windows) on Windows if you cannot get search results **in 1~2 seconds** for just **10000 code files**.
 - [**Adjust output colors**](#adjust-your-color-theme-if-result-file-path-folder-color-is-not-clear) of both **file paths** and **matched text** with 2 methods.
 
 ### Supported Platforms
 
 - **Windows**
-  - `x86_64`: 64-bit + 32-bit Windows (including **WSL** + **Cygwin** + **MinGW**).
-  - `Arm64`: `WinVersion` >= `8.1`.
+  - `x86_64`: Version >= `Windows 7`: 64-bit + 32-bit Windows including **MinGW**.
+  - `Arm64`: Version >= `Windows 8.1`.
+  - **Cygwin**: Version >= `Cygwin 5.4.0`.
+  - **WSL**: Same with `Linux` below.
 - **Linux**
-  - `x86_64`: `kernel` >= `2.6.32` 64-bit + 32-bit **Ubuntu** + **CentOS** + **Fedora**.
-  - `Arm64`: `kernel` >= `4.15` (**Ubuntu 18.04**).
+  - `x86_64`: Kernel >= `2.6.32` 64-bit + 32-bit **Ubuntu** + **CentOS** + **Fedora**.
+  - `Arm64`: Kernel >= `4.15` (like `Ubuntu 18.04`).
 - **MacOS**
-  - `Arm64`: **Darwin Arm64**.
+  - `Arm64`: Version >= `Darwin 21.1.0`.
 - **FreeBSD**
-  - `amd64`: Version >= `11.0` (older versions not tested).
+  - `amd64`: Version >= `FreeBSD 11.0` (older versions not tested).
 
 ## Features
 
@@ -62,7 +64,7 @@ You can start [**search**](#search-files-with-rich-filters) + [**replace**](#rep
 
 - [**Normal** + **Extensive Search**](#normal-and-extensive-search): Search by hot-keys/menus or typing text, in or out of VSCODE.
 
-- **Easy** + **Fast** to [**Search Further** or **Replace Files**](#reuse-the-command-to-search-further-or-replace-files): Just **reuse** the search command line by an upper arrow.
+- **Easy** + **Fast** to [**Search Further** or **Replace File Text**](#reuse-the-command-to-search-further-or-replace-file-text): Just **reuse** the search command line by an upper arrow.
 
 - [**Powerful** + **Convenient** **command shortcuts**](#make-command-shortcuts-to-search-or-replace-in-or-out-of-vscode) (alias/doskey) to **search**/**replace** code/config/doc files **in**/**out** `vscode`.
 
@@ -87,9 +89,9 @@ You can start [**search**](#search-files-with-rich-filters) + [**replace**](#rep
 
 ### The [cooked/dumped alias/doskey](#make-command-shortcuts-to-search-or-replace-in-or-out-of-vscode) can be used in **many IDEs**, not just **VSCode**.
 
-[Add msr to **PATH**](#or-manually-download--set-path-once-and-forever) and [Cook + **Dump** script files](#make-command-shortcuts-to-search-or-replace-in-or-out-of-vscode) for **other IDEs** or **system terminals** out of vscode.
+[Add msr to **PATH**](#or-manually-download-and-set-path-value-once-and-forever) and [Cook + **Dump** script files](#make-command-shortcuts-to-search-or-replace-in-or-out-of-vscode) for **other IDEs** or **system terminals** out of vscode.
 
-Since out of `vscode`, no menus/mouse support, use `gfind-xxx`/`find-xxx` to [search](#code-mining-without-or-with-little-knowledge) and [replace](#replace-files-with-preview-and-backup) files, [screenshot](images/cooked-cmd-alias-doskeys-can-be-used-in-many-IDEs.png):
+Since out of `vscode`, no menus/mouse support, use `gfind-xxx`/`find-xxx` to [search](#code-mining-without-or-with-little-knowledge) and [replace](#replace-file-text-with-preview-and-backup) files, [screenshot](images/cooked-cmd-alias-doskeys-can-be-used-in-many-IDEs.png):
 ![cooked-cmd-alias-doskeys-can-be-used-in-many-IDEs.png](images/cooked-cmd-alias-doskeys-can-be-used-in-many-IDEs.png)
 
 More powerful usages + examples see [overview doc](https://github.com/qualiu/msr/blob/master/README.md) or just run [msr-EXE](https://qualiu.github.io/msr/usage-by-running/msr-Windows.html) you will see [colorful text doc of usage + examples](https://qualiu.github.io/msr/usage-by-running/msr-Windows.html) (on Windows, [Linux at here](https://qualiu.github.io/msr/usage-by-running/msr-CentOS-7.html)) or [doc without color](https://raw.githubusercontent.com/qualiu/msr/master/tools/readme.txt).
@@ -98,7 +100,7 @@ More powerful usages + examples see [overview doc](https://github.com/qualiu/msr
 
 Strongly recommend: Add [msr.EXE](https://github.com/qualiu/msr#liberate--digitize-daily-works-by-2-exe-file-processing-data-mining-map-reduce) folder to `%PATH%` (Windows) or `$PATH`(Linux) to help your [daily file processing](https://github.com/qualiu/msr/blob/master/README.md#scenario-glance).
 
-### Default: Auto Check and Download + Set PATH
+### Default: Auto Check and Download Tools and Add to PATH
 
 If not found [msr.EXE](https://github.com/qualiu/msr#liberate--digitize-daily-works-by-2-exe-file-processing-data-mining-map-reduce) in `%PATH%` or `$PATH`:
 
@@ -109,14 +111,15 @@ If not found [msr.EXE](https://github.com/qualiu/msr#liberate--digitize-daily-wo
   - Auto check and download to `~/msr` when launching vscode.
   - Add `~/` to `$PATH` **temporarily** each time in each [newly opened terminal](#auto-set-command-shortcuts-for-new-terminals).
 
-To copy and use `msr` [command lines](#reuse-the-command-to-search-further-or-replace-files) or `find-xxx` [doskeys/alias](#command-shortcuts) **outside** `vscode` terminals, **add** `msr` folder to `%PATH%` or `$PATH`.
+This helps using `msr` [command lines](#reuse-the-command-to-search-further-or-replace-file-text) or [`find-xxx`/`gfind-xxx`](#command-shortcuts) **outside** `vscode`.
 
-### Or Manually Download + Set PATH Once And Forever
+### Or Manually Download and Set PATH Value Once And Forever
 
 See [manually downloading](Manually-Download-Tools.md) tool command lines on `Windows`/`Linux`/`MacOS`/`FreeBSD`.
 
 - You can also get downloading command line from `MSR-Def-Ref` channel in `OUTPUT` tab.
 - Delete existing `msr`/`nin` if now show command or if you want to update immediately.
+  - Check location like `where msr` (Windows) or `which msr` (Linux/MacOS/FreeBSD).
 
 ## Adjust Your Color Theme if Result File Path Folder Color is Not Clear
 
@@ -162,7 +165,7 @@ If you cannot get search results **in 1~2 seconds** for just **10000 code files*
 
 Follow [official Windows doc](https://support.microsoft.com/en-us/help/4028485/windows-10-add-an-exclusion-to-windows-security) to add exclusion.
 
-You can also use `trust-exe` (run as `Administrator` in a `new` CMD window) after installing `vscode-msr` (see `"alias trust-exe"`):
+You can also use alias `trust-exe` (run as `Administrator` in a `new` CMD window):
 
 - Run "**trust-exe** `msr,nin`" (input exe `name` or `title` or `path`).
   - This will auto fetch exe path and use `PowerShell "Add-MpPreference -ExclusionPath $exePath"`.
@@ -182,37 +185,38 @@ More override settings see: [**full priority rule**](Add-New-Language-Support-Fo
 
 Transform each alias/doskey to a script file to help searching or replacing in or out of vscode.
 
-- Open any file in vscode, right click, choose menu: **"Cook general + Dump other alias to scripts"** to dump scripts.
-- Or use menu like below to dump scripts:
+- Open any file in vscode, right click, choose menu: **"Cook general + Dump other alias to scripts"**.
+- Or use [Command Palette](https://code.visualstudio.com/docs/getstarted/tips-and-tricks#_command-palette) like below to find `"msr: Cook xxx"` menus and dump scripts:
 
 ![cook-command-menu](images/cook-command-menu.png)
 
-### Best Practice to Update Git Repo + Search Code
+### Best Practice to Update Git Repo and Search Code
 
-- Please use alias `gpc` or `gpc-sm`/`gpc-sm-reset` to pull/update your git repository.
-  - You can also run `gpc` or `del-this-tmp-list` whenever you want to delete the tmp path list used by **gfind-xxx** from menu or command you type.
+- Please use `gpc` or `gpc-sm`/`gpc-sm-reset` to pull/update your git repository.
 - Set `msr.refreshTmpGitFileListDuration` to large value(like `12hours` / `3days`) if you always update code by `gpc` / `gpc-sm` / etc.
+  - Run `gpc` or [**del-this-tmp-list**](#try-rgfind-xxx-to-search-multiple-git-repositories) whenever you need to update git-paths (used by [**gfind-xxx**](#try-to-use-gfind-xxx-instead-of-find-xxx-aliasdoskey)) from menu or command you type.
+- 3 methods to solve `gfind-xxx` drawbacks of possible using outdated tmp-git-paths-list:
+  - 1(Radical): Set `msr.refreshTmpGitFileListDuration` with **small value** like `0second` / `2m`.
+  - 2(Normal): Run `del-this-tmp-list` before `gfind-xxx` if you added new files, or switched branches, or used `gfind-xxx` in descendant folders.
+  - 3(Inaccurate): Use [**find-xxx**](#try-rgfind-xxx-to-search-multiple-git-repositories) which has same results of `gfind-xxx` most time.
+    - For menu: Change [msr.useGitFileListToSearchSingleWorkspace](#try-to-use-gfind-xxx-instead-of-find-xxx-aliasdoskey) from `auto` to `false`.
 
 ### Try to use gfind-xxx instead of find-xxx alias/doskey
 
-Use **gfind-xxx** alias/doskey/scripts which uses **accurate** source file paths by "`git ls-files`", though a bit slower than **find-xxx**.
+Use **gfind-xxx** alias/doskey/scripts which uses **accurate** source file paths by "`git ls-files`".
 
-- You can change `msr.refreshTmpGitFileListDuration` to avoid writing temp file too frequently.
-  - See above [best practice](#best-practice-to-update-git-repo--search-code) of integrating update-repo + search/replace code.
+- This's helpful if got [**git-exemption-warnings**](#use-git-ignore) for a git repo.
+- You can change `msr.refreshTmpGitFileListDuration` to avoid writing tmp-paths-list too frequently.
+  - See above [best practice](#best-practice-to-update-git-repo-and-search-code) of integrating update-repo + search/replace code.
 - Try [**rgfind-xxx**](#try-rgfind-xxx-to-search-multiple-git-repositories) to search multiple git repositories.
 - Use `msr.useGitFileListToSearchSingleWorkspace` for menu search using git file list.
   - Default = `auto` which use git-file-list only when it's a git repo + found git exemptions.
-    - If no git exemptions, `find-xxx` is same with `gfind-xxx`.
-  - Set to `true` if you always want to use git-file-list to search.
-  - Set to `false` if get slower than not-git search.
-  - You can set `msr.refreshTmpGitFileListDuration` to larger value like `5m`/ `1hour` / `30days` / etc.
-    - How to validate refresh duration besides checking environment variable `Git_List_Expire`?
-      - Add `-c` to any `gfind-xxx` command from menu or you typed.
-      - Check `File Time >= xxx` in final output command line (below search results - if found).
+    - If no git exemptions, `find-xxx` are same with `gfind-xxx`.
+  - Set to `true` if you always want to use `gfind-xxx` to search.
+  - Set to `false` if you frequently hit drawbacks of `gfind-xxx` + bored of using [del-this-tmp-list](#best-practice-to-update-git-repo-and-search-code).
 - To skip huge dependent git submodules(sub-repos) for a large project/repository:
-
   - Set `msr.searchGitSubModuleFolders` = `false`.
-  - This's helpful if got [**git-exemption-warnings**](#use-git-ignore) when initializing new terminals.
+    - You can set it per repo like `msr.{repo-folder-name}.searchGitSubModuleFolders` = `false`.
 
 ### Cooked Alias Script File Output Types
 
@@ -225,14 +229,14 @@ Press `F1` if not shown in right-pop menu, then search `msr Cook xxx` as below:
   - Please **re-cook** this if [**added new languages support**](#easy-to-support-new-languages) including [**fastest adding**](#fastest-and-easiest-way-to-support-new-language).
     - Will not **auto update** if once cooked + nothing changed (like `msr.xxx.definition` settings).
 - **Project specific shortcuts**
-  - Choose `"Cook project specific alias to 1 file"` to cook shortcuts based on current project setting.
+  - Choose `"Cook project specific alias to 1 file"` for current git repo.
   - Not recommended unless you only work with 1 project.
 - Notes for both **general + specific** shortcuts in **single** file:
-  - **Auto initialized and effect in vscode** when opening new terminals (including `MSR-RUN-CMD`) with path/folder skip patterns:
+  - **Auto initialized and effect in vscode** when opening new terminals:
     - Skip paths Regex: `--np "skip-by-git-ignore"` (if enabled [git-ignore](#use-git-ignore)).
     - Skip folders Regex: `--nd "default-and-project-exclude"`
   - If not cooked general nor specific shortcuts (`doskey/alias`):
-    - You can only use them in vscode but **not outside**, since they're auto-initialized only in vscode terminals.
+    - Unable to use alias **outside** of vscode.
   - If cooked command shortcuts (`doskey/alias`):
     - System console (`CMD/bash`) will auto load these `doskey/alias` when opening new consoles.
 
@@ -244,7 +248,13 @@ Choose menus below: More freely to use (**in other script files** or **nested co
 - `"Cook scripts: Project specific alias"`
 - **`"Cook general + Dump other alias to scripts"`**
 
-#### Tips
+This **enables you to use alias/doskeys (like `find-def`) everywhere** like:
+
+- Nested commands/pipe like `for-loop` in CMD/Bash + `while-loop`, etc.
+- Script files (like `*.cmd` + `*.bat` + `*.sh` + `*.ps1` etc.)
+- Interactive `PowerShell` terminal/console (`PowerShell` cannot use `doskey/alias`).
+
+#### Additional Tips
 
 - Tip for [**msr advantage**](https://github.com/qualiu/msr#tip-for-captured-groups-reference-to-replace-files-or-transform-text) on **Windows**(including `MinGW` + `Cygwin`) + **Linux**/**MacOS**/**FreeBSD**:
   - You can use `"\1"` instead of `"$1"` to avoid conflict if your `doskey`/`alias` contains **`Regex-Replacing`** commands:
@@ -254,54 +264,66 @@ Choose menus below: More freely to use (**in other script files** or **nested co
 - To hide command + set local variable scope for Windows `doskey` shortcuts to script files:
   - Change `msr.cookCmdAlias.addEchoOff` (default: added) to **`@REM echo off`** if you want to show command line.
   - Change `msr.cookCmdAlias.setVariablesToLocalScope` to **`SetLocal EnableExtensions EnableDelayedExpansion`** to avoid global scope.
-- This **enables you to use alias/doskeys (like `find-def`) everywhere** like:
-  - Nested commands/pipe like `for-loop` in CMD/Bash + `while-loop`, etc.
-  - Script files (like `*.cmd` + `*.bat` + `*.sh` + `*.ps1` etc.)
-  - Interactive `PowerShell` terminal/console (`PowerShell` cannot use `doskey/alias`).
+- For full or relative result file paths:
+  - Type `out-fp` to output full file paths of search results.
+  - Type `out-rp` to output relative paths.
+
+Many other [**common shortcuts**](/src/commonAlias.ts) like (run `alias` to see all alias/doskeys):
+
+- Windows + Linux/MacOS/FreeBSD:
+  - git shortcuts:
+    - Type `gpc` to pull current branch + `gph` to push current branch + `gfc` to fetch current branch.
+    - Type `gpc-sm` to pull submodules + `git-sm-reset` to reset submodules + `git-sm-reinit` to fix tough issues, etc.
+    - Type `git-cherry-pick-branch-new-old-commits` to cherry pick commits of a branch from old to new commits.
+- Windows CMD only:
+  - Now auto output forward slash **temporarily** in `VsCode` terminals by config `msr.xxx.postInitTerminalCommandLine`.
+    - You can add/remove more MSR_XXX variables like `MSR_EXIT` / `MSR_UNIX_SLASH` / `MSR_KEEP_COLOR` / etc.
+  - Type `win11-ungroup-taskbar` to ungroup Windows11 taskbar + `win11-group-taskbar` to restore/group taskbar on Windows 11.
+  - Type `reload-env` to reload environment variables + `reset-env` to **discard** and **reload** environment variables.
+  - Type `add-user-path` / `add-sys-path` / `add-tmp-path` + `del-user-path` / `del-sys-path` / `del-tmp-path` to add/delete %PATH% values.
 
 ### Command Shortcuts
 
-- After you cooked command alias/doskeys, you'll see messages below: (You can **add**/**update** doskeys in file)
-- Automated command shortcuts on **MacOS**/**FreeBSD**/**Linux** + **WSL** + [**4 types of terminals** on Windows](#supported-4-terminal-types-on-windows) to [search](#search-files-with-rich-filters) or [**mining-code**](#code-mining-without-or-with-little-knowledge) or [replace files](#replace-files-with-preview-and-backup).
-- Try [**gfind-xxx**](#try-to-use-gfind-xxx-instead-of-find-xxx-aliasdoskey) instead of **find-xxx** if warned [**exemptions**](#try-to-use-gfind-xxx-instead-of-find-xxx-aliasdoskey) when initializing new terminals.
-- If it's not in vscode (like other IDEs or system terminals), you can run **use-this-alias** in the terminal (if current folder is in a git project) to load command shortcuts for current project.
-
-You can search **in vscode terminal** then **click** the results to **open and locate** them.
-
-You can also start [**code-mining**](#code-mining-without-or-with-little-knowledge) or [replacing files](#replace-files-with-preview-and-backup) out of vscode ([System terminals or other IDEs](#the-cookeddumped-aliasdoskey-can-be-used-in-many-ides-not-just-vscode)).
-
-If using alias(like `find-spring-ref`) in a **nested command** (like `for/while-loop` or `command|pipe`), or **script file** (like `*.bat/cmd` or `*.sh`):
-
-- Use **full-name** (like `find-spring-ref.cmd`) .
-- Or use **full script path** (like `~/cmdAlias/find-spring-ref`).
+- You can **add**/**update** alias/doskeys in cooked file (see tip in vscode).
+- Automated command shortcuts on **MacOS**/**FreeBSD**/**Linux** + **WSL** + [**4 types of terminals** on Windows](#supported-4-terminal-types-on-windows) to [search](#search-files-with-rich-filters) or [**mining-code**](#code-mining-without-or-with-little-knowledge) or [replace file text](#replace-file-text-with-preview-and-backup).
+- Use [**gfind-xxx**](#try-to-use-gfind-xxx-instead-of-find-xxx-aliasdoskey) instead of **find-xxx** if warned [**exemptions**](#try-to-use-gfind-xxx-instead-of-find-xxx-aliasdoskey) when initializing new terminals.
+- You can search **in vscode terminal** then **click** the results to **open and locate** them.
+- You can also start [**code-mining**](#code-mining-without-or-with-little-knowledge) or [replacing files](#replace-file-text-with-preview-and-backup) out of vscode ([System terminals or other IDEs](#the-cookeddumped-aliasdoskey-can-be-used-in-many-ides-not-just-vscode)).
+  - Run **use-this-alias** to load alias/env for current git repo.
+- If using alias(like `find-spring-ref`) in a **nested command** (like `for/while-loop` or `command|pipe`), or **script file** (like `*.bat/cmd` or `*.sh`)
+  - Use **full-name** (like `find-spring-ref.cmd`) or **full script path** (like `~/cmdAlias/find-spring-ref`).
 
 ### Try rgfind-xxx to Search Multiple Git Repositories
 
 After [cooking alias scripts](#make-command-shortcuts-to-search-or-replace-in-or-out-of-vscode), you can use **rgfind-xxx** like `rgfind-cpp-ref MySearchWord` to **recursively** search multiple git repositories in a folder.
 
-- Difference to [**gfind-xxx**](#try-to-use-gfind-xxx-instead-of-find-xxx-aliasdoskey):
+- Difference between **rgfind-xxx** and [**gfind-xxx**](#try-to-use-gfind-xxx-instead-of-find-xxx-aliasdoskey):
   - `gfind-xxx` can only be used in a single git repository, not parent folder of multiple git repositories.
-- Difference to [**find-xxx**](#code-mining-without-or-with-little-knowledge):
+- Difference between **gfind-xxx** and [**find-xxx**](#code-mining-without-or-with-little-knowledge) (same search results most time):
   - `find-xxx` may waste time on non-repo files thus **may not** provide accurate results as `gfind-xxx`.
-  - `gfind-xxx` / `rgfind-xxx` need to run `git ls-files` to get precise file list save to a tmp file.
+    - But `find-xxx` are **better(** than `gfind-xxx` in scenarios below:
+      - New files not in git - `gfind-xxx` cannot find them, use `find-xxx`.
+      - Switched branches or search-folders or sub-modules(without `git-sm-xxx`):
+        - Run [**del-this-tmp-list**](#best-practice-to-update-git-repo-and-search-code) before `gfind-xxx`, or use `find-xxx`.
+  - `gfind-xxx` / `rgfind-xxx` auto run `git ls-files` first to get precise file list save to a tmp file.
 
 ```bash
 Now you can directly use the command shortcuts in/out-of vscode to search + replace like:
-find-ndp dir1,dir2,file1,fileN -t MySearchRegex -x AndPlainText
+find-ndp path1,path2,pathN -t MySearchRegex -x AndPlainText
 find-nd -t MySearchRegex -x AndPlainText
 find-code -it MySearchRegex -x AndPlainText
 find-small -it MySearchRegex -U 5 -D 5 : Show up/down lines.
 find-doc -it MySearchRegex -x AndPlainText -l -PAC : Show pure path list.
 find-py-def ClassOrMethod -x AndPlainText : Search definition in python files.
 find-py-ref MySearchRegex -x AndPlainText : Search references in python files.
-find-ref "class\s+MyClass" -x AndPlainText --np "unit|test" --xp src\ext,src\common -c show command line.
-find-def MyClass -x AndPlainText --np "unit|test" --xp src\ext,src\common -c show command line.
-find-ref MyClass --pp "unit|test" -U 3 -D 3 -H 20 -T 10 :  Preview Up/Down lines + Set Head/Tail lines in test.
+find-cpp-ref "class\s+MyClass" -x AndPlainText --np "unit|test" --xp src/ext,src/common -c show command line.
+find-java-def MyClass -x AndPlainText --np "unit|test" --xp src/ext,src/common -c show command line.
+find-java-ref MyClass --pp "unit|test" -U 3 -D 3 -H 20 -T 10 :  Preview Up/Down lines + Set Head/Tail lines in test.
 find-ref OldClassOrMethod -o NewName -j : Just preview changes only.
-find-ref OldClassOrMethod -o NewName -R : Replace files.
+find-ref OldClassOrMethod -o NewName -R : Replace File Text.
 find-spring-ref - find variations of Java Spring member like: ABC / isABC / setABC / getABC.
 alias find-pure-ref
-malias find -x all -H 9
+malias find- -x ref -H 9
 malias "g?find[\w-]*ref"
 malias ".*?(find-\S+)=.*" -o "\2"  :  To see all find-xxx alias/doskeys.
 list-alias  - list all alias/doskey files of projects.
@@ -309,7 +331,7 @@ update-alias - reload common alias/doskeys.
 use-this-alias - reload this project alias/doskeys when in vscode; or load by current folder(project) name (see list-alias).
 out-rp  - Output relative path for result files.
 out-fp  - Output full path.
-Add -W to output full path; -I to suppress warnings; -o to replace text, -j to preview changes, -R to replace files.
+Add -W to output full path; -I to suppress warnings; -o to replace text, -j to preview changes, -R to replace file text.
 You can also create your own command shortcuts in the file: {msr.cmdAlias.saveFolder}\msr-cmd-alias.doskeys
 Every time after changes, auto effect for new console/terminal. Run `update-alias` to update current terminal immediately.
 See + Use command alias(shortcut) in `MSR-RUN-CMD` on `TERMINAL` tab, or start using in a new command window outside.
@@ -328,29 +350,9 @@ When you open a new terminal, will [**auto set project specific command shortcut
 
 Type commands below in a terminal/console after [cooking doskeys/alias](#make-command-shortcuts-to-search-or-replace-in-or-out-of-vscode):
 
-- Type `list-alias` to list all available alias files (auto cooked by vscode when opening a project/repo).
 - Type `use-this-alias` to use **project** specific alias in terminal (when in a project/repo folder).
-  - Type `update-alias` to switch to **general** alias.
-
-For full or relative path:
-
-- Type `out-fp` to output full file paths of search results.
-- Type `out-rp` to output relative paths.
-
-And many other [**common shortcuts**](/src/commonAlias.ts) like (run `alias` to see all alias/doskeys):
-
-- Windows + Linux/MacOS/FreeBSD:
-  - git shortcuts:
-    - Type `gpc` to pull current branch + `gph` to push current branch + `gfc` to fetch current branch.
-    - Type `gpc-sm` to pull submodules + `git-sm-reset` to reset submodules + `git-sm-reinit` to fix tough issues, etc.
-    - Type `git-cherry-pick-branch-new-old-commits` to cherry pick commits of a branch from old to new commits.
-- Windows CMD only:
-  - Type `mingw-mock` to output forward slash('`/`') on Windows + `mingw-unmock` to restore backslash('`\`').
-    - Now auto output forward slash **temporarily** in `VsCode` terminals by config `msr.xxx.postInitTerminalCommandLine`.
-      - You can add/remove more MSR_XXX variables like `MSR_EXIT` / `MSR_UNIX_SLASH` / `MSR_KEEP_COLOR` / etc.
-  - Type `win11-ungroup-taskbar` to ungroup Windows11 taskbar + `win11-group-taskbar` to restore/group taskbar on Windows 11.
-  - Type `reload-env` to reload environment variables + `reset-env` to **discard** and **reload** environment variables.
-  - Type `add-user-path` / `add-sys-path` / `add-tmp-path` + `del-user-path` / `del-sys-path` / `del-tmp-path` to add/delete %PATH% values.
+  - Type `list-alias` to list all available alias files (auto cooked by vscode when opening a project/repo).
+- Type `update-alias` to switch to **general** alias.
 
 ### How to Add Your Custom Common Alias
 
@@ -610,7 +612,7 @@ There're another 2 ways to toggle besides the hot key (`Alt+F2`):
 
 `msr.disable.findRef.extensionPattern` like `tsx?|jsx?|go|py`
 
-### Disable Finding Definition + References for Specific Projects By Root Folder Name
+### Disable Finding Definition and References for Specific Projects By Root Folder Name
 
 - `msr.disable.projectRepoFolderNamePattern` (**case sensitive**)
 
@@ -636,7 +638,7 @@ There're another 2 ways to toggle besides the hot key (`Alt+F2`):
   - `msr.cookCmdAlias.outputRelativePathForLinuxTerminalsOnWindows`:
 - For search output (from `menu` or `auto-triggered re-run when got multiple results`):
   - `msr.searchRelativePathForLinuxTerminalsOnWindows`:
-    - Set `true` to help click + open results in `vscode` for [Cygwin/MinGW/WSL terminals](#supported-4-terminal-types-on-windows) on Windows.
+    - Set `true` to help click + open results in `vscode` for [Cygwin/MinGW/WSL](#supported-4-terminal-types-on-windows) terminals on Windows.
   - `msr.searchRelativePathForNativeTerminals`: Enable it to get short paths.
 - Just add `-W` to output full paths when you re-use the command line and if it output relative paths.
 
@@ -706,6 +708,8 @@ In above config name example `msr.{repo-folder-name}.xxx` (add into user setting
 #### Run use-this-alias for Restored Terminals
 
 Type `use-this-alias` when you saw `"History restored"` in terminal (except `MSR-RUN-CMD`) - due to vscode doesn't support auto restoring environment variables.
+
+- Or change Regex value of settings: `msr.autoRestoreEnvAliasTerminalNameRegex` to disable/enable auto running `use-this-alias` + `postInitTerminalCommandLine` for restored terminals.
 
 #### Supported 4 Terminal Types on Windows
 
@@ -786,18 +790,18 @@ Code mining examples (run in vscode terminals: like `MSR-RUN-CMD` or add/open **
 
 - Fuzzy search a class/method, with [**optional args**](https://github.com/qualiu/msr#brief-summary-of-msr-exe) like **ignore case**(**-i**) :
 
-  - **find-def** `"\w*Keyword\w*"` **-i**
-  - **find-def** `"\w*Keyword\w*"` **-i** -x `class` --xp `"test,unit,mock,/obj,/bin/"`
+  - **find-cpp-def** `"\w*Keyword\w*"` **-i**
+  - **find-cpp-ref** `"\w*Keyword\w*"` **-i** -x `class` --xp `"test,unit,mock,/obj,/bin/"`
   - **find-ref** `"class\s+\w*Keyword\w*"` **-i** --nx `";"`
-    - **gfind-ref** `"class\s+\w*Keyword\w*"` **-i** --nt `";\s*$"`
-    - **gfind-ref** `"\w*Keyword\w*"` **-i** -x `enum`
+    - **gfind-java-ref** `"class\s+\w*Keyword\w*"` **-i** --nt `";\s*$"`
+    - **gfind-java-ref** `"\w*Keyword\w*"` **-i** -x `class`
   - **find-all** -i -t `"class\s+\w*keyword\w*"`
-  - **find-def** `"\w*Keyword\w*"` **-i -x** `enum`
-  - **find-def** `"\w*Keyword\w*"` **-ix** `public` -H `20` -T `20` --nx `internal` -d `"^(src)$|keyword"` --nd `"test|^(unit|bin$)|demo"`
-  - **find-def** `"\w*Keyword\w*"` **-i** --nt `"private|protected"` --pp `"/src/|keyword"` --xp `test,/unit,/bin/,demo` --np `"test|/unit|/bin/"`
-  - **find-def** `"\w*Keyword\w*"` **-i** --nx `private` --nt `"protected|internal"` --xp `test,/unit,/bin/,demo` --pp `"/src/|keyword"` -H 20 -J ...
+  - **find-cs-def** `"\w*Keyword\w*"` **-i -x** `enum`
+  - **find-cs-def** `"\w*Keyword\w*"` **-ix** `public` -H `20` -T `20` --nx `internal` -d `"^(src)$|keyword"` --nd `"test|^(unit|bin$)|demo"`
+  - **find-py-def** `"\w*Keyword\w*"` **-i** --nt `"private|protected"` --pp `"/src/|keyword"` --xp `test,/unit,/bin/,demo` --np `"test|/unit|/bin/"`
+  - **find-py-def** `"\w*Keyword\w*"` **-i** --nx `private` --nt `"protected|internal"` --xp `test,/unit,/bin/,demo` --pp `"/src/|keyword"` -H 20 -J ...
 
-- Replace files: Add **-o** `"replace-to-xxx"` + Append **-R** to `replace` (**Preview** replacing result **without** `-R`):
+- Replace File Text: Add **-o** `"replace-to-xxx"` + Append **-R** to `replace` (**Preview** replacing result **without** `-R`):
 
   - **find-ref** `OldName` -o `NewName` -L `row1` -N `row2` --nt ... --nx ... --sp ... -xp ... --pp ...
     - **gfind-ref** `OldName` -o `NewName` -x `"And has text"` --nt ... --nx ... --sp ... -xp ... --pp ...
@@ -840,8 +844,8 @@ Code mining examples (run in vscode terminals: like `MSR-RUN-CMD` or add/open **
 - With other optional args like:
 
   - **find-all** -it `"regex-pattern"` -x `"and-plain-text"` -l just list matched file paths.
-  - **find-all** -x `"and-plain-text"` -it `"regex-pattern"` -o `"replace-regex-to-this"` -R replace files
-  - **find-all** -it `"regex-pattern"` -x `"and-plain-text"` -o `"replace-plain-text-to-this"` -R replace files
+  - **find-all** -x `"and-plain-text"` -it `"regex-pattern"` -o `"replace-regex-to-this"` -R replace file text
+  - **find-all** -it `"regex-pattern"` -x `"and-plain-text"` -o `"replace-plain-text-to-this"` -R replace file text
   - **find-all** -it `"regex-pattern"` -x `"and-plain-text"` -U 5 -D 3 -H 100 -c Output `100 lines` with `5-rows-up` + `3-rows-down` for each match.
   - **find-all** -it `"regex-pattern"` -x `"and-plain-text"` --nx `"not-contain-text"` --nt `"not-match-regex"` --xp `/bin/,debug/,test` --pp `expected-path-regex` --np `skip-path-regex` -U 3 -D 2 -H 100 -T 100 ...
 
@@ -911,7 +915,7 @@ Normal Search (`default context menu`) + Extensive Search (`context menu` + `com
   - **Plain-text** and **Regex** searching groups in **command palette** and partially in **editor context menu** (`Find plain text in xxx` or `Regex find xxx`)
   - Provide specific searching in **project root** + **extra paths** if set. For example, `Regex find pure references in code files` will skip comments and long text in code.
 
-## Reuse the Command to Search Further or Replace Files
+## Reuse the Command to Search Further or Replace File Text
 
 You can **reuse** [msr](https://github.com/qualiu/msr#almost-no-learning-cost) `original search command line` in `vscode` output channel `MSR-Def-Ref` or terminal `MSR-RUN-CMD` to **search** + **replace** files.
 
@@ -934,13 +938,14 @@ Change the value of **-t** / **--np** / **--nd** if already used in command line
   - **-t** `"search/include Regex"` , **--nt** `"exclude Regex"`
 - Filter result file name, folder, full-path:
   - **-d** `"match folders Regex"`, **--nd** `"exclude folder Regex"`
-  - **--pp** `"full path Regex"` , **--np** `"exclude full path Regex"` , **--xp** `"/full-paths,or/sub-paths,sub-path-text"`
+  - **--pp** `"full path Regex"` , **--np** `"exclude full path Regex"`
+  - **--sp** `src/,/lib/,common/,.cpp` , **--xp** `"/full-paths,or/sub-paths,sub-path-text,.hpp"`
 - You can also add more `msr` commands to the command line like:
   - `msr original command` **|** `msr -i -t "^\s*public" -P -A -C`
 - Get matched file `list` (**-l**) -> Generate new command (**-o** `msr xxx`) -> Execute command (**-X**):
   - `msr original command` **-l** -PAC **|** `msr -t "(.+)" -o "msr -p \1 -t \"class To-Search\" --nx internal"` **-X**
 
-### Replace files with Preview and Backup
+### Replace File Text with Preview and Backup
 
 Reuse the search command above (or `find-reference` command line in `vscode`), you can also write a new command.
 
@@ -948,10 +953,10 @@ Reuse the search command above (or `find-reference` command line in `vscode`), y
   - `msr original command ... -t "xxx" ...` **-o** `"replace-to"`
 - **Just** preview changed files (**-j**):
   - `msr original command ... -t "xxx" ...` **-o** `"replace-to"` **-j**
-- Replace files (**-R**):
+- Replace file text (**-R**):
   - `msr original command ... -t "xxx" ...` **-o** `"replace-to"` **-R**
   - Add **-K** if you want to backup changed files.
-  - Add **--force** to replace files with `BOM` header not `UTF-8 0xEFBBBF`.
+  - Add **--force** to replace file text with `BOM` header not `UTF-8 0xEFBBBF`.
 
 ## Brief Usage Summary for Search or Configuration
 
@@ -959,7 +964,7 @@ Besides the [overview doc](https://github.com/qualiu/msr/blob/master/README.md) 
 
 - Easy to add, update or tune `Regex` patterns to improve existing or support new coding languages:
   - Use above debugging method with the output info.
-  - To test or tune your `Regex` patterns: Use the [auto-downloaded](#default-auto-check-and-download--set-path) tool [msr.EXE](https://github.com/qualiu/msr#liberate--digitize-daily-works-by-2-exe-file-processing-data-mining-map-reduce) of your [system type](#more-freely-to-use-and-help-you-more) to test like:
+  - To test or tune your `Regex` patterns: Use the [auto-downloaded](#default-auto-check-and-download-tools-and-add-to-path) tool [msr.EXE](https://github.com/qualiu/msr#liberate--digitize-daily-works-by-2-exe-file-processing-data-mining-map-reduce) of your [system type](#more-freely-to-use-and-help-you-more) to test like:
     - Input a string from input-arg (`-z`) or pipe (like `echo`):
       - msr **-z** `"class CPP_EXPORT MatchThisCppClass"` -t `"^\s*class (\w+\s+)?\bMatchThisCppClass"`
       - **echo** `class CPP_EXPORT MatchThisCppClass` `|` msr -t `"^\s*class (\w+\s+)?\bMatchThisCppClass"`
@@ -990,6 +995,7 @@ Besides the [overview doc](https://github.com/qualiu/msr/blob/master/README.md) 
     - Newer msr supports forward slash(`/`) on Windows to ease slash-escaping:
       - **--xp** `d:/win/dir,my/sub,/bin/` same as `d:\win\dir,my\sub,\bin\`
         - (You can omit double quotes since no spaces and special characters).
+      - **--sp** `common/,lib/` same as `common\,lib\`
       - **--np** `"d:/win/dir|my/sub|/bin/"` same as `"d:\\win\\dir|my\\sub|\\bin\\\\"`
         - (Need more slashes if end with a slash + double quote).
       - **--pp** `"/src/|/common"` same as `"\\src\\|\\common"`.
@@ -1024,13 +1030,9 @@ Please help to set the `Regex` patterns for them if you want. You can:
 
 ### Check and Update this doc
 
-Easy to check consistency of [configurations](package.json) with `this document` by command lines below (you can also run command `npm run test` if you're a developer):
+- `npm run test` to check [configurations](package.json).
 
-**[nin](https://github.com/qualiu/msr#liberate--digitize-daily-works-by-2-exe-file-processing-data-mining-map-reduce)** `README.md` [package.json](package.json) **"(msr\\.[\w\\.]+)"** --nt `"msr\.(exe|gcc\w+|cygwin)|project\d+|\.(My|xxx|extra\w+Group)|msr.py.extra"` --nx "fileExtensionMap\*" -i -c Should no result
-
-**[nin](https://github.com/qualiu/msr#liberate--digitize-daily-works-by-2-exe-file-processing-data-mining-map-reduce)** `README.md` [package.json](package.json) **"(msr\\.[\w\\.]+)"** --nt `"msr\.(exe|gcc\w+|cygwin)|project\d+|\.(My|xxx|extra\w+Group)|msr.py.extra"` --nx "fileExtensionMap\*" -i **-m** -c Should have results
-
-**[nin](https://github.com/qualiu/msr#liberate--digitize-daily-works-by-2-exe-file-processing-data-mining-map-reduce)** [package.json](package.json) nul -p -d -k 2 -x description -c Should no unreasonable duplicate descriptions.
+- **[nin](https://github.com/qualiu/msr#liberate--digitize-daily-works-by-2-exe-file-processing-data-mining-map-reduce)** [package.json](package.json) nul -p -d -k 2 -x description -c Should no unreasonable duplicate descriptions.
 
 ## Known Issues
 
@@ -1057,10 +1059,10 @@ However, there're 2 workarounds for finding definition as below:
 - **Method-2**: Set **msr.reRunSearchInTerminalIfResultsMoreThan** = **0** (default =1).
   - This is more **quiet**: It won't activate the channels and tabs above.
   - This just re-run the search command in `MSR-RUN-CMD` channel in `TERMINAL` tab to let you **click and go**.
-  - You can also re-use the commands, add [**some options**](#brief-usage-summary-for-search-or-configuration) to **filter your search** or **replace files**.
+  - You can also re-use the commands, add [**some options**](#brief-usage-summary-for-search-or-configuration) to **filter your search** or **replace file text**.
   - But you can **only see them when** when `MSR-RUN-CMD` is the active window(terminal).
 
-### One Redundant Finding Definition was Triggered if Used `Ctrl` + `Mouse left click`
+### One Redundant Finding Definition was Triggered if Used `Ctrl` with `Mouse left click`
 
 Due to both "**Peek Definition**" and "**Go to Definition**" were triggered:
 

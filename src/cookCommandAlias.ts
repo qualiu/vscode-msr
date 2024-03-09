@@ -11,7 +11,7 @@ import { asyncSetJunkEnvForWindows, getJunkEnvCommandForTipFile, getResetJunkPat
 import { outputDebug, outputDebugByTime, outputErrorByTime, outputInfo, outputInfoByDebugModeByTime, outputInfoQuiet, outputInfoQuietByTime, outputWarn, outputWarnByTime } from "./outputUtils";
 import { escapeRegExp } from "./regexUtils";
 import { getRunCmdTerminal, runCommandInTerminal, sendCommandToTerminal } from './runCommandUtils';
-import { DefaultTerminalType, IsWindowsTerminalOnWindows, getCmdAliasSaveFolder, getInitLinuxScriptDisplayPath, getInitLinuxScriptStoragePath, getTerminalInitialPath, getTerminalNameOrShellExeName, getTerminalShellExePath, getTipFileDisplayPath, getTipFileStoragePath, isBashTerminalType, isLinuxTerminalOnWindows, isPowerShellTerminal, isWindowsTerminalOnWindows, toStoragePath, toTerminalPath } from './terminalUtils';
+import { DefaultTerminalType, getCmdAliasSaveFolder, getInitLinuxScriptDisplayPath, getInitLinuxScriptStoragePath, getTerminalInitialPath, getTerminalNameOrShellExeName, getTerminalShellExePath, getTipFileDisplayPath, getTipFileStoragePath, isBashTerminalType, isLinuxTerminalOnWindows, isPowerShellTerminal, isWindowsTerminalOnWindows, toStoragePath, toTerminalPath } from './terminalUtils';
 import { getSetToolEnvCommand, getToolExportFolder } from "./toolSource";
 import { getElapsedSecondsToNow, getLoadAliasFileCommand, getPowerShellName, getRepoFolderName, getUniqueStringSetNoCase, isPowerShellCommand, isWeeklyCheckTime, quotePaths, replaceTextByRegex } from "./utils";
 import { FindJavaSpringReferenceByPowerShellAlias } from './wordReferenceUtils';
@@ -20,7 +20,7 @@ import fs = require('fs');
 import os = require('os');
 import path = require('path');
 
-const CookCmdDocUrl = 'https://github.com/qualiu/vscode-msr/blob/master/README.md#command-shortcuts';
+const CookCmdDocUrl = 'https://marketplace.visualstudio.com/items?itemName=qualiu.vscode-msr#command-shortcuts';
 let FileToCheckTimeMap = new Map<string, Date>();
 
 function getGeneralCmdAliasFilePath(terminalType: TerminalType) {
@@ -206,7 +206,7 @@ function getOpenFileToolName(isWindowsTerminal: boolean, writeToEachFile: boolea
 }
 
 
-function getPostInitCommands(terminalType: TerminalType, repoFolderName: string) {
+export function getPostInitCommands(terminalType: TerminalType, repoFolderName: string) {
   const terminalTypeName = TerminalType[terminalType].toString();
   const typeName = (terminalTypeName[0].toLowerCase() + terminalTypeName.substring(1))
     .replace(/CMD/i, 'cmd')
@@ -235,23 +235,19 @@ function showTipByCommand(terminal: vscode.Terminal | undefined, terminalType: T
   const defaultCmdAliasFileForTerminal = toTerminalPath(defaultCmdAliasFileStoragePath, terminalType);
   // If use echo command, should use '\\~' instead of '~'
   const defaultAliasPathForBash = getDisplayPathForBash(defaultCmdAliasFileForTerminal, '~'); // '\\~');
-  const createCmdAliasTip = `You can create shortcuts in ${defaultAliasPathForBash}${isWindowsTerminal ? '' : ' or other files'} . `;
   const replaceTipValueArg = `-x S#C -o ${aliasCount}`;
-  const shortcutsExample = 'Now you can use S#C shortcuts like find-ref gfind-cpp-ref gfind-doc gfind-file find-spring-ref'
-    + ' , find-top-folder gfind-top-type sort-code-by-time etc. See detail like: alias find-def or malias out-fp or malias sort-.+?= etc.';
-  const finalGuide = createCmdAliasTip + shortcutsExample + ' You can change msr.skipInitCmdAliasForNewTerminalTitleRegex in user settings.'
-    + ' Toggle-Enable/Disable finding definition'
-    + (IsWindowsTerminalOnWindows || TerminalType.MinGWBash === terminalType ? ' + Speed-Up-if-Slowdown-by-Windows-Security' : '')
-    + ' + Adjust-Color + Fuzzy-Code-Mining + Preview-And-Replace-Files + Hide/Show-Menus'
-    + ' + Use git-ignore + Git operations: gpc / gpc-sm for gfind-file / gfind-xxx.'
-    + ' For external terminals/IDEs: use-this-alias / list-alias / out-fp / out-rp'
-    + (IsWindowsTerminalOnWindows ? ' / mingw-mock' : '')
-    + ' + Menu/Mouse/Advance search + replace see: ' + CookCmdDocUrl;
+  const finalGuide = `You can create alias in ${defaultAliasPathForBash}${isWindowsTerminal ? '' : ' or ~/.bashrc'}`
+    + ` + use S#C alias like find-ref gfind-cpp-ref gfind-doc gfind-file gfind-top-type.`
+    + ` Change user settings for all functions:`
+    + ` Toggle-Enable/Disable finding definition`
+    + ` + Adjust-Color + Fuzzy-Code-Mining + Hide/Show-Menus`
+    + ` + Use git-ignore + Git operations: gpc / gpc-sm / del-this-tmp-list for gfind-xxx.`
+    + ` ${CookCmdDocUrl} for Advanced/Menu/Mouse search + preview->replace.`
+    + ` Outside terminals/IDEs: use-this-alias / out-fp / out-rp.`;
 
-  const colorPattern = 'PowerShell|re-cook|\\d+|m*alias|doskey|find-\\S+|sort-\\S+|out-\\S+|gpc-?\\w*|use-\\S+|msr.skip\\S+|\\S+-alias\\S*|other|mock|mingw'
-    + '|Toggle|Enable|Disable|Speed-Up|Adjust-Color|Code-Mining|Preview-|-Replace-|git-ignore|functions|details';
+  const colorPattern = '~\\S+|\\d+|m*alias|doskey|find-\\S+|sort-\\S+|out-\\S+|gpc-?\\w*|git-\\S+|use-\\S+|msr.skip\\S+|\\S+-alias\\S*|other|mock|mingw'
+    + '|Toggle|Enable|Disable|Adjust-Color|Code-Mining|Hide|Show|Preview-|-Replace-|git-ignore|Advanced|Mouse';
 
-  // const colorPatternForCmdEscape = colorPattern.replace(/\|/g, '^|');
   const newLine = isWindowsTerminal ? "\r\n" : "\n";
   const commentHead = newLine + (isWindowsTerminal ? "::" : "#") + " ";
   const colorCmd = ` | msr -aPA -ix ignored -e "\\d+|Skip\\w+|g?find-\\w+|MSR-\\S+"`;
@@ -271,7 +267,7 @@ function showTipByCommand(terminal: vscode.Terminal | undefined, terminalType: T
 
   expectedContent += setToolAliasEnvCmd;
   expectedContent += newLine + getJunkEnvCommandForTipFile(isWindowsTerminal)
-    + newLine + `msr -aPA -e .+ -z "${finalGuide}" -it "${colorPattern}" ` + (isWindowsTerminal ? '%*' : '$*')
+    + newLine + `msr -aPA -e "(http\\S+s|Git \\w+|del-this\\S+)|\\w+" -z "${finalGuide}" -it "${colorPattern}" ` + (isWindowsTerminal ? '%*' : '$*')
     + commentHead + gitInfoTemplate + " Free to use gfind-xxx / find-xxx." + colorCmd + ` -t "[1-9]\\d* e\\w+"`
     + commentHead + gitInfoTemplate + " Please use gfind-xxx instead of find-xxx for git-exemptions." + colorCmd + ` -t "[1-9]\\d* e\\w+|MSR-\\S+|\\bfind-\\S+"`
     + commentHead + gitInfoTemplate + " Will not use git-ignore as too long Skip_Junk_Paths." + colorCmd + ` -t "[1-9]\\d* e\\w+|MSR-\\S+|Skip[\\w\\. -]+ = ([89][1-9]\\d{2}|\\d{5,})|(not use \\S+|too long [\\w-]+)"`
@@ -433,14 +429,14 @@ export function cookCmdShortcutsOrFile(cookArgs: CookAliasArgs) {
     : String.raw`thisFile=${linuxTmpFolder}/$(echo $(git rev-parse --show-toplevel 2>/dev/null || echo "$PWD") |`
     + String.raw` msr -t ".*?([^/]+?)\s*$" -o "\1" -aPAC | msr -t "${TrimProjectNameRegex.source}" -o "-" -aPAC).${projectAliasFileSuffix};`
     + String.raw` source $thisFile`;
-  cmdAliasMap.set('use-this-alias', getCommandAliasText('use-this-alias', useThisAliasBody, isWindowsTerminal, terminalType, args.WriteToEachFile, isWindowsTerminal));
+  cmdAliasMap.set('use-this-alias', getCommandAliasText('use-this-alias', useThisAliasBody, isWindowsTerminal, terminalType, args.WriteToEachFile, false));
 
   const removeThisAliasBody = isWindowsTerminal
     ? useThisAliasBody.replace(`%b.${projectAliasFileSuffix}`, GitTmpListFilePrefix + '%b')
-      .replace(/call (\S+)/g, 'if exist $1 del $1 && echo Deleted tmp list file: $1')
+      .replace(/call (\S+)/g, 'if exist $1 ( del $1 && echo Deleted tmp list file: $1 )')
     : useThisAliasBody.replace(`${linuxTmpFolder}/`, '/tmp/' + GitTmpListFilePrefix).replace(`.${projectAliasFileSuffix}`, '')
       .replace(/source (\S+)/g, '[ -f $1 ] && rm $1 && echo Deleted tmp list file: $1');
-  cmdAliasMap.set('del-this-tmp-list', getCommandAliasText('del-this-tmp-list', removeThisAliasBody, false, terminalType, args.WriteToEachFile, isWindowsTerminal));
+  cmdAliasMap.set('del-this-tmp-list', getCommandAliasText('del-this-tmp-list', removeThisAliasBody, false, terminalType, args.WriteToEachFile, false));
 
   const shouldCheckUpdateAlias = isWeeklyCheckTime() || IsDebugMode;
   ['use-this-alias', 'del-this-tmp-list', 'add-user-path', 'reload-env', 'reset-env'].forEach(name => {
@@ -599,11 +595,7 @@ export function cookCmdShortcutsOrFile(cookArgs: CookAliasArgs) {
     runCmdInTerminal(`source ${quotedCmdAliasFileForTerminal}`);
   }
 
-  if (isPowerShellTerminal(terminalType)) {
-    runPowerShellShowFindCmdLocation(MyConfig.canUseGoodGitIgnore(repoFolder) ? "^g?find-\\w+-def" : "^(update|open|use)-\\S*alias");
-  }
-
-  if (TerminalType.PowerShell === terminalType && !useGitIgnore) {
+  if (TerminalType.PowerShell === terminalType) { // && !useGitIgnore) { // avoid missing env settings
     const tipFileDisplayPath = getTipFileDisplayPath(terminalType);
     runPostInitCommands(args.Terminal, terminalType, repoFolderName); // Must be run before 'cmd /k' for PowerShell
     const quotedFileForPS = (quotedCmdAliasFileForTerminal === cmdAliasFileStoragePath ? cmdAliasFileStoragePath : '`"' + cmdAliasFileStoragePath + '`"').replace(TempStorageFolder, '%TMP%');
@@ -1009,23 +1001,26 @@ function outputCmdAliasGuide(cmdAliasFile: string, singleScriptFolder: string = 
     outputInfoQuietByTime('Now you can directly use the command shortcuts in/out-of vscode to search + replace like:');
   }
 
-  outputInfoQuiet('find-ndp dir1,dir2,file1,fileN -t MySearchRegex -x AndPlainText');
+  outputInfoQuiet('find-ndp path1,path2,pathN -t MySearchRegex -x AndPlainText');
   outputInfoQuiet('find-nd -t MySearchRegex -x AndPlainText');
   outputInfoQuiet('find-code -it MySearchRegex -x AndPlainText');
   outputInfoQuiet('find-small -it MySearchRegex -U 5 -D 5 : Show up/down lines.');
   outputInfoQuiet('find-doc -it MySearchRegex -x AndPlainText -l -PAC : Show pure path list.');
   outputInfoQuiet('find-py-def ClassOrMethod -x AndPlainText : Search definition in python files.');
   outputInfoQuiet('find-py-ref MySearchRegex -x AndPlainText : Search references in python files.');
-  outputInfoQuiet('find-ref "class\\s+MyClass" -x AndPlainText --np "unit|test" --xp src\\ext,src\\common -c show command line.');
-  outputInfoQuiet('find-def MyClass -x AndPlainText --np "unit|test" --xp src\\ext,src\\common -c show command line.');
-  outputInfoQuiet('find-ref MyClass --pp "unit|test" -U 3 -D 3 -H 20 -T 10 :  Preview Up/Down lines + Set Head/Tail lines in test.');
+  outputInfoQuiet('find-cpp-ref "class\\s+MyClass" -x AndPlainText --np "unit|test" --xp src\\ext,src\\common -c show command line.');
+  outputInfoQuiet('find-java-def MyClass -x AndPlainText --np "unit|test" --xp src\\ext,src\\common -c show command line.');
+  outputInfoQuiet('find-java-ref MyClass --pp "unit|test" -U 3 -D 3 -H 20 -T 10 :  Preview Up/Down lines + Set Head/Tail lines in test.');
   outputInfoQuiet('find-ref OldClassOrMethod -o NewName -j : Just preview changes only.');
   outputInfoQuiet('find-ref OldClassOrMethod -o NewName -R : Replace files.');
   outputInfoQuiet('alias find-pure-ref');
-  outputInfoQuiet('malias find -x all -H 9');
+  outputInfoQuiet('malias find- -x ref -H 9');
   outputInfoQuiet('malias "find[\\w-]*ref"');
   outputInfoQuiet('malias ".*?(find-\\S+)=.*" -o "\\2"  :  To see all find-xxx alias/doskeys.');
-  outputInfoQuiet('out-rp  - Output relative path.');
+  outputInfoQuiet('list-alias  - list all alias/doskey files of projects.');
+  outputInfoQuiet('update-alias - reload common alias/doskeys.');
+  outputInfoQuiet('use-this-alias - reload this project alias/doskeys when in vscode; or load by current folder(project) name (see list-alias).');
+  outputInfoQuiet('out-rp  - Output relative path for result files.');
   outputInfoQuiet('out-fp  - Output full path.');
   outputInfoQuiet('Add -W to output full path; -I to suppress warnings; -o to replace text, -j to preview changes, -R to replace files.');
   outputInfoQuiet('You can also create your own command shortcuts in the file: ' + cmdAliasFile);

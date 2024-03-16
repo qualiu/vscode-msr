@@ -128,7 +128,7 @@ function duplicateSearchFileCmdAlias(repoFolder: string, terminalType: TerminalT
           if (isWindowsTerminal) {
             checkAndListCommand = '( ' + checkTime + ' 2>nul | msr -t "^Matched 1" >nul && ' + listFileCommand + ' ) & ';
           } else {
-            checkAndListCommand = checkTime + ' 2>/dev/null -PAC 1>&2; [ $? -ne 1 ] && ' + listFileCommand + '; '
+            checkAndListCommand = checkTime + ' 2>/dev/null -PAC -H 0; [ $? -ne 1 ] && ' + listFileCommand + '; '
           }
         }
       }
@@ -295,11 +295,15 @@ function asyncAddUserPathToEnvForWindows(generalScriptFilesFolder: string, rawWi
   }
 }
 
-function getRegisterDoskeyCommand() {
+function getRegisterDoskeyCommand(isRegister = true, silent = false) {
   const aliasFilePath = getGeneralCmdAliasFilePath(TerminalType.CMD);
   const displayPath = toTerminalPath(aliasFilePath, TerminalType.CMD);
   const refinedPath = displayPath.includes(' ') ? '\\"' + displayPath + '\\"' : displayPath;
-  return 'REG ADD "HKEY_CURRENT_USER\\Software\\Microsoft\\Command Processor" /v Autorun /d "DOSKEY /MACROFILE=' + refinedPath + '" /f > nul';
+  const keyPath = String.raw`"HKEY_CURRENT_USER\Software\Microsoft\Command Processor"`;
+  const tail = silent ? " > nul" : "";
+  return isRegister
+    ? `REG ADD ${keyPath} /v Autorun /d "DOSKEY /MACROFILE=${refinedPath}" /f` + tail
+    : `REG DELETE ${keyPath} /v Autorun /f` + tail;
 }
 
 export class CookAliasArgs {
@@ -400,7 +404,8 @@ export function cookCmdShortcutsOrFile(cookArgs: CookAliasArgs) {
   let allCmdAliasText = getBashFileHeader(isWindowsTerminal) + aliasHeadText;
   if (args.ForProject && !args.WriteToEachFile) {
     if (isWindowsTerminal) {
-      allCmdAliasText += getRegisterDoskeyCommand() + newLine;
+      ChildProcess.exec(getRegisterDoskeyCommand());
+      // allCmdAliasText += "@REM " + getRegisterDoskeyCommand(false) + newLine;
     } else {
       const initLinuxScriptPath = getInitLinuxScriptDisplayPath(terminalType);
       allCmdAliasText += getLoadAliasFileCommand(initLinuxScriptPath, false) + newLine;
@@ -897,19 +902,18 @@ export function getCommandAliasMap(
   // find-nd find-code find-ndp find-small find-all
   const allCodeFilePattern = isForProjectCmdAlias ? MyConfig.CodeFilesPlusUIRegex.source : MyConfig.CodeFilesPlusUIDefaultRegex.source;
   const extraOption = addFullPathHideWarningOption(getConfigValueOfProject(projectKey, 'extraOptions'), writeToEachFile);
-  const skipFoldersForCmd = skipJunkPathArgs;
-  commands.push(getCommandAlias('find-nd', 'msr -rp .' + skipFoldersForCmd + ' ' + extraOption, false));
-  commands.push(getCommandAlias('find-ndp', 'msr -rp %1' + skipFoldersForCmd + ' ' + extraOption, true));
-  commands.push(getCommandAlias('find-code', 'msr -rp .' + skipFoldersForCmd + ' -f "' + allCodeFilePattern + '" ' + extraOption, false));
+  commands.push(getCommandAlias('find-nd', 'msr -rp . ' + skipJunkPathArgs + ' ' + extraOption, false));
+  commands.push(getCommandAlias('find-ndp', 'msr -rp %1 ' + skipJunkPathArgs + ' ' + extraOption, true));
+  commands.push(getCommandAlias('find-code', 'msr -rp . ' + skipJunkPathArgs + ' -f "' + allCodeFilePattern + '" ' + extraOption, false));
 
   const allSmallFilesOptions = addFullPathHideWarningOption(getConfigValueOfProject(projectKey, 'allSmallFiles.extraOptions'), writeToEachFile);
-  commands.push(getCommandAlias('find-small', 'msr -rp .' + skipFoldersForCmd + ' ' + allSmallFilesOptions, false));
+  commands.push(getCommandAlias('find-small', 'msr -rp . ' + skipJunkPathArgs + ' ' + allSmallFilesOptions, false));
 
   // find-class
   const findClassFiles = ' -f "' + MyConfig.CodeFilesRegex.source + '"';
   const findClassPattern = ' -t "\\b(class|struct|enum|interface|trait|^\\s*(object|type))\\s+%1"';
   const skipClassPattern = ' --nt "^\\s*(/|throw|return)|%1\\s*;\\s*$"';
-  commands.push(getCommandAlias('find-class', 'msr -rp .' + findClassFiles + findClassPattern + skipClassPattern + skipFoldersForCmd + ' ' + extraOption, true));
+  commands.push(getCommandAlias('find-class', 'msr -rp .' + findClassFiles + findClassPattern + skipClassPattern + ' ' + skipJunkPathArgs + ' ' + extraOption, true));
 
   // find-spring-ref
   let oneLineCode = FindJavaSpringReferenceByPowerShellAlias.split(/[\r\n]+\s*/).join(' ');
@@ -932,7 +936,7 @@ export function getCommandAliasMap(
     }
     const fileExtPattern = MappedExtToCodeFilePatternMap.get(mappedExtension) || `"\.${oneRealExtension}$"`;
     let psCode: string = oneLineCode.replace(/;\s*$/g, '').trim()
-      + '; msr -rp .' + skipFoldersForCmd + " -f '" + fileExtPattern + "'"
+      + '; msr -rp . ' + skipJunkPathArgs + " -f '" + fileExtPattern + "'"
       + (isWindowsTerminal ? " -t $pattern " : " -t \\$pattern ") + extraOption;
     if (isWindowsTerminal) {
       psCode = psCode.replace(/"/g, "'").trim();

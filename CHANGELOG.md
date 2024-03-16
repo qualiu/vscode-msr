@@ -2,6 +2,10 @@
 
 All notable changes to this "vscode-msr" extension will be documented in this file.
 
+## [2.1.85]
+
+- Updated doc/tip + Fixed 6 alias like `find-small` / `find-nd` / `find-spring-ref`.
+
 ## [2.1.84]
 
 - Auto recover missing env/alias for terminals `"History restored"` by vscode.

@@ -3,9 +3,9 @@
 import * as vscode from 'vscode';
 import { RunCommandChecker } from './ToolChecker';
 import { getFindingCommandByCurrentWord, runFindingCommand } from './commands';
-import { getConfigValueByProjectAndExtension, getConfigValueOfActiveProject, getConfigValueOfProject } from './configUtils';
+import { getConfigValueByProjectAndExtension, getConfigValueOfActiveProject, getConfigValueOfProject, getPostInitCommands } from './configUtils';
 import { DefaultRepoFolderName, DefaultWorkspaceFolder, IsSupportedSystem, IsWindows, RunCmdTerminalName, WorkspaceCount, getDefaultRepoFolderByActiveFile, getRepoFolder, isNullOrEmpty } from './constants';
-import { CookAliasArgs, cookCmdShortcutsOrFile, getPostInitCommands } from './cookCommandAlias';
+import { CookAliasArgs, cookCmdShortcutsOrFile } from './cookCommandAlias';
 import { DefaultRepoFolder, FileExtensionToMappedExtensionMap, MappedExtToCodeFilePatternMap, MyConfig, WorkspaceToGitIgnoreMap, getConfig, getExtraSearchPaths, getGitIgnore, printConfigInfo } from './dynamicConfig';
 import { FindCommandType, FindType, ForceFindType, TerminalType } from './enums';
 import { GitIgnore } from './gitUtils';

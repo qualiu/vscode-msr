@@ -135,7 +135,13 @@ export function checkConfigKeysInDoc() {
 
 export function checkDuplicateDescription() {
   const allText = fs.readFileSync(ConfigFilePath).toString();
-  const lines = allText.split('\n');
+  const jsonObj = JSON.parse(allText);
+  const properties = jsonObj.contributes.configuration.properties;
+  delete properties["msr.commonAliasNameBodyList"];
+  delete properties["msr.cmd.commonAliasNameBodyList"];
+  delete properties["msr.bash.commonAliasNameBodyList"];
+  const newText = JSON.stringify(jsonObj, null, 2);
+  const lines = newText.split('\n');
   const descriptionRegex = /^\s*"description"\s*:\s*(.+?)\s*,?\s*$/;
   let descriptionCountMap = new Map<string, number>();
   let total = 0;

@@ -1,6 +1,7 @@
 import { ExecSyncOptions } from 'child_process';
 import * as vscode from 'vscode';
 import { DefaultWorkspaceFolder, getDefaultRepoFolderByActiveFile, getProjectFolderKey } from './constants';
+import { TerminalType } from './enums';
 import { outputInfoQuietByTime } from './outputUtils';
 import path = require('path');
 import ChildProcess = require('child_process');
@@ -119,4 +120,14 @@ export function getConfigValueByPriorityList(priorityPrefixList: string[], confi
   }
 
   return '';
+}
+
+export function getPostInitCommands(terminalType: TerminalType, repoFolderName: string) {
+  const terminalTypeName = TerminalType[terminalType].toString();
+  const typeName = (terminalTypeName[0].toLowerCase() + terminalTypeName.substring(1))
+    .replace(/CMD/i, 'cmd')
+    .replace(/MinGW/i, 'mingw')
+    .replace(/^(Linux|WSL)Bash/i, 'bash');
+  const configTailKey = typeName + '.postInitTerminalCommandLine';
+  return getConfigValueOfProject(repoFolderName, configTailKey, true);
 }

@@ -1,8 +1,10 @@
 import { execSync } from 'child_process';
 import * as vscode from 'vscode';
-import { IsMacOS, IsWindows, RunCmdTerminalName, getDefaultRepoFolderByActiveFile, isNullOrEmpty } from './constants';
+import { getPostInitCommands } from './configUtils';
+import { DefaultRepoFolderName, IsMacOS, IsWindows, RunCmdTerminalName, getDefaultRepoFolderByActiveFile, isNullOrEmpty } from './constants';
+import { TerminalType } from './enums';
 import { ShellPath, UsePowershell, enableColorAndHideCommandLine, outputDebugByTime } from "./outputUtils";
-import { IsLinuxTerminalOnWindows } from './terminalUtils';
+import { IsLinuxTerminalOnWindows, IsWindowsTerminalOnWindows, isLinuxTerminalOnWindows } from './terminalUtils';
 import os = require('os');
 
 const ClearCmd = IsWindows && !UsePowershell ? 'cls' : "clear";
@@ -44,13 +46,35 @@ export function disposeTerminal() {
   RunCmdTerminal = undefined;
 }
 
+export function runPostInitCommands(terminal: vscode.Terminal | null | undefined, terminalType: TerminalType, repoFolderName: string) {
+  if (!terminal) {
+    return;
+  }
+  const postInitCommand = getPostInitCommands(terminalType, repoFolderName);
+  if (isNullOrEmpty(postInitCommand)) {
+    return;
+  }
+  sendCommandToTerminal(postInitCommand, terminal, true, false, isLinuxTerminalOnWindows(terminalType));
+}
+
+function checkInitRunCommandTerminal(): vscode.Terminal {
+  const [terminal, isNewTerminal] = getRunCmdTerminalWithInfo();
+  if (isNewTerminal) {
+    // User closed MSR-RUN-CMD terminal + use menu search which triggers a new MSR-RUN-CMD terminal
+    sendCommandToTerminal(`use-this-alias`, terminal);
+    // const postInitCommand = getPostInitCommands(, DefaultRepoFolderName);
+    runPostInitCommands(terminal, IsWindowsTerminalOnWindows ? TerminalType.CMD : TerminalType.LinuxBash, DefaultRepoFolderName)
+  }
+  return terminal;
+}
+
 export function runCommandInTerminal(command: string, showTerminal = false, clearAtFirst = false, isLinuxOnWindows = IsLinuxTerminalOnWindows) {
   command = enableColorAndHideCommandLine(command);
-  sendCommandToTerminal(command, getRunCmdTerminal(), showTerminal, clearAtFirst, isLinuxOnWindows);
+  sendCommandToTerminal(command, checkInitRunCommandTerminal(), showTerminal, clearAtFirst, isLinuxOnWindows);
 }
 
 export function runRawCommandInTerminal(command: string, showTerminal = true, clearAtFirst = false, isLinuxOnWindows = IsLinuxTerminalOnWindows) {
-  sendCommandToTerminal(command, getRunCmdTerminal(), showTerminal, clearAtFirst, isLinuxOnWindows);
+  sendCommandToTerminal(command, checkInitRunCommandTerminal(), showTerminal, clearAtFirst, isLinuxOnWindows);
 }
 
 export function sendCommandToTerminal(command: string, terminal: vscode.Terminal, showTerminal = false, clearAtFirst = false, isLinuxOnWindows = IsLinuxTerminalOnWindows) {

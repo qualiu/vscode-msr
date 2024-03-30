@@ -58,7 +58,8 @@ let LinuxAliasMap: Map<string, string> = new Map<string, string>()
 const CommonAliasMap: Map<string, string> = new Map<string, string>()
   .set('gpc', String.raw`git branch | msr -t "^\s*\*\s*(\S+).*" -o "git pull origin \1 $*" -XM & del-this-tmp-list`)
   .set('gph', String.raw`git branch | msr -t "^\s*\*\s*(\S+).*" -o "git push origin \1 $*" -XM`)
-  .set('gpc-sm', String.raw`git rev-parse --abbrev-ref HEAD | msr -t "(.+)" -o "git pull origin \1 --no-recurse-submodules" -XM & del-this-tmp-list & msr -z "git submodule sync && git submodule update --init" -t "&&" -o "\n" -PAC | msr -XM -V ne0`)
+  .set('gpc-sm', String.raw`git rev-parse --abbrev-ref HEAD | msr -t "(.+)" -o "git pull origin \1 --no-recurse-submodules" -XM
+          & del-this-tmp-list & msr -z "git submodule sync && git submodule update --init" -t "&&" -o "\n" -PAC | msr -XM -V ne0`)
   .set('gpc-sm-reset', String.raw`git rev-parse --abbrev-ref HEAD | msr -t "(.+)" -o "git pull origin \1 --no-recurse-submodules" -XM
           && msr -z "git submodule sync && git submodule update --init && git submodule update -f" -t "&&" -o "\n" -PAC | msr -XM -V ne0
           & del-this-tmp-list
@@ -68,7 +69,8 @@ const CommonAliasMap: Map<string, string> = new Map<string, string>()
   .set('gdc', String.raw`git rev-parse --abbrev-ref HEAD | msr -t "(.+)" -o "git difftool origin/\1 $*" -XM`)
   .set('gdf', String.raw`git diff --name-only $1 | msr -t "(.+)" -o "git difftool $* \1" -XM`)
   .set('gsh', String.raw`git rev-parse --abbrev-ref HEAD | msr -t "(.+)" -o "git reset --hard origin/\1" -XM`)
-  .set('gsh-sm', String.raw`git rev-parse --abbrev-ref HEAD | msr -t "(.+)" -o "git reset --hard origin/\1" -XM && msr -z "git submodule sync --init && git submodule update -f" -t "&&" -o "\n" -PAC | msr -XM -V ne0 & git status`)
+  .set('gsh-sm', String.raw`git rev-parse --abbrev-ref HEAD | msr -t "(.+)" -o "git reset --hard origin/\1" -XM
+          && msr -z "git submodule sync --init && git submodule update -f" -t "&&" -o "\n" -PAC | msr -XM -V ne0 & git status`)
   .set('gst', String.raw`git status $*`)
   .set('git-gc', String.raw`git reflog expire --all --expire=now && git gc --prune=now --aggressive`)
   .set('git-rb-list', String.raw`git for-each-ref --format="%(refname:short)" refs/remotes/origin`) // git ls-remote --heads origin | msr -t "^\w+\s+refs/.+?/" -o "" -PAC
@@ -76,11 +78,13 @@ const CommonAliasMap: Map<string, string> = new Map<string, string>()
   .set('git-clean', String.raw`msr -z "git clean -xffd && git submodule foreach --recursive git clean -xffd" -t "&&" -o "\n" -PAC | msr -XM`)
   .set('git-sm-prune', String.raw`msr -XM -z "git prune" && msr -XMz "git submodule foreach git prune"`)
   .set('git-sm-init', String.raw`msr -XMz "git submodule sync" && echo git submodule update --init $* | msr -XM & del-this-tmp-list & git status`)
-  .set('git-sm-reset', String.raw`msr -XMz "git submodule sync" && msr -XMz "git submodule init" && echo git submodule update -f $* | msr -XM & del-this-tmp-list & git status`)
+  .set('git-sm-reset', String.raw`msr -XMz "git submodule sync" && msr -XMz "git submodule init" && echo git submodule update -f $*
+          | msr -XM & del-this-tmp-list & git status`)
   .set('git-sm-restore', String.raw`echo git restore . --recurse-submodules $* | msr -XM & del-this-tmp-list & git status`)
   .set('git-sm-reinit', String.raw`msr -XM -z "git submodule deinit -f ." && msr -XM -z "git submodule update --init" & git status`)
   .set('git-sm-update-remote', String.raw`msr -XMz "git submodule sync" && echo git submodule update --remote $* | msr -XM & git status`)
-  .set('git-cherry-pick-branch-new-old-commits', String.raw`git log $1 | msr -b "^commit $2" -q "^commit $3" -t "^commit (\w+)" -o "\1" -M -C | msr -s "^:(\d+):" -n --dsc -t "^:\d+:(?:\d+:)?\s+(\w+)" -o "git cherry-pick \1" -X -V ne0 $4 $5 $6 $7 $8 $9`)
+  .set('git-cherry-pick-branch-new-old-commits', String.raw`git log $1 | msr -b "^commit $2" -q "^commit $3" -t "^commit (\w+)" -o "\1" -M -C
+          | msr -s "^:(\d+):" -n --dsc -t "^:\d+:(?:\d+:)?\s+(\w+)" -o "git cherry-pick \1" -X -V ne0 $4 $5 $6 $7 $8 $9`)
   .set('git-sm-check', String.raw`git diff --name-only HEAD
           | msr -x / -o \ -aPAC | msr -t "(.+)" -o "if exist \1\* pushd \1 && git status --untracked-files=all --short && git diff --name-only" -XM $*`)
   .set('git-sm-delete', String.raw`git diff --name-only HEAD
@@ -302,25 +306,35 @@ const WindowsAliasMap: Map<string, string> = new Map<string, string>()
   .set('docker-ls-image', String.raw`docker images --digests`)
   .set('docker-rm-cid', String.raw`msr -z "$1" -t "\w+" -PAC -H 0 || msr -XM -z "docker stop $1 $2 && docker rm $2 $1" Remove container by id with force -f or not`)
   .set('docker-rm-image', String.raw`msr -z "$1" -t "\w+" -PAC -H 0 || msr -XM -z "docker rmi $2 $1" Remove image by id with force -f or not`)
-  .set('docker-send', String.raw`for /f "tokens=*" %a in ('docker container ls ^| msr -it "^(\w+)\s+\S*($1).*" -o "\1" -PAC') do echo docker cp $2 %a:$3 | msr -M $4 $5 $6 $7 $8 $9`)
+  .set('docker-send', String.raw`for /f "tokens=*" %a in ('docker container ls ^| msr -it "^(\w+)\s+\S*($1).*" -o "\1" -PAC') do
+          echo docker cp $2 %a:$3 | msr -M $4 $5 $6 $7 $8 $9`)
   .set('docker-start', String.raw`for /f "tokens=*" %a in ('docker container ls -a ^| msr -it "^(\w+)\s+\S*($1).*" -o "\1" -PAC') do msr -XM -z "docker start %a"`)
   .set('docker-stop', String.raw`for /f "tokens=*" %a in ('docker container ls -a ^| msr -it "^(\w+)\s+\S*($1).*" -o "\1" -PAC') do msr -XM -z "docker stop %a"`)
   .set('docker-stop-all', String.raw`docker ps | msr --nt CONTAINER -t "^(\w+).*" -o "docker stop \1" -X`)
   .set('grant-perm', String.raw`echo icacls $1 /grant %USERNAME%:F /T /Q | msr -XM`)
   .set('open-vsc', String.raw`code "%APPDATA%\Code\User\settings.json"`)
-  .set('to-vscode-arg-lines', String.raw`PowerShell -Command "Set-Clipboard $(Get-Clipboard | msr -t '\s+' -o '\n' -aPAC | msr -t '(.+)' -o '\t\t\#\1\#,' -aPIC | msr -x '#' -o '\\\"' -PAC).Replace('\"\"', '\"');"`)
-  .set('to-vscode-arg-lines-2-slashes', String.raw`PowerShell -Command "Set-Clipboard $(Get-Clipboard | msr -t '\s+' -o '\n' -aPAC | msr -t '(.+)' -o '\t\t\#\1\#,' -aPIC | msr -x \ -o \\ -aPAC | msr -x '#' -o '\\\"' -aPAC).Replace('\"\"', '\"');"`)
-  .set('to-one-json-line', String.raw`PowerShell -Command "$requestBody = $(Get-Clipboard).Replace('\"', '\\\"') | msr -S -t '[\r\n]\s*' -o ' ' -PAC; Set-Clipboard('\"' + $requestBody.Trim() + '\"'); Get-Clipboard"`)
-  .set('to-one-json-line-from-file', String.raw`PowerShell -Command "$requestBody = $(Get-Content '$1').Replace('\"', '\\\"') | msr -S -t '[\r\n]\s*(\S+)' -o ' \1' -PAC; Set-Clipboard('\"' + $requestBody.Trim() + '\"'); Get-Clipboard"`)
-  .set('ts-to-minutes', String.raw`PowerShell "[Math]::Round([TimeSpan]::Parse('$1').TotalMinutes)"`)
-  .set('to-local-time', String.raw`PowerShell "msr -z $([DateTime]::Parse([regex]::Replace('$*'.TrimEnd('Z') + 'Z', '(?<=[+-]\d{2}:?\d{2})Z$', '')).ToString('o')) -t '\.0+([\+\-]\d+[:\d]*|Z)$' -o '\1' -aPA"`) // PowerShell "[DateTime]::Parse('$1').ToLocalTime()"
-  .set('to-utc-time', String.raw`PowerShell "msr -z $([DateTime]::Parse('$*').ToUniversalTime().ToString('o')) -t '\.0+([\+\-]\d+[:\d]*|Z)$' -o '\1' -aPA"`)
+  .set('to-vscode-arg-lines', String.raw`PowerShell -Command "Set-Clipboard $(Get-Clipboard | msr -t '\s+' -o '\n' -aPAC
+          | msr -t '(.+)' -o '\t\t\#\1\#,' -aPIC | msr -x '#' -o '\\\"' -PAC).Replace('\"\"', '\"');"`)
+  .set('to-vscode-arg-lines-2-slashes', String.raw`PowerShell -Command "Set-Clipboard $(Get-Clipboard | msr -t '\s+' -o '\n' -aPAC
+          | msr -t '(.+)' -o '\t\t\#\1\#,' -aPIC | msr -x \ -o \\ -aPAC | msr -x '#' -o '\\\"' -aPAC).Replace('\"\"', '\"');"`)
+  .set('to-one-json-line', String.raw`PowerShell -Command "
+          $requestBody = $(Get-Clipboard).Replace('\"', '\\\"') | msr -S -t '[\r\n]\s*' -o ' ' -PAC;
+          Set-Clipboard('\"' + $requestBody.Trim() + '\"'); Get-Clipboard"`)
+  .set('to-one-json-line-from-file', String.raw`PowerShell -Command "$requestBody = $(Get-Content '$1').Replace('\"', '\\\"')
+          | msr -S -t '[\r\n]\s*(\S+)' -o ' \1' -PAC; Set-Clipboard('\"' + $requestBody.Trim() + '\"'); Get-Clipboard"`)
+  .set('ts-to-minutes', String.raw`PowerShell -Command "[Math]::Round([TimeSpan]::Parse('$1').TotalMinutes)"`)
+  .set('to-local-time', String.raw`PowerShell -Command "
+          msr -z $([DateTime]::Parse([regex]::Replace('$*'.TrimEnd('Z') + 'Z', '(?<=[+-]\d{2}:?\d{2})Z$', '')).ToString('o'))
+          -t '\.0+([\+\-]\d+[:\d]*|Z)$' -o '\1' -aPA"`) // PowerShell "[DateTime]::Parse('$1').ToLocalTime()"
+  .set('to-utc-time', String.raw`PowerShell -Command "
+          msr -z $([DateTime]::Parse('$*').ToUniversalTime().ToString('o')) -t '\.0+([\+\-]\d+[:\d]*|Z)$' -o '\1' -aPA"`)
   .set('to-full-path', String.raw`msr -PAC -W -l -p $*`)
   .set('to-unix-path', String.raw`msr -z %1 -x \ -o / -PAC`)
   .set('to-2s-path', String.raw`msr -z %1 -x \ -o \\ -PAC`)
   .set('wcopy', String.raw`PowerShell -Command "
           [System.Reflection.Assembly]::LoadWithPartialName('System.Windows.Forms') | Out-Null;
-          $filePaths = New-Object System.Collections.Specialized.StringCollection; '$1' -split '\s*,\s*' | ForEach-Object { [void] $filePaths.Add($(Resolve-Path $_).Path); };
+          $filePaths = New-Object System.Collections.Specialized.StringCollection; '$1' -split '\s*,\s*'
+          | ForEach-Object { [void] $filePaths.Add($(Resolve-Path $_).Path); };
           Write-Host Copied-$($filePaths.Count)-files-to-Clipboard: $filePaths;
           [System.Windows.Forms.Clipboard]::SetFileDropList($filePaths);"`)
   .set('wpaste', String.raw`PowerShell -Command "
@@ -354,14 +368,40 @@ const WindowsAliasMap: Map<string, string> = new Map<string, string>()
           taskkill /f /im explorer.exe;
           CMD /Q /C START /REALTIME explorer.exe;"`)
   .set('pwsh', String.raw`PowerShell $*`)
-  .set('is-admin', String.raw`PowerShell -Command "$principal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent()); $principal.IsInRole([Security.Principal.WindowsBuiltinRole]::Administrator)"`)
+  .set('is-admin', String.raw`PowerShell -Command "
+          $principal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent());
+          $principal.IsInRole([Security.Principal.WindowsBuiltinRole]::Administrator)"`)
   .set('az-token-clip', String.raw`PowerShell -Command "Set-Clipboard($(az account get-access-token | ConvertFrom-Json).accessToken.ToString().TrimEnd())"`)
-  .set('az-token-env', String.raw`for /f "tokens=*" %a in ('PowerShell "az account get-access-token | ConvertFrom-Json | ForEach-Object { Write-Output $_.accessToken }"') do set "AZURE_ACCESS_TOKEN=%a"`)
+  .set('az-token-env', String.raw`for /f "tokens=*" %a in ('PowerShell -Command "
+          az account get-access-token | ConvertFrom-Json | ForEach-Object {
+             Write-Output $_.accessToken
+          }"') do set "AZURE_ACCESS_TOKEN=%a"`)
   .set('mingw-mock', String.raw`set "MSR_UNIX_SLASH=1" && echo Now will output forward slash '/' for result paths in this CMD terminal.`)
   .set('mingw-unMock', String.raw`set "MSR_UNIX_SLASH=" && echo Now will output backslash '\' for result paths in this CMD terminal.`)
-  .set('clear-msr-env', String.raw`for /f "tokens=*" %a in ('set ^| msr -t "^(MSR_\w+)=.*" -o "\1" -PAC') do @msr -z "%a" -t "(.+)" -o "echo Cleared \1=%\1% | msr -aPA -t MSR_\\w+ -e =.*" -XA || @set "%a="`)
-  .set('trust-exe', String.raw`PowerShell -Command "Write-Host 'Please run as Admin to add process exclusion, will auto fetch exe path by name, example: trust-exe msr,nin,git,scp' -ForegroundColor Cyan; foreach ($exe in ('$1'.Trim() -split '\s*[,;]\s*')) { if (-not [IO.File]::Exists($exe)) { $exe = $(Get-Command $exe).Source; } Write-Host ('Will add exe to exclusion: ' + $exe) -ForegroundColor Green; Add-MpPreference -ExclusionPath $exe; }"`)
+  .set('clear-msr-env', String.raw`for /f "tokens=*" %a in ('set ^| msr -t "^(MSR_\w+)=.*" -o "\1" -PAC') do
+         @msr -z "%a" -t "(.+)" -o "echo Cleared \1=%\1% | msr -aPA -t MSR_\\w+ -e =.*" -XA || @set "%a="`)
+  .set('trust-exe', String.raw`PowerShell -Command "Write-Host 'Please run as Admin to add process exclusion,
+          will auto fetch exe path by name, example: trust-exe msr,nin,git,scp' -ForegroundColor Cyan;
+            foreach ($exe in ('$1'.Trim() -split '\s*[,;]\s*')) {
+              if (-not [IO.File]::Exists($exe)) {
+                $exe = $(Get-Command $exe).Source;
+            }
+            Write-Host ('Will add exe to exclusion: ' + $exe) -ForegroundColor Green;
+            Add-MpPreference -ExclusionPath $exe;
+          }"`)
   .set('restart-net', String.raw`echo PowerShell -Command "Get-NetAdapter | Restart-NetAdapter -Confirm:$false" | msr -XM`)
+  .set('to-alias-body', String.raw`PowerShell -Command "
+          $newBody = Get-Clipboard;
+          if ([string]::IsNullOrWhiteSpace($newBody)) {
+            Write-Host 'Please copy alias body to clipboard first.' -ForegroundColor Red;
+            return;
+          }
+          $newBody = $newBody.Trim().Replace('\', '\\').Replace('\"', '\\\"');
+          $newBody = $newBody | msr -S -t '[\r\n]+\s*' -o ' ' -PAC -c Use msr to avoid PowerShell Regex bug;
+          $newBody = $newBody.Trim();
+          Set-Clipboard $newBody; $newBody;
+          Write-Host $('Copied one-line body above to clipboard (length = ' + $newBody.Length + '),
+          you can paste it to aliasBody in msr.xxx.commonAliasNameBodyList in settings.json') -ForegroundColor Green"`)
   ;
 
 export function getCommonAliasMap(terminalType: TerminalType, writeToEachFile: boolean): Map<string, string> {
@@ -376,25 +416,34 @@ export function getCommonAliasMap(terminalType: TerminalType, writeToEachFile: b
     CommonAliasMap.forEach((value, key) => cmdAliasMap.set(key, getAliasBody(terminalType, key, value, writeToEachFile)));
     LinuxAliasMap.forEach((value, key) => cmdAliasMap.set(key, getAliasBody(terminalType, key, value, writeToEachFile)));
   }
+
   // get common alias map from config/settings:
-  const commonAliasNameBodyList = vscode.workspace.getConfiguration('msr').get('commonAliasNameBodyList');
-  if (commonAliasNameBodyList) {
-    const aliasNameBodyList = commonAliasNameBodyList as AliasNameBody[];
-    aliasNameBodyList.forEach((item: AliasNameBody) => {
-      const name = item.aliasName;
-      const body = item.aliasBody.trim();
-      // Replace '\\1' to '\\\\1' for Linux:
-      const refinedBody = isWindowsTerminal ? body : body.replace(/(\\{2})(\d)\b/, '$1$1$2');
-      const oldCount = cmdAliasMap.size;
-      cmdAliasMap.set(name, getAliasBody(terminalType, name, refinedBody, writeToEachFile));
-      if (cmdAliasMap.size > oldCount) {
-        outputInfoByDebugModeByTime(`Added custom alias: ${name}=${refinedBody}`)
-      } else {
-        outputWarnByTime(`Overwrote existing alias: ${name}=${refinedBody}`, false);
-      }
-    });
-  }
+  readConfigCommonAlias(cmdAliasMap, terminalType, writeToEachFile);
+  readConfigCommonAlias(cmdAliasMap, terminalType, writeToEachFile, isWindowsTerminal ? 'cmd' : 'bash');
   return cmdAliasMap;
+}
+
+function readConfigCommonAlias(cmdAliasMap: Map<string, string>, terminalType: TerminalType, writeToEachFile: boolean, subKey: string = '') {
+  const keyName = isNullOrEmpty(subKey) ? 'commonAliasNameBodyList' : `${subKey}.commonAliasNameBodyList`;
+  const commonAliasNameBodyList = vscode.workspace.getConfiguration('msr').get(keyName);
+  if (!commonAliasNameBodyList) {
+    return;
+  }
+  const isWindowsTerminal = isWindowsTerminalOnWindows(terminalType);
+  const aliasNameBodyList = commonAliasNameBodyList as AliasNameBody[];
+  aliasNameBodyList.forEach((item: AliasNameBody) => {
+    const name = item.aliasName;
+    const body = item.aliasBody.trim();
+    // Replace '\\1' to '\\\\1' for Linux:
+    const refinedBody = isWindowsTerminal ? body : body.replace(/(\\{2})(\d)\b/, '$1$1$2');
+    const oldCount = cmdAliasMap.size;
+    cmdAliasMap.set(name, getAliasBody(terminalType, name, refinedBody, writeToEachFile));
+    if (cmdAliasMap.size > oldCount) {
+      outputInfoByDebugModeByTime(`Added custom alias: ${name}=${refinedBody}`)
+    } else {
+      outputWarnByTime(`Overwrote existing alias: ${name}=${refinedBody}`, false);
+    }
+  });
 }
 
 export function getCommandAliasText(

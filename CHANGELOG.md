@@ -2,6 +2,13 @@
 
 All notable changes to this "vscode-msr" extension will be documented in this file.
 
+## [2.1.86]
+
+- Separated common alias: Added `msr.cmd.commonAliasNameBodyList` + `msr.bash.commonAliasNameBodyList`.
+  - Added `to-alias-body` on Windows to convert normal alias body to one-line `aliasBody` transformed for JSON.
+- Auto change Linux alias body to multiple lines if alias matches `msr.multiLineLinuxAliasNamePattern`.
+- Auto run `use-this-alias` + `postInitTerminalCommandLine` for special new `MSR-RUN-CMD` terminal.
+
 ## [2.1.85]
 
 - Updated doc/tip + Fixed 6 alias like `find-small` / `find-nd` / `find-spring-ref`.

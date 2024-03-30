@@ -3,7 +3,7 @@
 	"displayName": "Code mining + Replace file text + Find definition and reference for all types.",
 	"description": "Code mining + Replace file text + Find definition and reference in multiple repository paths by msr for all coding languages + configuration + doc files.",
 	"author": "qualiu@microsoft.com",
-	"version": "2.1.85",
+	"version": "2.1.86",
 	"icon": "images/vscode-msr-icon.png",
 	"license": "completely free",
 	"publisher": "qualiu",
@@ -1074,7 +1074,7 @@
 							},
 							"description": {
 								"type": "string",
-								"description": "Description."
+								"description": "Description of alias on Windows + Linux + MacOS + FreeBSD + Git Bash + Cygwin."
 							}
 						},
 						"required": [
@@ -1095,6 +1095,60 @@
 							"description": "Update git repos in current directory with each current branch. To execute output commands, append -X or -X -V ne0."
 						}
 					]
+				},
+				"msr.cmd.commonAliasNameBodyList": {
+					"description": "List of alias name + body for Windows.",
+					"type": "array",
+					"items": {
+						"type": "object",
+						"properties": {
+							"aliasName": {
+								"type": "string",
+								"description": "Alias name."
+							},
+							"aliasBody": {
+								"type": "string",
+								"description": "Alias body."
+							},
+							"description": {
+								"type": "string",
+								"description": "Description for this alias on Windows."
+							}
+						},
+						"required": [
+							"aliasName",
+							"aliasBody"
+						]
+					},
+					"scope": "resource",
+					"default": []
+				},
+				"msr.bash.commonAliasNameBodyList": {
+					"description": "List of alias name + body for Linux/MacOS/FreeBSD plus WSL/Cygwin/MinGW bash.",
+					"type": "array",
+					"items": {
+						"type": "object",
+						"properties": {
+							"aliasName": {
+								"type": "string",
+								"description": "Alias name."
+							},
+							"aliasBody": {
+								"type": "string",
+								"description": "Alias body."
+							},
+							"description": {
+								"type": "string",
+								"description": "Description for this alias on Linux."
+							}
+						},
+						"required": [
+							"aliasName",
+							"aliasBody"
+						]
+					},
+					"scope": "resource",
+					"default": []
 				},
 				"msr.enable.onlyFindDefinitionForKnownLanguages": {
 					"type": "boolean",
@@ -1420,6 +1474,11 @@
 					"type": "string",
 					"default": "",
 					"description": "Add '@SetLocal EnableExtensions EnableDelayedExpansion' or set to empty when cooking each command alias/doskeys to a batch script file named alias.cmd"
+				},
+				"msr.multiLineLinuxAliasNamePattern": {
+					"type": "string",
+					"default": "^fix-\\w+",
+					"description": "Regex pattern of alias name to auto change matched alias function body to multiple lines."
 				},
 				"msr.searchRelativePathForLinuxTerminalsOnWindows": {
 					"type": "boolean",

@@ -3,7 +3,7 @@
 	"displayName": "Code mining + Replace file text + Find definition and reference for all types.",
 	"description": "Code mining + Replace file text + Find definition and reference in multiple repository paths by msr for all coding languages + configuration + doc files.",
 	"author": "qualiu@microsoft.com",
-	"version": "2.1.86",
+	"version": "2.1.87",
 	"icon": "images/vscode-msr-icon.png",
 	"license": "completely free",
 	"publisher": "qualiu",
@@ -1475,11 +1475,6 @@
 					"default": "",
 					"description": "Add '@SetLocal EnableExtensions EnableDelayedExpansion' or set to empty when cooking each command alias/doskeys to a batch script file named alias.cmd"
 				},
-				"msr.multiLineLinuxAliasNamePattern": {
-					"type": "string",
-					"default": "^fix-\\w+",
-					"description": "Regex pattern of alias name to auto change matched alias function body to multiple lines."
-				},
 				"msr.searchRelativePathForLinuxTerminalsOnWindows": {
 					"type": "boolean",
 					"default": true,
@@ -1994,9 +1989,14 @@
 					"default": "vscode\\S*extension\\S*\\b#_MappedExtName_#|[\\\\/]bin[\\\\/]#_MappedExtName_#"
 				},
 				"msr.cs.autoDisableFindDefinitionPattern": {
-					"description": "Set non-empty Regex to auto disable finding C# definition if found language extension running, like: 'vscode\\S*extension\\S*java' (You can temporarily toggle enable/disable - check MSR-Def-Ref in OUTPUT tab).",
+					"description": "Set non-empty Regex to auto disable finding C# definition if found language extension running, like: 'vscode\\S*extension\\S*\\bcsharp\\b' (You can temporarily toggle enable/disable - check MSR-Def-Ref in OUTPUT tab).",
 					"type": "string",
 					"default": "vscode\\S*extension\\S*\\bcsharp\\b"
+				},
+				"msr.sh.autoDisableFindDefinitionPattern": {
+					"description": "Set special Regex to not-disable (enable) vscode-msr finding definition for Bash scripts.",
+					"type": "string",
+					"default": "^None"
 				},
 				"msr.checkLanguageProcessIntervalMinutes": {
 					"description": "Interval (minutes) to check language process (only check when finding definition).",

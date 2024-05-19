@@ -2,6 +2,10 @@
 
 All notable changes to this "vscode-msr" extension will be documented in this file.
 
+## [2.1.87]
+
+- Improved multi-line `to-alias-body` + supported `to-alias-body` on Linux/MacOS.
+
 ## [2.1.86]
 
 - Separated common alias: Added `msr.cmd.commonAliasNameBodyList` + `msr.bash.commonAliasNameBodyList`.

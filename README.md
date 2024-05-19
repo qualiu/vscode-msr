@@ -327,8 +327,15 @@ Besides [normal shortcuts](#make-command-shortcuts-to-search-or-replace-in-or-ou
     - Immediately effect for all `MSR-RUN-CMD` + new terminals in all opened vscode (Windows + remote SSH/docker).
     - Immediately effect for new system terminals(Bash/CMD/etc.) on Windows + Linux/MacOS/FreeBSD of opened vscode.
     - For old/opened terminals(system or vscode), run `use-this-alias` or `update-alias` to effect immediately.
-- Additional help for readability:
-  - Update `msr.multiLineLinuxAliasNamePattern` if you want to auto change final alias/script body to multi-lines.
+- For Linux/MacOS/FreeBSD:
+  - Write multi-line alias body (a script) in a temp file (or bash script file).
+  - Copy the script content to clipboard.
+  - Type/run **to-alias-body** to transform the script content to one-line JSON (auto copy to clipboard).
+    - Use the Windows host or install "pwsh" (PowerShell Core) on Linux/MacOS/FreeBSD.
+  - Paste the JSON body to `aliasBody` into `settings.json`.
+  - You'll see multi-line alias body in `~/msr-cmd-alias.bashrc`(use it as source instead of writing a temp file next time).
+- Note:
+  - Should not use single quote(`'`) in `aliasBody` for Linux to avoid breaking `alias function`.
 
 #### Difference between Custom Common Alias and Alias Files
 

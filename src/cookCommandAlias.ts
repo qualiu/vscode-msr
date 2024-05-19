@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { IsFileTimeOffsetSupported, IsUniformSlashSupported, RunCommandChecker, ToolChecker, setNotCheckInputPathInCommandLine, setOutputColumnIndexInCommandLine } from './ToolChecker';
 import { ProjectToGitFindFileExtraOptionsMap, getFindTopDistributionCommand, getSortCommandText } from "./commands";
-import { getCommandAliasText, getCommonAliasMap, replaceArgForLinuxCmdAlias, replaceArgForWindowsCmdAlias, replaceForLoopVariableOnWindows } from './commonAlias';
+import { getCommandAliasText, getCommonAliasMap, replaceArgForLinuxCmdAlias, replaceArgForWindowsCmdAlias, replaceForLoopVariableOnWindows, replacePowerShellVarsForLinuxAlias } from './commonAlias';
 import { getConfigValueByPriorityList, getConfigValueByProjectAndExtension, getConfigValueOfActiveProject, getConfigValueOfProject } from "./configUtils";
 import { CheckReCookAliasFileSeconds, DefaultRepoFolderName, GitFileListExpirationTimeEnvName, GitRepoEnvName, GitTmpListFilePrefix, HomeFolder, IsDebugMode, IsWSL, IsWindows, RunCmdTerminalName, TempStorageFolder, TrimProjectNameRegex, WslCheckingCommand, getAliasFileName, getBashFileHeader, getEnvNameRef, getEnvNameRefRegex, getProjectFolderKey, getRepoFolder, getSkipJunkPathArgs, getTipInfoTemplate, isNullOrEmpty } from "./constants";
 import { AdditionalFileExtensionMapNames, DefaultRepoFolder, MappedExtToCodeFilePatternMap, MyConfig } from "./dynamicConfig";
@@ -9,7 +9,7 @@ import { FindCommandType, TerminalType } from "./enums";
 import { createDirectory, getFileModifyTime, readTextFile, saveTextToFile } from './fileUtils';
 import { asyncSetJunkEnvForWindows, getJunkEnvCommandForTipFile, getResetJunkPathEnvCommand, getSearchGitSubModuleEnvName, getSkipJunkPathEnvCommand, getTrimmedGitRepoEnvName } from './junkPathEnvArgs';
 import { outputDebug, outputDebugByTime, outputErrorByTime, outputInfo, outputInfoByDebugModeByTime, outputInfoQuiet, outputInfoQuietByTime, outputWarn, outputWarnByTime } from "./outputUtils";
-import { createRegex, escapeRegExp } from "./regexUtils";
+import { escapeRegExp } from "./regexUtils";
 import { getRunCmdTerminal, runCommandInTerminal, runPostInitCommands, sendCommandToTerminal } from './runCommandUtils';
 import { DefaultTerminalType, getCmdAliasSaveFolder, getInitLinuxScriptDisplayPath, getInitLinuxScriptStoragePath, getTerminalInitialPath, getTerminalNameOrShellExeName, getTerminalShellExePath, getTipFileDisplayPath, getTipFileStoragePath, isBashTerminalType, isLinuxTerminalOnWindows, isPowerShellTerminal, isWindowsTerminalOnWindows, toStoragePath, toTerminalPath } from './terminalUtils';
 import { getSetToolEnvCommand, getToolExportFolder } from "./toolSource";
@@ -896,7 +896,7 @@ export function getCommandAliasMap(
   // find-spring-ref
   let oneLineCode = FindJavaSpringReferenceByPowerShellAlias.split(/[\r\n]+\s*/).join(' ');
   if (!isWindowsTerminal) {
-    oneLineCode = oneLineCode.replace(/(\$[a-z]\w+)/g, '\\$1');
+    oneLineCode = replacePowerShellVarsForLinuxAlias(oneLineCode);
   }
 
   addFindMemberReferenceCommand('find-cpp-member-ref', 'cpp');
@@ -906,7 +906,6 @@ export function getCommandAliasMap(
   commands.push(findMemberRefCmd);
 
   copyAliasForSpecialShortcuts();
-  replaceLinuxAliasBodyToMultipleLines(cmdAliasMap, writeToEachFile, isWindowsTerminal);
   return [cmdAliasMap, aliasCountFromFile, commands];
 
   function addFindMemberReferenceCommand(aliasName: string, mappedExtension: string, oneRealExtension: string = '') {
@@ -1033,23 +1032,8 @@ function addFullPathHideWarningOption(extraOption: string, writeToEachFile: bool
   return extraOption.trim();
 }
 
-function replaceLinuxAliasBodyToMultipleLines(cmdAliasMap: Map<string, string>, writeToEachFile: boolean, isWindowsTerminal: boolean) {
-  const namePattern = getConfigValueOfActiveProject('multiLineLinuxAliasNamePattern');
-  if (!isWindowsTerminal && !isNullOrEmpty(namePattern)) {
-    const nameRegex = createRegex(namePattern);
-    const replaceTo = writeToEachFile ? ';\n$1' : ';\n\t$1';
-    cmdAliasMap.forEach((value, key) => {
-      if (key.match(nameRegex) && (writeToEachFile || value.match(/^alias\s+\S+=\W*function /))) {
-        const newBody = value.replace(/; +([A-Za-z]\w+|\[ )/g, replaceTo);
-        cmdAliasMap.set(key, newBody);
-      }
-    });
-  }
-}
-
 function getExistingCmdAlias(terminalType: TerminalType, forMultipleFiles: boolean): Map<string, string> {
   var cmdAliasMap = getCommonAliasMap(terminalType, forMultipleFiles);
-  replaceLinuxAliasBodyToMultipleLines(cmdAliasMap, forMultipleFiles, isWindowsTerminalOnWindows(terminalType));
   outputInfoByDebugModeByTime(`Built ${cmdAliasMap.size} common alias.`);
   const isWindowsTerminal = isWindowsTerminalOnWindows(terminalType);
   const defaultCmdAliasFile = getGeneralCmdAliasFilePath(terminalType);

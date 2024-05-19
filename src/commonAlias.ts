@@ -6,15 +6,36 @@ import { enableColorAndHideCommandLine, outputInfoByDebugModeByTime, outputWarnB
 import { isWindowsTerminalOnWindows } from "./terminalUtils";
 import { getPowerShellName, replaceSearchTextHolder, replaceTextByRegex } from "./utils";
 
-const ShouldUseFunctionRegex = /\$\d\b|[ "']+?\$[\*@]|"\$\{@\}"/; // Check $1 or $* or $@ or "${@}"
+const ShouldUseFunctionRegex = /\$\d\b|[ "']+?\$[\*@]|"\$\{@(:\d+)?\}"|\n\s+/; // Check $1 or $* or $@ or "${@}" or "${@:2}"
 const HasExistingArgsRegex = /\$\*|\$\d+|\$@\W*$|"\$\{@\}"/;
 const TrimMultilineRegex = /[\r\n]+\s*/mg;
 const TrimPowerShellCmdWhiteRegex = /(PowerShell)( 2>nul)? (-Command ")\s+/g;
 const TrimForLoopWhite = /(%[a-zA-Z]\s+in\s+\(')\s+/g;
 
-function trimAliasBody(value: string): string {
-  return value.replace(TrimMultilineRegex, ' ')
-    .replace(TrimPowerShellCmdWhiteRegex, '$1$2 $3')
+export function replacePowerShellVarsForLinuxAlias(body: string): string {
+  return body.replace(/(?<!\\)(\$[a-z]\w+)/g, '\\$1');
+}
+
+function removeHeadSpaceInEachLine(body: string, head = "\t"): string {
+  const indexNewLine = body.indexOf('\n');
+  if (indexNewLine > 0) {
+    for (let k = indexNewLine + 1; k < body.length; k++) {
+      if (body[k] !== ' ' && body[k] !== '\t') {
+        const space = body.substring(indexNewLine + 1, k);
+        return body.replace(new RegExp('^' + space, 'mg'), head);
+      }
+    }
+  }
+  return body;
+}
+
+function trimAliasBody(body: string, terminalType: TerminalType): string {
+  if (isWindowsTerminalOnWindows(terminalType)) {
+    body = body.replace(TrimMultilineRegex, ' '); // Windows alias(doskey) should be one line.
+  } else {
+    body = removeHeadSpaceInEachLine(body);
+  }
+  return body.replace(TrimPowerShellCmdWhiteRegex, '$1$2 $3')
     .replace(TrimForLoopWhite, '$1');
 }
 
@@ -33,11 +54,11 @@ export function replaceArgForLinuxCmdAlias(body: string, forMultipleFiles: boole
   return aliasBody.trim();
 }
 
-export function replaceArgForWindowsCmdAlias(body: string, forScriptFile: boolean): string {
+export function replaceArgForWindowsCmdAlias(body: string, writeToEachFile: boolean): string {
   body = replaceTextByRegex(body, /([\"'])\$1/g, '$1%~1');
   body = replaceTextByRegex(body, /\$(\d+)/g, '%$1');
   body = replaceTextByRegex(body, /\$\*/g, '%*').trim();
-  if (forScriptFile) {
+  if (writeToEachFile) {
     body = replaceForLoopVariableOnWindows(body);
   }
   return body;
@@ -95,13 +116,53 @@ const CommonAliasMap: Map<string, string> = new Map<string, string>()
             | msr -t \"^\\W+\\s+(.+)\\s*$\" -o \"git clean -dfx \\1\" -XM" -XM`)
   .set('sfs', String.raw`msr -l --sz --wt -p $*`)
   .set('sft', String.raw`msr -l --wt --sz -p $*`)
+  .set('to-alias-body', String.raw`pwsh -Command "
+          $newBody = Get-Clipboard;
+          if ([string]::IsNullOrWhiteSpace($newBody)) {
+            Write-Host 'Please copy alias body to clipboard first.' -ForegroundColor Red;
+            return;
+          }
+          $newBody = [string]::Join([System.Environment]::NewLine.SubString([System.Environment]::NewLine.Length -1), $newBody).Trim();
+          $jsonBody = $newBody | ConvertTo-Json;
+          Set-Clipboard $jsonBody;
+          $jsonBody;
+          Write-Host 'Copied one-line body above to clipboard, you can paste it to aliasBody in msr.xxx.commonAliasNameBodyList in settings.json' -ForegroundColor Green"`)
   ;
 
+['to-alias-body'].forEach(name => {
+  let body = (CommonAliasMap.get(name) || '')
+    .replace(/'/g, '"')
+    .replace(TrimMultilineRegex, ' ');
+  body = replacePowerShellVarsForLinuxAlias(body);
+  LinuxAliasMap.set(name, body);
+});
+
 ['git-sm-check', 'git-sm-delete'].forEach(name => {
-  const value = (CommonAliasMap.get(name) || '')
-    .replace(String.raw`if exist \1\* pushd `, String.raw`[ -d \1 ] && cd `)
-    .replace(String.raw` msr -x / -o \ -aPAC |`, "");
-  LinuxAliasMap.set(name, value);
+  const body = (LinuxAliasMap.get(name) || CommonAliasMap.get(name));
+  if (body) {
+    const newBody = body.replace(String.raw`if exist \1\* pushd `, String.raw`[ -d \1 ] && cd `)
+      .replace(String.raw` msr -x / -o \ -aPAC |`, "");
+    LinuxAliasMap.set(name, newBody);
+  }
+});
+
+// Remove new lines at head with " |" or " &&" in alias body for Linux terminal.
+const JoinLineHeadRegex: RegExp = /([\r\n]+)\s*([\|&]+)/mg;
+CommonAliasMap.forEach((body, name, _) => {
+  body = LinuxAliasMap.get(name) || body;
+  const newBody = body.replace(JoinLineHeadRegex, ' $2');
+  if (newBody !== body) {
+    LinuxAliasMap.set(name, newBody);
+  }
+});
+
+LinuxAliasMap.forEach((body, name, _) => {
+  if (!CommonAliasMap.has(name)) {
+    const newBody = body.replace(JoinLineHeadRegex, ' $2');
+    if (newBody !== body) {
+      LinuxAliasMap.set(name, newBody);
+    }
+  }
 });
 
 function getPathEnv(targets: string[] = ['User']): string {
@@ -143,7 +204,7 @@ function getReloadWindowsEnvCmd(skipPaths: string = '', addTmpPaths: string = ''
   [String]::Join(';', $valueSet)"') do @SET "PATH=%a"`;
 }
 
-function getReloadEnvCmd(forScriptFile: boolean, name: string = 'reload-env'): string {
+function getReloadEnvCmd(writeToEachFile: boolean, terminalType: TerminalType, name: string = 'reload-env'): string {
   const escapeCmdEqual = '^=';
   const cmdAlias = String.raw`for /f "tokens=*" %a in ('PowerShell -Command "
     $processEnvs = [System.Environment]::GetEnvironmentVariables([System.EnvironmentVariableTarget]::Process);
@@ -166,11 +227,11 @@ function getReloadEnvCmd(forScriptFile: boolean, name: string = 'reload-env'): s
     foreach ($name in $nameValueMap.Keys) {
       'SET \"' + $name + '${escapeCmdEqual}' + $nameValueMap[$name] + '\"'
     }"') do @%a`;
-  const body = trimAliasBody(cmdAlias);
-  return forScriptFile ? replaceArgForWindowsCmdAlias(body, forScriptFile) : name + '=' + body;
+  const body = trimAliasBody(cmdAlias, terminalType);
+  return writeToEachFile ? replaceArgForWindowsCmdAlias(body, writeToEachFile) : name + '=' + body;
 }
 
-function getResetEnvCmd(forScriptFile: boolean, name: string = 'reset-env'): string {
+function getResetEnvCmd(writeToEachFile: boolean, terminalType: TerminalType, name: string = 'reset-env'): string {
   const escapeCmdEqual = '^=';
   const knownEnvNames = "'" + ['ALLUSERSPROFILE', 'APPDATA', 'ChocolateyInstall', 'CommonProgramFiles', 'CommonProgramFiles(x86)', 'CommonProgramW6432',
     'COMPUTERNAME', 'ComSpec', 'DriverData', 'HOMEDRIVE', 'HOMEPATH', 'LOCALAPPDATA', 'LOGONSERVER', 'NugetMachineInstallRoot', 'NUMBER_OF_PROCESSORS',
@@ -211,8 +272,8 @@ function getResetEnvCmd(forScriptFile: boolean, name: string = 'reset-env'): str
       'SET \"' + $name + '${escapeCmdEqual}' + $nameValueMap[$name] + '\"'
     }
     "') do @%a`;
-  const body = trimAliasBody(cmdAlias);
-  return forScriptFile ? replaceArgForWindowsCmdAlias(body, forScriptFile) : name + '=' + body;
+  const body = trimAliasBody(cmdAlias, terminalType);
+  return writeToEachFile ? replaceArgForWindowsCmdAlias(body, writeToEachFile) : name + '=' + body;
 }
 
 function getAddPathValueCmd(envTarget: string): string {
@@ -229,7 +290,7 @@ function getAddPathValueCmd(envTarget: string): string {
     $newValue = [string]::Join(';', $valueSet);
     [System.Environment]::SetEnvironmentVariable('PATH', $newValue, [System.EnvironmentVariableTarget]::${envTarget});
     " && ${getReloadWindowsEnvCmd('', addPaths)}`;
-  return trimAliasBody(cmdAlias);
+  return trimAliasBody(cmdAlias, TerminalType.CMD);
 }
 
 function getRemovePathValueCmd(envTarget: string): string {
@@ -251,11 +312,11 @@ function getRemovePathValueCmd(envTarget: string): string {
     $newValue = [string]::Join(';', $valueSet);
     [System.Environment]::SetEnvironmentVariable('PATH', $newValue, [System.EnvironmentVariableTarget]::${envTarget});
     " && ${getReloadWindowsEnvCmd('$*')}`;
-  return trimAliasBody(cmdAlias);
+  return trimAliasBody(cmdAlias, TerminalType.CMD);
 }
 
 function getAliasBody(terminalType: TerminalType, name: string, body: string, writeToEachFile: boolean): string {
-  body = trimAliasBody(body);
+  body = trimAliasBody(body, terminalType);
   if (!isWindowsTerminalOnWindows(terminalType)) {
     body = body.replace(/ & /g, '; ');
     // case like 'gca -m "New message"' will get error on Linux terminal (including WSL/MinGW/Cygwin), need quote "${@}":
@@ -263,6 +324,10 @@ function getAliasBody(terminalType: TerminalType, name: string, body: string, wr
       .replace(/([^"])(\$\{@\})/g, '$1"$2"') // quote "${@}" if not quoted.
       .replace(/"([^"]*?)"(\$\{@\})"([^"]*?)"/g, '"$1$*$3"') // replace "${@}" to ${@} if in a double quote, case like gph.
       ;
+    if (body.startsWith('pwsh') || body.startsWith('PowerShell')) {
+      body = replacePowerShellVarsForLinuxAlias(body);
+      body = body.replace(TrimMultilineRegex, ' ');
+    }
   }
 
   const useFunction = ShouldUseFunctionRegex.test(body);
@@ -390,18 +455,6 @@ const WindowsAliasMap: Map<string, string> = new Map<string, string>()
             Add-MpPreference -ExclusionPath $exe;
           }"`)
   .set('restart-net', String.raw`echo PowerShell -Command "Get-NetAdapter | Restart-NetAdapter -Confirm:$false" | msr -XM`)
-  .set('to-alias-body', String.raw`PowerShell -Command "
-          $newBody = Get-Clipboard;
-          if ([string]::IsNullOrWhiteSpace($newBody)) {
-            Write-Host 'Please copy alias body to clipboard first.' -ForegroundColor Red;
-            return;
-          }
-          $newBody = $newBody.Trim().Replace('\', '\\').Replace('\"', '\\\"');
-          $newBody = $newBody | msr -S -t '[\r\n]+\s*' -o ' ' -PAC -c Use msr to avoid PowerShell Regex bug;
-          $newBody = $newBody.Trim();
-          Set-Clipboard $newBody; $newBody;
-          Write-Host $('Copied one-line body above to clipboard (length = ' + $newBody.Length + '),
-          you can paste it to aliasBody in msr.xxx.commonAliasNameBodyList in settings.json') -ForegroundColor Green"`)
   ;
 
 export function getCommonAliasMap(terminalType: TerminalType, writeToEachFile: boolean): Map<string, string> {
@@ -410,8 +463,8 @@ export function getCommonAliasMap(terminalType: TerminalType, writeToEachFile: b
   if (isWindowsTerminal) {
     CommonAliasMap.forEach((value, key) => cmdAliasMap.set(key, getAliasBody(terminalType, key, value, writeToEachFile)));
     WindowsAliasMap.forEach((value, key) => cmdAliasMap.set(key, getAliasBody(terminalType, key, value, writeToEachFile)));
-    cmdAliasMap.set('reload-env', getReloadEnvCmd(writeToEachFile))
-      .set('reset-env', getResetEnvCmd(writeToEachFile));
+    cmdAliasMap.set('reload-env', getReloadEnvCmd(writeToEachFile, terminalType))
+      .set('reset-env', getResetEnvCmd(writeToEachFile, terminalType));
   } else {
     CommonAliasMap.forEach((value, key) => cmdAliasMap.set(key, getAliasBody(terminalType, key, value, writeToEachFile)));
     LinuxAliasMap.forEach((value, key) => cmdAliasMap.set(key, getAliasBody(terminalType, key, value, writeToEachFile)));

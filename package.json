@@ -3,7 +3,7 @@
 	"displayName": "Code mining + Replace file text + Find definition and reference for all types.",
 	"description": "Code mining + Replace file text + Find definition and reference in multiple repository paths by msr for all coding languages + configuration + doc files.",
 	"author": "qualiu@microsoft.com",
-	"version": "2.1.87",
+	"version": "2.1.88",
 	"icon": "images/vscode-msr-icon.png",
 	"license": "completely free",
 	"publisher": "qualiu",
@@ -1057,6 +1057,16 @@
 					"type": "boolean",
 					"default": true,
 					"description": "Enable finding commands."
+				},
+				"msr.replaceMultiLineAliasBodyTabTo": {
+					"type": "string",
+					"default": "4 spaces",
+					"description": "Replace a tab to spaces in multi-line alias body on Linux/MacOS. Value like: [4 spaces | 2 spaces | 1 tab]."
+				},
+				"msr.replaceHeadSpacesToTabForToAliasBody": {
+					"type": "string",
+					"default": true,
+					"description": "Replace head spaces to tab when calling to-alias-body (to reduce storage + help restore tab)."
 				},
 				"msr.commonAliasNameBodyList": {
 					"description": "List of alias name + body. Be care of command line executable on Windows(CMD/MinGW/Cygwin) + Linux + MacOS.",

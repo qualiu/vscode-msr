@@ -28,13 +28,13 @@ Then it's the **light** + **right** tool for you(**2~3 MB** storage + **1~5 MB**
 
 **Note**: ([**Temp-toggle**](#get-the-best-combined-power) or [**change settings**](#disable-finding-definition-and-references-for-specific-file-types) for languages disabled by default settings.)
 
-### **You Can Start Using this without Doing Anything**
+## You Can Start Using this without Doing Anything
 
 You can start [**search**](#search-files-with-rich-filters) + [**replace**](#replace-file-text-with-preview-and-backup) + [**code mining**](#code-mining-without-or-with-little-knowledge) via [**mouse**/**menus**](#hide-or-show-more-context-menus) + [**keys**](#get-the-best-combined-power) + [**terminals**](#make-command-shortcuts-to-search-or-replace-in-or-out-of-vscode) **without** reading/doing anything **except**:
 
 - [Cook doskey/alias](#make-command-shortcuts-to-search-or-replace-in-or-out-of-vscode) if you want to search/replace **out of vscode** (in `CMD`/`Bash` + other IDEs).
   - See [**Best Practice** to search/update repo](#best-practice-to-update-git-repo-and-search-code) + [Get **Combined Power**](#get-the-best-combined-power).
-  - Create [**custom common alias**](#custom-common-alias-to-auto-sync-across-windows-and-remote-ssh-hosts-plus-docker-containers-in-hosts)(see [difference](#difference-between-custom-common-alias-and-alias-files)) **once-for-all** to auto sync across all vscode + platforms.
+  - Create [**custom common alias**](#custom-alias-to-auto-sync-across-local-and-remote-ssh-hosts-plus-docker-containers)(see [difference](./Create-Custom-Common-Alias-Once-and-for-All.md#difference-between-custom-alias-and-normal-alias)) **once-for-all** to auto sync across all vscode + platforms.
 - [**Set exclusions**](#avoid-security-software-downgrade-search-performance-on-windows) on Windows if you cannot get search results **in 1~2 seconds** for just **10000 code files**.
 - [**Adjust output colors**](#adjust-your-color-theme-if-result-file-path-folder-color-is-not-clear) of both **file paths** and **matched text** with 2 methods.
 
@@ -83,7 +83,7 @@ You can start [**search**](#search-files-with-rich-filters) + [**replace**](#rep
 
 ![find-def-ref.gif](images/find-def-ref.gif)
 
-### The [cooked/dumped alias/doskey](#make-command-shortcuts-to-search-or-replace-in-or-out-of-vscode) can be used in **many IDEs**, not just **VSCode**.
+### The [cooked/dumped alias/doskey](#make-command-shortcuts-to-search-or-replace-in-or-out-of-vscode) can be used in **many IDEs**, not just **VSCode*
 
 [Cook + **Dump** script files](#make-command-shortcuts-to-search-or-replace-in-or-out-of-vscode) for **other IDEs** or **system terminals** out of vscode.
 
@@ -125,9 +125,11 @@ If the `color` of output result file paths is not clear to read when using defau
 
 To adjust the colors, for example, if it's default `dark-blue` color theme:
 
-- Open your [personal settings file](https://code.visualstudio.com/docs/getstarted/settings#_settings-file-locations) with `code` or other tools like:
-  - Windows: code `%APPDATA%\Code\User\settings.json`
-  - Linux: code `$HOME/.config/Code/User/settings.json`
+- Open your vscode [user settings file](https://code.visualstudio.com/docs/getstarted/settings#_settings-file-locations) with `code` or other tools like:
+  - Windows:
+    - code `%APPDATA%\Code\User\settings.json`
+  - Linux:
+    - code `$HOME/.config/Code/User/settings.json`
 - Add or change **terminal.ansiBrightBlue** like below: (Add outer brackets `"{ }"` if the file is empty)
 
 ```json
@@ -197,7 +199,7 @@ This will dump each alias/doskey to a script file:
 
 Auto [**set project specific alias**](#auto-set-command-shortcuts-for-new-terminals) for new terminals in vscode, according to repo [`.gitignore`](#use-git-ignore) plus `.vscode/settings.json`.
 
-#### If You Want to Remove Command Shortcuts from System when Uninstalling vscode-msr
+### If You Want to Remove Command Shortcuts from System when Uninstalling vscode-msr
 
 - Windows command to remove registration of [doskey file](#make-command-shortcuts-to-search-or-replace-in-or-out-of-vscode) (`msr-cmd-alias.doskeys`):
   - `REG DELETE "HKEY_CURRENT_USER\Software\Microsoft\Command Processor" /v Autorun /f`
@@ -206,7 +208,7 @@ Auto [**set project specific alias**](#auto-set-command-shortcuts-for-new-termin
 
 ### Best Practice to Update Git Repo and Search Code
 
-- Create [**custom common alias**](#custom-common-alias-to-auto-sync-across-windows-and-remote-ssh-hosts-plus-docker-containers-in-hosts) **once-for-all** to help automate daily work across Windows + Remote SSH hosts + containers.
+- Create [**custom common alias**](#custom-alias-to-auto-sync-across-local-and-remote-ssh-hosts-plus-docker-containers) **once-for-all** to help automate daily work across Windows + Remote SSH hosts + containers.
 - Please use `gpc` or `gpc-sm`/`gpc-sm-reset` / `git-sm-xxx` to pull/update your git repository.
 - Set `msr.refreshTmpGitFileListDuration` to large value(like `12hours` / `3days`) if you always update code as above.
   - Run `gpc` or [**del-this-tmp-list**](#try-rgfind-xxx-to-search-multiple-git-repositories) whenever you need to update git-paths (used by [**gfind-xxx**](#try-to-use-gfind-xxx-instead-of-find-xxx-aliasdoskey)) from menu or command you type.
@@ -303,54 +305,11 @@ Many other [**common shortcuts**](/src/commonAlias.ts) like (run `alias` to see 
 - If using alias(like `find-spring-ref`) in a **nested command** (like `for/while-loop` or `command|pipe`), or **script files** (like `*.bat/cmd` or `*.sh`)
   - Use **full-name** (like `find-spring-ref.cmd`) or **full path** (like `~/cmdAlias/find-spring-ref`).
 
-#### Custom Common Alias to Auto Sync Across Windows and Remote SSH Hosts plus Docker Containers in Hosts
+### Custom Alias to Auto Sync Across Local and Remote SSH Hosts plus Docker Containers
 
-Besides [normal shortcuts](#make-command-shortcuts-to-search-or-replace-in-or-out-of-vscode) above, you can create **custom common alias** ([difference](#difference-between-custom-common-alias-and-alias-files)) to auto sync across all vscode on all platforms.
+Besides [normal alias](#make-command-shortcuts-to-search-or-replace-in-or-out-of-vscode) above, you can create **custom alias** ([example](./Create-Custom-Common-Alias-Once-and-for-All.md#example-of-custom-common-alias-and-transformation) + [difference](./Create-Custom-Common-Alias-Once-and-for-All.md#difference-between-custom-alias-and-normal-alias)) to auto sync across all vscode on all platforms.
 
-- Open [user settings](#extension-settings-if-you-want-to-change) -> type `xxx.commonAliasNameBodyList` -> Click `"Edit in settings.json"`.
-  - First time:
-    - Open [user settings](#extension-settings-if-you-want-to-change) (hotkey = `F1` or `"Ctrl + Shift + P"`) and then:
-    - Type `msr.commonAliasNameBodyList` for common alias on Windows + Linux/MacOS/FreeBSD -> Click `"Edit in settings.json"`.
-      - This will open `settings.json` with 2 examples(`gsf` + `update-repos`) of `aliasName` + `aliasBody`.
-    - Type `msr.cmd.commonAliasNameBodyList` for common alias on Windows only -> Click `"Edit in settings.json"`.
-    - Type `msr.bash.commonAliasNameBodyList` for common alias on Linux/MacOS/FreeBSD only -> Click `"Edit in settings.json"`.
-  - After first time:
-    - Directly open `settings.json` to add/update `aliasName` + `aliasBody` for common alias.
-- Add/create common alias you want:
-  - Only `aliasName` + `aliasBody` are required, `description` is optional (especially for long name alias).
-  - Recommend using **long** `aliasName` on Linux/MacOS/FreeBSD since it's easy to auto complete by `Tab` key.
-  - Use alias tool **to-alias-body** (on Windows) to help transform normal alias to **one-line** `aliasBody` **JSON** for `settings.json`.
-    - Write normal alias (maybe multi-line) in a file and copy the body content to clipboard.
-    - Type/run `to-alias-body` to transform the body content to one-line JSON and auto copy to clipboard.
-    - Paste the JSON body to `aliasBody` in `settings.json`.
-  - vscode-msr will auto transform(create) normal alias/doskey based on `aliasName` + `aliasBody`.
-    - Immediately effect for all `MSR-RUN-CMD` + new terminals in all opened vscode (Windows + remote SSH/docker).
-    - Immediately effect for new system terminals(Bash/CMD/etc.) on Windows + Linux/MacOS/FreeBSD of opened vscode.
-    - For old/opened terminals(system or vscode), run `use-this-alias` or `update-alias` to effect immediately.
-- For Linux/MacOS/FreeBSD:
-  - Write multi-line alias body (a script) in a temp file (or bash script file).
-  - Copy the script content to clipboard.
-  - Type/run **to-alias-body** to transform the script content to one-line JSON (auto copy to clipboard).
-    - Use the Windows host or install "pwsh" (PowerShell Core) on Linux/MacOS/FreeBSD.
-  - Paste the JSON body to `aliasBody` into `settings.json`.
-  - You'll see multi-line alias body in `~/msr-cmd-alias.bashrc`(use it as source instead of writing a temp file next time).
-- Note:
-  - Should not use single quote(`'`) in `aliasBody` for Linux to avoid breaking `alias function`.
-
-#### Difference between Custom Common Alias and Alias Files
-
-- Synchronization:
-  - Normal alias are **only** for **current** vscode on Windows or Linux/MacOS/FreeBSD.
-  - Custom common alias are **auto synced** across all vscode on Windows + Linux/MacOS/FreeBSD.
-    - Creating `aliasName` + `aliasBody` is an **once-for-all** effort for current + **future** vscode/system-console.
-- Storage location:
-  - Custom common alias stored in `settings.json`.
-  - Normal alias stored in [alias files](#make-command-shortcuts-to-search-or-replace-in-or-out-of-vscode):
-    - Windows: `%USERPROFILE%\msr-cmd-alias.doskeys`.
-    - Linux/MacOS/FreeBSD: `~/msr-cmd-alias.bashrc` plus `~/.bashrc`.
-- Readability:
-  - Normal alias are readable and easy to edit.
-  - Custom common alias `aliasBody` which is **one-line** JSON need escape some chars (use **to-alias-body** to help transform).
+- Details see [Create Custom Common Alias **Once and for All**](Create-Custom-Common-Alias-Once-and-for-All.md) in user [settings.json](#adjust-colors-method-1) for current + future vscode.
 
 ### Try rgfind-xxx to Search Multiple Git Repositories
 

@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { IsFileTimeOffsetSupported, IsUniformSlashSupported, RunCommandChecker, ToolChecker, setNotCheckInputPathInCommandLine, setOutputColumnIndexInCommandLine } from './ToolChecker';
 import { ProjectToGitFindFileExtraOptionsMap, getFindTopDistributionCommand, getSortCommandText } from "./commands";
-import { getCommandAliasText, getCommonAliasMap, replaceArgForLinuxCmdAlias, replaceArgForWindowsCmdAlias, replaceForLoopVariableOnWindows, replacePowerShellVarsForLinuxAlias } from './commonAlias';
+import { getCommandAliasText, getCommonAliasMap, replaceArgForLinuxCmdAlias, replaceArgForWindowsCmdAlias, replaceForLoopVariableForWindowsScript, replacePowerShellVarsForLinuxAlias } from './commonAlias';
 import { getConfigValueByPriorityList, getConfigValueByProjectAndExtension, getConfigValueOfActiveProject, getConfigValueOfProject } from "./configUtils";
 import { CheckReCookAliasFileSeconds, DefaultRepoFolderName, GitFileListExpirationTimeEnvName, GitRepoEnvName, GitTmpListFilePrefix, HomeFolder, IsDebugMode, IsWSL, IsWindows, RunCmdTerminalName, TempStorageFolder, TrimProjectNameRegex, WslCheckingCommand, getAliasFileName, getBashFileHeader, getEnvNameRef, getEnvNameRefRegex, getProjectFolderKey, getRepoFolder, getSkipJunkPathArgs, getTipInfoTemplate, isNullOrEmpty } from "./constants";
 import { AdditionalFileExtensionMapNames, DefaultRepoFolder, MappedExtToCodeFilePatternMap, MyConfig } from "./dynamicConfig";
@@ -163,7 +163,7 @@ function duplicateSearchFileCmdAlias(repoFolder: string, terminalType: TerminalT
           ? `for /f "tokens=*" %a in ('dir /A:D /B .') do @pushd "%CD%\\%a" && ${gitFindName} ${allArgs} -O & popd`
           : `for folder in $(ls -d $PWD/*/); do pushd "$folder" >/dev/null && ${saveAliasFolder}/${gitFindName} ${allArgs} -O; popd > /dev/null; done`;
         if (needReplaceArgForLoop) {
-          recursiveGitFindBody = replaceForLoopVariableOnWindows(recursiveGitFindBody);
+          recursiveGitFindBody = replaceForLoopVariableForWindowsScript(recursiveGitFindBody);
         }
         recursiveGitFindBody = getCommandAliasText(recursiveGitFindName, recursiveGitFindBody, true, terminalType, writeToEachFile, false, false);
         cmdAliasMap.set(recursiveGitFindName, recursiveGitFindBody);
@@ -630,7 +630,9 @@ export function cookCmdShortcutsOrFile(cookArgs: CookAliasArgs) {
 
     if (isWindowsTerminal) {
       const head = (MyConfig.AddEchoOffWhenCookingWindowsCommandAlias + os.EOL + MyConfig.SetVariablesToLocalScopeWhenCookingWindowsCommandAlias).trim();
-      scriptContent = (head.length > 0 ? head + os.EOL : head) + scriptContent;
+      if (!/^\s*@?echo\s+(off|on)/i.test(scriptContent)) {
+        scriptContent = (head.length > 0 ? head + os.EOL : head) + scriptContent;
+      }
     } else {
       scriptContent = '#!/bin/bash' + '\n' + scriptContent;
     }
@@ -1032,8 +1034,8 @@ function addFullPathHideWarningOption(extraOption: string, writeToEachFile: bool
   return extraOption.trim();
 }
 
-function getExistingCmdAlias(terminalType: TerminalType, forMultipleFiles: boolean): Map<string, string> {
-  var cmdAliasMap = getCommonAliasMap(terminalType, forMultipleFiles);
+function getExistingCmdAlias(terminalType: TerminalType, writeToEachFile: boolean): Map<string, string> {
+  var cmdAliasMap = getCommonAliasMap(terminalType, writeToEachFile);
   outputInfoByDebugModeByTime(`Built ${cmdAliasMap.size} common alias.`);
   const isWindowsTerminal = isWindowsTerminalOnWindows(terminalType);
   const defaultCmdAliasFile = getGeneralCmdAliasFilePath(terminalType);
@@ -1043,14 +1045,14 @@ function getExistingCmdAlias(terminalType: TerminalType, forMultipleFiles: boole
     outputWarnByTime(`Not found or read empty file: ${defaultCmdAliasFileForTerminal}`);
     return cmdAliasMap;
   }
-  const [inconsistentCount, newCount] = getCmdAliasMapFromText(cmdAliasText, cmdAliasMap, forMultipleFiles, isWindowsTerminal);
+  const [inconsistentCount, newCount] = getCmdAliasMapFromText(cmdAliasText, cmdAliasMap, writeToEachFile, isWindowsTerminal);
   if (inconsistentCount > 0) {
     outputInfoQuietByTime(`Found ${inconsistentCount} inconsistent common alias, you can enable 'msr.overwriteInconsistentCommonAliasByExtension'`
       + `, or delete them in file: ${defaultCmdAliasFileForTerminal}`);
   }
 
   // Skip checking and overwrite alias file if for multiple files - the alias body is different with default alias content.
-  if (forMultipleFiles) {
+  if (writeToEachFile) {
     if (!isWindowsTerminal) {
       checkAddLinuxBashAliasFile(cmdAliasMap, path.dirname(defaultCmdAliasFile));
     }
@@ -1092,9 +1094,9 @@ function checkAddLinuxBashAliasFile(cmdAliasMap: Map<string, string>, folder: st
   }
 }
 
-function getCmdAliasMapFromText(cmdAliasText: string, map: Map<string, string>, forMultipleFiles: boolean, isWindowsTerminal: boolean, isBashConfigFile: boolean = false): [number, number] {
+function getCmdAliasMapFromText(cmdAliasText: string, map: Map<string, string>, writeToEachFile: boolean, isWindowsTerminal: boolean, isBashConfigFile: boolean = false): [number, number] {
   const lines = isWindowsTerminal ? cmdAliasText.split(/[\r\n]+/) : cmdAliasText.split(/(^|[\r\n]+)alias\s+/);
-  const getNameBodyRegex = isWindowsTerminal || !forMultipleFiles
+  const getNameBodyRegex = isWindowsTerminal || !writeToEachFile
     ? /^(\w+[\w\.-]+)=(.+)/s
     : /^(\w+[\w\.-]+)=['"](.+)['"]\s*$/s;
   let remainCommonKeys = new Set<string>(map.keys());
@@ -1105,7 +1107,7 @@ function getCmdAliasMapFromText(cmdAliasText: string, map: Map<string, string>, 
     }
     // Workaround to filter out 'export/source xxx' for script files:
     let rawBodyText = isWindowsTerminal ? a.trim() : a.replace(/[\r\n]+(#|[a-z]+\w+).*/s, '').trim();
-    if (forMultipleFiles && isBashConfigFile) {
+    if (writeToEachFile && isBashConfigFile) {
       // Extract body if it's a function alias:
       rawBodyText = rawBodyText.replace(/^([\w-]+)=(.)function\s+\w+[^\r\n]*\{\s*(.+?)\s*[\r\n]+\s*\}\s*;\s*\w+[^\r\n]*\s*$/s, "$1=$2$3$2");
     }
@@ -1115,15 +1117,15 @@ function getCmdAliasMapFromText(cmdAliasText: string, map: Map<string, string>, 
     }
 
     const name = match[1];
-    let body = forMultipleFiles
+    let body = writeToEachFile
       ? (isWindowsTerminal
-        ? replaceArgForWindowsCmdAlias(match[2].trim(), forMultipleFiles)
-        : replaceArgForLinuxCmdAlias(match[2].trim(), forMultipleFiles)
+        ? replaceArgForWindowsCmdAlias(match[2].trim(), writeToEachFile)
+        : replaceArgForLinuxCmdAlias(match[2].trim(), writeToEachFile)
       )
       : (isWindowsTerminal ? '' : 'alias ') + match[0].trim();
 
     // Trim multi-line head whitespace for script files:
-    if (!isWindowsTerminal && forMultipleFiles) {
+    if (!isWindowsTerminal && writeToEachFile) {
       const headWhitespaceMatch = body.match(/[\r\n]+([ \t]+)/);
       if (headWhitespaceMatch && !isNullOrEmpty(headWhitespaceMatch[1])) {
         body = body.replace(new RegExp(`([\r\n]+)${headWhitespaceMatch[1]}`, 'g'), '$1');

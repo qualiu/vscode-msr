@@ -162,11 +162,13 @@ class DynamicConfig {
     public CheckLanguageProcessIntervalMinutes = 15;
     public OverwriteInconsistentCommonAliasByExtension = true;
     public AutoRestoreEnvAliasTerminalNameRegex: RegExp = new RegExp('to-load');
+    public ReplaceTabTo = ' '.repeat(4);
 
     private UseGitFileListToSearchSingleWorkspace: string = 'auto';
     private TmpToggleEnabledExtensionToValueMap = new Map<string, boolean>();
     private ProjectToGitIgnoreStatusMap = new Map<String, boolean>();
     private ChangePowerShellTerminalToCmdOrBashConfig: string = "auto";
+
 
     public getCmdAliasScriptFolder(): string {
         const folder = this.RepoConfig.get('cmdAlias.saveFolder') as string;
@@ -261,6 +263,8 @@ class DynamicConfig {
         this.CodeAndConfigDocsDefaultRegex = new RegExp(getConfigValueOfProject('', 'codeAndConfigDocs') || '\\.(cs\\w*|nuspec|config|c[px]*|h[px]*|java|scala|py|go|php|vue|tsx?|jsx?|json|ya?ml|xml|ini|md)$|readme', 'i');
         this.UseGitFileListToSearchSingleWorkspace = (getConfigValueOfProject(repoFolderName, 'useGitFileListToSearchSingleWorkspace') || '').toLowerCase();
         this.AutoRestoreEnvAliasTerminalNameRegex = createRegex(getConfigValueOfProject(repoFolderName, 'autoRestoreEnvAliasTerminalNameRegex'), 'i');
+        const replaceTabToText = vscode.workspace.getConfiguration('msr').get('replaceMultiLineAliasBodyTabTo') as string || '4 spaces';
+        this.ReplaceTabTo = /(\d+)\s*space/i.test(replaceTabToText) ? ' '.repeat(parseInt(replaceTabToText.replace(/\D+/g, ''))) : '\t';
 
         this.AllFileExtensionMappingRegexList = [];
         const fileExtensionMapInConfig = this.RepoConfig.get('fileExtensionMap') as {};

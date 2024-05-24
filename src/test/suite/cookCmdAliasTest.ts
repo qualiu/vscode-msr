@@ -1,15 +1,14 @@
 import * as assert from 'assert';
-import { replaceForLoopVariableOnWindows } from '../../commonAlias';
+import { replaceForLoopVariableForWindowsScript } from '../../commonAlias';
 import { getCommandAliasMap } from '../../cookCommandAlias';
 import { TerminalType } from '../../enums';
-import { IsWindows } from '../../constants';
 
 // Tail args: $* or $@ or ${@} or "${@}"
 const TailArgsRegex: RegExp = /\$([\*@]|\{@\})\W*$/; // Linux + Windows-doskey-file
 const LinuxFunctionTailArgsRegex: RegExp = /\$([\*@]|\{@\})\W*[\r\n]+/; // Linux-bash-file
 const WindowsBatchScriptArg1Regex: RegExp = /%~?1\b/; // Windows-batch-file (.cmd or .bat)
 const WindowsBatchScriptTailArgsRegex: RegExp = /%\*\W*$/; // Windows-batch-file (.cmd or .bat)
-const IsForLoopExists: RegExp = /\bfor\s+\/f\b(\s+".+?")?\s+%+[a-z]\s+in\s+\(/i;
+const IsForLoopExists: RegExp = /\bfor\s+\/[fl]\b(\s+".+?")?\s+%+[a-z]\s+in\s+\(/i;
 const WindowsForLoopScriptArgRegex: RegExp = /%%[a-zA-Z]\b/; // Windows-batch-file (.cmd or .bat)
 const WindowsAliasForLoopScriptArgRegex: RegExp = /[^\w%]%[a-zA-Z]\b/; // Windows-doskey-file
 
@@ -167,6 +166,10 @@ export function testLinuxGeneralCmdAliasScript() {
 export function testForLoopCmdAlias() {
   const doskeyBodyToExpectedMap = new Map<string, string>()
     .set(
+      `for /L %k in (1,1,3) do echo %k`,
+      `for /L %%k in (1,1,3) do echo %%k`
+    )
+    .set(
       `for /f %a in ('xxx') do echo %a %A %B %b`,
       `for /f %%a in ('xxx') do echo %%a %A %B %b`
     )
@@ -198,10 +201,14 @@ export function testForLoopCmdAlias() {
       `for /f %a in ('dir /b *.txt') do ( for /f %b in ('dir /a:d /b %~dpa') do echo %~dpa%~nxb )`,
       `for /f %%a in ('dir /b *.txt') do ( for /f %%b in ('dir /a:d /b %%~dpa') do echo %%~dpa%%~nxb )`
     )
+    .set(
+      `for /L %k in (1,1,3) do ( echo %k && for /f %a in ('dir /b *.txt') do ( do echo %k: %~dpa ) )`,
+      `for /L %%k in (1,1,3) do ( echo %%k && for /f %%a in ('dir /b *.txt') do ( do echo %%k: %%~dpa ) )`
+    )
     ;
 
   doskeyBodyToExpectedMap.forEach((expected, doskey, _) => {
-    const result = replaceForLoopVariableOnWindows(doskey);
+    const result = replaceForLoopVariableForWindowsScript(doskey);
     console.info('doskey   = ' + doskey);
     console.info('Result   = ' + result);
     console.info('Expected = ' + expected);

@@ -4,8 +4,10 @@ import { getPostInitCommands } from './configUtils';
 import { DefaultRepoFolderName, IsMacOS, IsWindows, RunCmdTerminalName, getDefaultRepoFolderByActiveFile, isNullOrEmpty } from './constants';
 import { TerminalType } from './enums';
 import { ShellPath, UsePowershell, enableColorAndHideCommandLine, outputDebugByTime } from "./outputUtils";
-import { IsLinuxTerminalOnWindows, IsWindowsTerminalOnWindows, isLinuxTerminalOnWindows } from './terminalUtils';
+import { DefaultTerminalType, IsLinuxTerminalOnWindows, IsWindowsTerminalOnWindows, getTipFileDisplayPath, getTipFileStoragePath, isLinuxTerminalOnWindows, isWindowsTerminalOnWindows } from './terminalUtils';
+import { quotePaths } from './utils';
 import os = require('os');
+import fs = require('fs');
 
 const ClearCmd = IsWindows && !UsePowershell ? 'cls' : "clear";
 
@@ -61,7 +63,19 @@ function checkInitRunCommandTerminal(): vscode.Terminal {
   const [terminal, isNewTerminal] = getRunCmdTerminalWithInfo();
   if (isNewTerminal) {
     // User closed MSR-RUN-CMD terminal + use menu search which triggers a new MSR-RUN-CMD terminal
-    sendCommandToTerminal(`use-this-alias`, terminal);
+    const defaultRepoFolder = getDefaultRepoFolderByActiveFile(true);
+    if (isNullOrEmpty(defaultRepoFolder)) {
+      if (terminal.name === RunCmdTerminalName) {
+        const tipFilePath = getTipFileStoragePath(DefaultTerminalType);
+        if (fs.existsSync(tipFilePath)) {
+          const commandHead = isWindowsTerminalOnWindows(DefaultTerminalType) ? "call " : "bash ";
+          const tipCmd = commandHead + quotePaths(getTipFileDisplayPath(DefaultTerminalType));
+          sendCommandToTerminal(tipCmd, terminal);
+        }
+      }
+    } else {
+      sendCommandToTerminal(`use-this-alias`, terminal);
+    }
     // const postInitCommand = getPostInitCommands(, DefaultRepoFolderName);
     runPostInitCommands(terminal, IsWindowsTerminalOnWindows ? TerminalType.CMD : TerminalType.LinuxBash, DefaultRepoFolderName)
   }

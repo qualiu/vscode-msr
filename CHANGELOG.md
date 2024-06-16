@@ -2,6 +2,11 @@
 
 All notable changes to this "vscode-msr" extension will be documented in this file.
 
+## [2.1.89]
+
+- Improved `to-alias-body` for older PowerShell < 7.0 on all platforms.
+- Removed `pwsh` doskey on Windows if found `pwsh.exe` in %PATH%.
+
 ## [2.1.88]
 
 - Supported copying function/script body to `aliasBody` using `to-alias-body`; Auto convert `Tab`/`spaces` + `return`/`exit`.

@@ -35,27 +35,28 @@ You can start [**search**](#search-files-with-rich-filters) + [**replace**](#rep
 - [Cook doskey/alias](#make-command-shortcuts-to-search-or-replace-in-or-out-of-vscode) if you want to search/replace **out of vscode** (in `CMD`/`Bash` + other IDEs).
   - See [**Best Practice** to search/update repo](#best-practice-to-update-git-repo-and-search-code) + [Get **Combined Power**](#get-the-best-combined-power).
   - Create [**custom common alias**](#custom-alias-to-auto-sync-across-local-and-remote-ssh-hosts-plus-docker-containers)(see [difference](./Create-Custom-Common-Alias-Once-and-for-All.md#difference-between-custom-alias-and-normal-alias)) **once-for-all** to auto sync across all vscode + platforms.
-- [**Set exclusions**](#avoid-security-software-downgrade-search-performance-on-windows) on Windows if you cannot get search results **in 1~2 seconds** for just **10000 code files**.
+- For Windows: [**Trust msr**](#avoid-security-software-downgrade-search-performance-on-windows) if you cannot get search results in **1~2 seconds** for **code files** <= **10000**.
+  - For WSL: [Use short mount paths for WSL](#use-short-mount-paths-for-wsl-bash-terminal-on-windows) to enable **clicking** result file paths + **locate** into IDEs.
 - [**Adjust output colors**](#adjust-your-color-theme-if-result-file-path-folder-color-is-not-clear) of both **file paths** and **matched text** with 2 methods.
 
 ### Supported Platforms
 
 - **Windows**
-  - `x86_64`: Version >= `Windows 7`: 64-bit + 32-bit Windows including **MinGW**.
+  - `x86_64` + `x86_32`: Version >= `Windows XP` including **MinGW** on 64-bit + 32-bit Windows.
   - `Arm64`: Version >= `Windows 8.1`.
   - **Cygwin**: Version >= `Cygwin 5.4.0`.
   - **WSL**: Same with `Linux` below.
 - **Linux**
-  - `x86_64`: Kernel >= `2.6.32` 64-bit + 32-bit **Ubuntu** + **CentOS** + **Fedora**.
+  - `x86_64` + `x86_32`: Kernel >= `2.6.32`: 64-bit + 32-bit **Ubuntu** + **CentOS** + **Fedora**.
   - `Arm64`: Kernel >= `4.15` (like `Ubuntu 18.04`).
 - **MacOS**
   - `Arm64`: Version >= `Darwin 21.1.0`.
 - **FreeBSD**
-  - `amd64`: Version >= `FreeBSD 11.0` (older versions not tested).
+  - `amd64`: Version >= `FreeBSD 11.0` (older versions may work but not tested).
 
 ## Features
 
-- Got search results in **1~3 seconds** for 20000+ code files (on hard-drives, **SSD** maybe faster) after first time (cost 10~30+ seconds).
+- Search 20000+ code files in **1~3 seconds** after first time (10~30+ seconds, **SSD** maybe faster).
 
 - Fast find **definitions** + **references** for **all types** of coding languages across [**multiple related repositories**](#extra-paths-settings).
 
@@ -83,7 +84,7 @@ You can start [**search**](#search-files-with-rich-filters) + [**replace**](#rep
 
 ![find-def-ref.gif](images/find-def-ref.gif)
 
-### The [cooked/dumped alias/doskey](#make-command-shortcuts-to-search-or-replace-in-or-out-of-vscode) can be used in **many IDEs**, not just **VSCode**
+### The [cooked/dumped alias/doskey](#make-command-shortcuts-to-search-or-replace-in-or-out-of-vscode) Can be used in **Many IDEs**, Not just **VSCode**
 
 [Cook + **Dump** script files](#make-command-shortcuts-to-search-or-replace-in-or-out-of-vscode) for **other IDEs** or **system terminals** out of vscode.
 
@@ -151,21 +152,21 @@ You can set environment variable **MSR_COLORS** to [change color-groups](https:/
   - Linux/MacOS/FreeBSD example:
     - `export MSR_COLORS=p=Green` or `export MSR_COLORS=p=Cyan,f=Green`
 
-- Temporarily set env in [user settings](#extension-settings-if-you-want-to-change):
+- Temporarily set env in [user settings](#extension-settings-if-you-want-to-change) like command above:
   - Windows:
-    - Add/update `msr.cmd.postInitTerminalCommandLine` with above `"set MSR_COLORS=xxx"` command.
+    - Add/update `msr.cmd.postInitTerminalCommandLine` like `"set MSR_COLORS=xxx"`
   - Linux/MacOS/FreeBSD:
-    - Add/update `msr.bash.postInitTerminalCommandLine` with above `"export MSR_COLORS=xxx"` command.
+    - Add/update `msr.bash.postInitTerminalCommandLine` like `"export MSR_COLORS=xxx"`
 
 ## Avoid Security Software Downgrade Search Performance on Windows
 
 If you cannot get search results **in 1~2 seconds** for just **10000 code files**:
 
-- Follow [official Windows doc](https://support.microsoft.com/en-us/help/4028485/windows-10-add-an-exclusion-to-windows-security) to add exclusion.
-- Same with using alias `trust-exe` (run as `Administrator` in a `new` CMD window):
-  - Run "**trust-exe** `msr,nin`" (input exe `name` or `title` or `path`).
-    - This will auto fetch exe paths and use `PowerShell "Add-MpPreference -ExclusionPath $exePath"`.
-    - You can also use `trust-exe` with `git`/`ssh`/`bash`/`node.exe`/`pip.exe`/`python.exe`/`golang` etc.
+- Method-1: Follow [official Windows doc](https://support.microsoft.com/en-us/help/4028485/windows-10-add-an-exclusion-to-windows-security) to add exclusion.
+- Method-2: Same with using [auto-cooked alias](#code-mining-without-or-with-little-knowledge) `trust-exe`(run as `Administrator` in a `new` CMD window):
+  - Run command "**trust-exe** `msr,nin`" (input exe `name` or `title` or `path`).
+    - This auto get exe paths + use `PowerShell "Add-MpPreference -ExclusionPath $exePath"`.
+    - You can also use `trust-exe` to fix `git`,`ssh`,`bash`,`node`,`pip`/`python`/`golang` etc.
 
 ## Prefer Precision over Speed when Searching Definitions
 
@@ -309,7 +310,10 @@ Many other [**common shortcuts**](/src/commonAlias.ts) like (run `alias` to see 
 
 Besides [normal alias](#make-command-shortcuts-to-search-or-replace-in-or-out-of-vscode) above, you can create **custom alias** ([example](./Create-Custom-Common-Alias-Once-and-for-All.md#example-of-custom-common-alias-and-transformation) + [difference](./Create-Custom-Common-Alias-Once-and-for-All.md#difference-between-custom-alias-and-normal-alias)) to auto sync across all vscode on all platforms.
 
-- Details see [Create Custom Common Alias **Once and for All**](Create-Custom-Common-Alias-Once-and-for-All.md) in user [settings.json](#adjust-colors-method-1) for current + future vscode.
+- Details see [Create Custom Common Alias **Once and for All**](Create-Custom-Common-Alias-Once-and-for-All.md) in user [settings.json](#adjust-colors-method-1) for current + future vscode:
+  - `msr`.**commonAliasNameBodyList** for **all platforms** (Windows + MinGW/Cygwin + Linux/MacOS/FreeBSD).
+  - `msr`.**cmd**.`commonAliasNameBodyList` for Windows only.
+  - `msr`.**bash**.`commonAliasNameBodyList` for MinGW/Cygwin + Linux/MacOS/FreeBSD.
 
 ### Try rgfind-xxx to Search Multiple Git Repositories
 
@@ -364,14 +368,6 @@ Type commands below in a terminal/console after [cooking doskeys/alias](#make-co
   - Type `list-alias` to list all files (auto cooked when opening repos in vscode).
 - Type `update-alias` to switch to **general** alias.
 
-### How to Add Your Custom Common Alias
-
-[Open User Settings](#extension-settings-if-you-want-to-change)(not JSON) -> type `msr.commonAliasNameBodyList` -> Click `"Edit in settings.json"`.
-
-- This will open the common alias settings with examples like `gsf` + `update-repos`.
-  - Only `aliasName` + `aliasBody` are required.
-- Be care of the alias (command lines) must be correct on all terminals (Windows + Linux + MacOS + FreeBSD).
-
 ## Use git-ignore
 
 Open [user settings](https://code.visualstudio.com/docs/getstarted/settings#_settings-editor), set `msr.useGitIgnoreFile` = `true` (or `msr.{repo-folder-name}.useGitIgnoreFile` = `true`)
@@ -400,11 +396,14 @@ Run command **`"npm run test"`** in vscode-msr folder if you want to see the tra
 You can add custom search/replace command by adding config `msr.xxx.myFindOrReplaceSelectedTextCommand` in [user settings.json](#extension-settings-if-you-want-to-change).
 
 - Example of using git file list to precisely search `C++` code to find **pure reference** of `selected` text (`%1`):
-  - **"msr.cpp.myFindOrReplaceSelectedTextCommand"** = `"%UseGitFileListToSearch% -f \"\\.(c\\+\\+|cpp|cxx|cc|c)$\" --nt \"^\\s*(#include|/|\\*)|^.{360,}\" -t \"\\b%1\\b\" --xp test,mock,deprecate"`
+  - **"msr.cpp.myFindOrReplaceSelectedTextCommand"** =
+    - `"%UseGitFileListToSearch% -f \"\\.(c\\+\\+|cpp|cxx|cc|c)$\" --nt \"^\\s*(#include|/|\\*)|^.{360,}\" -t \"\\b%1\\b\" --xp test,mock,deprecate"`
   - Or write your own raw command for **msr.cpp.myFindOrReplaceSelectedTextCommand** =
     - `"git ls-files --recurse-submodules > /tmp/tmp-git-file-list && msr --no-check -w /tmp/tmp-git-file-list ..."`
-- **Recommended example** of using `%AutoDecideSkipFolderToSearch%` + `%FileExt%` / `%FileExtMap%`:
-  - **"msr.cpp.myFindOrReplaceSelectedTextCommand"** = `"%AutoDecideSkipFolderToSearch% -f %FileExtMap% -t \"\\b%1\\b\" ..."`
+- **Recommended examples** using `%AutoDecideSkipFolderToSearch%` + `%FileExt%` / `%FileExtMap%`:
+  - "msr.**cpp**.myFindOrReplaceSelectedTextCommand" = `"%AutoDecideSkipFolderToSearch% -f %FileExtMap% -t \"\\b%1\\b\" ..."`
+  - "msr.`my-repo`.**txt**.myFindOrReplaceSelectedTextCommand" =
+    - `"%AutoDecideSkipFolderToSearch% -f \"\\.c[px]*$\" -t %SelectedWordVariation%  ..."`
 
 #### Macro Variables to be Replaced for Custom Search or Replace Command
 
@@ -460,7 +459,7 @@ If you want to support unknown languages, do **anyone** of below:
 
 [Currently support well](#current-support-to-finding-definition-and-references) for: `C#`, `C++/C`, `Python`, `PowerShell`, `Batch/Bash`, `Java`, etc.
 
-This extension auto **disabled itself** finding definition for some languages which has good official extension support:
+vscode-msr **disabled itself** finding definition for some languages which has good official extension support:
 
 - Change config **msr.default.autoDisableFindDefinitionPattern** as your need.
 - You can [temporarily toggle](#get-the-best-combined-power) enabling this extension when official extension got problems.
@@ -875,7 +874,7 @@ Once you found the results:
   Like adding `msr.{repo-folder-name}.skipFolders` + value in `%APPDATA%\Code\User\settings.json` on Windows:
 
   ```json
-  "msr.My-Project-Root-Folder-Name.skipFolders": "^(unit|tests)$|other-partial-folder-name"
+  "msr.My-Project-Repo-Folder-Name.skipFolders": "^(unit|tests)$|other-partial-folder-name"
   ```
 
 - Promote Scores for Specific Project Folders or Paths
@@ -943,8 +942,13 @@ Change the value of **-t** / **--np** / **--nd** if already used in command line
   - **--sp** `src/,/lib/,common/,.cpp` , **--xp** `"/full-paths,or/sub-paths,sub-path-text,.hpp"`
 - You can also add more `msr` commands to the command line like:
   - `msr original command` **|** `msr -i -t "^\s*public" -P -A -C`
-- Get matched file `list` (**-l**) -> Generate new command (**-o** `msr xxx`) -> Execute command (**-X**):
-  - `msr original command` **-l** -PAC **|** `msr -t "(.+)" -o "msr -p \1 -t \"class To-Search\" --nx internal"` **-X**
+- Get matched file `list` (**-l**) -> Generate commands (**-o** `msr xxx`) -> Execute commands (**-X**):
+  - `msr original command` **-l** -PAC **|** `msr -t "(.+)" -o "msr -p \1 -t \"class To-Search\" xxx"` **-X**
+- More advanced search like: Execute(**-X**) + Only output matched command(**-O**) + No summary(**-M**)
+  - `command lines` | msr **-X -M -O** --to-stderr
+    - Same with **-XMO**; Use **to-stderr** to redirect command lines info to stderr.
+    - Use **-P** to hide beginning command lines like: **-XPM** or **-X -P -M**.
+    - Use **-I** to hide end(return) command lines like: **-XMI** or **-X -M -I**.
 
 ### Replace File Text with Preview and Backup
 

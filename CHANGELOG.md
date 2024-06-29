@@ -2,6 +2,10 @@
 
 All notable changes to this "vscode-msr" extension will be documented in this file.
 
+## [2.1.90]
+
+- Improved searching selected text from menu.
+
 ## [2.1.89]
 
 - Improved `to-alias-body` for older PowerShell < 7.0 on all platforms.

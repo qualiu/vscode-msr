@@ -99,9 +99,9 @@ const CommonAliasMap: Map<string, string> = new Map<string, string>()
   .set('gpc', String.raw`git branch | msr -t "^\s*\*\s*(\S+).*" -o "git pull origin \1 $*" -XM & del-this-tmp-list`)
   .set('gph', String.raw`git branch | msr -t "^\s*\*\s*(\S+).*" -o "git push origin \1 $*" -XM`)
   .set('gpc-sm', String.raw`git rev-parse --abbrev-ref HEAD | msr -t "(.+)" -o "git pull origin \1 --no-recurse-submodules" -XM
-          & del-this-tmp-list & msr -z "git submodule sync && git submodule update --init --no-fetch" -t "&&" -o "\n" -PAC | msr -XM -V ne0`)
+          & del-this-tmp-list & msr -z "git submodule sync && git submodule update --init" -t "&&" -o "\n" -PAC | msr -XM -V ne0`)
   .set('gpc-sm-reset', String.raw`git rev-parse --abbrev-ref HEAD | msr -t "(.+)" -o "git pull origin \1 --no-recurse-submodules" -XM
-          && msr -z "git submodule sync && git submodule update --init --no-fetch && git submodule update -f" -t "&&" -o "\n" -PAC | msr -XM -V ne0
+          && msr -z "git submodule sync && git submodule update --init && git submodule update -f" -t "&&" -o "\n" -PAC | msr -XM -V ne0
           & del-this-tmp-list
           & git status`)
   .set('gca', String.raw`git commit --amend --no-edit $*`)
@@ -117,11 +117,11 @@ const CommonAliasMap: Map<string, string> = new Map<string, string>()
   .set('git-shallow-clone', String.raw`echo git clone --single-branch --depth 1 $* && git clone --single-branch --depth 1 $*`)
   .set('git-clean', String.raw`msr -z "git clean -xffd && git submodule foreach --recursive git clean -xffd" -t "&&" -o "\n" -PAC | msr -XM`)
   .set('git-sm-prune', String.raw`msr -XM -z "git prune" && msr -XMz "git submodule foreach git prune"`)
-  .set('git-sm-init', String.raw`msr -XMz "git submodule sync" && echo git submodule update --init --no-fetch $* | msr -XM & del-this-tmp-list & git status`)
+  .set('git-sm-init', String.raw`msr -XMz "git submodule sync" && echo git submodule update --init $* | msr -XM & del-this-tmp-list & git status`)
   .set('git-sm-reset', String.raw`msr -XMz "git submodule sync" && msr -XMz "git submodule init" && echo git submodule update -f $*
           | msr -XM & del-this-tmp-list & git status`)
   .set('git-sm-restore', String.raw`echo git restore . --recurse-submodules $* | msr -XM & del-this-tmp-list & git status`)
-  .set('git-sm-reinit', String.raw`msr -XM -z "git submodule deinit -f ." && msr -XM -z "git submodule update --init --no-fetch" & git status`)
+  .set('git-sm-reinit', String.raw`msr -XM -z "git submodule deinit -f ." && msr -XM -z "git submodule update --init" & git status`)
   .set('git-sm-update-remote', String.raw`msr -XMz "git submodule sync" && echo git submodule update --remote $* | msr -XM & git status`)
   .set('git-cherry-pick-branch-new-old-commits', String.raw`git log $1 | msr -b "^commit $2" -q "^commit $3" -t "^commit (\w+)" -o "\1" -M -C
           | msr -s "^:(\d+):" -n --dsc -t "^:\d+:(?:\d+:)?\s+(\w+)" -o "git cherry-pick \1" -X -V ne0 $4 $5 $6 $7 $8 $9`)
@@ -524,22 +524,30 @@ const WindowsAliasMap: Map<string, string> = new Map<string, string>()
   .set('restart-net', String.raw`echo PowerShell -Command "Get-NetAdapter | Restart-NetAdapter -Confirm:$false" | msr -XM`)
   ;
 
-CommonAliasMap.forEach((body, name, _) => {
-  body = trimAliasBody(body).replace(TrimMultilineRegex, ' ');
-  WindowsAliasMap.set(name, body);
-});
-
-WindowsAliasMap.forEach((body, name, _) => {
-  body = trimAliasBody(body).replace(TrimMultilineRegex, ' ');
-  WindowsAliasMap.set(name, body);
-});
-
 if (IsWindows) {
   const [hasPwsh, path] = isToolExistsInPath('pwsh.exe', TerminalType.CMD);
   if (hasPwsh) {
     WindowsAliasMap.delete('pwsh');
     outputInfoQuietByTime(`Remove alias 'pwsh' on Windows since found pwsh.exe at ${path}`);
   }
+
+  CommonAliasMap.forEach((body, name, _) => {
+    body = trimAliasBody(body).replace(TrimMultilineRegex, ' ');
+    WindowsAliasMap.set(name, body);
+  });
+
+  WindowsAliasMap.forEach((body, name, _) => {
+    if (!CommonAliasMap.has(name)) {
+      body = trimAliasBody(body).replace(TrimMultilineRegex, ' ');
+      WindowsAliasMap.set(name, body);
+    }
+  });
+
+  ['to-alias-body'].forEach(name => {
+    let body = WindowsAliasMap.get(name) || '';
+    body = body.replace(/^pwsh/, 'PowerShell');
+    WindowsAliasMap.set(name, body);
+  });
 }
 
 export function getCommonAliasMap(terminalType: TerminalType, writeToEachFile: boolean): Map<string, string> {

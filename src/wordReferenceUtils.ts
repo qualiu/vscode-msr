@@ -63,7 +63,7 @@ export function changeSearchWordToVariationPattern(rawWord: string, parsedFile: 
 export function getSearchWordVariationPattern(rawWord: string): string {
   // skip if contains non-alphabetic char, or whole word is upper case:
   if (!rawWord.match(/^\w+$/) || rawWord.match(/^[A-Z_]+$/)) {
-    return rawWord;
+    return String.raw`\b${rawWord}\b`;
   }
 
   const memberPattern = /^m?_+|_+$/;

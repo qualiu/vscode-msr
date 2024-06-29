@@ -14,9 +14,9 @@ Custom common alias([example](#example-of-custom-common-alias-and-transformation
   - Open [user settings](./README.md#extension-settings-if-you-want-to-change) (hotkey = `F1` or `"Ctrl + Shift + P"`).
   - Choose `"Open User Settings"` to open vscode settings.
   - Choose common alias type:
-    - `msr.commonAliasNameBodyList` for all (Windows + Linux/MacOS/FreeBSD).
-    - `msr.cmd.commonAliasNameBodyList` for Windows only.
-    - `msr.bash.commonAliasNameBodyList` for Linux/MacOS/FreeBSD only.
+    - `msr`.**commonAliasNameBodyList** for **all platforms** (Windows + MinGW/Cygwin + Linux/MacOS/FreeBSD).
+    - `msr`.**cmd**.`commonAliasNameBodyList` for Windows only.
+    - `msr`.**bash**.`commonAliasNameBodyList` for MinGW/Cygwin + Linux/MacOS/FreeBSD.
   - Click `"Edit in settings.json"`.
 - After first time:
   - Choose `"Open User Settings (JSON)"` to directly open `settings.json` to add `aliasName` + `aliasBody`.
@@ -39,6 +39,7 @@ Custom common alias([example](#example-of-custom-common-alias-and-transformation
   - Linux/MacOS/FreeBSD: install PowerShell if not exists (like `sudo apt install -y powershell`).
 - Paste the JSON body to `aliasBody` in `settings.json`.
 
+## Example + Explanations 
 #### Example of Custom Common Alias and Transformation
 
 vscode-msr will auto transform(create) normal alias/doskey based on `aliasName` + `aliasBody`.

@@ -29,7 +29,18 @@ export function escapeRegExpForFindingCommand(text: string): string {
         text = text.replace(/\\/g, '\\\\');
     }
 
-    return escapeRegExp(text);
+    text = escapeRegExp(text);
+    return IsWindowsTerminalOnWindows ? text : text.replace(/!/g, '\\!'); // escape for bash on Linux/MacOS
+}
+
+function trimWordBoundaryInCommand(commandLine: string, searchText: string): string {
+    if (searchText.match(/^\W+/)) {
+        commandLine = commandLine.replace(/\s+((--text-match|-t)\s+")\\b/, ' $1');
+    }
+    if (searchText.match(/\W+$/)) {
+        commandLine = commandLine.replace(/\s+((--text-match|-t)\s+"[^"]+)\\b"/, ' $1"');
+    }
+    return commandLine;
 }
 
 export function runFindingCommand(findCmd: FindCommandType, textEditor: vscode.TextEditor) {
@@ -46,25 +57,19 @@ export function runFindingCommand(findCmd: FindCommandType, textEditor: vscode.T
     currentWord = currentWord.replace(/%1/g, escapeHolder1).replace(/%~1/g, escapeHolder2);
     const isRegexFinding = findCmdText.match(/Regex/i);
     const isFindReference = findCmdText.match(/Reference/i);
-    const searchWordVariationPattern = isRegexFinding && isFindReference
+    let searchText = isRegexFinding && isFindReference
         ? changeSearchWordToVariationPattern(currentWord, parsedFile)
         : currentWord;
 
-    let rawSearchText = !isRegexFinding && IsWindowsTerminalOnWindows
+    const plainSearch = IsWindowsTerminalOnWindows
         ? currentWord
-        : currentWord.replace(/\\/g, '\\\\');
-    let searchText = isRegexFinding
-        ? (isFindReference && searchWordVariationPattern !== currentWord
-            ? searchWordVariationPattern
-            : escapeRegExpForFindingCommand(currentWord)
-        )
-        : rawSearchText;
+        : currentWord.replace(/\\/g, '\\\\').replace(/`/g, '\\`');
+
     if (!IsWindowsTerminalOnWindows) {
-        rawSearchText = rawSearchText.replace(/`/g, '\\`');
         searchText = searchText.replace(/`/g, '\\`');
     }
 
-    let command = getFindingCommandByCurrentWord(true, findCmd, searchText, parsedFile, rawSearchText, undefined);
+    let command = getFindingCommandByCurrentWord(true, findCmd, searchText, parsedFile, plainSearch, undefined, false);
     command = command.replace(new RegExp(escapeHolder1, 'g'), '%1').replace(new RegExp(escapeHolder2, 'g'), '%~1');
     if (findCmdText.includes('FindTop')) {
         const [hasGotExe, ninExePath] = new ToolChecker().checkAndDownloadTool('nin');
@@ -182,9 +187,6 @@ function setCustomSearchCommand(sourceProjectFolders: string, parsedFile: path.P
     // Check %AutoDecideSkipFolderToSearch% + %UseGitFileListToSearch% + %ProjectsFolders%
     const skipPathArgs = getSkipJunkPathArgs(IsWindowsTerminalOnWindows);
     const useGitFileListToSearch = `${GitListFileHead(getRepoFolderName(parsedFile.dir))} > /tmp/tmp-git-file-list && msr --no-check -w /tmp/tmp-git-file-list`;
-    if (commandLine.match(/\s+-t\s+\S+/)) {
-        searchWord = escapeRegExpForFindingCommand(searchWord);
-    }
 
     commandLine = commandLine.replace(new RegExp('%UseGitFileListToSearch%', 'g'), useGitFileListToSearch);
     commandLine = commandLine.replace(new RegExp('%ProjectsFolders%', 'g'), sourceProjectFolders);
@@ -200,9 +202,16 @@ function setCustomSearchCommand(sourceProjectFolders: string, parsedFile: path.P
         }
     }
 
-    if (commandLine.includes("%SelectedWordVariation%")) {
-        const searchWordVariationPattern = '"' + getSearchWordVariationPattern(searchWord) + '"';
-        commandLine = commandLine.replace(new RegExp('%SelectedWordVariation%', 'g'), searchWordVariationPattern);
+    const varName = "%SelectedWordVariation%";
+    const varIndex = commandLine.indexOf(varName);
+    if (varIndex >= 0) {
+        const isFindReference = /(-t|--text-match)$/.test(commandLine.substring(0, varIndex).trimRight());
+        const searchText = isFindReference && /^\w+$/.exec(searchWord)
+            ? getSearchWordVariationPattern(searchWord)
+            : escapeRegExpForFindingCommand(searchWord).replace(/^(\w+)/, '\\b$1').replace(/(\w+)$/, '$1\\b');
+        do {
+            commandLine = commandLine.replace(varName, `"${searchText}"`);
+        } while (commandLine.includes(varName));
     }
 
     if (IsWindowsTerminalOnWindows) {
@@ -219,8 +228,8 @@ function setCustomSearchCommand(sourceProjectFolders: string, parsedFile: path.P
     return commandLine;
 }
 
-export function getFindingCommandByCurrentWord(toRunInTerminal: boolean, findCmd: FindCommandType, searchText: string,
-    parsedFile: path.ParsedPath, rawSearchText: string = '', ranker: Ranker | undefined, onlyRemoveJump: boolean = false): string {
+export function getFindingCommandByCurrentWord(toRunInTerminal: boolean, findCmd: FindCommandType, searchText: string, parsedFile: path.ParsedPath,
+    plainSearch: string = '', ranker: Ranker | undefined, onlyRemoveJump: boolean = false): string {
     const extension = getExtensionNoHeadDot(parsedFile.ext);
     const mappedExt = FileExtensionToMappedExtensionMap.get(extension) || extension;
     const repoFolder = getRepoFolder(toPath(parsedFile), true) || '.';
@@ -228,6 +237,7 @@ export function getFindingCommandByCurrentWord(toRunInTerminal: boolean, findCmd
     const repoFolderOsPath = toTerminalPath(repoFolder);
     const shouldChangeFolder = repoFolderOsPath.startsWith('/') && toRunInTerminal && IsLinuxTerminalOnWindows && SearchConfig.SearchRelativePathForLinuxTerminalsOnWindows;
     const findCmdText = FindCommandType[findCmd];
+
     function changeSearchFolderInCommand(command: string): string {
         if (shouldChangeFolder) {
             const pattern = new RegExp(' (-r?p) ' + repoFolderOsPath);
@@ -261,6 +271,7 @@ export function getFindingCommandByCurrentWord(toRunInTerminal: boolean, findCmd
 
     if (FindCommandType.MyFindOrReplaceSelectedText === findCmd) {
         let commandLine = getConfigValueByProjectAndExtension(repoFolderName, extension, mappedExt, 'myFindOrReplaceSelectedTextCommand', true, true);
+        commandLine = trimWordBoundaryInCommand(commandLine, searchText);
         if (isNullOrEmpty(commandLine)) {
             const configNameSet = new Set<string>()
                 .add(`msr.${extension}.myFindOrReplaceSelectedTextCommand`)
@@ -273,10 +284,12 @@ export function getFindingCommandByCurrentWord(toRunInTerminal: boolean, findCmd
             return '';
         }
 
-        const escapedText = escapeRegExpForFindingCommand(searchText);
+        const escapeRegexNumber = /--Esc-Var--/g;
+        const escapedText = escapeRegExpForFindingCommand(searchText).replace(/\$(?=\d+)/g, escapeRegexNumber.source);
         commandLine = commandLine.replace(/\s+(--nt|-t|--text-match)(\s+\S*)%~?1/g, ` $1$2${escapedText}`);
         commandLine = commandLine.replace(/\s+(--nt|-t|--text-match)(\s+["'][^"']*)%~?1/g, ` $1$2${escapedText}`);
         commandLine = replaceSearchTextHolder(commandLine, searchText).trim();
+        commandLine = commandLine.replace(escapeRegexNumber, IsWindowsTerminalOnWindows ? '$' : String.raw`\\$`);
         if (IsWindowsTerminalOnWindows) {
             // commandLine = commandLine.replace(new RegExp('/tmp/', 'g'), TempStorageFolder + '\\');
             commandLine = commandLine.replace(new RegExp('/tmp/', 'g'), '%TMP%' + '\\');
@@ -288,7 +301,7 @@ export function getFindingCommandByCurrentWord(toRunInTerminal: boolean, findCmd
     const isFindReference = findCmdText.includes('Reference');
     const isFindPlainText = findCmdText.includes('FindPlainText');
     const isFindInCurrentFile = findCmdText.includes('InCurrentFile');
-    rawSearchText = rawSearchText.length < 1 ? searchText : rawSearchText;
+    plainSearch = plainSearch.length < 1 ? searchText : plainSearch;
 
     let extraOptions = isFindDefinition
         ? getConfigValueByAllParts(repoFolderName, extension, mappedExt, 'definition', 'extraOptions')
@@ -307,17 +320,12 @@ export function getFindingCommandByCurrentWord(toRunInTerminal: boolean, findCmd
     }
 
     if (isFindReference) {
-        if (searchText.startsWith('\\b') && searchText.endsWith('\\b')) {
-            searchPattern = searchPattern.substring(2, searchPattern.length - 2);
+        searchText = escapeRegExpForFindingCommand(searchText);
+        if (/^\W/.test(searchText) && searchPattern.startsWith('\\b')) {
+            searchPattern = searchPattern.substring(2);
         }
-        else {
-            if (/^\W/.test(searchText) && searchPattern.startsWith('\\b')) {
-                searchPattern = searchPattern.substring(2);
-            }
-
-            if (/\W$/.test(searchText) && searchPattern.endsWith('\\b')) {
-                searchPattern = searchPattern.substring(0, searchPattern.length - 2);
-            }
+        if (/\W$/.test(searchText) && searchPattern.endsWith('\\b')) {
+            searchPattern = searchPattern.substring(0, searchPattern.length - 2);
         }
     }
 
@@ -417,7 +425,7 @@ export function getFindingCommandByCurrentWord(toRunInTerminal: boolean, findCmd
         // escape double quoted variables
         if (isFindPlainText) {
             if (!IsWindowsTerminalOnWindows) {
-                rawSearchText = rawSearchText.replace(/(\$\w+)/g, '\\$1');
+                plainSearch = plainSearch.replace(/(\$\w+)/g, '\\$1');
             }
         } else {
             if (!IsWindowsTerminalOnWindows) {
@@ -427,10 +435,15 @@ export function getFindingCommandByCurrentWord(toRunInTerminal: boolean, findCmd
     }
 
     if (isFindPlainText) {
-        searchPattern = ' -x "' + rawSearchText.replace(/"/g, '\\"') + '"';
+        if (!IsWindowsTerminalOnWindows && plainSearch.includes('!')) {
+            searchPattern = ` -x '${plainSearch.replace(/'/g, "\\'")}'`
+        } else {
+            searchPattern = `-x "${plainSearch.replace(/"/g, '\\"')}"`;
+        }
+
         skipTextPattern = '';
     } else if (searchPattern.length > 0) {
-        searchPattern = ' -t "' + searchPattern + '"';
+        searchPattern = `-t "${searchPattern}"`;
     }
 
     // FindCommandType.RegexFindPureReferencesInCodeFiles || FindCommandType.RegexFindPureReferencesInAllSourceFiles
@@ -471,7 +484,7 @@ export function getFindingCommandByCurrentWord(toRunInTerminal: boolean, findCmd
         command = MsrExe + ' ' + searchPathsOptions + filePattern + skipTextPattern + extraOptions + ' ' + searchPattern.trimLeft();
     }
 
-    if (!NormalTextRegex.test(rawSearchText)) {
+    if (!NormalTextRegex.test(plainSearch)) {
         command = removeSearchTextForCommandLine(command);
     }
 

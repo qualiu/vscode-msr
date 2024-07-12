@@ -2,6 +2,10 @@
 
 All notable changes to this "vscode-msr" extension will be documented in this file.
 
+## [2.1.91]
+
+- Improved `to-alias-body` +  `trust-exe`.
+
 ## [2.1.90]
 
 - Improved searching selected text from menu.

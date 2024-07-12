@@ -141,7 +141,7 @@ const CommonAliasMap: Map<string, string> = new Map<string, string>()
             Write-Host 'Clipboard is empty! Please copy alias body to clipboard first.' -ForegroundColor Red;
             return;
           }
-          if ([regex]::IsMatch($rawBody, '^\W*function\s+\w+')) {
+          if ([regex]::IsMatch($rawBody, '\bfunction\s+\w+\(\s*\)\s*\{')) {
             Write-Host 'Please copy pure alias body in the function.' -ForegroundColor Red;
             return;
           }
@@ -150,7 +150,7 @@ const CommonAliasMap: Map<string, string> = new Map<string, string>()
           ${getCodeToReplaceHeadSpacesToTab('newBody', 'newLine')}
           $jsonBody = $newBody | ConvertTo-Json;
           if ($PSVersionTable.PSVersion.Major -lt 7) {
-            $jsonBody = $jsonBody.Replace('\u0026', '&').Replace('\u003e', '>');
+            $jsonBody = $jsonBody.Replace('\u0026', '&').Replace('\u003e', '>').Replace('\u0027', ([char]39).ToString()).Replace('\u003c', '<');
           }
           Set-Clipboard $jsonBody;
           $jsonBody;
@@ -514,12 +514,14 @@ const WindowsAliasMap: Map<string, string> = new Map<string, string>()
          @msr -z "%a" -t "(.+)" -o "echo Cleared \1=%\1% | msr -aPA -t MSR_\\w+ -e =.*" -XA || @set "%a="`)
   .set('trust-exe', String.raw`PowerShell -Command "Write-Host 'Please run as Admin to add process exclusion,
           will auto fetch exe path by name, example: trust-exe msr,nin,git,scp' -ForegroundColor Cyan;
-            foreach ($exe in ('$1'.Trim() -split '\s*[,;]\s*')) {
+            foreach ($exe in ('$*'.Trim() -split '\s*[,;]\s*')) {
               if (-not [IO.File]::Exists($exe)) {
                 $exe = $(Get-Command $exe).Source;
-            }
-            Write-Host ('Will add exe to exclusion: ' + $exe) -ForegroundColor Green;
-            Add-MpPreference -ExclusionPath $exe;
+              }
+              $exeName = [IO.Path]::GetFileName($exe);
+              Write-Host ('Will add exe + process to exclusion: ' + $exe) -ForegroundColor Green;
+              Add-MpPreference -ExclusionPath $exe;
+              Add-MpPreference -ExclusionProcess $exeName;
           }"`)
   .set('restart-net', String.raw`echo PowerShell -Command "Get-NetAdapter | Restart-NetAdapter -Confirm:$false" | msr -XM`)
   ;

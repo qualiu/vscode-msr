@@ -157,6 +157,10 @@ You can set environment variable **MSR_COLORS** to [change color-groups](https:/
     - Add/update `msr.cmd.postInitTerminalCommandLine` like `"set MSR_COLORS=xxx"`
   - Linux/MacOS/FreeBSD:
     - Add/update `msr.bash.postInitTerminalCommandLine` like `"export MSR_COLORS=xxx"`
+  - Cygwin:
+    - Add/update `msr.cygwinBash.postInitTerminalCommandLine` - `"export MSR_COLORS=xxx"`
+  - MinGW:
+    - Add/update `msr.mingwBash.postInitTerminalCommandLine` - `"export MSR_COLORS=xxx"`
 
 ## Avoid Security Software Downgrade Search Performance on Windows
 
@@ -165,8 +169,8 @@ If you cannot get search results **in 1~2 seconds** for just **10000 code files*
 - Method-1: Follow [official Windows doc](https://support.microsoft.com/en-us/help/4028485/windows-10-add-an-exclusion-to-windows-security) to add exclusion.
 - Method-2: Same with using [auto-cooked alias](#code-mining-without-or-with-little-knowledge) `trust-exe`(run as `Administrator` in a `new` CMD window):
   - Run command "**trust-exe** `msr,nin`" (input exe `name` or `title` or `path`).
-    - This auto get exe paths + use `PowerShell "Add-MpPreference -ExclusionPath $exePath"`.
-    - You can also use `trust-exe` to fix `git`,`ssh`,`bash`,`node`,`pip`/`python`/`golang` etc.
+    - Auto get paths + use `PowerShell "Add-MpPreference -ExclusionPath $exePath"`.
+  - You can also use `trust-exe` to fix `git`,`ssh`,`bash`,`node`,`pip`,`python`,`golang` etc.
 
 ## Prefer Precision over Speed when Searching Definitions
 
@@ -192,7 +196,7 @@ This will dump each alias/doskey to a script file:
 - Auto transform each alias/doskey to a script file(name = alias) to help [searching](#search-files-with-rich-filters) or [replacing text](#replace-file-text-with-preview-and-backup) in or out of vscode.
   - For Windows:
     - Transform each doskeys in `%USERPROFILE%\msr-cmd-alias.doskeys` to a script file.
-  - For Linux/MacOS/FreeBSD:
+  - For MinGW/Cygwin/WSL + Linux/MacOS/FreeBSD:
     - Auto load each alias in `~/.bashrc` + `~/msr-cmd-alias.bashrc` and transform to a script file.
 - Save location: `msr.cmdAlias.saveFolder` (default location):
   - Single alias/doskey file: Save to `%USERPROFILE%\` on Windows or `~/` on Linux/MacOS/FreeBSD.
@@ -211,8 +215,8 @@ Auto [**set project specific alias**](#auto-set-command-shortcuts-for-new-termin
 
 - Create [**custom common alias**](#custom-alias-to-auto-sync-across-local-and-remote-ssh-hosts-plus-docker-containers) **once-for-all** to help automate daily work across Windows + Remote SSH hosts + containers.
 - Please use `gpc` or `gpc-sm`/`gpc-sm-reset` / `git-sm-xxx` to pull/update your git repository.
-- Set `msr.refreshTmpGitFileListDuration` to large value(like `12hours` / `3days`) if you always update code as above.
-  - Run `gpc` or [**del-this-tmp-list**](#try-rgfind-xxx-to-search-multiple-git-repositories) whenever you need to update git-paths (used by [**gfind-xxx**](#try-to-use-gfind-xxx-instead-of-find-xxx-aliasdoskey)) from menu or command you type.
+- Set `msr.refreshTmpGitFileListDuration` to large value(like `12hours` / `3days`) if you always use them.
+  - Run `gpc` or [**del-this-tmp-list**](#try-rgfind-xxx-to-search-multiple-git-repositories) whenever you need to update git-paths (used by [**gfind-xxx**](#try-to-use-gfind-xxx-instead-of-find-xxx-aliasdoskey)).
 - 4 methods to solve `gfind-xxx` drawbacks of possible using outdated tmp-git-paths-list:
   - 1(Radical): Set `msr.refreshTmpGitFileListDuration` with **small value** like `0second` / `2m`.
   - 2(Normal): Run `del-this-tmp-list` before `gfind-xxx` if you added new files, or switched branches, or used `gfind-xxx` in descendant folders.
@@ -273,9 +277,9 @@ This **enables you to use alias/doskeys (like `find-def`) everywhere** like:
 #### Additional Tips
 
 - Tip for [**msr advantage**](https://github.com/qualiu/msr#tip-for-captured-groups-reference-to-replace-files-or-transform-text) on **Windows**(including `MinGW` + `Cygwin`) + **Linux**/**MacOS**/**FreeBSD**:
-  - You can use `"\1"` instead of `"$1"` to avoid conflict if your `doskey`/`alias` contains **`Regex-Replacing`** commands:
-    - `Regex replace-to` conflict with `doskey macro` variables like **$1** on Windows.
-    - `Regex replace-to` conflict with `bash` variables like **$1** on Linux/MacOS/FreeBSD.
+  - Use `"\1"` instead of `"$1"` to avoid conflict if your `doskey`/`alias` contains **`Regex-Replacing`**:
+    - `Regex $1` conflicts with `doskey macro` variables like **$1** on Windows.
+    - `Regex $1` conflicts with `bash` variables like **$1** on Linux/MacOS/FreeBSD.
   - Same that using **\2** **\3** is better than **$2** **$3** and etc.
 - For full or relative result file paths:
   - Type `out-fp` to output full file paths of search results.
@@ -286,8 +290,8 @@ Many other [**common shortcuts**](/src/commonAlias.ts) like (run `alias` to see 
 - Windows + Linux/MacOS/FreeBSD:
   - git shortcuts:
     - Type `gpc` to pull current branch + `gph` to push current branch + `gfc` to fetch current branch.
-    - Type `gpc-sm`/`git-sm-reset` to update/reset submodules + `git-sm-reinit` to fix tough issues.
-    - Type `git-cherry-pick-branch-new-old-commits` to cherry pick commits of a branch from old to new commits.
+    - Type `gpc-sm`/`git-sm-reset` to update/reset submodules + `git-sm-reinit` as final fix.
+    - Type `git-cherry-pick-branch-new-old-commits` to apply commits between branches.
 - Windows CMD only:
   - Now auto output forward slash **temporarily** in `VsCode` terminals by config `msr.xxx.postInitTerminalCommandLine`.
     - You can add/remove more MSR_XXX variables like `MSR_EXIT` / `MSR_UNIX_SLASH` / `MSR_KEEP_COLOR` / etc.
@@ -310,10 +314,10 @@ Many other [**common shortcuts**](/src/commonAlias.ts) like (run `alias` to see 
 
 Besides [normal alias](#make-command-shortcuts-to-search-or-replace-in-or-out-of-vscode) above, you can create **custom alias** ([example](./Create-Custom-Common-Alias-Once-and-for-All.md#example-of-custom-common-alias-and-transformation) + [difference](./Create-Custom-Common-Alias-Once-and-for-All.md#difference-between-custom-alias-and-normal-alias)) to auto sync across all vscode on all platforms.
 
-- Details see [Create Custom Common Alias **Once and for All**](Create-Custom-Common-Alias-Once-and-for-All.md) in user [settings.json](#adjust-colors-method-1) for current + future vscode:
-  - `msr`.**commonAliasNameBodyList** for **all platforms** (Windows + MinGW/Cygwin + Linux/MacOS/FreeBSD).
-  - `msr`.**cmd**.`commonAliasNameBodyList` for Windows only.
-  - `msr`.**bash**.`commonAliasNameBodyList` for MinGW/Cygwin + Linux/MacOS/FreeBSD.
+Details see [Create Custom Common Alias **Once and for All**](Create-Custom-Common-Alias-Once-and-for-All.md) in user [settings.json](#adjust-colors-method-1) for current + future vscode:
+- `msr`.**commonAliasNameBodyList** for **all platforms** (Windows + MinGW/Cygwin/WSL + Linux/MacOS/FreeBSD).
+- `msr`.**cmd**.`commonAliasNameBodyList` for Windows only.
+- `msr`.**bash**.`commonAliasNameBodyList` for MinGW/Cygwin + WSL + Linux/MacOS/FreeBSD.
 
 ### Try rgfind-xxx to Search Multiple Git Repositories
 
@@ -343,7 +347,7 @@ find-java-def MyClass -x AndPlainText --np "unit|test" --xp src/ext,src/common -
 find-java-ref MyClass --pp "unit|test" -U 3 -D 3 -H 20 -T 10 :  Preview Up/Down lines + Set Head/Tail lines in test.
 find-ref OldClassOrMethod -o NewName -j : Just preview changes only.
 find-ref OldClassOrMethod -o NewName -R : Replace File Text.
-find-spring-ref - find variations of Java Spring member like: ABC / isABC / setABC / getABC.
+find-spring-ref ABC - find variations of Java Spring member like: ABC / isABC / setABC / getABC.
 alias find-pure-ref
 malias find- -x ref -H 9
 malias "g?find[\w-]*ref"
@@ -402,12 +406,12 @@ You can add custom search/replace command by adding config `msr.xxx.myFindOrRepl
     - `"git ls-files --recurse-submodules > /tmp/tmp-git-file-list && msr --no-check -w /tmp/tmp-git-file-list ..."`
 - **Recommended examples** using `%AutoDecideSkipFolderToSearch%` + `%FileExt%` / `%FileExtMap%`:
   - "msr.**cpp**.myFindOrReplaceSelectedTextCommand" = `"%AutoDecideSkipFolderToSearch% -f %FileExtMap% -t \"\\b%1\\b\" ..."`
-  - "msr.`my-repo`.**txt**.myFindOrReplaceSelectedTextCommand" =
+  - "msr.`{my-repo}`.**txt**.myFindOrReplaceSelectedTextCommand" =
     - `"%AutoDecideSkipFolderToSearch% -f \"\\.c[px]*$\" -t %SelectedWordVariation%  ..."`
 
 #### Macro Variables to be Replaced for Custom Search or Replace Command
 
-- `%FileExtMap%` = Extensions like `"\\.(c\\+\\+|cpp|cxx|cc|c)$"` in config or overrode by your [user settings/settings.json](#additional-settings-in-your-personal-settings-file).
+- `%FileExtMap%` = Extensions like `"\\.(c\\+\\+|cpp|cxx|cc|c)$"` in config or overrode by your [settings](#additional-settings-in-your-personal-settings-file).
 - `%FileExt%` = Current file extension like `"\\.cpp$"` (the extension of current file in vscode).
 - `%1` = Placeholder of selected text in vscode.
 - `%UseGitFileListToSearch%` = `"git ls-files --recurse-submodules > /tmp/tmp-git-file-list && msr --no-check -w /tmp/tmp-git-file-list"`
@@ -421,11 +425,15 @@ You can add custom search/replace command by adding config `msr.xxx.myFindOrRepl
     - `msr -rp %ProjectsFolders%" --np "%Skip_Junk_Paths%"`
   - Otherwise:
     - `%UseGitFileListToSearch%` (see above).
-- `%SelectedWordVariation%` = Replace selected word `%1` like below (a bit similar with config `msr.reference.autoChangeSearchWord`):
-  - `m_product_id` -> `\b(m_product_id|is_product_id|get_product_id|set_product_id|has_product_id)\b`
-  - `getProductId` -> `\b(getProductId|productId|isProductId|setProductId|hasProductId)\b`
-  - `ProductId` -> `\b(ProductId|productId|isProductId|getProductId|setProductId|hasProductId)\b`
-  - `GetProductId` -> `\b(GetProductId|ProductId|IsProductId|SetProductId|HasProductId)\b`
+- `%SelectedWordVariation%` = Replace selected text `%1` like below (a bit similar with config `msr.reference.autoChangeSearchWord`):
+  - Example: Mouse selection text = `m_product_id` will search code repo with Regex:
+    - `\b(m_product_id|is_product_id|get_product_id|set_product_id|has_product_id)\b`
+  - Example: Mouse selection text = `getProductId` will search code repo with Regex:
+    - `\b(getProductId|productId|isProductId|setProductId|hasProductId)\b`
+  - Example: Mouse selection text = `ProductId` will search code repo with Regex:
+    - `\b(ProductId|productId|isProductId|getProductId|setProductId|hasProductId)\b`
+  - Example: Mouse selection text = `GetProductId` will search code repo with Regex:
+    - `\b(GetProductId|ProductId|IsProductId|SetProductId|HasProductId)\b`
 
 #### Other Guide for Custom Search Command
 
@@ -452,7 +460,7 @@ You can add custom search/replace command by adding config `msr.xxx.myFindOrRepl
 
 If you want to support unknown languages, do **anyone** of below:
 
-- Set `msr.enable.onlyFindDefinitionForKnownLanguages` = **false** in [personal settings file](https://code.visualstudio.com/docs/getstarted/settings#_settings-file-locations) or un-check it in [user settings](#extension-settings-if-you-want-to-change).
+- Set `msr.enable.onlyFindDefinitionForKnownLanguages` = **false** in [settings.json](https://code.visualstudio.com/docs/getstarted/settings#_settings-file-locations) or un-check it in [user settings UI](#extension-settings-if-you-want-to-change).
 - See [Easy to Support New Languages](#easy-to-support-new-languages) to add one or two config values.
 
 ## Easy to Support New Languages
@@ -478,7 +486,7 @@ Take **finding definition** for **batch** files (`*.bat` and `*.cmd`) as an exam
 
 If you only want to support `finding definition` for `*.bat` files other than all `batch` script (`*.bat` + `*.cmd`):
 
-Add **lower case** `extension name`: "**msr.{extension}.definition**" (here `{extension}` = **bat** ) into the file:
+Add **lower case** `extension name`: "**msr.{extension}.definition**" (here `{extension}` = **bat** ) into [settings.json](https://code.visualstudio.com/docs/getstarted/settings#_settings-file-locations):
 
 ```json
   "msr.bat.definition": "^\\s*:\\s*(%1)\\b|(^|\\s)set\\s+(/a\\s+)?\\\"?(%1)="
@@ -488,7 +496,7 @@ See [**here**](Add-New-Language-Support-For-Developers.md#additional-explanation
 
 ### Method-2: Support All Extensions of the New Language by Adding 2 Mandatory Settings
 
-- Add **lower case** `language name` (as you want): "**msr.fileExtensionMap**.`{Name}`" (here `{Name}` = **batch** ) into the file:
+- Add **lower case** `language name` as you want: "**msr.fileExtensionMap**.`{Name}`" (here `{Name}` = **batch** ) into [settings.json](https://code.visualstudio.com/docs/getstarted/settings#_settings-file-locations):
 
 ```json
   "msr.fileExtensionMap.batch": "bat cmd"
@@ -539,13 +547,12 @@ Set `msr.menu.visible` = `false` to hide all context menus of `Regex find xxx` +
 
 ## Get the Best Combined Power
 
-- Most time, professional extension(like `vscode-java`) works well, so `vscode-msr` will `disable` itself finding definition:
-
+- Most time official extension(like `vscode-java`) works well, so `vscode-msr` will `disable` itself finding definition:
   - If found professional extension process is running:
     - `vscode-msr` will ignore `"Go To Definition"` from `mouse-click` or `key` like `F12`.
   - You can still use `vscode-msr` by menu or terminal.
 
-- If professional extension not work, you can `toggle` enabling `vscode-msr` temporarily (until reload/re-open vscode).
+- If official extension not work, you can `toggle` enabling `vscode-msr` temporarily (until reload).
 
 ### Auto Disable Finding Definition as Default
 
@@ -553,7 +560,7 @@ Set `msr.menu.visible` = `false` to hide all context menus of `Regex find xxx` +
 - If you don't want to use this auto-disabling feature, like below (update user settings):
   - For `C++`, add/set empty value `msr.cpp.autoDisableFindDefinitionPattern` = `""`.
   - For all languages, add/set empty value `msr.default.autoDisableFindDefinitionPattern` = `""`
-    - Change specific config like `msr.java.autoDisableFindDefinitionPattern` to empty if found.
+    - Change config like `msr.java.autoDisableFindDefinitionPattern` to empty if found.
 - Accelerate/accurate checking language process like below（`C#` + `Rust`):
   - `msr.cs.languageProcessName` = `dotnet`
   - `msr.rs.languageProcessName` = `rust-analyzer`

@@ -74,7 +74,8 @@ function checkInitRunCommandTerminal(): vscode.Terminal {
         }
       }
     } else {
-      sendCommandToTerminal(`use-this-alias`, terminal);
+      const outNull = isWindowsTerminalOnWindows(DefaultTerminalType) ? "2>nul" : "2>/dev/null";
+      sendCommandToTerminal(`use-this-alias ${outNull}`, terminal);
     }
     // const postInitCommand = getPostInitCommands(, DefaultRepoFolderName);
     runPostInitCommands(terminal, IsWindowsTerminalOnWindows ? TerminalType.CMD : TerminalType.LinuxBash, DefaultRepoFolderName)

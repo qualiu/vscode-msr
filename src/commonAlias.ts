@@ -7,6 +7,9 @@ import { enableColorAndHideCommandLine, outputInfoByDebugModeByTime, outputInfoQ
 import { isToolExistsInPath, isWindowsTerminalOnWindows } from "./terminalUtils";
 import { getPowerShellName, replaceSearchTextHolder, replaceTextByRegex } from "./utils";
 
+export const [HasPwshExeOnWindows, PwshPathOnWindows] = IsWindows ? isToolExistsInPath('pwsh.exe', TerminalType.CMD) : [false, ''];
+export const WindowsPowerShellCmdHeader = HasPwshExeOnWindows ? 'pwsh -Command' : 'PowerShell -Command';
+// Avoid naming variables starting with '$b'/ '$g'/ '$t' / '$l' in PowerShell aliasBody to prevent conflicts with doskeys on Windows.
 const ShouldUseFunctionRegex = /\$\d\b|[ "']+?\$[\*@]|\$\{@(:\d+)?\}|\n\s+/; // Check $1 or $* or $@ or "${@}" or "${@:2}"
 const IsTailArgsRegex = /\$\*\W*$/;
 const SafeConvertingArgsRegex = /^([^"]*?)(\$\*)([^"]*)$/mg; // One line has '$*' but no double quotes, change $* to "${@}"
@@ -136,6 +139,7 @@ const CommonAliasMap: Map<string, string> = new Map<string, string>()
   .set('sfs', String.raw`msr -l --sz --wt -p $*`)
   .set('sft', String.raw`msr -l --wt --sz -p $*`)
   .set('to-alias-body', String.raw`pwsh -Command "
+          $withQuotes = '$1' -imatch '^(true|1|y)$';
           $rawBody = Get-Clipboard;
           if ([string]::IsNullOrWhiteSpace($rawBody)) {
             Write-Host 'Clipboard is empty! Please copy alias body to clipboard first.' -ForegroundColor Red;
@@ -151,6 +155,9 @@ const CommonAliasMap: Map<string, string> = new Map<string, string>()
           $jsonBody = $newBody | ConvertTo-Json;
           if ($PSVersionTable.PSVersion.Major -lt 7) {
             $jsonBody = $jsonBody.Replace('\u0026', '&').Replace('\u003e', '>').Replace('\u0027', ([char]39).ToString()).Replace('\u003c', '<');
+          }
+          if (-not $withQuotes) {
+            $jsonBody = $jsonBody.Substring(1, $jsonBody.Length - 2);
           }
           Set-Clipboard $jsonBody;
           $jsonBody;
@@ -216,7 +223,7 @@ function getReloadWindowsEnvCmd(skipPaths: string = '', addTmpPaths: string = ''
   const addingTmpPath = isNullOrEmpty(addTmpPaths)
     ? ''
     : String.raw`$pathValues += ';' + ('${addTmpPaths}'.Trim().TrimEnd('\; '));`;
-  return String.raw`for /f "tokens=*" %a in ('PowerShell -Command "
+  return String.raw`for /f "tokens=*" %a in ('${WindowsPowerShellCmdHeader} "
   ${setDeletionPaths}
   $pathValues = ${getPathEnv(['Machine', 'User', 'Process'])};
   ${addingTmpPath}
@@ -232,7 +239,7 @@ function getReloadWindowsEnvCmd(skipPaths: string = '', addTmpPaths: string = ''
 
 function getReloadEnvCmd(writeToEachFile: boolean, name: string = 'reload-env'): string {
   const escapeCmdEqual = '^=';
-  const cmdAlias = String.raw`for /f "tokens=*" %a in ('PowerShell -Command "
+  const cmdAlias = String.raw`for /f "tokens=*" %a in ('${WindowsPowerShellCmdHeader} "
     $processEnvs = [System.Environment]::GetEnvironmentVariables([System.EnvironmentVariableTarget]::Process);
     $sysEnvs = [System.Environment]::GetEnvironmentVariables([System.EnvironmentVariableTarget]::Machine);
     $userEnvs = [System.Environment]::GetEnvironmentVariables([System.EnvironmentVariableTarget]::User);
@@ -267,7 +274,7 @@ function getResetEnvCmd(writeToEachFile: boolean, name: string = 'reset-env'): s
     'CLASSPATH', 'JAVA_HOME', 'GRADLE_HOME', 'MAVEN_HOME', 'CARGO_HOME', 'RUSTUP_HOME', 'GOPATH', 'GOROOT', 'ANDROID_SDK_ROOT', 'ANDROID_NDK_ROOT'
   ].join("', '") + "'";
 
-  const cmdAlias = String.raw`for /f "tokens=*" %a in ('PowerShell -Command "
+  const cmdAlias = String.raw`for /f "tokens=*" %a in ('${WindowsPowerShellCmdHeader} "
     $processEnvs = [System.Environment]::GetEnvironmentVariables([System.EnvironmentVariableTarget]::Process);
     $sysEnvs = [System.Environment]::GetEnvironmentVariables([System.EnvironmentVariableTarget]::Machine);
     $userEnvs = [System.Environment]::GetEnvironmentVariables([System.EnvironmentVariableTarget]::User);
@@ -304,7 +311,7 @@ function getResetEnvCmd(writeToEachFile: boolean, name: string = 'reset-env'): s
 
 function getAddPathValueCmd(envTarget: string): string {
   const addPaths = envTarget === 'Process' ? '$*' : '';
-  const cmdAlias = String.raw`PowerShell -Command "
+  const cmdAlias = String.raw`${WindowsPowerShellCmdHeader} "
     $rawValue = ${getPathEnv([envTarget])};
     $newValue = $rawValue.Trim().TrimEnd('\; ') + ';' + '$*'.Trim().TrimEnd('\; ');
     $values = $newValue -split '\\*\s*;\s*';
@@ -320,7 +327,7 @@ function getAddPathValueCmd(envTarget: string): string {
 }
 
 function getRemovePathValueCmd(envTarget: string): string {
-  const cmdAlias = String.raw`PowerShell -Command "
+  const cmdAlias = String.raw`${WindowsPowerShellCmdHeader} "
     $deleteValues = ('$*'.Trim().TrimEnd('\; ')) -split '\\*\s*;\s*';
     $deleteValueSet = New-Object System.Collections.Generic.HashSet[String]([StringComparer]::OrdinalIgnoreCase);
     foreach ($pv in $deleteValues) {
@@ -415,7 +422,7 @@ const WindowsAliasMap: Map<string, string> = new Map<string, string>()
   .set('del-user-path', getRemovePathValueCmd('User'))
   .set('del-sys-path', getRemovePathValueCmd('Machine'))
   .set('del-tmp-path', getRemovePathValueCmd('Process'))
-  .set('reload-path', String.raw`for /f "tokens=*" %a in ('PowerShell -Command "
+  .set('reload-path', String.raw`for /f "tokens=*" %a in ('${WindowsPowerShellCmdHeader} "
           $pathValue = ${getPathEnv(['Machine', 'User', 'Process'])};
           $newValues = $pathValue -split '\\*\s*;\s*';
           $valueSet = New-Object System.Collections.Generic.HashSet[String]([StringComparer]::OrdinalIgnoreCase);
@@ -425,10 +432,10 @@ const WindowsAliasMap: Map<string, string> = new Map<string, string>()
           [void] $valueSet.Remove('');
           [string]::Join(';', $valueSet);
         "') do @SET "PATH=%a"`)
-  .set('check-user-env', String.raw`PowerShell -Command "[System.Environment]::GetEnvironmentVariables([System.EnvironmentVariableTarget]::User)"`)
-  .set('check-user-path', String.raw`PowerShell -Command "[System.Environment]::GetEnvironmentVariable('PATH', [System.EnvironmentVariableTarget]::User)"`)
-  .set('check-sys-env', String.raw`PowerShell -Command "[System.Environment]::GetEnvironmentVariables([System.EnvironmentVariableTarget]::Machine)"`)
-  .set('check-sys-path', String.raw`PowerShell -Command "[System.Environment]::GetEnvironmentVariable('PATH', [System.EnvironmentVariableTarget]::Machine)"`)
+  .set('check-user-env', String.raw`${WindowsPowerShellCmdHeader} "[System.Environment]::GetEnvironmentVariables([System.EnvironmentVariableTarget]::User)"`)
+  .set('check-user-path', String.raw`${WindowsPowerShellCmdHeader} "[System.Environment]::GetEnvironmentVariable('PATH', [System.EnvironmentVariableTarget]::User)"`)
+  .set('check-sys-env', String.raw`${WindowsPowerShellCmdHeader} "[System.Environment]::GetEnvironmentVariables([System.EnvironmentVariableTarget]::Machine)"`)
+  .set('check-sys-path', String.raw`${WindowsPowerShellCmdHeader} "[System.Environment]::GetEnvironmentVariable('PATH', [System.EnvironmentVariableTarget]::Machine)"`)
   .set('decode64', String.raw`PowerShell "[System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String('$*'))"`)
   .set('docker-login', String.raw`for /f "tokens=*" %a in ('
           docker container ls -a ^| msr -it "^(\w+)\s+\S*($1).*" -o "\1" -PAC'
@@ -445,31 +452,31 @@ const WindowsAliasMap: Map<string, string> = new Map<string, string>()
   .set('docker-stop-all', String.raw`docker ps | msr --nt CONTAINER -t "^(\w+).*" -o "docker stop \1" -X`)
   .set('grant-perm', String.raw`echo icacls $1 /grant %USERNAME%:F /T /Q | msr -XM`)
   .set('open-vsc', String.raw`code "%APPDATA%\Code\User\settings.json"`)
-  .set('to-vscode-arg-lines', String.raw`PowerShell -Command "Set-Clipboard $(Get-Clipboard | msr -t '\s+' -o '\n' -aPAC
+  .set('to-vscode-arg-lines', String.raw`${WindowsPowerShellCmdHeader} "Set-Clipboard $(Get-Clipboard | msr -t '\s+' -o '\n' -aPAC
           | msr -t '(.+)' -o '\t\t\#\1\#,' -aPIC | msr -x '#' -o '\\\"' -PAC).Replace('\"\"', '\"');"`)
-  .set('to-vscode-arg-lines-2-slashes', String.raw`PowerShell -Command "Set-Clipboard $(Get-Clipboard | msr -t '\s+' -o '\n' -aPAC
+  .set('to-vscode-arg-lines-2-slashes', String.raw`${WindowsPowerShellCmdHeader} "Set-Clipboard $(Get-Clipboard | msr -t '\s+' -o '\n' -aPAC
           | msr -t '(.+)' -o '\t\t\#\1\#,' -aPIC | msr -x \ -o \\ -aPAC | msr -x '#' -o '\\\"' -aPAC).Replace('\"\"', '\"');"`)
-  .set('to-one-json-line', String.raw`PowerShell -Command "
+  .set('to-one-json-line', String.raw`${WindowsPowerShellCmdHeader} "
           $requestBody = $(Get-Clipboard).Replace('\"', '\\\"') | msr -S -t '[\r\n]\s*' -o ' ' -PAC;
           Set-Clipboard('\"' + $requestBody.Trim() + '\"'); Get-Clipboard"`)
-  .set('to-one-json-line-from-file', String.raw`PowerShell -Command "$requestBody = $(Get-Content '$1').Replace('\"', '\\\"')
+  .set('to-one-json-line-from-file', String.raw`${WindowsPowerShellCmdHeader} "$requestBody = $(Get-Content '$1').Replace('\"', '\\\"')
           | msr -S -t '[\r\n]\s*(\S+)' -o ' \1' -PAC; Set-Clipboard('\"' + $requestBody.Trim() + '\"'); Get-Clipboard"`)
-  .set('ts-to-minutes', String.raw`PowerShell -Command "[Math]::Round([TimeSpan]::Parse('$1').TotalMinutes)"`)
-  .set('to-local-time', String.raw`PowerShell -Command "
+  .set('ts-to-minutes', String.raw`${WindowsPowerShellCmdHeader} "[Math]::Round([TimeSpan]::Parse('$1').TotalMinutes)"`)
+  .set('to-local-time', String.raw`${WindowsPowerShellCmdHeader} "
           msr -z $([DateTime]::Parse([regex]::Replace('$*'.TrimEnd('Z') + 'Z', '(?<=[+-]\d{2}:?\d{2})Z$', '')).ToString('o'))
           -t '\.0+([\+\-]\d+[:\d]*|Z)$' -o '\1' -aPA"`) // PowerShell "[DateTime]::Parse('$1').ToLocalTime()"
-  .set('to-utc-time', String.raw`PowerShell -Command "
+  .set('to-utc-time', String.raw`${WindowsPowerShellCmdHeader} "
           msr -z $([DateTime]::Parse('$*').ToUniversalTime().ToString('o')) -t '\.0+([\+\-]\d+[:\d]*|Z)$' -o '\1' -aPA"`)
   .set('to-full-path', String.raw`msr -PAC -W -l -p $*`)
   .set('to-unix-path', String.raw`msr -z %1 -x \ -o / -PAC`)
   .set('to-2s-path', String.raw`msr -z %1 -x \ -o \\ -PAC`)
-  .set('wcopy', String.raw`PowerShell -Command "
+  .set('wcopy', String.raw`${WindowsPowerShellCmdHeader} "
           [System.Reflection.Assembly]::LoadWithPartialName('System.Windows.Forms') | Out-Null;
           $filePaths = New-Object System.Collections.Specialized.StringCollection; '$1' -split '\s*,\s*'
           | ForEach-Object { [void] $filePaths.Add($(Resolve-Path $_).Path); };
           Write-Host Copied-$($filePaths.Count)-files-to-Clipboard: $filePaths;
           [System.Windows.Forms.Clipboard]::SetFileDropList($filePaths);"`)
-  .set('wpaste', String.raw`PowerShell -Command "
+  .set('wpaste', String.raw`${WindowsPowerShellCmdHeader} "
           if([string]::IsNullOrWhiteSpace('$1')) { Write-Host Please-input-save-folder -ForegroundColor Red; exit -1; }
           [System.Reflection.Assembly]::LoadWithPartialName('System.Windows.Forms') | Out-Null;
           $srcFiles = [System.Windows.Forms.Clipboard]::GetFileDropList(); $srcFiles;
@@ -481,30 +488,12 @@ const WindowsAliasMap: Map<string, string> = new Map<string, string>()
               [IO.File]::Copy($oneSrcPath, $oneSavePath, 1);
               msr -l --wt --sz -p $oneSavePath -M;
           }"`)
-  .set('win11-group-taskbar', String.raw`PowerShell 2>nul -Command "
-          Write-Host Must-run-as-Admin-for-this-Workaround-of-Grouping-Taskbar-on-Windows11 -ForegroundColor Cyan;
-          Set-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Shell\Update\Packages' -Name 'UndockingDisabled' -Value '00000000';
-          Set-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Search' -Name 'SearchBoxTaskbarMode' -Value '00000001';
-          Set-ItemProperty -Path 'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer' -Name 'NoTaskGrouping' -Value '00000000';
-          taskkill /f /im explorer.exe;
-          CMD /Q /C START /REALTIME explorer.exe;"`)
-  .set('win11-ungroup-taskbar', String.raw`PowerShell 2>nul -Command "
-          Write-Host Must-run-as-Admin-for-this-Workaround-of-UnGrouping-Taskbar-on-Windows11 -ForegroundColor Cyan;
-          Set-ExecutionPolicy -ExecutionPolicy Bypass -Scope LocalMachine -Force;
-          New-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Shell\Update\Packages' -Name 'UndockingDisabled' -PropertyType DWord -Value '00000001';
-          Set-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Shell\Update\Packages' -Name 'UndockingDisabled' -Value '00000001';
-          New-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Search' -Name 'SearchBoxTaskbarMode' -PropertyType DWord -Value '00000000';
-          Set-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Search' -Name 'SearchBoxTaskbarMode' -Value '00000000';
-          New-ItemProperty -Path 'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer' -Name 'NoTaskGrouping' -PropertyType DWord -Value '00000001';
-          Set-ItemProperty -Path 'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\Explorer' -Name 'NoTaskGrouping' -Value '00000001';
-          taskkill /f /im explorer.exe;
-          CMD /Q /C START /REALTIME explorer.exe;"`)
   .set('pwsh', String.raw`PowerShell $*`)
-  .set('is-admin', String.raw`PowerShell -Command "
+  .set('is-admin', String.raw`${WindowsPowerShellCmdHeader} "
           $principal = New-Object Security.Principal.WindowsPrincipal([Security.Principal.WindowsIdentity]::GetCurrent());
           $principal.IsInRole([Security.Principal.WindowsBuiltinRole]::Administrator)"`)
-  .set('az-token-clip', String.raw`PowerShell -Command "Set-Clipboard($(az account get-access-token | ConvertFrom-Json).accessToken.ToString().TrimEnd())"`)
-  .set('az-token-env', String.raw`for /f "tokens=*" %a in ('PowerShell -Command "
+  .set('az-token-clip', String.raw`${WindowsPowerShellCmdHeader} "Set-Clipboard($(az account get-access-token | ConvertFrom-Json).accessToken.ToString().TrimEnd())"`)
+  .set('az-token-env', String.raw`for /f "tokens=*" %a in ('${WindowsPowerShellCmdHeader} "
           az account get-access-token | ConvertFrom-Json | ForEach-Object {
              Write-Output $_.accessToken
           }"') do set "AZURE_ACCESS_TOKEN=%a"`)
@@ -512,7 +501,7 @@ const WindowsAliasMap: Map<string, string> = new Map<string, string>()
   .set('mingw-unMock', String.raw`set "MSR_UNIX_SLASH=" && echo Now will output backslash '\' for result paths in this CMD terminal.`)
   .set('clear-msr-env', String.raw`for /f "tokens=*" %a in ('set ^| msr -t "^(MSR_\w+)=.*" -o "\1" -PAC') do
          @msr -z "%a" -t "(.+)" -o "echo Cleared \1=%\1% | msr -aPA -t MSR_\\w+ -e =.*" -XA || @set "%a="`)
-  .set('trust-exe', String.raw`PowerShell -Command "Write-Host 'Please run as Admin to add process exclusion,
+  .set('trust-exe', String.raw`${WindowsPowerShellCmdHeader} "Write-Host 'Please run as Admin to add process exclusion,
           will auto fetch exe path by name, example: trust-exe msr,nin,git,scp' -ForegroundColor Cyan;
             foreach ($exe in ('$*'.Trim() -split '\s*[,;]\s*')) {
               if (-not [IO.File]::Exists($exe)) {
@@ -523,14 +512,13 @@ const WindowsAliasMap: Map<string, string> = new Map<string, string>()
               Add-MpPreference -ExclusionPath $exe;
               Add-MpPreference -ExclusionProcess $exeName;
           }"`)
-  .set('restart-net', String.raw`echo PowerShell -Command "Get-NetAdapter | Restart-NetAdapter -Confirm:$false" | msr -XM`)
+  .set('restart-net', String.raw`echo ${WindowsPowerShellCmdHeader} "Get-NetAdapter | Restart-NetAdapter -Confirm:$false" | msr -XM`)
   ;
 
 if (IsWindows) {
-  const [hasPwsh, path] = isToolExistsInPath('pwsh.exe', TerminalType.CMD);
-  if (hasPwsh) {
+  if (HasPwshExeOnWindows) {
     WindowsAliasMap.delete('pwsh');
-    outputInfoQuietByTime(`Remove alias 'pwsh' on Windows since found pwsh.exe at ${path}`);
+    outputInfoQuietByTime(`Remove alias 'pwsh' on Windows since found pwsh.exe at ${PwshPathOnWindows}`);
   }
 
   CommonAliasMap.forEach((body, name, _) => {

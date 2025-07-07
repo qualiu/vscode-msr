@@ -4,6 +4,7 @@ import { IsWindows, isNullOrEmpty } from './constants';
 import { TerminalType } from './enums';
 import { isPowerShellTerminal, isWindowsTerminalOnWindows, toTerminalPaths } from './terminalUtils';
 import fs = require('fs');
+import os = require('os');
 import crypto = require('crypto');
 
 export const MsrExe = 'msr';
@@ -109,7 +110,7 @@ export function getSetToolEnvCommand(terminalType: TerminalType, foldersToAddPat
 		: String.raw`\s*:\s*`;
 	const checkCountPattern = "^Matched [" + toolFolders.length + "-9]";
 	const checkDuplicate = isToolInPath
-		? `msr -z ${pathEnv} -t "${splitPattern}" -o "\\n" -aPAC | msr ${checkPathsPattern} -H 0 -C | msr -t "${checkCountPattern}" -M -H 0 && `
+		? `msr -z ${pathEnv} -t "${splitPattern}" -o "\\n" -aPAC | msr ${checkPathsPattern} -H 0 -C | msr -t "${checkCountPattern}" -M -H 0`
 		: '';
 
 	if (directRun && isPowerShellTerminal(terminalType)) {
@@ -119,12 +120,20 @@ export function getSetToolEnvCommand(terminalType: TerminalType, foldersToAddPat
 	switch (terminalType) {
 		case TerminalType.CMD:
 		case TerminalType.PowerShell: // if merged into cmd file for PowerShell
-			return checkDuplicate + 'SET "PATH=%PATH%;' + toolFolders.join(';') + ';"';
+			if (isNullOrEmpty(checkDuplicate)) {
+				return 'SET "PATH=%PATH%;' + toolFolders.join(';') + ';"';
+			}
+			return checkDuplicate + os.EOL + 'if %ERRORLEVEL% EQU 0 SET "PATH=%PATH%;' + toolFolders.join(';') + ';"'
+				+ os.EOL + String.raw`for /f "tokens=*" %%a in ('msr -z "%PATH%;" -t "\\*?\s*;\s*" -o "\n" -aPAC ^| nin nul "(\S+.+)" -i -u -PAC ^| msr -S -t "[\r\n]+(\S+)" -o ";\1" -aPAC') do set "PATH=%%a"`;
 		case TerminalType.Pwsh:
 			return `$env:Path += ";${toolFolders.join(';')};"`;
 		case TerminalType.LinuxBash:
 		case TerminalType.MinGWBash:
 		default:
-			return checkDuplicate + 'export PATH="$PATH:' + toolFolders.join(':').replace(/ /g, '\\ ') + '"';
+			if (isNullOrEmpty(checkDuplicate)) {
+				return 'export PATH="$PATH:' + toolFolders.join(':').replace(/ /g, '\\ ') + '"';
+			}
+			return checkDuplicate + ' && export PATH="$PATH:' + toolFolders.join(':').replace(/ /g, '\\ ') + '"'
+				+ String.raw` && export PATH="$(msr -z "$PATH" -t "/*?\s*:\s*" -o "\n" -aPAC | nin nul "(\S+.+)" -i -u -PAC | msr -S -t "[\r\n]+(\S+)" -o ':\1' -aPAC)"`;
 	}
 }

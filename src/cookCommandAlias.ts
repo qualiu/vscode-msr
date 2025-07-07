@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { IsFileTimeOffsetSupported, IsUniformSlashSupported, RunCommandChecker, ToolChecker, setNotCheckInputPathInCommandLine, setOutputColumnIndexInCommandLine } from './ToolChecker';
 import { ProjectToGitFindFileExtraOptionsMap, getFindTopDistributionCommand, getSortCommandText } from "./commands";
-import { getCommandAliasText, getCommonAliasMap, replaceArgForLinuxCmdAlias, replaceArgForWindowsCmdAlias, replaceForLoopVariableForWindowsScript, replacePowerShellVarsForLinuxAlias } from './commonAlias';
+import { getCommandAliasText, getCommonAliasMap, HasPwshExeOnWindows, replaceArgForLinuxCmdAlias, replaceArgForWindowsCmdAlias, replaceForLoopVariableForWindowsScript, replacePowerShellVarsForLinuxAlias } from './commonAlias';
 import { getConfigValueByPriorityList, getConfigValueByProjectAndExtension, getConfigValueOfActiveProject, getConfigValueOfProject } from "./configUtils";
 import { CheckReCookAliasFileSeconds, DefaultRepoFolderName, GitFileListExpirationTimeEnvName, GitRepoEnvName, GitTmpListFilePrefix, HomeFolder, IsDebugMode, IsWSL, IsWindows, RunCmdTerminalName, TempStorageFolder, TrimProjectNameRegex, WslCheckingCommand, getAliasFileName, getBashFileHeader, getEnvNameRef, getEnvNameRefRegex, getProjectFolderKey, getRepoFolder, getSkipJunkPathArgs, getTipInfoTemplate, isNullOrEmpty } from "./constants";
 import { AdditionalFileExtensionMapNames, DefaultRepoFolder, MappedExtToCodeFilePatternMap, MyConfig } from "./dynamicConfig";
@@ -206,8 +206,8 @@ function getOpenFileToolName(isWindowsTerminal: boolean, writeToEachFile: boolea
 }
 
 function showTipByCommand(terminal: vscode.Terminal | undefined, terminalType: TerminalType, aliasCount: number, initLinuxTerminalCommands = "") {
-  const generalScriptFilesFolder = getCmdAliasSaveFolder(true, false, terminalType);
-  const setToolAliasEnvCmd = getSetToolEnvCommand(terminalType, [generalScriptFilesFolder]);
+  // const generalScriptFilesFolder = getCmdAliasSaveFolder(true, false, terminalType);
+  // const setToolAliasEnvCmd = getSetToolEnvCommand(terminalType, [generalScriptFilesFolder]);
   const isWindowsTerminal = isWindowsTerminalOnWindows(terminalType);
   const defaultCmdAliasFileStoragePath = getGeneralCmdAliasFilePath(terminalType);
   const defaultCmdAliasFileForTerminal = toTerminalPath(defaultCmdAliasFileStoragePath, terminalType);
@@ -243,7 +243,6 @@ function showTipByCommand(terminal: vscode.Terminal | undefined, terminalType: T
     expectedContent += `source ${initLinuxDisplayPath}` + newLine;
   }
 
-  expectedContent += setToolAliasEnvCmd;
   expectedContent += newLine + getJunkEnvCommandForTipFile(isWindowsTerminal)
     + newLine + `msr -aPA -e "(http\\S+s|Git \\w+|del-this\\S+)|\\w+" -z "${finalGuide}" -it "${colorPattern}" ` + (isWindowsTerminal ? '%*' : '$*')
     + commentHead + gitInfoTemplate + " Free to use gfind-xxx / find-xxx." + colorCmd + ` -t "[1-9]\\d* e\\w+"`
@@ -252,6 +251,7 @@ function showTipByCommand(terminal: vscode.Terminal | undefined, terminalType: T
     + commentHead + getTipInfoTemplate(isWindowsTerminal, true)
     + newLine;
 
+  expectedContent = expectedContent.replace(/(\r?\n)+/, '$1');
   if (saveTextToFile(tipFileStoragePath, bashHeader + expectedContent)) {
     const command = `${isWindowsTerminal ? "" : "bash"} ${quotePaths(tipFileDisplayPath)} ${replaceTipValueArg}`;
     sendCommandToTerminal(command, terminal || getRunCmdTerminal(), true);
@@ -1049,6 +1049,10 @@ function getExistingCmdAlias(terminalType: TerminalType, writeToEachFile: boolea
   if (inconsistentCount > 0) {
     outputInfoQuietByTime(`Found ${inconsistentCount} inconsistent common alias, you can enable 'msr.overwriteInconsistentCommonAliasByExtension'`
       + `, or delete them in file: ${defaultCmdAliasFileForTerminal}`);
+  }
+
+  if (isWindowsTerminal && HasPwshExeOnWindows) {
+    cmdAliasMap.delete('pwsh');
   }
 
   // Skip checking and overwrite alias file if for multiple files - the alias body is different with default alias content.

@@ -12,7 +12,7 @@ const DocFilePath = path.join(GitRepoPath, 'README.md');
 const KeyRegex = /["`](msr\.\w+[\.\w]*)/g;
 const SkipKeysRegex = /^(msr|nin)\.(exe|cygwin|gcc48|xxx|tmp)|\.project\d+|default.extra\w*Groups|\.My|^msr.py.extra\w*|^msr.\w+(\.\w+)?.definition|msr.\w+.codeFiles|fileExtensionMap|\.default\.$|bat\w*\.skipFolders|preferSearchingSpeedOverPrecision/i;
 const ExemptDuplicateKeyRegex = /^(msr\.)?\w*(find|sort|make)\w+$|^msr.cookCmdAlias\w*|^msr.\w*GitIgnore\w*$/i;
-const ExemptNoValueKeyRegex = /extra|skip.definition|extensionPattern|projectRepoFolderNamePattern|cmdAlias\w*|^\w*(find|sort)\w+$|^msr.fileExtensionMap.xxx/i;
+const ExemptNoValueKeyRegex = /extra|skip.definition|extensionPattern|projectRepoFolderNamePattern|cmdAlias\w*|commonAliasNameBodyList|^\w*(find|sort)\w+$|^msr.fileExtensionMap.xxx/i;
 const NonStringValueRegex = /^(\d+|bool\w*$)/;
 
 const [AllConfigKeys, AllKeyToNameMap] = readAllKeysAndRegexPatterns();

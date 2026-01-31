@@ -99,7 +99,7 @@ function duplicateSearchFileCmdAlias(repoFolder: string, terminalType: TerminalT
   const tmpFileName = isForProjectCmdAlias
     ? GitTmpListFilePrefix + getProjectFolderKey((repoFolderName + '-' + path.basename(path.dirname(repoFolder))))
     : GitTmpListFilePrefix + getTrimmedGitRepoEnvName(isWindowsTerminal);
-  const powerShellCmdHead = getPowerShellName(terminalType) + ' -Command';
+  const powerShellCmdHead = getPowerShellName(terminalType, HasPwshExeOnWindows) + ' -Command';
   const sortedCmdKeys = Array.from(cmdAliasMap.keys()).sort();
   const saveAliasFolder = getCmdAliasSaveFolder(true, false, terminalType);
   const needReplaceArgForLoop = writeToEachFile && isWindowsTerminalOnWindows(terminalType);
@@ -408,10 +408,11 @@ export function cookCmdShortcutsOrFile(cookArgs: CookAliasArgs) {
     ? String.raw`@for /f "tokens=*" %a in ('git rev-parse --show-toplevel 2^>nul ^|^| echo "%CD%"') do`
     + String.raw` @for /f "tokens=*" %b in ('msr -z "%a" -t ".*?([^\\/]+?)\s*$" -o "\1" -aPAC ^|`
     + String.raw` msr -t "${TrimProjectNameRegex.source}" -o "-" -aPAC') do`
-    + String.raw` @call "%tmp%\%b.${projectAliasFileSuffix}"`
+    + String.raw` @if exist "%tmp%\%b.${projectAliasFileSuffix}" ( call "%tmp%\%b.${projectAliasFileSuffix}" )`
+    + String.raw` else ( echo Not found alias file: %tmp%\%b.${projectAliasFileSuffix} - Please open a folder to cook alias. )`
     : String.raw`thisFile=${linuxTmpFolder}/$(echo $(git rev-parse --show-toplevel 2>/dev/null || echo "$PWD") |`
     + String.raw` msr -t ".*?([^/]+?)\s*$" -o "\1" -aPAC | msr -t "${TrimProjectNameRegex.source}" -o "-" -aPAC).${projectAliasFileSuffix};`
-    + String.raw` source $thisFile`;
+    + String.raw` [ -f "$thisFile" ] && source $thisFile || echo "Not found alias file: $thisFile - Please open a folder to cook alias."`;
   cmdAliasMap.set('use-this-alias', getCommandAliasText('use-this-alias', useThisAliasBody, isWindowsTerminal, terminalType, args.WriteToEachFile, false));
 
   const removeThisAliasBody = isWindowsTerminal
@@ -487,6 +488,7 @@ export function cookCmdShortcutsOrFile(cookArgs: CookAliasArgs) {
 
   let writeScriptFailureCount = 0;
   const sortedKeys = Array.from(cmdAliasMap.keys()).sort();
+  const writeScriptsStartTime = new Date();
   sortedKeys.forEach(key => {
     let scriptContent = cmdAliasMap.get(key) || '';
     if (args.WriteToEachFile) {
@@ -499,6 +501,9 @@ export function cookCmdShortcutsOrFile(cookArgs: CookAliasArgs) {
       allCmdAliasText += scriptContent + newLine + newLine;
     }
   });
+  if (args.WriteToEachFile && canWriteScripts) {
+    outputInfoQuietByTime(`Cost ${getElapsedSecondsToNow(writeScriptsStartTime).toFixed(3)}s to write aliases to files.`);
+  }
 
   if (args.WriteToEachFile) {
     if (canWriteScripts && writeScriptFailureCount < cmdAliasMap.size) {
@@ -601,7 +606,7 @@ export function cookCmdShortcutsOrFile(cookArgs: CookAliasArgs) {
   if (args.WriteToEachFile) {
     runCmdInTerminal(`sft ${quotePaths(singleScriptsFolderForTerminal)} -H 3 -T 3`);
   }
-  outputDebugByTime('Finished to cook command shortcuts. Cost ' + getElapsedSecondsToNow(trackBeginTime) + ' seconds.');
+  outputInfoQuietByTime(`Cost ${getElapsedSecondsToNow(trackBeginTime).toFixed(3)}s to cook command shortcuts.`);
   if (!args.ForProject && (isRunCmdTerminal || args.FromMenu) && !isNullOrEmpty(repoFolderName) && !isWindowsTerminal) {
     runCmdInTerminal(getLoadAliasFileCommand(projectAliasFilePath, isWindowsTerminal));
   }

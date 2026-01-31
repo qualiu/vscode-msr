@@ -233,7 +233,9 @@ export function getMatchedLocationsAsync(findType: FindType, cmd: string, ranker
   };
 
   return new Promise<vscode.Location[]>((resolve, _reject) => {
-    const process = exec(cmd, options, (error: | ExecException | null, stdout: string, stderr: string) => {
+    const process = exec(cmd, options, (error: ExecException | null, stdout: string | Buffer, stderr: string | Buffer) => {
+      const stdoutStr = typeof stdout === 'string' ? stdout : stdout.toString();
+      const stderrStr = typeof stderr === 'string' ? stderr : stderr.toString();
       if (searcher) {
         searcher.IsCompleted = true;
         outputDebugByTime('Completed searcher: ' + searcher.toString());
@@ -256,11 +258,11 @@ export function getMatchedLocationsAsync(findType: FindType, cmd: string, ranker
         }
       }
 
-      const allResults: vscode.Location[] = isNullOrEmpty(stdout) ? [] : parseCommandOutput(stdout, findType, cmd, ranker);
+      const allResults: vscode.Location[] = isNullOrEmpty(stdoutStr) ? [] : parseCommandOutput(stdoutStr, findType, cmd, ranker);
 
-      if (stderr) {
-        if (!findAndProcessSummary(allResults.length, false, stderr, findType, cmd, ranker)) {
-          if (/\bmsr\b.*?\s+not\s+/.test(stderr)) {
+      if (stderrStr) {
+        if (!findAndProcessSummary(allResults.length, false, stderrStr, findType, cmd, ranker)) {
+          if (/\bmsr\b.*?\s+not\s+/.test(stderrStr)) {
             RunCommandChecker.checkSearchToolExists(true);
           }
         }
@@ -273,7 +275,9 @@ export function getMatchedLocationsAsync(findType: FindType, cmd: string, ranker
       resolve(allResults);
     });
 
-    CurrentSearchPidSet.add(process.pid);
+    if (process.pid !== undefined) {
+      CurrentSearchPidSet.add(process.pid);
+    }
     if (searcher) {
       searcher.Process = process;
     }

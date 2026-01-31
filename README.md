@@ -383,7 +383,7 @@ Open [user settings](https://code.visualstudio.com/docs/getstarted/settings#_set
 
 Parsing result of `.gitignore` file: see `MSR-Def-Ref` output channel (with `msr.debug` = `true` or launched in debug mode).
 
-Run command **`"npm run test"`** in vscode-msr folder if you want to see the translation rule of git-ignore on Windows/Linux/MacOS/FreeBSD.
+Run command **`"npm test"`** in vscode-msr folder if you want to see the translation rule of git-ignore on Windows/Linux/MacOS/FreeBSD.
 
 ### Check if a Project Can Use git-ignore
 
@@ -1042,7 +1042,7 @@ Please help to set the `Regex` patterns for them if you want. You can:
 
 ### Check and Update this doc
 
-- `npm run test` to check [configurations](package.json).
+- `npm test` to check [configurations](package.json).
 
 - **[nin](https://github.com/qualiu/msr#liberate--digitize-daily-works-by-2-exe-file-processing-data-mining-map-reduce)** [package.json](package.json) nul -p -d -k 2 -x description -c Should no unreasonable duplicate descriptions.
 

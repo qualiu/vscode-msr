@@ -27,6 +27,10 @@ updateGitIgnoreUsage();
 
 let RestoredEnvAliasTerminalMap = new Map<vscode.Terminal, boolean>();
 
+// Track terminals that existed before onDidOpenTerminal listener was registered
+let ExistingTerminalsAtStartup = new Set<vscode.Terminal>();
+let IsExtensionActivated = false;
+
 // vscode.languages.getLanguages().then((languages: string[]) => { console.log("Known languages: " + languages); });
 
 // this method is called when your extension is activated
@@ -84,10 +88,31 @@ export function activate(context: vscode.ExtensionContext) {
 		}
 	})));
 
+	// Record existing terminals before registering onDidOpenTerminal listener
+	// This prevents cooking alias for terminals that existed at startup (restored terminals)
+	if (vscode.window.terminals && vscode.window.terminals.length > 0) {
+		vscode.window.terminals.forEach(t => ExistingTerminalsAtStartup.add(t));
+		outputDebugByTime(`Found ${ExistingTerminalsAtStartup.size} existing terminals at startup`);
+	}
+
 	// Process new terminal event:
 	context.subscriptions.push(vscode.window.onDidOpenTerminal(terminal => {
 		RestoredEnvAliasTerminalMap.set(terminal, true);
 		if (terminal.name === RunCmdTerminalName) {
+			return;
+		}
+
+		// Skip terminals that existed before the listener was registered (restored terminals)
+		if (ExistingTerminalsAtStartup.has(terminal)) {
+			outputDebugByTime(`Skip cooking alias for restored terminal: name="${terminal.name}"`);
+			ExistingTerminalsAtStartup.delete(terminal); // Clean up the reference
+			return;
+		}
+
+		// Skip terminals created during the initial activation phase
+		// This prevents extra terminal creation when extension activates with "*" event
+		if (!IsExtensionActivated) {
+			outputDebugByTime(`Skip cooking alias during activation phase: name="${terminal.name}"`);
 			return;
 		}
 
@@ -115,6 +140,13 @@ export function activate(context: vscode.ExtensionContext) {
 			outputInfoQuietByTime(`Skip cooking alias: terminalName = ${terminalName}, title = ${terminalTitle}, initialPath = ${initialPath}, matchNameRegex = ${matchNameRegex.source}`);
 		}
 	}));
+
+	// Mark extension as fully activated after a short delay
+	// This ensures we only cook alias for terminals created by user action, not during startup
+	setTimeout(() => {
+		IsExtensionActivated = true;
+		outputDebugByTime('Extension activation complete, now accepting new terminal events');
+	}, 2000);
 }
 
 function updateGitIgnoreUsage() {

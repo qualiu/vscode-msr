@@ -214,7 +214,7 @@ Auto [**set project specific alias**](#auto-set-command-shortcuts-for-new-termin
 ### Best Practice to Update Git Repo and Search Code
 
 - Create [**custom common alias**](#custom-alias-to-auto-sync-across-local-and-remote-ssh-hosts-plus-docker-containers) **once-for-all** to help automate daily work across Windows + Remote SSH hosts + containers.
-- Please use `gpc` or `gpc-sm`/`gpc-sm-reset` / `git-sm-xxx` to pull/update your git repository.
+- Please use [**built-in aliases**](./Common-Alias.md) like `gpc` or `gpc-sm`/`gpc-sm-reset` / `git-sm-xxx` to pull/update your git repository.
 - Set `msr.refreshTmpGitFileListDuration` to large value(like `12hours` / `3days`) if you always use them.
   - Run `gpc` or [**del-this-tmp-list**](#try-rgfind-xxx-to-search-multiple-git-repositories) whenever you need to update git-paths (used by [**gfind-xxx**](#try-to-use-gfind-xxx-instead-of-find-xxx-aliasdoskey)).
 - 4 methods to solve `gfind-xxx` drawbacks of possible using outdated tmp-git-paths-list:
@@ -319,6 +319,8 @@ Details see [Create Custom Common Alias **Once and for All**](Create-Custom-Comm
 - `msr`.**cmd**.`commonAliasNameBodyList` for Windows only.
 - `msr`.**bash**.`commonAliasNameBodyList` for MinGW/Cygwin + WSL + Linux/MacOS/FreeBSD.
 
+You can overwrite [built-in common alias](./Common-Alias.md) in [settings.json](https://code.visualstudio.com/docs/configure/settings#_settings-file-locations) by creating your own custom common alias with same alias/doskey name.
+
 ### Try rgfind-xxx to Search Multiple Git Repositories
 
 After [cooking alias scripts](#make-command-shortcuts-to-search-or-replace-in-or-out-of-vscode), you can use **rgfind-xxx** like `rgfind-cpp-ref MySearchWord` to **recursively** search multiple git repositories in a folder.
@@ -383,7 +385,7 @@ Open [user settings](https://code.visualstudio.com/docs/getstarted/settings#_set
 
 Parsing result of `.gitignore` file: see `MSR-Def-Ref` output channel (with `msr.debug` = `true` or launched in debug mode).
 
-Run command **`"npm run test"`** in vscode-msr folder if you want to see the translation rule of git-ignore on Windows/Linux/MacOS/FreeBSD.
+Run command **`"npm test"`** in vscode-msr folder if you want to see the translation rule of git-ignore on Windows/Linux/MacOS/FreeBSD.
 
 ### Check if a Project Can Use git-ignore
 
@@ -1042,7 +1044,7 @@ Please help to set the `Regex` patterns for them if you want. You can:
 
 ### Check and Update this doc
 
-- `npm run test` to check [configurations](package.json).
+- `npm test` to check [configurations](package.json).
 
 - **[nin](https://github.com/qualiu/msr#liberate--digitize-daily-works-by-2-exe-file-processing-data-mining-map-reduce)** [package.json](package.json) nul -p -d -k 2 -x description -c Should no unreasonable duplicate descriptions.
 

@@ -223,12 +223,26 @@ export function getRepoFolders(currentFilePath: string): string[] {
     return Array.from(repoFolderSet);
 }
 
-export function getPowerShellName(terminalType: TerminalType) {
-    return !IsWindows || TerminalType.WslBash == terminalType ? "pwsh" : "PowerShell";
+export function getPowerShellName(terminalType: TerminalType, hasPwshExeOnWindows: boolean = false) {
+    if (!IsWindows) {
+        return "pwsh"; // Linux/Mac always use pwsh
+    }
+    // Windows system
+    switch (terminalType) {
+        case TerminalType.WslBash:
+            return "pwsh"; // WSL is Linux environment, use pwsh
+        case TerminalType.CygwinBash:
+        case TerminalType.MinGWBash:
+            // Cygwin/MinGW can call Windows executables with .exe suffix
+            return hasPwshExeOnWindows ? "pwsh.exe" : "powershell.exe";
+        default:
+            // CMD/PowerShell terminal on Windows
+            return hasPwshExeOnWindows ? "pwsh" : "PowerShell";
+    }
 }
 
-export function isPowerShellCommand(cmd: string, terminalType: TerminalType): boolean {
-    const powerShellCmd = getPowerShellName(terminalType) + ' -Command';
+export function isPowerShellCommand(cmd: string, terminalType: TerminalType, hasPwshExeOnWindows: boolean = false): boolean {
+    const powerShellCmd = getPowerShellName(terminalType, hasPwshExeOnWindows) + ' -Command';
     return cmd.includes(powerShellCmd);
 }
 

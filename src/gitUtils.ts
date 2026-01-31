@@ -145,124 +145,125 @@ export class GitIgnore {
     }
 
     const beginTime = new Date();
-    fs.readFile(this.IgnoreFilePath, 'utf8', (err, text) => {
-      if (err) {
-        const message = 'Failed to read file: ' + this.IgnoreFilePath + ' , error: ' + err;
-        outputErrorByTime(message);
-        this.showErrorInRunCmdTerminal(message);
-        this.Completed = true;
-        callbackWhenFailed();
-        return;
-      }
-
-      if (isNullOrEmpty(text)) {
-        this.Completed = true;
-        const message = 'Read empty content from file: ' + this.IgnoreFilePath;
-        outputErrorByTime(message);
-        this.showErrorInRunCmdTerminal(message);
-        callbackWhenFailed();
-        return;
-      }
-
-      const lines = text.split(/\r?\n/);
-      const ignoreCommentSpecialRegex = new RegExp(String.raw`^\s*#` + '|' + String.raw`^/\**/?$`); // Skip cases: /*/
-      const exemptionRegex = /^\s*\!/;
-      const ignoreDotFolderRegex = new RegExp(String.raw`^\.\*$` + '|' + String.raw`^/?\.[\w\./\?-]+$`); // Skip cases: .*.swp 
-
-      const useBackSlash = this.IsCmdTerminal && !IsForwardingSlashSupportedOnWindows;
-      const headSlash = useBackSlash ? '\\\\' : '/';
-      const dotFolderPattern = headSlash + (this.SkipDotFolders ? '[\\$\\.]' : '\\$');
-
-      let skipPatterns = new Set<string>().add(dotFolderPattern);
-
-      if (!this.SkipDotFolders) {
-        skipPatterns.add(this.getPattern(headSlash + '.git/'));
-      }
-
-      let readPatternCount = 0;
-      let errorList = new Array<string>();
-      for (let row = 0; row < lines.length; row++) {
-        const line = lines[row].trim();
-        if (isNullOrEmpty(line) || ignoreCommentSpecialRegex.test(line)) {
-          continue;
-        }
-
-        readPatternCount++;
-        if (exemptionRegex.test(line)) {
-          if (this.OmitGitIgnoreExemptions) {
-            this.ExemptionCount++;
-            outputWarnByTime('Ignore exemption: "' + line + '" at ' + this.IgnoreFilePath + ':' + (row + 1) + ' while msr.omitGitIgnoreExemptions = true.');
-            continue;
-          } else {
-            this.Completed = true;
-            const message = 'Skip using git-ignore due to found exemption: "' + line + '" at ' + this.IgnoreFilePath + ':' + (row + 1) + ' while msr.omitGitIgnoreExemptions = false.';
-            outputErrorByTime(message);
-            this.showErrorInRunCmdTerminal(message);
-            callbackWhenFailed();
-            return;
-          }
-        }
-
-        if (line.startsWith('$') || (this.SkipDotFolders && ignoreDotFolderRegex.test(line))) {
-          outputInfoQuiet('Ignore redundant dot ignore: "' + line + '" at ' + this.IgnoreFilePath + ':' + (row + 1) + ' while msr.skipDotFoldersIfUseGitIgnoreFile = true.');
-          continue;
-        }
-
-        const pattern = this.getPattern(line);
-        if (pattern.length < 2) {
-          outputWarnByTime('Skip too short pattern: "' + line + '" at ' + this.IgnoreFilePath + ':' + (row + 1));
-          continue;
-        }
-
-        try {
-          // tslint:disable-next-line: no-unused-expression
-          new RegExp(pattern);
-          skipPatterns.add(pattern);
-        } catch (err) {
-          const message = 'Error[' + (errorList.length + 1) + ']:' + ' at ' + this.IgnoreFilePath + ':' + row + ' : Input_Git_Ignore = ' + line
-            + ' , Skip_Paths_Regex = ' + pattern + ' , error = ' + err;
-          errorList.push(message);
-          outputErrorByTime(message + '\n');
-        }
-      }
-
-      this.SkipPathPattern = this.mergeToTerminalSkipPattern(skipPatterns);
-      const setVarCmdLength = this.SkipPathPattern.length + (this.IsCmdTerminal ? '@set "="'.length : 'export =""'.length) + SkipPathVariableName.length;
-      const isInMaxLength = setVarCmdLength < this.MaxCommandLength;
-      this.Valid = this.SkipPathPattern.length > 0 && isInMaxLength;
-      if (this.Valid) {
-        ProjectFolderToShortSkipGitPathEnvValueMap.set(this.RepoFolder, this.SkipPathPattern);
-      }
+    let text: string;
+    try {
+      text = fs.readFileSync(this.IgnoreFilePath, 'utf8');
+    } catch (err) {
+      const message = 'Failed to read file: ' + this.IgnoreFilePath + ' , error: ' + err;
+      outputErrorByTime(message);
+      this.showErrorInRunCmdTerminal(message);
       this.Completed = true;
-      if (errorList.length > 0) {
-        outputError(errorList.join('\n'));
+      callbackWhenFailed();
+      return;
+    }
+
+    if (isNullOrEmpty(text)) {
+      this.Completed = true;
+      const message = 'Read empty content from file: ' + this.IgnoreFilePath;
+      outputErrorByTime(message);
+      this.showErrorInRunCmdTerminal(message);
+      callbackWhenFailed();
+      return;
+    }
+
+    const lines = text.split(/\r?\n/);
+    const ignoreCommentSpecialRegex = new RegExp(String.raw`^\s*#` + '|' + String.raw`^/\**/?$`); // Skip cases: /*/
+    const exemptionRegex = /^\s*\!/;
+    const ignoreDotFolderRegex = new RegExp(String.raw`^\.\*$` + '|' + String.raw`^/?\.[\w\./\?-]+$`); // Skip cases: .*.swp
+
+    const useBackSlash = this.IsCmdTerminal && !IsForwardingSlashSupportedOnWindows;
+    const headSlash = useBackSlash ? '\\\\' : '/';
+    const dotFolderPattern = headSlash + (this.SkipDotFolders ? '[\\$\\.]' : '\\$');
+
+    let skipPatterns = new Set<string>().add(dotFolderPattern);
+
+    if (!this.SkipDotFolders) {
+      skipPatterns.add(this.getPattern(headSlash + '.git/'));
+    }
+
+    let readPatternCount = 0;
+    let errorList = new Array<string>();
+    for (let row = 0; row < lines.length; row++) {
+      const line = lines[row].trim();
+      if (isNullOrEmpty(line) || ignoreCommentSpecialRegex.test(line)) {
+        continue;
       }
 
-      let parsedInfo = `Parsed ${skipPatterns.size} of ${readPatternCount} patterns, omitted ${errorList.length} errors, ignored ${this.ExemptionCount} exemptions in ${this.IgnoreFilePath}`;
-      if (this.ExemptionCount > 0) {
-        parsedInfo += ` - see ${OutputChannelName} in OUTPUT. Use gfind-xxx instead of find-xxx for git-exemptions`;
+      readPatternCount++;
+      if (exemptionRegex.test(line)) {
+        if (this.OmitGitIgnoreExemptions) {
+          this.ExemptionCount++;
+          outputWarnByTime('Ignore exemption: "' + line + '" at ' + this.IgnoreFilePath + ':' + (row + 1) + ' while msr.omitGitIgnoreExemptions = true.');
+          continue;
+        } else {
+          this.Completed = true;
+          const message = 'Skip using git-ignore due to found exemption: "' + line + '" at ' + this.IgnoreFilePath + ':' + (row + 1) + ' while msr.omitGitIgnoreExemptions = false.';
+          outputErrorByTime(message);
+          this.showErrorInRunCmdTerminal(message);
+          callbackWhenFailed();
+          return;
+        }
       }
 
-      parsedInfo += ' ; ' + SkipPathVariableName + ' length = ' + this.SkipPathPattern.length + '.';
-      const message = 'Cost ' + getElapsedSecondsToNow(beginTime).toFixed(3) + ' s: ' + parsedInfo;
-      outputInfoByTime(message);
-
-      callbackWhenSucceeded();
-
-      const shouldDisplayTip = this.RepoFolder === RunCmdFolderWithForwardSlash;
-      if (!shouldDisplayTip || !RunCommandChecker.IsToolExists) {
-        return;
+      if (line.startsWith('$') || (this.SkipDotFolders && ignoreDotFolderRegex.test(line))) {
+        outputInfoQuiet('Ignore redundant dot ignore: "' + line + '" at ' + this.IgnoreFilePath + ':' + (row + 1) + ' while msr.skipDotFoldersIfUseGitIgnoreFile = true.');
+        continue;
       }
 
-      const tipFileDisplayPath = getTipFileDisplayPath(this.Terminal);
-      const setVarCmd = getCommandToSetGitInfoVar(this.IsCmdTerminal, this.SkipPathPattern.length, readPatternCount, skipPatterns.size, errorList.length, this.ExemptionCount);
-      const referencePattern = !isInMaxLength ? "too.long" : (this.ExemptionCount > 0 ? "instead.of.find" : "Free.to.use");
-      const replaceCmd = (this.IsCmdTerminal ? `-x ::` : `-x '#'`) + ` -o echo`;
-      const tipCommand = getRunTipFileCommand(tipFileDisplayPath, `${replaceCmd} -t ${referencePattern}`);
-      // Use msr to discard tmp variables after execution
-      const command = `msr -XA -z "${setVarCmd} ${tipCommand}"` + (this.IsCmdTerminal ? ' 2>nul & use-this-alias' : ' 2>/dev/null');
-      runRawCommandInTerminal(command);
-    });
+      const pattern = this.getPattern(line);
+      if (pattern.length < 2) {
+        outputWarnByTime('Skip too short pattern: "' + line + '" at ' + this.IgnoreFilePath + ':' + (row + 1));
+        continue;
+      }
+
+      try {
+        // tslint:disable-next-line: no-unused-expression
+        new RegExp(pattern);
+        skipPatterns.add(pattern);
+      } catch (err) {
+        const message = 'Error[' + (errorList.length + 1) + ']:' + ' at ' + this.IgnoreFilePath + ':' + row + ' : Input_Git_Ignore = ' + line
+          + ' , Skip_Paths_Regex = ' + pattern + ' , error = ' + err;
+        errorList.push(message);
+        outputErrorByTime(message + '\n');
+      }
+    }
+
+    this.SkipPathPattern = this.mergeToTerminalSkipPattern(skipPatterns);
+    const setVarCmdLength = this.SkipPathPattern.length + (this.IsCmdTerminal ? '@set "="'.length : 'export =""'.length) + SkipPathVariableName.length;
+    const isInMaxLength = setVarCmdLength < this.MaxCommandLength;
+    this.Valid = this.SkipPathPattern.length > 0 && isInMaxLength;
+    if (this.Valid) {
+      ProjectFolderToShortSkipGitPathEnvValueMap.set(this.RepoFolder, this.SkipPathPattern);
+    }
+    this.Completed = true;
+    if (errorList.length > 0) {
+      outputError(errorList.join('\n'));
+    }
+
+    let parsedInfo = `Parsed ${skipPatterns.size} of ${readPatternCount} patterns, omitted ${errorList.length} errors, ignored ${this.ExemptionCount} exemptions in ${this.IgnoreFilePath}`;
+    if (this.ExemptionCount > 0) {
+      parsedInfo += ` - see ${OutputChannelName} in OUTPUT. Use gfind-xxx instead of find-xxx for git-exemptions`;
+    }
+
+    parsedInfo += ' ; ' + SkipPathVariableName + ' length = ' + this.SkipPathPattern.length + '.';
+    const message = 'Cost ' + getElapsedSecondsToNow(beginTime).toFixed(3) + ' s: ' + parsedInfo;
+    outputInfoByTime(message);
+
+    callbackWhenSucceeded();
+
+    const shouldDisplayTip = this.RepoFolder === RunCmdFolderWithForwardSlash;
+    if (!shouldDisplayTip || !RunCommandChecker.IsToolExists) {
+      return;
+    }
+
+    const tipFileDisplayPath = getTipFileDisplayPath(this.Terminal);
+    const setVarCmd = getCommandToSetGitInfoVar(this.IsCmdTerminal, this.SkipPathPattern.length, readPatternCount, skipPatterns.size, errorList.length, this.ExemptionCount);
+    const referencePattern = !isInMaxLength ? "too.long" : (this.ExemptionCount > 0 ? "instead.of.find" : "Free.to.use");
+    const replaceCmd = (this.IsCmdTerminal ? `-x ::` : `-x '#'`) + ` -o echo`;
+    const tipCommand = getRunTipFileCommand(tipFileDisplayPath, `${replaceCmd} -t ${referencePattern}`);
+    // Use msr to discard tmp variables after execution
+    const command = `msr -XA -z "${setVarCmd} ${tipCommand}"` + (this.IsCmdTerminal ? ' 2>nul & use-this-alias' : ' 2>/dev/null');
+    runRawCommandInTerminal(command);
   }
 
   private showErrorInRunCmdTerminal(message: string) {

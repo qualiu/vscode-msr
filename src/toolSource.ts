@@ -48,7 +48,7 @@ export function getHomeUrl(sourceHomeUrl: string): string {
 
 export function getFileMd5(filePath: string) {
 	const hash = crypto.createHash('md5');
-	const content = fs.readFileSync(filePath, { encoding: '' });
+	const content = fs.readFileSync(filePath);
 	const md5 = hash.update(content).digest('hex');
 	return md5;
 }

@@ -63,9 +63,11 @@ You can override any built-in alias by creating a custom alias with the same nam
 
 ## Git Diff with Main/Master Branch
 
+Compare your current branch with the `origin/main` or `origin/master` branch using difftool or list changed files.
+
 | Alias    | Usage                                                       | Examples                                          |
 | -------- | ----------------------------------------------------------- | ------------------------------------------------- |
-| `gdm`    | Open difftool comparing to origin/main or origin/master     | `gdm` \| `gdm src/` \| `gdm -- src/`              |
+| `gdm`    | Open difftool to compare with origin `main/master`      | `gdm` \| `gdm src/` \| `gdm -- src/`              |
 | `gdm-m`  | Open difftool for modified files only                   | `gdm-m` \| `gdm-m src/` \| `gdm-m -- src/`        |
 | `gdm-l`  | List all changed file names                             | `gdm-l` \| `gdm-l *.ts` \| `gdm-l -- *.ts`        |
 | `gdm-al` | List added files only                                   | `gdm-al` \| `gdm-al src/` \| `gdm-al -- src/`     |
@@ -117,8 +119,8 @@ You can override any built-in alias by creating a custom alias with the same nam
 | ----- | ------------------------------------------------------- | --------------------------------------- |
 | `sfs` | Sort files by size (list with size and time)            | `sfs .` \| `sfs src/ -r`                |
 | `sft` | Sort files by time (list with time and size)            | `sft .` \| `sft logs/ -r`               |
-| `sfw` | Print full path with Windows backslashes (Windows-Only) | `sfw apps/tools` \| `sfw . -f "\.exe$"` |
-| `sfu` | Print paths with Unix forward slashes (Windows-Only)    | `sfu tools -W -f exe --sp .exe`         |
+| `sfw` | Print full path with Windows backslashes (Windows-Only) | `sfw C:/tools` \| `sfw . -f "\.exe$"` -r |
+| `sfu` | Print paths with Unix forward slashes (Windows-Only)    | `sfu C:\tools -W -f exe --sp .exe` -r -k 3 |
 
 ## Output Path Format
 
@@ -141,21 +143,23 @@ You can override any built-in alias by creating a custom alias with the same nam
 
 ### Environment Variable Management
 
-| Alias             | Usage                                        | Examples                                                      |
-| ----------------- | -------------------------------------------- | ------------------------------------------------------------- |
-| `reload-env`      | Reload all environment variables from system | `reload-env`                                                  |
-| `reset-env`       | Reset environment to system defaults         | `reset-env`                                                   |
-| `reload-path`     | Reload PATH environment variable             | `reload-path`                                                 |
-| `add-user-path`   | Add path to user PATH variable               | `add-user-path C:\tools` \| `add-user-path D:\bin`            |
-| `add-sys-path`    | Add path to system PATH variable             | `add-sys-path C:\tools` \| `add-sys-path D:\bin`              |
-| `add-tmp-path`    | Add path to current session PATH             | `add-tmp-path C:\tools` \| `add-tmp-path .\node_modules\.bin` |
-| `del-user-path`   | Remove path from user PATH variable          | `del-user-path C:\old-tools` \| `del-user-path D:\deprecated` |
-| `del-sys-path`    | Remove path from system PATH variable        | `del-sys-path C:\old-tools` \| `del-sys-path D:\deprecated`   |
-| `del-tmp-path`    | Remove path from current session PATH        | `del-tmp-path C:\temp-tools` \| `del-tmp-path .\temp`         |
-| `check-user-env`  | Show user environment variables              | `check-user-env`                                              |
-| `check-user-path` | Show user PATH variable                      | `check-user-path`                                             |
-| `check-sys-env`   | Show system environment variables            | `check-sys-env`                                               |
-| `check-sys-path`  | Show system PATH variable                    | `check-sys-path`                                              |
+| Alias             | Usage                                              | Examples                                                                     |
+| ----------------- | -------------------------------------------------- | ---------------------------------------------------------------------------- |
+| `reload-env`      | Reload all environment variables from system       | `reload-env`                                                                 |
+| `reset-env`       | Reset environment to system defaults               | `reset-env`                                                                  |
+| `reload-path`     | Reload PATH environment variable                   | `reload-path`                                                                |
+| `add-user-path`   | Add path to user PATH (auto-removes duplicates)    | `add-user-path C:\tools` \| `add-user-path C:\tools yes`                     |
+| `add-sys-path`    | Add path to system PATH (auto-removes duplicates)  | `add-sys-path C:\tools` \| `add-sys-path C:\tools yes`                       |
+| `add-tmp-path`    | Add path to session PATH (auto-removes duplicates) | `add-tmp-path C:\tools` \| `add-tmp-path "C:\Program Files" 1`               |
+| `del-user-path`   | Remove path from user PATH variable                | `del-user-path C:\old-tools`                                                 |
+| `del-sys-path`    | Remove path from system PATH variable              | `del-sys-path C:\old-tools`                                                  |
+| `del-tmp-path`    | Remove path from current session PATH              | `del-tmp-path C:\temp-tools`                                                 |
+| `check-user-env`  | Filter user env vars by name/value regex           | `check-user-env` \| `check-user-env "^path"` \| `check-user-env . java`      |
+| `check-sys-env`   | Filter system env vars by name/value regex         | `check-sys-env` \| `check-sys-env "^win"` \| `check-sys-env . sdk`           |
+| `check-tmp-env`   | Filter session env vars by name/value regex        | `check-tmp-env` \| `check-tmp-env "^dot"` \| `check-tmp-env . python`        |
+| `check-user-path` | Show/check user PATH (duplicates in Yellow/Orange) | `check-user-path` \| `check-user-path yes` \| `check-user-path C:\tools`     |
+| `check-sys-path`  | Show/check system PATH (non-exist in Red)          | `check-sys-path` \| `check-sys-path 1` \| `check-sys-path C:\Windows`        |
+| `check-tmp-path`  | Show/check session PATH (no-permission in Magenta) | `check-tmp-path` \| `check-tmp-path yes` \| `check-tmp-path C:\Python`       |
 
 ### Docker Operations
 
@@ -164,55 +168,55 @@ You can override any built-in alias by creating a custom alias with the same nam
 | `docker-ls`        | List containers with status highlighting     | `docker-ls` \| `docker-ls -a`                                          |
 | `docker-ls-image`  | List images with digests                     | `docker-ls-image`                                                      |
 | `docker-login`     | Start and login to container by name pattern | `docker-login ubuntu` \| `docker-login node`                           |
-| `docker-login-cid` | Login to container by ID                     | `docker-login-cid abc123` \| `docker-login-cid a1b2c3d4`               |
+| `docker-login-cid` | Login to container by ID                     | `docker-login-cid abc123`                                              |
 | `docker-start`     | Start container by name pattern              | `docker-start ubuntu` \| `docker-start mysql`                          |
 | `docker-stop`      | Stop container by name pattern               | `docker-stop ubuntu` \| `docker-stop redis`                            |
 | `docker-stop-all`  | Stop all running containers                  | `docker-stop-all`                                                      |
 | `docker-rm-cid`    | Remove container by ID                       | `docker-rm-cid abc123` \| `docker-rm-cid abc123 -f`                    |
 | `docker-rm-image`  | Remove image by ID                           | `docker-rm-image abc123` \| `docker-rm-image abc123 -f`                |
-| `docker-send`      | Copy file to container                       | `docker-send ubuntu file.txt /tmp/` \| `docker-send node app.js /app/` |
+| `docker-send`      | Copy file to container                       | `docker-send ubuntu file.txt /tmp/`                                    |
 
 ### Windows Utilities
 
-| Alias         | Usage                                         | Examples                                           |
-| ------------- | --------------------------------------------- | -------------------------------------------------- |
-| `grant-perm`  | Grant full permission to current user         | `grant-perm C:\folder` \| `grant-perm D:\project`  |
-| `open-vsc`    | Open VSCode settings.json                     | `open-vsc`                                         |
-| `decode64`    | Decode base64 string                          | `decode64 SGVsbG8gV29ybGQ=` \| `decode64 dGVzdA==` |
-| `is-admin`    | Check if running as administrator             | `is-admin`                                         |
-| `trust-exe`   | Add executables to Windows Defender exclusion | `trust-exe msr,nin` \| `trust-exe git,node`        |
-| `restart-net` | Restart network adapters                      | `restart-net`                                      |
-| `pwsh`        | Run PowerShell (when pwsh.exe not installed)  | `pwsh Get-Process` \| `pwsh -Command "dir"`        |
+| Alias         | Usage                                         | Examples                                    |
+| ------------- | --------------------------------------------- | ------------------------------------------- |
+| `grant-perm`  | Grant full permission to current user         | `grant-perm C:\folder`                      |
+| `open-vsc`    | Open VSCode settings.json                     | `open-vsc`                                  |
+| `decode64`    | Decode base64 string                          | `decode64 SGVsbG8gV29ybGQ=`                 |
+| `is-admin`    | Check if running as administrator             | `is-admin`                                  |
+| `trust-exe`   | Add executables to Windows Defender exclusion | `trust-exe msr,nin` \| `trust-exe git,node` |
+| `restart-net` | Restart network adapters                      | `restart-net`                               |
+| `pwsh`        | Run PowerShell (when pwsh.exe not installed)  | `pwsh Get-Process` \| `pwsh -Command "dir"` |
 
 ### Clipboard Operations
 
 | Alias    | Usage                                | Examples                                         |
 | -------- | ------------------------------------ | ------------------------------------------------ |
 | `wcopy`  | Copy files to clipboard              | `wcopy file1.txt` \| `wcopy file1.txt,file2.txt` |
-| `wpaste` | Paste files from clipboard to folder | `wpaste C:\destination` \| `wpaste D:\backup`    |
+| `wpaste` | Paste files from clipboard to folder | `wpaste C:\destination`                          |
 
 ### Path Conversion
 
 | Alias          | Usage                                  | Examples                                                        |
-| -------------- | -------------------------------------- | --------------------------------------------------------------- |
-| `to-full-path` | Convert to full absolute path          | `to-full-path .` \| `to-full-path src/`                         |
-| `to-unix-path` | Convert backslashes to forward slashes | `to-unix-path C:\path\to\file` \| `to-unix-path D:\project\src` |
-| `to-2s-path`   | Convert single backslash to double     | `to-2s-path C:\path\to\file` \| `to-2s-path D:\logs\app`        |
+| -------------- | -------------------------------------- | --------------------------------|
+| `to-full-path` | Convert to full absolute path          | `to-full-path src/`             |
+| `to-unix-path` | Convert backslashes to forward slashes | `to-unix-path C:\path\to\file`  |
+| `to-2s-path`   | Convert single backslash to double     | `to-2s-path C:\path\to\file`    |
 
 ### Time Conversion
 
 | Alias           | Usage                              | Examples                                                                          |
 | --------------- | ---------------------------------- | --------------------------------------------------------------------------------- |
 | `to-local-time` | Convert UTC/ISO time to local time | `to-local-time 2024-01-15T10:30:00Z` \| `to-local-time 2024-06-20T15:45:00+00:00` |
-| `to-utc-time`   | Convert local time to UTC          | `to-utc-time "2024-01-15 18:30:00"` \| `to-utc-time "2024-06-20 08:15:00"`        |
-| `ts-to-minutes` | Convert time span to minutes       | `ts-to-minutes 01:30:00` \| `ts-to-minutes 00:45:30`                              |
+| `to-utc-time`   | Convert local time to UTC          | `to-utc-time "2024-01-15 18:30:00 +0800"`  |
+| `ts-to-minutes` | Convert time span to minutes       | `ts-to-minutes 01:30:00` |
 
 ### JSON Utilities
 
 | Alias                           | Usage                                       | Examples                                                                           |
 | ------------------------------- | ------------------------------------------- | ---------------------------------------------------------------------------------- |
 | `to-one-json-line`              | Convert clipboard JSON to single line       | `to-one-json-line`                                                                 |
-| `to-one-json-line-from-file`    | Convert file JSON to single line            | `to-one-json-line-from-file config.json` \| `to-one-json-line-from-file data.json` |
+| `to-one-json-line-from-file`    | Convert file JSON to single line            | `to-one-json-line-from-file config.json`                                           |
 | `to-vscode-arg-lines`           | Convert clipboard to VSCode argument format | `to-vscode-arg-lines`                                                              |
 | `to-vscode-arg-lines-2-slashes` | Same with double backslashes                | `to-vscode-arg-lines-2-slashes`                                                    |
 

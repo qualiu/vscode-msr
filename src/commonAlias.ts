@@ -8,84 +8,14 @@ import { isToolExistsInPath, isWindowsTerminalOnWindows } from "./terminalUtils"
 import { getPowerShellName, replaceSearchTextHolder, replaceTextByRegex } from "./utils";
 
 /**
- * =====================================================================================================================
- * WINDOWS DOSKEY ALIAS LIMITATIONS AND SPECIAL CHARACTERS
- * =====================================================================================================================
+ * DOSKEY SPECIAL CHARACTERS - AVOID these variable prefixes: $a, $b, $g, $l, $r, $t
+ * Examples: $alias->& $bar->| $good->> $list->< $rowNum->CR $temp->separator
+ * Use 1/0 instead of $true/$false. Test doskey in CMD terminal, not PowerShell.
  *
- * 1. DOSKEY MACRO LENGTH LIMIT:
- *    - Maximum macro length: ~8191 characters (Windows command line limit)
- *    - Practical limit: Keep doskey macros as short as possible for reliability
- *    - For complex/long commands: Use script files (.cmd) instead of doskey macros
- *
- * 2. DOSKEY SPECIAL CHARACTERS (MUST AVOID in variable names):
- *    - $a = & (ampersand)      - Variables like $alias, $arr will become &lias, &rr
- *    - $b = | (pipe)           - Variables like $bar, $batch will become |ar, |atch
- *    - $g = > (redirect out)   - Variables like $good, $get will become >ood, >et
- *    - $l = < (redirect in)    - Variables like $list, $log will become <ist, <og
- *    - $r = carriage return    - Variables like $rowNum will become <CR>owNum
- *    - $t = command separator  - Variables like $test, $temp will become <separator>est, <separator>emp
- *
- * 3. DOSKEY PARAMETER SYNTAX:
- *    - $1 to $9 = positional parameters (like %1 to %9 in batch files)
- *    - $* = all parameters
- *
- * 4. SAFE VARIABLE NAMING RULES:
- *    - AVOID: $a*, $b*, $g*, $l*, $r*, $t* (any variable starting with these)
- *    - SAFE: $prefix, $found, $settings, $item, $cmd, $pattern, $keyGroup, $matchXxx, $numXxx, etc.
- *    - When in doubt: Use longer descriptive names that don't start with a/b/g/l/r/t
- *
- * 5. EXAMPLES OF PROBLEMATIC VARIABLES:
- *    - $alias    -> &lias      (broken! $a is parsed as &)
- *    - $bar      -> |ar        (broken)
- *    - $good     -> >ood       (broken)
- *    - $list     -> <ist       (broken)
- *    - $rowNum   -> <CR>owNum  (broken! $r is parsed as carriage return)
- *    - $temp     -> <sep>emp   (broken)
- *
- * 6. POWERSHELL BUILT-IN VARIABLES TO AVOID:
- *    - $true     -> <sep>rue   (broken! $t is command separator)
- *    - $false    -> same reason, $f is safe but avoid for consistency
- *    - SOLUTION: Use 1/0 instead of $true/$false in doskey aliases
- *    - Example: $foundInSettings = 1  instead of  $foundInSettings = $true
- *
- * 7. TESTING DOSKEY ALIASES:
- *    - Script file (.cmd) uses %1, %2, %* syntax - test with: find-alias.cmd <args>
- *    - Doskey macro uses $1, $2, $* syntax - test in CMD terminal: find-alias <args>
- *    - IMPORTANT: PowerShell terminal calls script files, not doskey macros
- *    - To test doskey: Open CMD terminal first, then run the alias command
- *
- * =====================================================================================================================
- * LINUX BASH ALIAS LIMITATIONS AND SPECIAL CHARACTERS
- * =====================================================================================================================
- *
- * 1. BASH ALIAS SINGLE QUOTE ESCAPING:
- *    - Bash alias body is wrapped in single quotes: alias name='body'
- *    - Single quotes inside body must be escaped as: \"  (for pwsh -Command "...")
- *    - Use replacePowerShellQuoteForLinuxAlias() to convert single quotes in PowerShell commands
- *
- * 2. POWERSHELL VARIABLE ESCAPING FOR BASH ALIAS:
- *    - PowerShell variables ($name, $_) must be escaped with backslash: \$name, \$_
- *    - BUT $* and $1, $2, etc. should NOT be escaped (they are bash positional parameters)
- *    - Use replacePowerShellVarsForLinuxAlias() with regex: /(?<!\\)(\$[a-zA-Z_]\w*)/g
- *    - WARNING: $Matches variable will be overwritten by subsequent -match operations
- *    - SOLUTION: Save $Matches values to local variables BEFORE next -match call
- *
- * 3. MSR BLOCK MODE FOR MULTI-LINE ALIAS:
- *    - Use msr -b (begin pattern) -Q (quit pattern) -T -1 (tail filter) for multi-line matching
- *    - Use (?s) flag in regex to make .* match newlines: '(?s)^alias\s+(?<name>[\w-]+)=(?<body>.*)$'
- *    - Process msr output line by line, accumulating blocks until next alias definition
- *
- * 4. STRING LITERAL ESCAPING IN JAVASCRIPT TEMPLATE:
- *    - In getFindAliasBody(), special characters in -join separator must use [char] codes
- *    - Example: ($array -join ([char]44 + [char]32)) instead of ($array -join ", ")
- *    - Reason: ", " gets corrupted through multiple escaping layers (JS -> bash -> PowerShell)
- *
- * 5. BASHRC FILE SEARCH STRATEGY:
- *    - Search both ~/.bashrc and ~/msr-cmd-alias.bashrc for alias definitions
- *    - Use HashSet to track which files contain found aliases for accurate summary
- *    - Use HashMap to count alias occurrences for duplicate detection across files
- *
- * =====================================================================================================================
+ * BASH ALIAS ESCAPING:
+ * - Single quotes: use \" for pwsh -Command "..."
+ * - PowerShell vars: escape with \$ except $* and $1-$9
+ * - Save $Matches before next -match call
  */
 
 export const [HasPwshExeOnWindows, PwshPathOnWindows] = IsWindows ? isToolExistsInPath('pwsh.exe', TerminalType.CMD) : [false, ''];
@@ -159,33 +89,18 @@ export function replaceArgForLinuxCmdAlias(body: string, writeToEachFile: boolea
   return aliasBody.trim();
 }
 
-/**
- * OS-specific alias configuration for Windows and Linux/macOS
- * Used by getFindAliasBody() and getRemoveAliasBody() to avoid code duplication
- */
+/** OS-specific alias configuration for Windows and Linux/macOS */
 interface OsAliasConfig {
-  /** PowerShell code to set $settingsPath variable for VSCode settings.json */
   settingsPathCode: string;
-  /** Default cmd folder path ($env:USERPROFILE for Windows, $env:HOME for Linux) */
   defaultCmdFolder: string;
-  /** Alias file name (msr-cmd-alias.doskeys for Windows, msr-cmd-alias.bashrc for Linux) */
   cmdFileName: string;
-  /** Alias file type description (doskeys or bashrc) */
   cmdFileType: string;
-  /** Script file extension (.cmd for Windows, empty for Linux) */
   scriptExt: string;
-  /** OS-specific alias group name in settings.json */
   osSpecificGroup: string;
-  /** Script subdirectory name (cmdAlias) */
   scriptSubFolder: string;
 }
 
-/**
- * Get the terminal type text for script subdirectory name.
- * This must match the logic in getCmdAliasSaveFolder() in terminalUtils.ts
- * @param terminalType - the terminal type enum
- * @returns subdirectory name (e.g., 'cmd', 'cygwin', 'mingw', 'wsl', 'linux', 'pwsh')
- */
+/** Get terminal type subdirectory (matches getCmdAliasSaveFolder in terminalUtils.ts) */
 function getTerminalTypeSubFolder(terminalType: TerminalType): string {
   // Logic from getCmdAliasSaveFolder in terminalUtils.ts:
   // const terminalTypeText = TerminalType[terminalType].toLowerCase()
@@ -196,28 +111,14 @@ function getTerminalTypeSubFolder(terminalType: TerminalType): string {
     .replace(/powershell$/i, 'cmd');
 }
 
-/**
- * Get OS-specific alias configuration
- * @param terminalType - the terminal type (for script subdirectory calculation)
- * @returns OsAliasConfig object with all OS-specific settings
- */
+/** Get OS-specific alias configuration */
 function getOsAliasConfig(terminalType: TerminalType): OsAliasConfig {
   const isWindows = isWindowsTerminalOnWindows(terminalType);
   const settingsPathCode = isWindows
     ? `$settingsPath = Join-Path $env:APPDATA 'Code/User/settings.json';`
     : `$settingsPath = Join-Path $env:HOME '.config/Code/User/settings.json';
     if (-not (Test-Path $settingsPath)) { $settingsPath = Join-Path $env:HOME 'Library/Application Support/Code/User/settings.json'; }`;
-
-  // NOTE: Script files are saved in different subdirectories based on terminal type:
-  // - Windows CMD/PowerShell: cmdAlias/cmd (see getCmdAliasSaveFolder in terminalUtils.ts)
-  // - Cygwin: cmdAlias/cygwin
-  // - MinGW: cmdAlias/mingw
-  // - WSL: cmdAlias/wsl
-  // - Linux: cmdAlias/linux or cmdAlias (depends on shouldSeparate)
-  // This matches the behavior of getCmdAliasSaveFolder(isMultipleScripts=true, ...) which adds
-  // terminalTypeText subdirectory when shouldSeparate is true
-  const terminalTypeSubFolder = getTerminalTypeSubFolder(terminalType);
-  const scriptSubFolder = 'cmdAlias/' + terminalTypeSubFolder;
+  const scriptSubFolder = 'cmdAlias/' + getTerminalTypeSubFolder(terminalType);
 
   return {
     settingsPathCode,
@@ -230,9 +131,10 @@ function getOsAliasConfig(terminalType: TerminalType): OsAliasConfig {
   };
 }
 
-/**
- * Generate PowerShell code to search Windows doskeys file (single-line format: name=body)
- */
+/** Default description for aliases found in doskeys/bashrc files (no user-defined description) */
+const DefaultAliasDescription = `(N/A) Not your custom alias? See built-in alias doc: https://github.com/qualiu/vscode-msr/blob/master/Common-Alias.md`;
+
+/** Generate PowerShell code to search Windows doskeys file */
 function getWindowsSearchCmdFileCode(): string {
   return String.raw`$foundInFile -split '\r?\n' | ForEach-Object {
           if ($_ -match '^(?<fp>.+?):(?<num>\d+):(?:\d+:)?\s*(?<content>.+)$') {
@@ -244,6 +146,7 @@ function getWindowsSearchCmdFileCode(): string {
               if ($content -match '^([\w-]+)=(.*)$') {
                 Write-Host 'aliasName = ' -NoNewline; Write-Host $Matches[1] -ForegroundColor Green;
                 Write-Host 'aliasBody = ' -NoNewline; Write-Host $Matches[2] -ForegroundColor Cyan;
+                Write-Host 'description = ' -NoNewline; Write-Host '${DefaultAliasDescription}' -ForegroundColor DarkGray;
               } else { Write-Host $content; }
               Write-Host ('Source = doskeys file at ' + $fp + ':' + $numInFile + ':') -ForegroundColor DarkGray;
             }
@@ -251,11 +154,7 @@ function getWindowsSearchCmdFileCode(): string {
         };`;
 }
 
-/**
- * Generate PowerShell code to search Linux bashrc file (multi-line format: alias name='body')
- * Uses block mode to capture complete multi-line alias definitions
- * Note: Uses $oneCmdFilePath from outer loop for file path display
- */
+/** Generate PowerShell code to search Linux bashrc file (multi-line format) */
 function getLinuxSearchCmdFileCode(): string {
   return String.raw`$allLines = $foundInFile -split '\r?\n' | Where-Object { $_ -match '^.+?:\d+:' };
           $currentBlock = @(); $currentLineNum = '';
@@ -274,6 +173,7 @@ function getLinuxSearchCmdFileCode(): string {
                 [void] $foundCmdFileSet.Add($oneCmdFilePath);
                       Write-Host 'aliasName = ' -NoNewline; Write-Host $itemName -ForegroundColor Green;
                       Write-Host 'aliasBody = ' -NoNewline; Write-Host $displayBody -ForegroundColor Cyan;
+                      Write-Host 'description = ' -NoNewline; Write-Host '${DefaultAliasDescription}' -ForegroundColor DarkGray;
                       Write-Host ('Source = ' + $oneCmdFilePath + ':' + $currentLineNum + ':') -ForegroundColor DarkGray;
                     }
                     if ($bashrcNameCountMap.ContainsKey($itemName)) { $bashrcNameCountMap[$itemName]++; } else { $bashrcNameCountMap[$itemName] = 1; }
@@ -297,6 +197,7 @@ function getLinuxSearchCmdFileCode(): string {
                       [void] $foundCmdFileSet.Add($oneCmdFilePath);
                 Write-Host 'aliasName = ' -NoNewline; Write-Host $itemName -ForegroundColor Green;
                 Write-Host 'aliasBody = ' -NoNewline; Write-Host $displayBody -ForegroundColor Cyan;
+                Write-Host 'description = ' -NoNewline; Write-Host '${DefaultAliasDescription}' -ForegroundColor DarkGray;
                 Write-Host ('Source = ' + $oneCmdFilePath + ':' + $currentLineNum + ':') -ForegroundColor DarkGray;
               }
               if ($bashrcNameCountMap.ContainsKey($itemName)) { $bashrcNameCountMap[$itemName]++; } else { $bashrcNameCountMap[$itemName] = 1; }
@@ -304,19 +205,10 @@ function getLinuxSearchCmdFileCode(): string {
           }`;
 }
 
-/**
- * Generate find-alias PowerShell command body for both Windows and Linux
- * NOTE: Variable names MUST NOT start with $a, $b, $g, $l, $r, $t to avoid DOSKEY special character conflicts.
- * See DOSKEY SPECIAL CHARACTERS documentation at the top of this file.
- * @param terminalType - the terminal type for OS and script path determination
- * @returns PowerShell command body (without escaping for Linux alias)
- */
+/** Generate find-alias PowerShell command body (avoid $a,$b,$g,$l,$r,$t prefixed variables) */
 function getFindAliasBody(terminalType: TerminalType): string {
   const isWindows = isWindowsTerminalOnWindows(terminalType);
   const config = getOsAliasConfig(terminalType);
-
-  // Read alias folder from settings.json at runtime, fallback to default if not set
-  // NOTE: Use $cmdFilePath instead of $aliasFilePath to avoid DOSKEY $a -> & conflict
   const cmdFilePathCode = `
     $cmdFolder = ${config.defaultCmdFolder};
     if (Test-Path $settingsPath) {
@@ -327,12 +219,6 @@ function getFindAliasBody(terminalType: TerminalType): string {
     }
     $cmdFilePath = Join-Path $cmdFolder '${config.cmdFileName}';`;
 
-  // NOTE: All variables renamed to avoid DOSKEY special characters:
-  // $aliasFolder -> $cmdFolder, $aliasFilePath -> $cmdFilePath, $aliasFileCount -> $cmdFileCount
-  // $aliasList -> $itemList, $aliasIndex -> $itemIndex, $alias -> $item, $aliasName -> $itemName
-  // $aliasNumInFile -> $itemNumInFile, $allKeyGroups -> $keyGroupList, $foundAliasNames -> $foundNames
-  // User input parameters use PascalCase to follow PowerShell conventions and distinguish from internal variables
-  // Support both positional and named parameters: find-alias grep-alias -OnlyThisOS 0
   return String.raw`
     $inputParams = @{}; $positionalParams = @();
     $currentParamName = $null;
@@ -346,7 +232,9 @@ function getFindAliasBody(terminalType: TerminalType): string {
     $SearchCmdFile = if ($inputParams.ContainsKey('SearchCmdFile')) { -not ($inputParams['SearchCmdFile'] -imatch '^(0|false|n)$') } elseif ($positionalParams.Count -gt 2) { -not ($positionalParams[2] -imatch '^(0|false|n)$') } else { 1 };
     $ShowDuplicates = if ($inputParams.ContainsKey('ShowDuplicates')) { $inputParams['ShowDuplicates'] -imatch '^(1|true|y)$' } elseif ($positionalParams.Count -gt 3) { $positionalParams[3] -imatch '^(1|true|y)$' } else { 0 };
     $OnlyThisOS = if ($inputParams.ContainsKey('OnlyThisOS')) { -not ($inputParams['OnlyThisOS'] -imatch '^(0|false|n)$') } elseif ($positionalParams.Count -gt 4) { -not ($positionalParams[4] -imatch '^(0|false|n)$') } else { 1 };
-    if (-not $Prefix) { Write-Host 'Usage: find-alias <Prefix> [-IsExactEqual 1] [-SearchCmdFile 0] [-ShowDuplicates 1] [-OnlyThisOS 0]' -ForegroundColor Red; Write-Host 'Or positional: find-alias <Prefix> [IsExactEqual] [SearchCmdFile] [ShowDuplicates] [OnlyThisOS]' -ForegroundColor Yellow; exit 1; }
+    $Description = if ($inputParams.ContainsKey('Description')) { $inputParams['Description'].ToLower() } elseif ($positionalParams.Count -gt 5) { $positionalParams[5].ToLower() } else { 'any' };
+    if ($Description -ne 'no' -and $Description -ne 'yes' -and $Description -ne 'any') { $Description = 'any'; }
+    if (-not $Prefix) { Write-Host 'Usage: find-alias <Prefix> [-IsExactEqual 1] [-SearchCmdFile 0] [-ShowDuplicates 1] [-OnlyThisOS 0] [-Description yes|no|any]' -ForegroundColor Red; Write-Host 'Or positional: find-alias <Prefix> [IsExactEqual] [SearchCmdFile] [ShowDuplicates] [OnlyThisOS] [Description]' -ForegroundColor Yellow; exit 1; }
     ${config.settingsPathCode}
     ${cmdFilePathCode}
     $countInSettings = 0; $foundGroupCount = 0; $sumItemCount = 0; $sumGroupCount = 0; $foundGroupNames = @(); $countInAliasFiles = 0; $foundNames = @();
@@ -367,6 +255,10 @@ function getFindAliasBody(terminalType: TerminalType): string {
           foreach ($item in $itemList) {
             $itemIndex++;
             if (($IsExactEqual -and $item.aliasName -eq $Prefix) -or (-not $IsExactEqual -and $item.aliasName -like ($Prefix + '*'))) {
+              $itemDesc = $item.description;
+              $hasDesc = -not [string]::IsNullOrWhiteSpace($itemDesc);
+              if ($Description -eq 'yes' -and -not $hasDesc) { continue; }
+              if ($Description -eq 'no' -and $hasDesc) { continue; }
               if ($countInSettings -gt 0) { Write-Host ''; }
               $countInSettings++; $foundNames += $item.aliasName;
               if (-not $hasFoundInGroup) { $foundGroupCount++; $foundGroupNames += $keyGroup; $hasFoundInGroup = 1; }
@@ -375,14 +267,14 @@ function getFindAliasBody(terminalType: TerminalType): string {
               foreach ($oneMatch in $nameMatches.Matches) { $matchLineNum = ($settingsRaw.Substring(0, $oneMatch.Index) -split '\r?\n').Count; if ($matchLineNum -ge $keyGroupStartNum) { $itemNumInFile = $matchLineNum; break; } }
               Write-Host 'aliasName = ' -NoNewline; Write-Host $item.aliasName -ForegroundColor Green;
               Write-Host 'aliasBody = ' -NoNewline; Write-Host $item.aliasBody -ForegroundColor Cyan;
-              Write-Host 'description = ' -NoNewline; Write-Host $item.description;
+              Write-Host 'description = ' -NoNewline; Write-Host $itemDesc;
               Write-Host ('Source = ' + $keyGroup + ' at ' + $settingsPath + ':' + $itemNumInFile + ':') -ForegroundColor DarkGray;
             }
           }
         }
       } catch { }
     }
-    if (($countInSettings -eq 0 -or -not $IsExactEqual -or $SearchCmdFile)${isWindows ? ' -and (Test-Path $cmdFilePath)' : ''}) {
+    if ($Description -ne 'yes' -and ($countInSettings -eq 0 -or -not $IsExactEqual -or $SearchCmdFile)${isWindows ? ' -and (Test-Path $cmdFilePath)' : ''}) {
       $searchPattern = if ($IsExactEqual) { '^\s*${isWindows ? '' : '(alias\\s+)?'}' + [regex]::Escape($Prefix) + '=' } else { '^\s*${isWindows ? '' : '(alias\\s+)?'}' + [regex]::Escape($Prefix) + '[\w-]*=' };
       $foundNameSet = New-Object 'System.Collections.Generic.HashSet[string]'([StringComparer]::OrdinalIgnoreCase);
       foreach ($name in $foundNames) { [void] $foundNameSet.Add($name); }
@@ -412,7 +304,10 @@ function getFindAliasBody(terminalType: TerminalType): string {
     if ($countInAliasFiles -gt 0) { $summaryParts += 'Found ' + [string]$countInAliasFiles + ' alias(es) in ${config.cmdFileType} file(s): ' + ${isWindows ? '$cmdFilePath' : '($foundCmdFileSet -join ([char]44 + [char]32))'} + '.'; }
     if ($countInSettings -gt 0) { $summaryParts += 'Found ' + [string]$countInSettings + ' alias(es) in ' + $foundGroupCount + ' groups from ' + $sumItemCount + ' aliases in ' + $sumGroupCount + ' groups: ' + ($foundGroupNames -join ', ') + ' in ' + $settingsPath + '.'; }
     if ($summaryParts.Count -gt 0) { Write-Host ''; Write-Host ($summaryParts -join ' ') -ForegroundColor Green; }
-    elseif ($countInSettings -eq 0 -and $countInAliasFiles -eq 0) { $notFoundMsg = if ($IsExactEqual) { 'Not found alias name = ' } else { 'Not found alias starting with: ' }; Write-Host ($notFoundMsg + $Prefix) -ForegroundColor Red; }`;
+    elseif ($countInSettings -eq 0 -and $countInAliasFiles -eq 0) {
+      $notFoundMsg = if ($IsExactEqual) { 'Not found alias name = ' } else { 'Not found alias starting with: ' };
+      Write-Host ($notFoundMsg + $Prefix + ' or not matching other conditions.') -ForegroundColor Red;
+    }`;
 }
 
 export function replaceArgForWindowsCmdAlias(body: string, writeToEachFile: boolean): string {
@@ -425,22 +320,10 @@ export function replaceArgForWindowsCmdAlias(body: string, writeToEachFile: bool
   return body;
 }
 
-/**
- * Generate rm-alias PowerShell command body for both Windows and Linux
- * NOTE: Variable names MUST NOT start with $a, $b, $g, $l, $r, $t to avoid DOSKEY special character conflicts.
- * See DOSKEY SPECIAL CHARACTERS documentation at the top of this file.
- * @param terminalType - the terminal type for OS and script path determination
- * @returns PowerShell command body (without escaping for Linux alias)
- */
+/** Generate rm-alias PowerShell command body (avoid $a,$b,$g,$l,$r,$t prefixed variables) */
 function getRemoveAliasBody(terminalType: TerminalType): string {
   const isWindows = isWindowsTerminalOnWindows(terminalType);
   const config = getOsAliasConfig(terminalType);
-
-  // Read alias folder from settings.json at runtime, fallback to default if not set
-  // NOTE: Use $cmdFilePath instead of $aliasFilePath to avoid DOSKEY $a -> & conflict
-  // NOTE: Script files are saved in $cmdFolder/cmdAlias/<terminalType>/ subdirectory
-  // (see getCmdAliasSaveFolder in terminalUtils.ts)
-  // Terminal type subdirectories: cmd (for CMD/PowerShell), cygwin, mingw, wsl, linux, pwsh
   const cmdFilePathCode = `
     $cmdFolder = ${config.defaultCmdFolder};
     if (Test-Path $settingsPath) {
@@ -451,19 +334,13 @@ function getRemoveAliasBody(terminalType: TerminalType): string {
     }
     $cmdFilePath = Join-Path $cmdFolder '${config.cmdFileName}';
     $scriptFolder = Join-Path $cmdFolder '${config.scriptSubFolder}';`;
-
-  // NOTE: All variables renamed to avoid DOSKEY special characters:
-  // $aliasFolder -> $cmdFolder, $aliasFilePath -> $cmdFilePath
-  // $aliasNames -> $inputNameList, $aliasName -> $itemName
-  // $aliasFileContent -> $cmdFileContent, $aliasFileModified -> $cmdFileModified
-  // $aliasList -> $itemList, $foundInAliasFile -> $foundInCmdFile
   return String.raw`
     $InputNames = '$1';
     if (-not $InputNames) { Write-Host 'Usage: rm-alias <AliasNames> (comma-separated)' -ForegroundColor Red; exit 1; }
     ${config.settingsPathCode}
     ${cmdFilePathCode}
     $inputNameList = @($InputNames -split '\s*,\s*' | Where-Object { $_ });
-    $removedCount = 0;
+    $deleteCount = 0;
     $notFoundNames = @();
     $foundInCmdFile = @();
     $foundInSettings = @();
@@ -488,7 +365,7 @@ function getRemoveAliasBody(terminalType: TerminalType): string {
           $cmdFileContent = $newContent;
           $cmdFileModified++;
           $foundInCmdFile += $itemName;
-          $removedCount++; $foundForItem = 1;
+          $deleteCount++; $foundForItem = 1;
         }
       }
       $scriptPath = Join-Path $scriptFolder ($itemName + '${config.scriptExt}');
@@ -496,7 +373,7 @@ function getRemoveAliasBody(terminalType: TerminalType): string {
         Remove-Item -Path $scriptPath -Force;
         Write-Host ('Deleted script file: ' + $scriptPath) -ForegroundColor Yellow;
         $deletedScripts += $scriptPath;
-        $removedCount++; $foundForItem = 1;
+        $deleteCount++; $foundForItem = 1;
       }
       if ($settings) {
         foreach ($keyGroup in $keyGroupNames) {
@@ -508,7 +385,7 @@ function getRemoveAliasBody(terminalType: TerminalType): string {
               $prop.Value = $newItemList;
               $settingsModified++;
               $foundInSettings += ($keyGroup + ':' + $itemName);
-              $removedCount++; $foundForItem = 1;
+              $deleteCount++; $foundForItem = 1;
             }
           }
         }
@@ -530,13 +407,10 @@ function getRemoveAliasBody(terminalType: TerminalType): string {
     if ($notFoundNames.Count -gt 0) {
       Write-Host ('Alias not found: ' + ($notFoundNames -join ', ')) -ForegroundColor Red;
     }
-    if ($removedCount -gt 0) {
-      Write-Host ('Total removed: ' + $removedCount + ' item(s)') -ForegroundColor Cyan;
+    if ($deleteCount -gt 0) {
+      Write-Host ('Total removed: ' + $deleteCount + ' item(s)') -ForegroundColor Cyan;
     }`;
 }
-
-// NOTE: find-alias and rm-alias are dynamically generated in getCommonAliasMap() based on terminalType
-// to ensure the correct script subdirectory is used for each terminal type (cmd, cygwin, mingw, wsl, linux, pwsh)
 
 let LinuxAliasMap: Map<string, string> = new Map<string, string>()
   .set('vim-to-row', String.raw`msr -z "$1" -t "^(.+?):(\d+)(:.*)?$" -o "vim +\2 +\"set number\" \"\1\"" -XM`)
@@ -574,7 +448,7 @@ const CommonAliasMap: Map<string, string> = new Map<string, string>()
           && msr -z "git submodule sync --init && git submodule update -f" -t "&&" -o "\n" -PAC | msr -XM -V ne0 & git status`)
   .set('gst', String.raw`git status $*`)
   .set('git-gc', String.raw`git reflog expire --all --expire=now && git gc --prune=now --aggressive`)
-  .set('git-rb-list', String.raw`git for-each-ref --format="%(refname:short)" refs/remotes/origin`) // git ls-remote --heads origin | msr -t "^\w+\s+refs/.+?/" -o "" -PAC
+  .set('git-rb-list', String.raw`git for-each-ref --format="%(refname:short)" refs/remotes/origin`)
   .set('git-shallow-clone', String.raw`echo git clone --single-branch --depth 1 $* && git clone --single-branch --depth 1 $*`)
   .set('git-clean', String.raw`msr -z "git clean -xffd && git submodule foreach --recursive git clean -xffd" -t "&&" -o "\n" -PAC | msr -XM`)
   .set('git-sm-prune', String.raw`msr -XM -z "git prune" && msr -XMz "git submodule foreach git prune"`)
@@ -679,6 +553,151 @@ function getPathEnv(targets: string[] = ['User']): string {
   return Array.from(pathSet).join(" + ';' + ");
 }
 
+/** Generate check-xxx-env PowerShell body with statistics */
+function getCheckEnvBody(envTarget: string): string {
+  const displayName = envTarget === 'User' ? 'User' : (envTarget === 'Process' ? 'Tmp' : 'System');
+  const envVarsCode = envTarget === 'Process'
+    ? '[System.Environment]::GetEnvironmentVariables()'
+    : `[System.Environment]::GetEnvironmentVariables([System.EnvironmentVariableTarget]::${envTarget})`;
+  return String.raw`
+    $inputParams = [Console]::In.ReadToEnd().Trim();
+    if ([string]::IsNullOrWhiteSpace($inputParams) -or $inputParams -imatch '^ECHO is o(n|ff)\W*$') { $inputParams = ''; }
+    $paramParts = @($inputParams -split '\s+' | Where-Object { $_ });
+    $NameMatch = if ($paramParts.Count -gt 0) { $paramParts[0].Trim([char]34) } else { '' };
+    $ValueMatch = if ($paramParts.Count -gt 1) { $paramParts[1].Trim([char]34) } else { '' };
+    $IgnoreCase = -not (($paramParts.Count -gt 2) -and ($paramParts[2].Trim([char]34) -imatch '^(0|false|n|no)$'));
+    $matchOptions = if ($IgnoreCase) { [System.Text.RegularExpressions.RegexOptions]::IgnoreCase } else { [System.Text.RegularExpressions.RegexOptions]::None };
+    $envVars = ${envVarsCode};
+    $keyCount = 0;
+    $nonEmptyCount = 0;
+    $sumLen = 0;
+    $minLen = [int]::MaxValue;
+    $maxLen = 0;
+    $minKey = '';
+    $maxKey = '';
+    $filteredEnvs = @{};
+    foreach ($key in $envVars.Keys) {
+      $val = $envVars[$key];
+      if ($NameMatch -and -not [regex]::IsMatch($key, $NameMatch, $matchOptions)) { continue; }
+      if ($ValueMatch -and -not [regex]::IsMatch($val, $ValueMatch, $matchOptions)) { continue; }
+      $filteredEnvs[$key] = $val;
+      $keyCount++;
+      if (-not [string]::IsNullOrEmpty($val)) {
+        $nonEmptyCount++;
+        $valLen = $val.Length;
+        $sumLen += $valLen;
+        if ($valLen -lt $minLen) { $minLen = $valLen; $minKey = $key; }
+        if ($valLen -gt $maxLen) { $maxLen = $valLen; $maxKey = $key; }
+      }
+    }
+    $filteredEnvs.GetEnumerator() | Sort-Object Name | ForEach-Object {
+      $nameText = $_.Name;
+      $valueText = $_.Value;
+      Write-Host ($nameText + '=') -NoNewline -ForegroundColor Green;
+      Write-Host $valueText;
+    };
+    Write-Host '';
+    if ($minLen -eq [int]::MaxValue) { $minLen = 0; }
+    Write-Host ('${displayName} environment matched ' + $keyCount + ' keys, ' + $nonEmptyCount + ' non-empty values, total value length = ' + $sumLen + '. ') -ForegroundColor Cyan -NoNewline;
+    Write-Host ('Min = ' + $minLen) -ForegroundColor Yellow -NoNewline;
+    if ($minKey) { Write-Host (' (' + $minKey + ')') -ForegroundColor DarkGray -NoNewline; }
+    Write-Host (', Max = ' + $maxLen) -ForegroundColor Yellow -NoNewline;
+    if ($maxKey) { Write-Host (' (' + $maxKey + ')') -ForegroundColor DarkGray; } else { Write-Host ''; }`;
+}
+
+/** Generate check-xxx-path PowerShell body with duplicate detection and existence check */
+function getCheckPathBody(envTarget: string): string {
+  const pathValueCode = envTarget === 'Process'
+    ? '$env:PATH'
+    : getPathEnv([envTarget]);
+  const displayName = envTarget === 'Process' ? 'Tmp' : envTarget;
+  const addPathCmd = envTarget === 'Process' ? 'add-tmp-path' : `add-${envTarget.toLowerCase()}-path`;
+  return String.raw`
+    $PathOrMultiline = '$1'.Trim();
+    $pathValue = ${pathValueCode};
+    $pathItems = @($pathValue -split '\s*;\s*' | Where-Object { $_ } | ForEach-Object { $_.TrimEnd('\\/') });
+    $seenPathSet = New-Object 'System.Collections.Generic.HashSet[string]'([StringComparer]::OrdinalIgnoreCase);
+    $duplicateSet = New-Object 'System.Collections.Generic.HashSet[string]'([StringComparer]::OrdinalIgnoreCase);
+    $nonExistSet = New-Object 'System.Collections.Generic.HashSet[string]'([StringComparer]::OrdinalIgnoreCase);
+    $noPermSet = New-Object 'System.Collections.Generic.HashSet[string]'([StringComparer]::OrdinalIgnoreCase);
+    foreach ($onePath in $pathItems) {
+      if (-not $seenPathSet.Add($onePath)) { [void] $duplicateSet.Add($onePath); }
+      try { if (-not (Test-Path $onePath -ErrorAction Stop)) { [void] $nonExistSet.Add($onePath); } }
+      catch { [void] $noPermSet.Add($onePath); }
+    }
+    $isMultilineMode = $PathOrMultiline -imatch '^(yes|y|1|true)$';
+    $isCheckMode = -not [string]::IsNullOrWhiteSpace($PathOrMultiline) -and -not ($PathOrMultiline -imatch '^(yes|y|1|true|0|false|no|n)$');
+    if ($isCheckMode) {
+      $checkPath = $PathOrMultiline.TrimEnd('\\/');
+      $foundIndex = -1;
+      for ($k = 0; $k -lt $pathItems.Count; $k++) {
+        if ($pathItems[$k] -ieq $checkPath) { $foundIndex = $k; break; }
+      }
+      if ($foundIndex -ge 0) {
+        Write-Host ('Found at index ' + $foundIndex + ' in ${displayName} PATH: ') -NoNewline;
+        Write-Host $checkPath -ForegroundColor Green;
+      } else {
+        Write-Host ('NOT found in ${displayName} PATH: ') -NoNewline;
+        Write-Host $checkPath -ForegroundColor Red;
+      }
+    }
+    if ($isMultilineMode -or -not $isCheckMode) {
+      $seenForDisplay = New-Object 'System.Collections.Generic.HashSet[string]'([StringComparer]::OrdinalIgnoreCase);
+      $isFirstItem = 1;
+      foreach ($onePath in $pathItems) {
+        $isDup = $duplicateSet.Contains($onePath);
+        $isFirstOccur = $seenForDisplay.Add($onePath);
+        $notExist = $nonExistSet.Contains($onePath);
+        $noPerm = $noPermSet.Contains($onePath);
+        if ($isMultilineMode) {
+          if ($notExist) { Write-Host $onePath -ForegroundColor Red; }
+          elseif ($noPerm) { Write-Host $onePath -ForegroundColor Magenta; }
+          elseif ($isDup) {
+            if ($isFirstOccur) { Write-Host $onePath -ForegroundColor Yellow; }
+            else { Write-Host $onePath -ForegroundColor DarkYellow; }
+          } else { Write-Host $onePath; }
+        } else {
+          if (-not $isFirstItem) { Write-Host ';' -NoNewline; }
+          $isFirstItem = 0;
+          if ($notExist) { Write-Host $onePath -ForegroundColor Red -NoNewline; }
+          elseif ($noPerm) { Write-Host $onePath -ForegroundColor Magenta -NoNewline; }
+          elseif ($isDup) {
+            if ($isFirstOccur) { Write-Host $onePath -ForegroundColor Yellow -NoNewline; }
+            else { Write-Host $onePath -ForegroundColor DarkYellow -NoNewline; }
+          } else { Write-Host $onePath -NoNewline; }
+        }
+      }
+      if (-not $isMultilineMode) {
+        Write-Host '';
+      }
+      Write-Host '';
+      $dupCount = $duplicateSet.Count;
+      $nonExistCount = $nonExistSet.Count;
+      $noPermCount = $noPermSet.Count;
+      $uniqueCount = $seenForDisplay.Count;
+      $dupColor = if ($dupCount -eq 0) { 'Green' } else { 'Red' };
+      $nonExistColor = if ($nonExistCount -eq 0) { 'Green' } else { 'Red' };
+      $noPermColor = if ($noPermCount -eq 0) { 'Green' } else { 'Magenta' };
+      Write-Host ('Found ' + $pathItems.Count + ' paths with ') -NoNewline;
+      Write-Host ([string]$dupCount + ' duplicate(s)') -ForegroundColor $dupColor -NoNewline;
+      Write-Host ', ' -NoNewline;
+      Write-Host ([string]$nonExistCount + ' non-existing') -ForegroundColor $nonExistColor -NoNewline;
+      Write-Host ', ' -NoNewline;
+      Write-Host ([string]$noPermCount + ' no-permission') -ForegroundColor $noPermColor -NoNewline;
+      Write-Host (', ' + [string]$uniqueCount + ' unique path(s). ') -NoNewline;
+      $pathSize = $pathValue.Length;
+      $joinedSize = ($seenForDisplay -join ';').Length;
+      $diffSize = $pathSize - $joinedSize;
+      $sizeColor = if ($diffSize -eq 0) { 'Green' } else { 'Yellow' };
+      Write-Host ('Raw length = ' + $pathSize + ', trimmed length = ' + $joinedSize + ', diff = ' + $diffSize + '.') -ForegroundColor $sizeColor;
+      if ($dupCount -gt 0) {
+        $simplePath = ($pathItems | Where-Object { $_ -notmatch '[\s\(\)]' } | Sort-Object { $_.Length } | Select-Object -First 1);
+        Write-Host '';
+        Write-Host ('Tip: Run "${addPathCmd} {any-existing-path}" to remove duplicates, example: ${addPathCmd} ' + $simplePath) -ForegroundColor Cyan;
+      }
+    }`;
+}
+
 function getReloadWindowsEnvCmd(skipPaths: string = '', addTmpPaths: string = ''): string {
   const setDeletionPaths = isNullOrEmpty(skipPaths)
     ? ''
@@ -701,13 +720,14 @@ function getReloadWindowsEnvCmd(skipPaths: string = '', addTmpPaths: string = ''
   $pathValues = ${getPathEnv(['Machine', 'User', 'Process'])};
   ${addingTmpPath}
   $values = $pathValues -split '\\*\s*;\s*';
-  $valueSet = New-Object System.Collections.Generic.HashSet[String]([StringComparer]::OrdinalIgnoreCase);
+  $seenSet = New-Object System.Collections.Generic.HashSet[String]([StringComparer]::OrdinalIgnoreCase);
+  $orderedList = New-Object System.Collections.Generic.List[String];
   foreach ($pv in $values) {
+    if ([string]::IsNullOrWhiteSpace($pv)) { continue; }
     ${skipAddingNewPath}
-    [void] $valueSet.Add($pv);
+    if ($seenSet.Add($pv)) { $orderedList.Add($pv); }
   }
-  [void] $valueSet.Remove('');
-  [String]::Join(';', $valueSet)"') do @SET "PATH=%a"`;
+  [String]::Join(';', $orderedList)"') do @SET "PATH=%a"`;
 }
 
 function getReloadEnvCmd(writeToEachFile: boolean, name: string = 'reload-env'): string {
@@ -717,8 +737,8 @@ function getReloadEnvCmd(writeToEachFile: boolean, name: string = 'reload-env'):
     $sysEnvs = [System.Environment]::GetEnvironmentVariables([System.EnvironmentVariableTarget]::Machine);
     $userEnvs = [System.Environment]::GetEnvironmentVariables([System.EnvironmentVariableTarget]::User);
     $pathValueSet = New-Object System.Collections.Generic.HashSet[String]([StringComparer]::OrdinalIgnoreCase);
-    $allPathValues = $($processEnvs['Path'] + ';' + $sysEnvs['Path'] + ';' + $userEnvs['Path']) -Split '\\*\s*;\s*';
-    foreach ($path in $allPathValues) {
+    $combinedPathValues = $($processEnvs['Path'] + ';' + $sysEnvs['Path'] + ';' + $userEnvs['Path']) -Split '\\*\s*;\s*';
+    foreach ($path in $combinedPathValues) {
       [void] $pathValueSet.Add($path);
     }
     [void] $pathValueSet.Remove('');
@@ -752,8 +772,8 @@ function getResetEnvCmd(writeToEachFile: boolean, name: string = 'reset-env'): s
     $sysEnvs = [System.Environment]::GetEnvironmentVariables([System.EnvironmentVariableTarget]::Machine);
     $userEnvs = [System.Environment]::GetEnvironmentVariables([System.EnvironmentVariableTarget]::User);
     $pathValueSet = New-Object System.Collections.Generic.HashSet[String]([StringComparer]::OrdinalIgnoreCase);
-    $allPathValues = $($sysEnvs['Path'] + ';' + $userEnvs['Path']) -Split '\\*\s*;\s*';
-    foreach ($path in $allPathValues) {
+    $combinedPathValues = $($sysEnvs['Path'] + ';' + $userEnvs['Path']) -Split '\\*\s*;\s*';
+    foreach ($path in $combinedPathValues) {
       [void] $pathValueSet.Add($path);
     }
     [void] $pathValueSet.Remove('');
@@ -782,24 +802,114 @@ function getResetEnvCmd(writeToEachFile: boolean, name: string = 'reset-env'): s
   return writeToEachFile ? replaceArgForWindowsCmdAlias(body, writeToEachFile) : name + '=' + body;
 }
 
+/** Generate add-xxx-path command (supports DeleteNonExistsPaths flag) */
 function getAddPathValueCmd(envTarget: string): string {
-  const addPaths = envTarget === 'Process' ? '$*' : '';
+  const permissionHint = envTarget === 'Machine'
+    ? `Write-Host 'ERROR: Modifying system PATH requires Administrator privileges. Please run CMD/PowerShell as Administrator.' -ForegroundColor Red; exit 1;`
+    : `Write-Host ('ERROR: ' + $_.Exception.Message) -ForegroundColor Red; exit 1;`;
+  // For Process target, use env var to pass input (handles paths with spaces/parentheses)
+  if (envTarget === 'Process') {
+    const cmdAlias = String.raw`set "TMP_ADD_PATH_INPUT=$*" && for /f "tokens=*" %a in ('${WindowsPowerShellCmdHeader} "
+      $fullInput = $env:TMP_ADD_PATH_INPUT;
+      if ([string]::IsNullOrWhiteSpace($fullInput)) { $fullInput = ''; }
+      $fullInput = $fullInput.Trim().Trim([char]34);
+      $inputWords = @($fullInput -split '\s+' | Where-Object { $_ });
+      $DeleteNonExistsPaths = 0;
+      $pathsToAdd = $fullInput;
+      if ($inputWords.Count -gt 1) {
+        $possibleFlag = $inputWords[-1];
+        if ($possibleFlag -imatch '^(1|true|y|yes|0|false|n|no)$') {
+          $DeleteNonExistsPaths = $possibleFlag -imatch '^(1|true|y|yes)$';
+          $pathsToAdd = $fullInput.Substring(0, $fullInput.LastIndexOf($possibleFlag)).Trim().Trim([char]34);
+        }
+      }
+      $pathValues = $env:PATH;
+      $newValue = $pathValues.Trim().TrimEnd('\; ') + ';' + $pathsToAdd.Trim().TrimEnd('\; ');
+      $values = $newValue -split '\\*\s*;\s*';
+      $seenSet = New-Object System.Collections.Generic.HashSet[String]([StringComparer]::OrdinalIgnoreCase);
+      $orderedList = New-Object System.Collections.Generic.List[String];
+      $deletedCount = 0;
+      foreach ($pv in $values) {
+        if ([string]::IsNullOrWhiteSpace($pv)) { continue; }
+        if ($DeleteNonExistsPaths -and -not (Test-Path $pv)) {
+          [Console]::Error.WriteLine('Deleting non-exist path: ' + $pv);
+          $deletedCount++;
+          continue;
+        }
+        if ($seenSet.Add($pv)) { $orderedList.Add($pv); }
+      }
+      if ($deletedCount -gt 0) { [Console]::Error.WriteLine('Removed ' + $deletedCount + ' non-existing path(s) in total.'); }
+      [string]::Join(';', $orderedList);
+    "') do @SET "PATH=%a" && set "TMP_ADD_PATH_INPUT="`;
+    return trimAliasBody(cmdAlias).replace(TrimMultilineRegex, ' ');
+  }
   const cmdAlias = String.raw`${WindowsPowerShellCmdHeader} "
-    $rawValue = ${getPathEnv([envTarget])};
-    $newValue = $rawValue.Trim().TrimEnd('\; ') + ';' + '$*'.Trim().TrimEnd('\; ');
-    $values = $newValue -split '\\*\s*;\s*';
-    $valueSet = New-Object System.Collections.Generic.HashSet[String]([StringComparer]::OrdinalIgnoreCase);
-    foreach ($pv in $values) {
-      [void] $valueSet.Add($pv);
+    $fullInput = '$*'.Trim();
+    $inputWords = @($fullInput -split '\s+' | Where-Object { $_ });
+    $DeleteNonExistsPaths = 0;
+    $pathsToAdd = $fullInput;
+    if ($inputWords.Count -gt 1) {
+      $possibleFlag = $inputWords[-1];
+      if ($possibleFlag -imatch '^(1|true|y|yes|0|false|n|no)$') {
+        $DeleteNonExistsPaths = $possibleFlag -imatch '^(1|true|y|yes)$';
+        $pathsToAdd = $fullInput.Substring(0, $fullInput.LastIndexOf($possibleFlag)).Trim();
+      }
     }
-    [void] $valueSet.Remove('');
-    $newValue = [string]::Join(';', $valueSet);
-    [System.Environment]::SetEnvironmentVariable('PATH', $newValue, [System.EnvironmentVariableTarget]::${envTarget});
-    " && ${getReloadWindowsEnvCmd('', addPaths)}`;
+    $oldPathValue = ${getPathEnv([envTarget])};
+    $newValue = $oldPathValue.Trim().TrimEnd('\; ') + ';' + $pathsToAdd.Trim().TrimEnd('\; ');
+    $values = $newValue -split '\\*\s*;\s*';
+    $seenSet = New-Object System.Collections.Generic.HashSet[String]([StringComparer]::OrdinalIgnoreCase);
+    $orderedList = New-Object System.Collections.Generic.List[String];
+    $deletedCount = 0;
+    foreach ($pv in $values) {
+      if ([string]::IsNullOrWhiteSpace($pv)) { continue; }
+      if ($DeleteNonExistsPaths -and -not (Test-Path $pv)) {
+        Write-Host ('Deleting non-exist path: ' + $pv) -ForegroundColor Yellow;
+        $deletedCount++;
+        continue;
+      }
+      if ($seenSet.Add($pv)) { $orderedList.Add($pv); }
+    }
+    $newValue = [string]::Join(';', $orderedList);
+    if ($deletedCount -gt 0) { Write-Host ('Removed ' + $deletedCount + ' non-existing path(s) in total.') -ForegroundColor Green; }
+    try {
+      [System.Environment]::SetEnvironmentVariable('PATH', $newValue, [System.EnvironmentVariableTarget]::${envTarget});
+    } catch {
+      ${permissionHint}
+    }
+    " && ${getReloadWindowsEnvCmd()}`;
   return trimAliasBody(cmdAlias).replace(TrimMultilineRegex, ' ');
 }
 
 function getRemovePathValueCmd(envTarget: string): string {
+  const permissionHint = envTarget === 'Machine'
+    ? `Write-Host 'ERROR: Modifying system PATH requires Administrator privileges. Please run CMD/PowerShell as Administrator.' -ForegroundColor Red; exit 1;`
+    : `Write-Host ('ERROR: ' + $_.Exception.Message) -ForegroundColor Red; exit 1;`;
+  // For Process target, use env var to pass input (handles paths with spaces/parentheses)
+  if (envTarget === 'Process') {
+    const cmdAlias = String.raw`set "TMP_DEL_PATH_INPUT=$*" && for /f "tokens=*" %a in ('${WindowsPowerShellCmdHeader} "
+      $deleteInput = $env:TMP_DEL_PATH_INPUT;
+      if ([string]::IsNullOrWhiteSpace($deleteInput)) { $deleteInput = ''; }
+      $deleteInput = $deleteInput.Trim().Trim([char]34);
+      $deleteValues = ($deleteInput.Trim().TrimEnd('\; ')) -split '\\*\s*;\s*';
+      $deleteValueSet = New-Object System.Collections.Generic.HashSet[String]([StringComparer]::OrdinalIgnoreCase);
+      foreach ($pv in $deleteValues) {
+        [void] $deleteValueSet.Add($pv);
+      }
+      $oldValue = $env:PATH;
+      $newValues = ($oldValue.Trim().TrimEnd('\; ')) -split '\\*\s*;\s*';
+      $seenSet = New-Object System.Collections.Generic.HashSet[String]([StringComparer]::OrdinalIgnoreCase);
+      $orderedList = New-Object System.Collections.Generic.List[String];
+      foreach ($pv in $newValues) {
+        if ([string]::IsNullOrWhiteSpace($pv)) { continue; }
+        if (-not $deleteValueSet.Contains($pv)) {
+          if ($seenSet.Add($pv)) { $orderedList.Add($pv); }
+        }
+      }
+      [string]::Join(';', $orderedList);
+    "') do @SET "PATH=%a" && set "TMP_DEL_PATH_INPUT="`;
+    return trimAliasBody(cmdAlias).replace(TrimMultilineRegex, ' ');
+  }
   const cmdAlias = String.raw`${WindowsPowerShellCmdHeader} "
     $deleteValues = ('$*'.Trim().TrimEnd('\; ')) -split '\\*\s*;\s*';
     $deleteValueSet = New-Object System.Collections.Generic.HashSet[String]([StringComparer]::OrdinalIgnoreCase);
@@ -808,16 +918,21 @@ function getRemovePathValueCmd(envTarget: string): string {
     }
     $oldValue = ${getPathEnv([envTarget])};
     $newValues = ($oldValue.Trim().TrimEnd('\; ')) -split '\\*\s*;\s*';
-    $valueSet = New-Object System.Collections.Generic.HashSet[String]([StringComparer]::OrdinalIgnoreCase);
+    $seenSet = New-Object System.Collections.Generic.HashSet[String]([StringComparer]::OrdinalIgnoreCase);
+    $orderedList = New-Object System.Collections.Generic.List[String];
     foreach ($pv in $newValues) {
+      if ([string]::IsNullOrWhiteSpace($pv)) { continue; }
       if (-not $deleteValueSet.Contains($pv)) {
-        [void] $valueSet.Add($pv);
+        if ($seenSet.Add($pv)) { $orderedList.Add($pv); }
       }
     }
-    [void] $valueSet.Remove('');
-    $newValue = [string]::Join(';', $valueSet);
-    [System.Environment]::SetEnvironmentVariable('PATH', $newValue, [System.EnvironmentVariableTarget]::${envTarget});
-    " && ${getReloadWindowsEnvCmd('$*')}`;
+    $newValue = [string]::Join(';', $orderedList);
+    try {
+      [System.Environment]::SetEnvironmentVariable('PATH', $newValue, [System.EnvironmentVariableTarget]::${envTarget});
+    } catch {
+      ${permissionHint}
+    }
+    " && ${getReloadWindowsEnvCmd()}`;
   return trimAliasBody(cmdAlias).replace(TrimMultilineRegex, ' ');
 }
 
@@ -905,10 +1020,12 @@ const WindowsAliasMap: Map<string, string> = new Map<string, string>()
           [void] $valueSet.Remove('');
           [string]::Join(';', $valueSet);
         "') do @SET "PATH=%a"`)
-  .set('check-user-env', String.raw`${WindowsPowerShellCmdHeader} "[System.Environment]::GetEnvironmentVariables([System.EnvironmentVariableTarget]::User)"`)
-  .set('check-user-path', String.raw`${WindowsPowerShellCmdHeader} "[System.Environment]::GetEnvironmentVariable('PATH', [System.EnvironmentVariableTarget]::User)"`)
-  .set('check-sys-env', String.raw`${WindowsPowerShellCmdHeader} "[System.Environment]::GetEnvironmentVariables([System.EnvironmentVariableTarget]::Machine)"`)
-  .set('check-sys-path', String.raw`${WindowsPowerShellCmdHeader} "[System.Environment]::GetEnvironmentVariable('PATH', [System.EnvironmentVariableTarget]::Machine)"`)
+  .set('check-user-env', `echo $* | ${WindowsPowerShellCmdHeader} "${getCheckEnvBody('User').replace(TrimMultilineRegex, ' ')}"`)
+  .set('check-user-path', `${WindowsPowerShellCmdHeader} "${getCheckPathBody('User').replace(TrimMultilineRegex, ' ')}"`)
+  .set('check-sys-env', `echo $* | ${WindowsPowerShellCmdHeader} "${getCheckEnvBody('Machine').replace(TrimMultilineRegex, ' ')}"`)
+  .set('check-sys-path', `${WindowsPowerShellCmdHeader} "${getCheckPathBody('Machine').replace(TrimMultilineRegex, ' ')}"`)
+  .set('check-tmp-env', `echo $* | ${WindowsPowerShellCmdHeader} "${getCheckEnvBody('Process').replace(TrimMultilineRegex, ' ')}"`)
+  .set('check-tmp-path', `${WindowsPowerShellCmdHeader} "${getCheckPathBody('Process').replace(TrimMultilineRegex, ' ')}"`)
   .set('decode64', String.raw`PowerShell "[System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String('$*'))"`)
   .set('docker-login', String.raw`for /f "tokens=*" %a in ('
           docker container ls -a ^| msr -it "^(\w+)\s+\S*($1).*" -o "\1" -PAC'
@@ -930,10 +1047,10 @@ const WindowsAliasMap: Map<string, string> = new Map<string, string>()
   .set('to-vscode-arg-lines-2-slashes', String.raw`${WindowsPowerShellCmdHeader} "Set-Clipboard $(Get-Clipboard | msr -t '\s+' -o '\n' -aPAC
           | msr -t '(.+)' -o '\t\t\#\1\#,' -aPIC | msr -x \ -o \\ -aPAC | msr -x '#' -o '\\\"' -aPAC).Replace('\"\"', '\"');"`)
   .set('to-one-json-line', String.raw`${WindowsPowerShellCmdHeader} "
-          $requestBody = $(Get-Clipboard).Replace('\"', '\\\"') | msr -S -t '[\r\n]\s*' -o ' ' -PAC;
-          Set-Clipboard('\"' + $requestBody.Trim() + '\"'); Get-Clipboard"`)
-  .set('to-one-json-line-from-file', String.raw`${WindowsPowerShellCmdHeader} "$requestBody = $(Get-Content '$1').Replace('\"', '\\\"')
-          | msr -S -t '[\r\n]\s*(\S+)' -o ' \1' -PAC; Set-Clipboard('\"' + $requestBody.Trim() + '\"'); Get-Clipboard"`)
+          $clipContent = $(Get-Clipboard).Replace('\"', '\\\"') | msr -S -t '[\r\n]\s*' -o ' ' -PAC;
+          Set-Clipboard('\"' + $clipContent.Trim() + '\"'); Get-Clipboard"`)
+  .set('to-one-json-line-from-file', String.raw`${WindowsPowerShellCmdHeader} "$clipContent = $(Get-Content '$1').Replace('\"', '\\\"')
+          | msr -S -t '[\r\n]\s*(\S+)' -o ' \1' -PAC; Set-Clipboard('\"' + $clipContent.Trim() + '\"'); Get-Clipboard"`)
   .set('ts-to-minutes', String.raw`${WindowsPowerShellCmdHeader} "[Math]::Round([TimeSpan]::Parse('$1').TotalMinutes)"`)
   .set('to-local-time', String.raw`${WindowsPowerShellCmdHeader} "
           msr -z $([DateTime]::Parse([regex]::Replace('$*'.TrimEnd('Z') + 'Z', '(?<=[+-]\d{2}:?\d{2})Z$', '')).ToString('o'))
@@ -970,7 +1087,6 @@ const WindowsAliasMap: Map<string, string> = new Map<string, string>()
           az account get-access-token | ConvertFrom-Json | ForEach-Object {
              Write-Output $_.accessToken
           }"') do set "AZURE_ACCESS_TOKEN=%a"`)
-  // NOTE: find-alias and rm-alias are dynamically generated in getCommonAliasMap() based on terminalType
   .set('out-fp', String.raw`set "MSR_OUT_FULL_PATH=1" && echo Will output full file paths.`)
   .set('out-rp', String.raw`set "MSR_OUT_FULL_PATH=0" && echo Will output relative file paths.`)
   .set('out-wp', String.raw`set "MSR_UNIX_SLASH=0" && echo Now will output backslash '\' (Windows style) for result paths.`)
@@ -1034,8 +1150,6 @@ export function getCommonAliasMap(terminalType: TerminalType, writeToEachFile: b
     LinuxAliasMap.forEach((value, key) => cmdAliasMap.set(key, getAliasBody(terminalType, key, value, writeToEachFile)));
   }
 
-  // Dynamically generate find-alias and rm-alias based on terminalType
-  // This ensures the correct script subdirectory is used for each terminal type
   const findAliasBody = generateFindAliasCommand(terminalType);
   const rmAliasBody = generateRemoveAliasCommand(terminalType);
   cmdAliasMap.set('find-alias', getAliasBody(terminalType, 'find-alias', findAliasBody, writeToEachFile));
@@ -1047,40 +1161,24 @@ export function getCommonAliasMap(terminalType: TerminalType, writeToEachFile: b
   return cmdAliasMap;
 }
 
-/**
- * Generate find-alias command for the specified terminal type
- */
-function generateFindAliasCommand(terminalType: TerminalType): string {
+/** Generate find-alias or rm-alias command for the specified terminal type */
+function generatePowerShellAliasCommand(terminalType: TerminalType, bodyGenerator: (t: TerminalType) => string): string {
   const isWindowsTerminal = isWindowsTerminalOnWindows(terminalType);
-  let findAliasBodyRaw = getFindAliasBody(terminalType);
+  let bodyRaw = bodyGenerator(terminalType);
   if (isWindowsTerminal) {
-    // Convert multi-line PowerShell code to single line for CMD batch file
-    // In CMD, each line is executed separately, so multi-line PowerShell commands break
-    findAliasBodyRaw = findAliasBodyRaw.replace(TrimMultilineRegex, ' ');
-    return `${WindowsPowerShellCmdHeader} "${findAliasBodyRaw}"`;
-  } else {
-    let body = 'pwsh -Command "' + findAliasBodyRaw + '"';
-    body = replacePowerShellQuoteForLinuxAlias(body);
-    return replacePowerShellVarsForLinuxAlias(body);
+    return `${WindowsPowerShellCmdHeader} "${bodyRaw.replace(TrimMultilineRegex, ' ')}"`;
   }
+  let body = 'pwsh -Command "' + bodyRaw + '"';
+  body = replacePowerShellQuoteForLinuxAlias(body);
+  return replacePowerShellVarsForLinuxAlias(body);
 }
 
-/**
- * Generate rm-alias command for the specified terminal type
- */
+function generateFindAliasCommand(terminalType: TerminalType): string {
+  return generatePowerShellAliasCommand(terminalType, getFindAliasBody);
+}
+
 function generateRemoveAliasCommand(terminalType: TerminalType): string {
-  const isWindowsTerminal = isWindowsTerminalOnWindows(terminalType);
-  let rmAliasBodyRaw = getRemoveAliasBody(terminalType);
-  if (isWindowsTerminal) {
-    // Convert multi-line PowerShell code to single line for CMD batch file
-    // In CMD, each line is executed separately, so multi-line PowerShell commands break
-    rmAliasBodyRaw = rmAliasBodyRaw.replace(TrimMultilineRegex, ' ');
-    return `${WindowsPowerShellCmdHeader} "${rmAliasBodyRaw}"`;
-  } else {
-    let body = 'pwsh -Command "' + rmAliasBodyRaw + '"';
-    body = replacePowerShellQuoteForLinuxAlias(body);
-    return replacePowerShellVarsForLinuxAlias(body);
-  }
+  return generatePowerShellAliasCommand(terminalType, getRemoveAliasBody);
 }
 
 function readConfigCommonAlias(cmdAliasMap: Map<string, string>, terminalType: TerminalType, writeToEachFile: boolean, subKey: string = '') {

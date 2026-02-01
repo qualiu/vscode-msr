@@ -6,8 +6,8 @@ import { TerminalType } from "./enums";
 import { createDirectory, isDirectory, isFileExists } from "./fileUtils";
 import { DefaultMessageLevel, MessageLevel, checkIfSupported, outputDebugByTime, outputErrorByTime, outputInfoByDebugMode, outputInfoByDebugModeByTime, outputInfoByTime, outputInfoQuietByTime, outputKeyInfo, outputKeyInfoByTime, outputWarnByTime, updateOutputChannel } from "./outputUtils";
 import { getRunCmdTerminal, runRawCommandInTerminal } from "./runCommandUtils";
-import { DefaultTerminalType, IsLinuxTerminalOnWindows, IsWindowsTerminalOnWindows, checkAddFolderToPath, getHomeFolderForLinuxTerminalOnWindows, getTerminalShellExePath, getTipFileDisplayPath, isBashTerminalType, isLinuxTerminalOnWindows, isTerminalUsingWindowsUtils, isToolExistsInPath, isWindowsTerminalOnWindows, toCygwinPath, toTerminalPath } from "./terminalUtils";
-import { SourceHomeUrlArray, getDownloadUrl, getFileMd5, getHomeUrl, updateToolNameToPathMap } from "./toolSource";
+import { DefaultTerminalType, IsLinuxTerminalOnWindows, IsWindowsTerminalOnWindows, checkAddFolderToPath, getCmdAliasSaveFolder, getHomeFolderForLinuxTerminalOnWindows, getTerminalShellExePath, getTipFileDisplayPath, isBashTerminalType, isLinuxTerminalOnWindows, isTerminalUsingWindowsUtils, isToolExistsInPath, isWindowsTerminalOnWindows, toCygwinPath, toTerminalPath } from "./terminalUtils";
+import { SourceHomeUrlArray, getDownloadUrl, getFileMd5, getHomeUrl, getSetToolEnvCommand, updateToolNameToPathMap } from "./toolSource";
 import { PathEnvName, getElapsedSecondsToNow, isWeeklyCheckTime, quotePaths, runCommandGetOutput } from "./utils";
 import path = require('path');
 import fs = require('fs');
@@ -390,6 +390,19 @@ export class ToolChecker {
     if (checkAddFolderToPath(exeFolder, this.terminalType)) {
       outputKeyInfoByTime('Temporarily added ' + saveExeName + ' folder: ' + exeFolder + ' to ' + PathEnvName);
       outputKeyInfoByTime('Suggest that add the folder to ' + PathEnvName + ' to freely use/call ' + pureExeName + ' everywhere (you can also copy/move "' + tmpSaveExePath + '" to a folder already in ' + PathEnvName + ').');
+      if (this.isTerminalOfWindows) {
+        // Set temporary PATH in terminal (fast), then run add-user-path.cmd async in background (slow)
+        runRawCommandInTerminal(`set "PATH=%PATH%;${exeFolder};"`);
+        const addUserPathScript = path.join(getCmdAliasSaveFolder(true, false, this.terminalType), 'add-user-path.cmd');
+        if (fs.existsSync(addUserPathScript)) {
+          ChildProcess.exec(`"${addUserPathScript}" "${exeFolder}"`, { windowsHide: true });
+        }
+      } else {
+        const setEnvCommand = getSetToolEnvCommand(this.terminalType, [exeFolder], true);
+        if (!isNullOrEmpty(setEnvCommand)) {
+          runRawCommandInTerminal(setEnvCommand);
+        }
+      }
     }
   }
 

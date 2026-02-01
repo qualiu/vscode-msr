@@ -2,22 +2,22 @@ import { ParsedPath } from "path";
 import { FileExtensionToMappedExtensionMap, MyConfig } from "./dynamicConfig";
 
 export const FindJavaSpringReferenceByPowerShellAlias = `
-  $rawWord = '%1';
-  if ([string]::IsNullOrWhiteSpace($rawWord)) {
+  $inputWord = '%1';
+  if ([string]::IsNullOrWhiteSpace($inputWord)) {
     return;
   }
   $checkWords = New-Object System.Collections.Generic.HashSet[string];
-  [void] $checkWords.Add($rawWord);
+  [void] $checkWords.Add($inputWord);
   $memberPattern = '(^m?_+|_+$)';
-  if ($rawWord -match $memberPattern) {
-    [void] $checkWords.Add(($rawWord -replace $memberPattern, ''));
+  if ($inputWord -match $memberPattern) {
+    [void] $checkWords.Add(($inputWord -replace $memberPattern, ''));
   } else {
-    [void] $checkWords.Add('m_' + $rawWord);
-    [void] $checkWords.Add('_' + $rawWord);
-    [void] $checkWords.Add($rawWord + '_');
+    [void] $checkWords.Add('m_' + $inputWord);
+    [void] $checkWords.Add('_' + $inputWord);
+    [void] $checkWords.Add($inputWord + '_');
   }
   $wordSet = New-Object System.Collections.Generic.HashSet[string];
-  [void] $wordSet.Add($rawWord);
+  [void] $wordSet.Add($inputWord);
   foreach ($word in $checkWords) {
     if ($word -match $memberPattern) {
       continue;
@@ -25,7 +25,7 @@ export const FindJavaSpringReferenceByPowerShellAlias = `
     $pure = msr -z $word -t '^(is|get|set)([A-Z])' -o \\2 -aPAC;
     $cap = [Char]::ToUpper($pure[0]) + $pure.Substring(1);
     $camel = [Char]::ToLower($pure[0]) + $pure.Substring(1);
-    if ($pure.Length -lt $word.Length) { 
+    if ($pure.Length -lt $word.Length) {
         if([Char]::IsUpper($pure[0])) {
             [void] $wordSet.Add($camel);
         } else {
@@ -37,8 +37,8 @@ export const FindJavaSpringReferenceByPowerShellAlias = `
     [void] $wordSet.Add('set' + $cap);
   }
   $pattern = '\\b(' + [String]::Join('|', $wordSet) +  ')\\b';
-  if ([regex]::IsMatch($rawWord, '^[A-Z_]+$')) {
-    $pattern = '\\b' + $rawWord + '\\b';
+  if ([regex]::IsMatch($inputWord, '^[A-Z_]+$')) {
+    $pattern = '\\b' + $inputWord + '\\b';
   }
   `.trim();
 

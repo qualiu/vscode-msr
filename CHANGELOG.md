@@ -2,6 +2,10 @@
 
 All notable changes to this "vscode-msr" extension will be documented in this file.
 
+## [2.1.94]
+
+- Improve first time init + aliases (including `find-alias`).
+
 ## [2.1.93]
 
 - Accelerated terminal initialization + Added useful aliases like `find-alias` + `rm-alias`. 

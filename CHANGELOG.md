@@ -2,6 +2,10 @@
 
 All notable changes to this "vscode-msr" extension will be documented in this file.
 
+## [2.1.96]
+
+- Improved `gdm-xxx` aliases/doskeys.
+
 ## [2.1.95]
 
 - Improved git related alias like `gpm` + `gpc`.

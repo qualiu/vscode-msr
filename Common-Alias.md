@@ -27,6 +27,7 @@ You can override any built-in alias by creating a custom alias with the same nam
 - Use `rm-alias` to remove obsolete or conflicting aliases (e.g., [custom aliases](Create-Custom-Common-Alias-Once-and-for-All.md) in [settings.json](https://marketplace.visualstudio.com/items?itemName=qualiu.vscode-msr#custom-alias-to-auto-sync-across-local-and-remote-ssh-hosts-plus-docker-containers) overriding built-in aliases).
   - Example: `rm-alias gdm,gdm-l,gdm-ml,gda,gda-l,gda-ml`
 - View alias conflicts in VSCode's **OUTPUT** panel → **"MSR-Def-Ref"** channel when a project is opened.
+- Many aliases require PowerShell/pwsh. See [Install PowerShell](#install-powershell) at the end of this document.
 
 | Alias               | Usage                                                                    | Examples                                                      |
 | ------------------- | ------------------------------------------------------------------------ | ------------------------------------------------------------- |
@@ -43,22 +44,6 @@ You can override any built-in alias by creating a custom alias with the same nam
 | `alias`             | Show doskey macros (Windows CMD only) (Use `find-alias` instead)         | `alias` \| `alias find-`                                      |
 | `malias`            | Show alias with regex filtering (Use `find-alias` instead)               | `malias find-` \| `malias "gfind.*ref"`                       |
 
-### Install PowerShell (Required for Many Aliases)
-
-Many aliases depend on PowerShell/pwsh. Install it using:
-
-| OS               | Install Command                                                                 |
-| ---------------- | ------------------------------------------------------------------------------- |
-| Ubuntu (x64/amd64) | `source /etc/os-release && sudo apt-get update && sudo apt-get install -y wget && wget -q -O /tmp/packages-microsoft-prod.deb "https://packages.microsoft.com/config/ubuntu/$VERSION_ID/packages-microsoft-prod.deb" && sudo dpkg -i /tmp/packages-microsoft-prod.deb && rm /tmp/packages-microsoft-prod.deb && sudo apt-get update && sudo apt-get install -y powershell` |
-| Ubuntu (ARM64)   | `sudo apt-get update && sudo apt-get install -y wget tar && wget -q -O /tmp/powershell.tar.gz "https://github.com/PowerShell/PowerShell/releases/download/v7.5.0/powershell-7.5.0-linux-arm64.tar.gz" && sudo mkdir -p /opt/microsoft/powershell/7 && sudo tar -xzf /tmp/powershell.tar.gz -C /opt/microsoft/powershell/7 && sudo chmod +x /opt/microsoft/powershell/7/pwsh && sudo ln -sf /opt/microsoft/powershell/7/pwsh /usr/bin/pwsh && rm /tmp/powershell.tar.gz` |
-| macOS            | `brew install powershell/tap/powershell`                                        |
-| FreeBSD (13+)    | `sudo pkg update && sudo pkg install -y powershell`                             |
-
-**Notes:**
-- **Ubuntu ARM64**: For the latest version, check [PowerShell releases](https://github.com/PowerShell/PowerShell/releases) and update the URL.
-- **FreeBSD**: Requires FreeBSD 13.x or newer. **Older versions (12.x and below) are EOL** - their package repositories are permanently closed, and there is no simple way to install PowerShell without upgrading the OS first. See [FreshPorts powershell](https://www.freshports.org/shells/powershell/) for details.
-- For other Linux distributions, see [Install PowerShell on Linux](https://learn.microsoft.com/en-us/powershell/scripting/install/install-other-linux#binary-archives).
-
 ## Git Branch Operations
 
 | Alias  | Usage                                                                 | Examples                                      |
@@ -68,16 +53,15 @@ Many aliases depend on PowerShell/pwsh. Install it using:
 | `gph`  | Push current branch to origin                                         | `gph` \| `gph -f` \| `gph --delete`           |
 | `gfc`  | Fetch current branch from origin                                      | `gfc`                                         |
 | `gsh`  | Hard reset current branch to origin                                   | `gsh`                                         |
-| `gst`  | Show git status                                                       | `gst` \| `gst -s`                             |
+| `gst`  | Show git status                                                       | `gst` \| `gst -s`\| `gst -u`                  |
 | `gca`  | Amend last commit without editing message                             | `gca` \| `gca -m "New message"`               |
 | `gdc`  | Diff tool for current branch vs origin                                | `gdc` \| `gdc -- path/to/file`                |
 | `gdc-l` | List changed files between current branch and origin                 | `gdc-l` \| `gdc-l -- path/`                   |
 | `gdf`  | Diff tool for specific commit or branch                               | `gdf HEAD~1` \| `gdf {branch-name-or-commit}` |
-| `glc`  | Show brief logs + changed files compared with origin/{current} branch | `glc` \| `glc -n 3`                           |
-| `glcc` | Show brief logs + changed files in commits of local {current} branch  | `glcc` \| `glcc -n 3`                         |
+| `glc`  | Show brief history commits + file list of **origin**/{current} branch | `glc` \| `glc -n 3`                           |
+| `glcc` | Show brief history commits + file list of **local** {current} branch  | `glcc` \| `glcc -n 3`                         |
 
-## Git Diff with Main/Master Branch
-
+## Git Diff with Main or Master Branch
 Compare your current branch with the `origin/main` or `origin/master` branch using difftool or list changed files.
 
 | Alias    | Usage                                                       | Examples                                          |
@@ -88,7 +72,7 @@ Compare your current branch with the `origin/main` or `origin/master` branch usi
 | `gdm-al` | List added files only                                   | `gdm-al` \| `gdm-al src/` \| `gdm-al -- src/`     |
 | `gdm-ml` | List modified files only                                | `gdm-ml` \| `gdm-ml *.md` \| `gdm-ml -- *.md`     |
 | `gdm-dl` | List deleted files only                                 | `gdm-dl` \| `gdm-dl tests/` \| `gdm-dl -- tests/` |
-| `gdm-nt` | Show diff content excluding test files                  | `gdm-nt` \| `gdm-nt src/` \| `gdm-nt -- src/`     |
+| `gdm-nt` | Show diff content excluding test files                  | `gdm-nt` \| `gdm-nt *.cs` \| `gdm-nt '*cs' > diff.txt` |
 
 ## Git Submodule Operations
 
@@ -249,3 +233,21 @@ Compare your current branch with the `origin/main` or `origin/master` branch usi
 | Alias        | Usage                            | Examples                                                   |
 | ------------ | -------------------------------- | ---------------------------------------------------------- |
 | `vim-to-row` | Open file at specific row in vim | `vim-to-row "file.ts:42"` \| `vim-to-row "src/app.js:100"` |
+
+---
+
+## Install PowerShell
+
+Many aliases depend on PowerShell/pwsh. Install it using:
+
+| OS               | Install Command                                                                 |
+| ---------------- | ------------------------------------------------------------------------------- |
+| Ubuntu (x64/amd64) | `source /etc/os-release && sudo apt-get update && sudo apt-get install -y wget && wget -q -O /tmp/packages-microsoft-prod.deb "https://packages.microsoft.com/config/ubuntu/$VERSION_ID/packages-microsoft-prod.deb" && sudo dpkg -i /tmp/packages-microsoft-prod.deb && rm /tmp/packages-microsoft-prod.deb && sudo apt-get update && sudo apt-get install -y powershell` |
+| Ubuntu (ARM64)   | `sudo apt-get update && sudo apt-get install -y wget tar && wget -q -O /tmp/powershell.tar.gz "https://github.com/PowerShell/PowerShell/releases/download/v7.5.0/powershell-7.5.0-linux-arm64.tar.gz" && sudo mkdir -p /opt/microsoft/powershell/7 && sudo tar -xzf /tmp/powershell.tar.gz -C /opt/microsoft/powershell/7 && sudo chmod +x /opt/microsoft/powershell/7/pwsh && sudo ln -sf /opt/microsoft/powershell/7/pwsh /usr/bin/pwsh && rm /tmp/powershell.tar.gz` |
+| macOS            | `brew install powershell/tap/powershell`                                        |
+| FreeBSD (13+)    | `sudo pkg update && sudo pkg install -y powershell`                             |
+
+**Notes:**
+- **Ubuntu ARM64**: For the latest version, check [PowerShell releases](https://github.com/PowerShell/PowerShell/releases) and update the URL.
+- **FreeBSD**: Requires FreeBSD 13.x or newer. **Older versions (12.x and below) are EOL** - their package repositories are permanently closed, and there is no simple way to install PowerShell without upgrading the OS first. See [FreshPorts powershell](https://www.freshports.org/shells/powershell/) for details.
+- For other Linux distributions, see [Install PowerShell on Linux](https://learn.microsoft.com/en-us/powershell/scripting/install/install-other-linux#binary-archives).

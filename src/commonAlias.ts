@@ -414,6 +414,21 @@ function getRemoveAliasBody(terminalType: TerminalType): string {
 
 let LinuxAliasMap: Map<string, string> = new Map<string, string>()
   .set('vim-to-row', String.raw`msr -z "$1" -t "^(.+?):(\d+)(:.*)?$" -o "vim +\2 +\"set number\" \"\1\"" -XM`)
+  // Pure bash versions for Linux - use (del-this-tmp-list) 2>/dev/null to suppress stderr
+  .set('gpc', String.raw`git branch | msr -t "^\s*\*\s*(\S+).*" -o "git pull origin \1 $*" -XM; (del-this-tmp-list) 2>/dev/null`)
+  .set('gpm', String.raw`mainRef=$(git rev-parse --verify origin/main 2>/dev/null); primaryBranch=$([ -n "$mainRef" ] && echo main || echo master); cmd="git pull origin $primaryBranch $*"; echo "$cmd" >&2; eval "$cmd"; (del-this-tmp-list) 2>/dev/null`)
+  .set('gpc-sm', String.raw`git rev-parse --abbrev-ref HEAD | msr -t "(.+)" -o "git pull origin \1 --no-recurse-submodules" -XM; (del-this-tmp-list) 2>/dev/null; msr -z "git submodule sync && git submodule update --init" -t "&&" -o "\n" -PAC | msr -XM -V ne0`)
+  .set('gpc-sm-reset', String.raw`git rev-parse --abbrev-ref HEAD | msr -t "(.+)" -o "git pull origin \1 --no-recurse-submodules" -XM && msr -z "git submodule sync && git submodule update --init && git submodule update -f" -t "&&" -o "\n" -PAC | msr -XM -V ne0; (del-this-tmp-list) 2>/dev/null; git status`)
+  .set('git-sm-init', String.raw`msr -XMz "git submodule sync" && echo git submodule update --init $* | msr -XM; (del-this-tmp-list) 2>/dev/null; git status`)
+  .set('git-sm-reset', String.raw`msr -XMz "git submodule sync" && msr -XMz "git submodule init" && echo git submodule update -f $* | msr -XM; (del-this-tmp-list) 2>/dev/null; git status`)
+  .set('git-sm-restore', String.raw`echo git restore . --recurse-submodules $* | msr -XM; (del-this-tmp-list) 2>/dev/null; git status`)
+  .set('gdm', String.raw`mainRef=$(git rev-parse --verify origin/main 2>/dev/null); primaryRef=$([ -n "$mainRef" ] && echo origin/main || echo origin/master); cmd="git difftool $primaryRef... $*"; echo "$cmd" >&2; eval "$cmd"`)
+  .set('gdm-l', String.raw`mainRef=$(git rev-parse --verify origin/main 2>/dev/null); primaryRef=$([ -n "$mainRef" ] && echo origin/main || echo origin/master); cmd="git diff --name-only $primaryRef... $*"; echo "$cmd" >&2; eval "$cmd"`)
+  .set('gdm-al', String.raw`mainRef=$(git rev-parse --verify origin/main 2>/dev/null); primaryRef=$([ -n "$mainRef" ] && echo origin/main || echo origin/master); cmd="git diff --name-only --diff-filter=A $primaryRef... $*"; echo "$cmd" >&2; eval "$cmd"`)
+  .set('gdm-m', String.raw`mainRef=$(git rev-parse --verify origin/main 2>/dev/null); primaryRef=$([ -n "$mainRef" ] && echo origin/main || echo origin/master); cmd="git difftool --diff-filter=M $primaryRef... $*"; echo "$cmd" >&2; eval "$cmd"`)
+  .set('gdm-ml', String.raw`mainRef=$(git rev-parse --verify origin/main 2>/dev/null); primaryRef=$([ -n "$mainRef" ] && echo origin/main || echo origin/master); cmd="git diff --name-only --diff-filter=M $primaryRef... $*"; echo "$cmd" >&2; eval "$cmd"`)
+  .set('gdm-dl', String.raw`mainRef=$(git rev-parse --verify origin/main 2>/dev/null); primaryRef=$([ -n "$mainRef" ] && echo origin/main || echo origin/master); cmd="git diff --name-only --diff-filter=D $primaryRef... $*"; echo "$cmd" >&2; eval "$cmd"`)
+  .set('gdm-nt', String.raw`mainRef=$(git rev-parse --verify origin/main 2>/dev/null); primaryRef=$([ -n "$mainRef" ] && echo origin/main || echo origin/master); cmd="git diff $primaryRef... $*"; echo "$cmd" >&2; eval "$cmd" | msr -b "^\s*diff\s+" -Q "" -y --nt "^diff\s+.*?test" -i -PIC`)
   .set('git-add-safe-dir', String.raw`repoRootDir=$(git rev-parse --show-toplevel);
       git config --global --get-all safe.directory
         | msr -t "^$repoRootDir/?$" -M && msr -XMI -z "git config --global --add safe.directory $repoRootDir";
@@ -429,14 +444,14 @@ let LinuxAliasMap: Map<string, string> = new Map<string, string>()
   ;
 
 const CommonAliasMap: Map<string, string> = new Map<string, string>()
-  .set('gpc', String.raw`git branch | msr -t "^\s*\*\s*(\S+).*" -o "git pull origin \1 $*" -XM & del-this-tmp-list`)
-  .set('gpm', String.raw`pwsh -Command "$mainRef = git rev-parse --verify origin/main 2>$null; $primaryBranch = if ($mainRef) { 'main' } else { 'master' }; $cmd = 'git pull origin ' + $primaryBranch + ' $*'; [Console]::Error.WriteLine($cmd); Invoke-Expression $cmd" & del-this-tmp-list`)
+  .set('gpc', String.raw`git branch | msr -t "^\s*\*\s*(\S+).*" -o "git pull origin \1 $*" -XM & del-this-tmp-list 2>nul`)
+  .set('gpm', String.raw`pwsh -Command "$mainRef = git rev-parse --verify origin/main 2>$null; $primaryBranch = if ($mainRef) { 'main' } else { 'master' }; $cmd = 'git pull origin ' + $primaryBranch + ' $*'; [Console]::Error.WriteLine($cmd); Invoke-Expression $cmd" & del-this-tmp-list 2>nul`)
   .set('gph', String.raw`git branch | msr -t "^\s*\*\s*(\S+).*" -o "git push origin \1 $*" -XM`)
   .set('gpc-sm', String.raw`git rev-parse --abbrev-ref HEAD | msr -t "(.+)" -o "git pull origin \1 --no-recurse-submodules" -XM
-          & del-this-tmp-list & msr -z "git submodule sync && git submodule update --init" -t "&&" -o "\n" -PAC | msr -XM -V ne0`)
+          & del-this-tmp-list 2>nul & msr -z "git submodule sync && git submodule update --init" -t "&&" -o "\n" -PAC | msr -XM -V ne0`)
   .set('gpc-sm-reset', String.raw`git rev-parse --abbrev-ref HEAD | msr -t "(.+)" -o "git pull origin \1 --no-recurse-submodules" -XM
           && msr -z "git submodule sync && git submodule update --init && git submodule update -f" -t "&&" -o "\n" -PAC | msr -XM -V ne0
-          & del-this-tmp-list
+          & del-this-tmp-list 2>nul
           & git status`)
   .set('gca', String.raw`git commit --amend --no-edit $*`)
   .set('gfc', String.raw`git rev-parse --abbrev-ref HEAD | msr -t "(.+)" -o "git fetch origin \1" -XM`)
@@ -452,10 +467,10 @@ const CommonAliasMap: Map<string, string> = new Map<string, string>()
   .set('git-shallow-clone', String.raw`echo git clone --single-branch --depth 1 $* && git clone --single-branch --depth 1 $*`)
   .set('git-clean', String.raw`msr -z "git clean -xffd && git submodule foreach --recursive git clean -xffd" -t "&&" -o "\n" -PAC | msr -XM`)
   .set('git-sm-prune', String.raw`msr -XM -z "git prune" && msr -XMz "git submodule foreach git prune"`)
-  .set('git-sm-init', String.raw`msr -XMz "git submodule sync" && echo git submodule update --init $* | msr -XM & del-this-tmp-list & git status`)
+  .set('git-sm-init', String.raw`msr -XMz "git submodule sync" && echo git submodule update --init $* | msr -XM & del-this-tmp-list 2>nul & git status`)
   .set('git-sm-reset', String.raw`msr -XMz "git submodule sync" && msr -XMz "git submodule init" && echo git submodule update -f $*
-          | msr -XM & del-this-tmp-list & git status`)
-  .set('git-sm-restore', String.raw`echo git restore . --recurse-submodules $* | msr -XM & del-this-tmp-list & git status`)
+          | msr -XM & del-this-tmp-list 2>nul & git status`)
+  .set('git-sm-restore', String.raw`echo git restore . --recurse-submodules $* | msr -XM & del-this-tmp-list 2>nul & git status`)
   .set('git-sm-reinit', String.raw`msr -XM -z "git submodule deinit -f ." && msr -XM -z "git submodule update --init" & git status`)
   .set('git-sm-update-remote', String.raw`msr -XMz "git submodule sync" && echo git submodule update --remote $* | msr -XM & git status`)
   .set('git-cherry-pick-branch-new-old-commits', String.raw`git log $1 | msr -b "^commit $2" -q "^commit $3" -t "^commit (\w+)" -o "\1" -M -C
@@ -512,7 +527,8 @@ const CommonAliasMap: Map<string, string> = new Map<string, string>()
           Write-Host $message -ForegroundColor Green"`)
   ;
 
-['to-alias-body', 'gpm', 'gdm', 'gdm-m', 'gdm-l', 'gdm-al', 'gdm-ml', 'gdm-dl', 'gdm-nt'].forEach(name => {
+// Only to-alias-body needs PowerShell conversion (gpm/gdm-* have pure bash versions)
+['to-alias-body'].forEach(name => {
   let body = (CommonAliasMap.get(name) || '').replace(TrimMultilineRegex, ' ');
   body = replacePowerShellQuoteForLinuxAlias(body);
   body = replacePowerShellVarsForLinuxAlias(body);

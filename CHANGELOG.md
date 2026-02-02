@@ -2,6 +2,10 @@
 
 All notable changes to this "vscode-msr" extension will be documented in this file.
 
+## [2.1.95]
+
+- Improved git related alias like `gpm` + `gpc`.
+
 ## [2.1.94]
 
 - Improve first time init + aliases (including `find-alias`).

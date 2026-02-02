@@ -415,12 +415,21 @@ export function cookCmdShortcutsOrFile(cookArgs: CookAliasArgs) {
     + String.raw` [ -f "$thisFile" ] && source $thisFile || echo "Not found alias file: $thisFile - Please open a folder to cook alias."`;
   cmdAliasMap.set('use-this-alias', getCommandAliasText('use-this-alias', useThisAliasBody, isWindowsTerminal, terminalType, args.WriteToEachFile, false));
 
-  const removeThisAliasBody = isWindowsTerminal
-    ? useThisAliasBody.replace(`%b.${projectAliasFileSuffix}`, GitTmpListFilePrefix + '%b')
-      .replace(/call (\S+)/g, 'if exist $1 ( del $1 && echo Deleted tmp list file: $1 )')
-    : useThisAliasBody.replace(`${linuxTmpFolder}/`, '/tmp/' + GitTmpListFilePrefix).replace(`.${projectAliasFileSuffix}`, '')
-      .replace(/source (\S+)/g, '[ -f $1 ] && rm $1 && echo Deleted tmp list file: $1');
-  cmdAliasMap.set('del-this-tmp-list', getCommandAliasText('del-this-tmp-list', removeThisAliasBody, false, terminalType, args.WriteToEachFile, false));
+  const tmpListFileName = GitTmpListFilePrefix + '%b';
+  const removeThisTmpListBody = (isWindowsTerminal
+    ? useThisAliasBody
+      .replace(new RegExp(`%b\\.${projectAliasFileSuffix.replace(/\./g, '\\.')}`, 'g'), tmpListFileName) // Replace all occurrences
+      .replace(/call (\S+)/g, 'del $1 && echo Deleted tmp list file: $1') // Change call to del
+    : useThisAliasBody
+      .replace(new RegExp(`${linuxTmpFolder}/`, 'g'), '/tmp/' + GitTmpListFilePrefix) // Replace folder prefix
+      .replace(new RegExp(`\\.${projectAliasFileSuffix.replace(/\./g, '\\.')}`, 'g'), '') // Remove suffix
+      .replace(/source (\S+)/g, 'rm $1 && echo "Deleted tmp list file: $1"') // Change source to rm
+  )
+    .replace(/Not found alias file:/g, 'Not found tmp list file:') // Fix error message (common for both)
+    .replace(/ - Please open a folder to cook alias\./g, '') // Remove irrelevant hint (common for both)
+    .replace(isWindowsTerminal ? /echo (Not found tmp list file:[^)]+)\)/g : /echo "Not found tmp list file: \$thisFile[^"]*"/g,
+      isWindowsTerminal ? 'echo $1 1>&2 )' : 'echo "Not found tmp list file: $thisFile" >&2'); // Output error to stderr
+  cmdAliasMap.set('del-this-tmp-list', getCommandAliasText('del-this-tmp-list', removeThisTmpListBody, false, terminalType, args.WriteToEachFile, false));
 
   const shouldCheckUpdateAlias = isWeeklyCheckTime() || IsDebugMode;
   ['use-this-alias', 'del-this-tmp-list', 'add-user-path', 'reload-env', 'reset-env'].forEach(name => {

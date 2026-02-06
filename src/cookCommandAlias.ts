@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { IsFileTimeOffsetSupported, IsUniformSlashSupported, RunCommandChecker, ToolChecker, setNotCheckInputPathInCommandLine, setOutputColumnIndexInCommandLine } from './ToolChecker';
+import { IsFileTimeOffsetSupported, RunCommandChecker, ToolChecker, setNotCheckInputPathInCommandLine, setOutputColumnIndexInCommandLine } from './ToolChecker';
 import { ProjectToGitFindFileExtraOptionsMap, getFindTopDistributionCommand, getSortCommandText } from "./commands";
 import { getCommandAliasText, getCommonAliasMap, HasPwshExeOnWindows, replaceArgForLinuxCmdAlias, replaceArgForWindowsCmdAlias, replaceForLoopVariableForWindowsScript, replacePowerShellVarsForLinuxAlias } from './commonAlias';
 import { getConfigValueByPriorityList, getConfigValueByProjectAndExtension, getConfigValueOfActiveProject, getConfigValueOfProject } from "./configUtils";
@@ -216,6 +216,7 @@ function showTipByCommand(terminal: vscode.Terminal | undefined, terminalType: T
   const replaceTipValueArg = `-x S#C -o ${aliasCount}`;
   const finalGuide = `You can create alias in ${defaultAliasPathForBash}${isWindowsTerminal ? '' : ' or ~/.bashrc'}`
     + ` + use S#C alias like find-ref gfind-cpp-ref gfind-doc gfind-file gfind-top-type.`
+    + ` Use find-alias / rm-alias to manage alias.`
     + ` Change user settings for all functions:`
     + ` Toggle-Enable/Disable finding definition`
     + ` + Adjust-Color + Fuzzy-Code-Mining + Hide/Show-Menus`
@@ -477,11 +478,6 @@ export function cookCmdShortcutsOrFile(cookArgs: CookAliasArgs) {
     cmdAliasMap.set(aliasName, getCommandAliasText(aliasName, sortBody, false, terminalType, args.WriteToEachFile, false, false));
   });
 
-  const outFullPathsBody = getOutputPathAliasBody(true, isWindowsTerminal);
-  cmdAliasMap.set('out-fp', getCommandAliasText('out-fp', outFullPathsBody, false, terminalType, args.WriteToEachFile, false, false));
-  const outRelativePathsBody = getOutputPathAliasBody(false, isWindowsTerminal);
-  cmdAliasMap.set('out-rp', getCommandAliasText('out-rp', outRelativePathsBody, false, terminalType, args.WriteToEachFile, false, false));
-
   duplicateSearchFileCmdAlias(repoFolder, terminalType, cmdAliasMap, args.ForProject, args.WriteToEachFile);
   if (MyConfig.useGitFileList()) {
     const gitFindExtraOptions = (cmdAliasMap.get('gfind-file') || '').replace(/.*?msr -w\s+\S+/, '');
@@ -724,19 +720,6 @@ export function cookCmdShortcutsOrFile(cookArgs: CookAliasArgs) {
     initLinuxCommands += `source ${rcName}` + "\n";
 
     return initLinuxCommands;
-  }
-
-  function getOutputPathAliasBody(outputFullPath: boolean = false, isWindowsTerminal: boolean): string {
-    let command = (isWindowsTerminal ? 'set' : 'export') + ' MSR_OUT_FULL_PATH=' + (outputFullPath ? 1 : 0);
-
-    if (!IsUniformSlashSupported) {
-      command += ' && echo Please update msr manually, or auto update: Set msr.autoUpdateSearchTool = true + Delete msr + Reload vscode.'
-        + ` Find msr by command: ${isWindowsTerminal ? 'where' : 'which'} msr`;
-    } else {
-      command += " && echo Will output " + (outputFullPath ? "full" : "relative") + " file paths.";
-    }
-
-    return command;
   }
 
   function runCmdInTerminal(cmd: string, showTerminal: boolean = false) {

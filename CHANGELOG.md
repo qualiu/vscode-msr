@@ -2,6 +2,10 @@
 
 All notable changes to this "vscode-msr" extension will be documented in this file.
 
+## [2.1.97]
+
+- Added `gfm` with trivial improvement for other alias; Supported `find-alias` for WSL + MinGW + Cygwin on Windows.
+
 ## [2.1.96]
 
 - Improved `gdm-xxx` aliases/doskeys.

@@ -46,20 +46,21 @@ You can override any built-in alias by creating a custom alias with the same nam
 
 ## Git Branch Operations
 
-| Alias  | Usage                                                                 | Examples                                      |
-| ------ | --------------------------------------------------------------------- | --------------------------------------------- |
-| `gpc`  | Pull current branch from origin                                       | `gpc` \| `gpc --rebase` \| `gpc --no-edit`    |
-| `gpm`  | Pull main/master branch from origin (auto-detect)                     | `gpm` \| `gpm --rebase` \| `gpm --no-edit`    |
-| `gph`  | Push current branch to origin                                         | `gph` \| `gph -f` \| `gph --delete`           |
-| `gfc`  | Fetch current branch from origin                                      | `gfc`                                         |
-| `gsh`  | Hard reset current branch to origin                                   | `gsh`                                         |
-| `gst`  | Show git status                                                       | `gst` \| `gst -s`\| `gst -u`                  |
-| `gca`  | Amend last commit without editing message                             | `gca` \| `gca -m "New message"`               |
-| `gdc`  | Diff tool for current branch vs origin                                | `gdc` \| `gdc -- path/to/file`                |
-| `gdc-l` | List changed files between current branch and origin                 | `gdc-l` \| `gdc-l -- path/`                   |
-| `gdf`  | Diff tool for specific commit or branch                               | `gdf HEAD~1` \| `gdf {branch-name-or-commit}` |
-| `glc`  | Show brief history commits + file list of **origin**/{current} branch | `glc` \| `glc -n 3`                           |
-| `glcc` | Show brief history commits + file list of **local** {current} branch  | `glcc` \| `glcc -n 3`                         |
+| Alias   | Usage                                                                 | Examples                                      |
+| ------- | --------------------------------------------------------------------- | --------------------------------------------- |
+| `gpc`   | Pull current branch from origin                                       | `gpc` \| `gpc --rebase` \| `gpc --no-edit`    |
+| `gpm`   | Pull main/master branch from origin (auto-detect)                     | `gpm` \| `gpm --rebase` \| `gpm --no-edit`    |
+| `gph`   | Push current branch to origin                                         | `gph` \| `gph -f` \| `gph --delete`           |
+| `gfc`   | Fetch current branch from origin                                      | `gfc`                                         |
+| `gfm`   | Fetch main/master branch from origin (auto-detect)                    | `gfm`                                         |
+| `gsh`   | Hard reset current branch to origin                                   | `gsh`                                         |
+| `gst`   | Show git status                                                       | `gst` \| `gst -s`\| `gst -u`                  |
+| `gca`   | Amend last commit without editing message                             | `gca` \| `gca -m "New message"`               |
+| `gdc`   | Diff tool for current branch vs origin                                | `gdc` \| `gdc -- path/to/file`                |
+| `gdc-l` | List changed files between current branch and origin                  | `gdc-l` \| `gdc-l -- path/`                   |
+| `gdf`   | Diff tool for specific commit or branch                               | `gdf HEAD~1` \| `gdf {branch-name-or-commit}` |
+| `glc`   | Show brief history commits + file list of **origin**/{current} branch | `glc` \| `glc -n 3`                           |
+| `glcc`  | Show brief history commits + file list of **local** {current} branch  | `glcc` \| `glcc -n 3`                         |
 
 ## Git Diff with Main or Master Branch
 Compare your current branch with the `origin/main` or `origin/master` branch using difftool or list changed files.
@@ -236,16 +237,39 @@ Compare your current branch with the `origin/main` or `origin/master` branch usi
 
 ---
 
+## Alias Loading for Different Terminal Types
+
+Different terminal types use **separate alias files**:
+
+| Terminal Type         | Alias File Location                                               | Format   |
+| --------------------- | ----------------------------------------------------------------- | -------- |
+| Windows CMD           | `%USERPROFILE%\msr-cmd-alias.doskeys`                             | doskeys  |
+| Windows PowerShell    | `%USERPROFILE%\cmdAlias\cmd\` (scripts, not doskeys)              | scripts  |
+| MinGW (Git Bash)      | `%USERPROFILE%\cmdAlias\mingw\msr-cmd-alias.bashrc`               | bashrc   |
+| Cygwin                | `%USERPROFILE%\cmdAlias\cygwin\msr-cmd-alias.bashrc`              | bashrc   |
+| WSL                   | `%USERPROFILE%\cmdAlias\wsl\msr-cmd-alias.bashrc`                 | bashrc   |
+| Linux Bash (Native)   | `~/msr-cmd-alias.bashrc`                                          | bashrc   |
+| macOS                 | `~/msr-cmd-alias.bashrc`                                          | bashrc   |
+
+Aliases are auto-generated and loaded when you open a new terminal in VSCode. Use `update-alias` to reload/refresh aliases.
+
+**Note**: VSCode `settings.json` is shared across all terminal types, but alias files are stored separately for each terminal type.
+
+---
+
 ## Install PowerShell
 
 Many aliases depend on PowerShell/pwsh. Install it using:
 
-| OS               | Install Command                                                                 |
-| ---------------- | ------------------------------------------------------------------------------- |
+| OS / Terminal      | Install Command                                                                 |
+| ------------------ | ------------------------------------------------------------------------------- |
 | Ubuntu (x64/amd64) | `source /etc/os-release && sudo apt-get update && sudo apt-get install -y wget && wget -q -O /tmp/packages-microsoft-prod.deb "https://packages.microsoft.com/config/ubuntu/$VERSION_ID/packages-microsoft-prod.deb" && sudo dpkg -i /tmp/packages-microsoft-prod.deb && rm /tmp/packages-microsoft-prod.deb && sudo apt-get update && sudo apt-get install -y powershell` |
-| Ubuntu (ARM64)   | `sudo apt-get update && sudo apt-get install -y wget tar && wget -q -O /tmp/powershell.tar.gz "https://github.com/PowerShell/PowerShell/releases/download/v7.5.0/powershell-7.5.0-linux-arm64.tar.gz" && sudo mkdir -p /opt/microsoft/powershell/7 && sudo tar -xzf /tmp/powershell.tar.gz -C /opt/microsoft/powershell/7 && sudo chmod +x /opt/microsoft/powershell/7/pwsh && sudo ln -sf /opt/microsoft/powershell/7/pwsh /usr/bin/pwsh && rm /tmp/powershell.tar.gz` |
-| macOS            | `brew install powershell/tap/powershell`                                        |
-| FreeBSD (13+)    | `sudo pkg update && sudo pkg install -y powershell`                             |
+| Ubuntu (ARM64)     | `sudo apt-get update && sudo apt-get install -y wget tar && wget -q -O /tmp/powershell.tar.gz "https://github.com/PowerShell/PowerShell/releases/download/v7.5.0/powershell-7.5.0-linux-arm64.tar.gz" && sudo mkdir -p /opt/microsoft/powershell/7 && sudo tar -xzf /tmp/powershell.tar.gz -C /opt/microsoft/powershell/7 && sudo chmod +x /opt/microsoft/powershell/7/pwsh && sudo ln -sf /opt/microsoft/powershell/7/pwsh /usr/bin/pwsh && rm /tmp/powershell.tar.gz` |
+| macOS              | `brew install powershell/tap/powershell`                                        |
+| FreeBSD (13+)      | `sudo pkg update && sudo pkg install -y powershell`                             |
+| WSL                | Same as Ubuntu above (use x64/amd64 or ARM64 command based on your WSL distro) |
+| Cygwin             | `which pwsh > /dev/null 2>&1 \|\| { [ -d "/cygdrive/c/Program Files/PowerShell/7" ] && echo 'export PATH="/cygdrive/c/Program Files/PowerShell/7:$PATH"' >> ~/.bashrc \|\| echo 'export PATH="$PATH:/cygdrive/c/Windows/System32/WindowsPowerShell/v1.0"' >> ~/.bashrc; } && source ~/.bashrc` |
+| MinGW/MSYS2        | `which pwsh > /dev/null 2>&1 \|\| { [ -d "/c/Program Files/PowerShell/7" ] && echo 'export PATH="/c/Program Files/PowerShell/7:$PATH"' >> ~/.bashrc \|\| echo 'export PATH="$PATH:/c/Windows/System32/WindowsPowerShell/v1.0"' >> ~/.bashrc; } && source ~/.bashrc` |
 
 **Notes:**
 - **Ubuntu ARM64**: For the latest version, check [PowerShell releases](https://github.com/PowerShell/PowerShell/releases) and update the URL.

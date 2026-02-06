@@ -1,11 +1,13 @@
 import * as vscode from 'vscode';
 import { AliasNameBody } from './AliasNameBody';
-import { IsWindows, isNullOrEmpty } from './constants';
+import { getAliasFileName, HomeFolder, IsWindows, isNullOrEmpty } from './constants';
 import { MyConfig, getConfig } from './dynamicConfig';
 import { TerminalType } from "./enums";
 import { enableColorAndHideCommandLine, outputInfoByDebugModeByTime, outputInfoQuietByTime, outputWarnByTime } from "./outputUtils";
-import { isToolExistsInPath, isWindowsTerminalOnWindows } from "./terminalUtils";
+import { getCmdAliasSaveFolder, isToolExistsInPath, isWindowsTerminalOnWindows, toTerminalPath } from "./terminalUtils";
+import { IsUniformSlashSupported } from './ToolChecker';
 import { getPowerShellName, replaceSearchTextHolder, replaceTextByRegex } from "./utils";
+import path = require('path');
 
 /**
  * DOSKEY SPECIAL CHARACTERS (case-insensitive) - AVOID these variable prefixes: $a, $b, $g, $l, $r, $t
@@ -98,63 +100,170 @@ interface OsAliasConfig {
   scriptExt: string;
   osSpecificGroup: string;
   scriptSubFolder: string;
+  /** Whether the alias file is stored in a subdirectory (for MinGW/Cygwin/WSL on Windows) */
+  useAliasSubFolder: boolean;
+  /** Terminal type subfolder name (mingw/cygwin/wsl/cmd) */
+  terminalSubFolder: string;
 }
 
-/** Get terminal type subdirectory (matches getCmdAliasSaveFolder in terminalUtils.ts) */
+function isLinuxStyleTerminalOnWindows(terminalType: TerminalType): boolean {
+  return terminalType === TerminalType.MinGWBash ||
+    terminalType === TerminalType.CygwinBash ||
+    terminalType === TerminalType.WslBash;
+}
+
+// Get terminal type subdirectory name (mingw/cygwin/wsl/cmd) - matches getCmdAliasSaveFolder
 function getTerminalTypeSubFolder(terminalType: TerminalType): string {
-  // Logic from getCmdAliasSaveFolder in terminalUtils.ts:
-  // const terminalTypeText = TerminalType[terminalType].toLowerCase()
-  //   .replace(/bash$/i, '')
-  //   .replace(/PowerShell$/i, 'cmd');
   return TerminalType[terminalType].toLowerCase()
     .replace(/bash$/i, '')
     .replace(/powershell$/i, 'cmd');
 }
 
-/** Get OS-specific alias configuration */
+// Convert Windows path to WSL /c/ format (unlike toWSLPath which auto-detects)
+function toWslPathForAlias(windowsPath: string): string {
+  if (!windowsPath) return '';
+  const match = windowsPath.match(/^([A-Za-z]):[\\\/](.*)$/);
+  if (match) {
+    const driveLetter = match[1].toLowerCase();
+    const restPath = match[2].replace(/\\/g, '/');
+    return `/${driveLetter}/${restPath}`;
+  }
+  return windowsPath.replace(/\\/g, '/');
+}
+
+// Get alias file sub-path (e.g., 'cmdAlias/mingw/msr-cmd-alias.bashrc')
+function getAliasFileSubPath(config: OsAliasConfig): string {
+  return config.useAliasSubFolder
+    ? `cmdAlias/${config.terminalSubFolder}/${config.cmdFileName}`
+    : config.cmdFileName;
+}
+
+// Generate PowerShell code to convert backslash to forward slash using [regex]::Escape([char]92)
+function getToUnixPathCode(varName: string, useUnixSlash: boolean): string {
+  return useUnixSlash ? `$${varName} = $${varName} -replace [regex]::Escape([char]92), [char]47;` : '';
+}
+
+// Get VSCode settings.json path for the current platform
+function getVscodeSettingsPath(terminalType: TerminalType): string {
+  const isWindowsTerminal = isWindowsTerminalOnWindows(terminalType);
+  const isWslTerminal = terminalType === TerminalType.WslBash;
+  
+  if (isWindowsTerminal || isLinuxStyleTerminalOnWindows(terminalType)) {
+    // All terminals on Windows use Windows APPDATA location
+    const appdata = process.env['APPDATA'] || '';
+    const windowsPath = path.join(appdata, 'Code/User/settings.json');
+    if (isWslTerminal) {
+      return toWslPathForAlias(windowsPath);
+    }
+    return windowsPath;
+  }
+  // Native Linux/macOS: ~/.config/Code/User/settings.json or ~/Library/Application Support/Code/User/settings.json
+  return '';
+}
+
+// Generate PowerShell code to determine cmdFolder and cmdFilePath
+function getCmdFilePathCode(
+  config: OsAliasConfig,
+  cmdFileSubPath: string,
+  useUnixSlash: boolean,
+  extraPathVars: string[] = []
+): string {
+  const toUnixPath = (varName: string) => getToUnixPathCode(varName, useUnixSlash);
+  const extraConversions = extraPathVars.map(v => toUnixPath(v)).filter(s => s).join('\n    ');
+  
+  return `
+    $cmdFolder = ${config.defaultCmdFolder};
+    if (Test-Path $settingsPath) {
+      try {
+        $saveFolder = (Get-Content $settingsPath -Raw | ConvertFrom-Json).PSObject.Properties['msr.cmdAlias.saveFolder'].Value;
+        if ($saveFolder) { $cmdFolder = $saveFolder.Trim(); }
+      } catch { }
+    }
+    $cmdFilePath = Join-Path $cmdFolder '${cmdFileSubPath}';
+    ${toUnixPath('settingsPath')}
+    ${toUnixPath('cmdFilePath')}
+    ${extraConversions}`;
+}
+
+/** Get OS-specific alias configuration
+ * Uses getAliasFileName from constants.ts for consistent file naming
+ */
 function getOsAliasConfig(terminalType: TerminalType): OsAliasConfig {
-  const isWindows = isWindowsTerminalOnWindows(terminalType);
-  const settingsPathCode = isWindows
-    ? `$settingsPath = Join-Path $env:APPDATA 'Code/User/settings.json';`
-    : `$settingsPath = Join-Path $env:HOME '.config/Code/User/settings.json';
+  const isWindowsTerminal = isWindowsTerminalOnWindows(terminalType);
+  const isLinuxOnWindows = isLinuxStyleTerminalOnWindows(terminalType);
+  const isWslTerminal = terminalType === TerminalType.WslBash;
+  const terminalSubFolder = getTerminalTypeSubFolder(terminalType);
+  const cmdFileName = getAliasFileName(isWindowsTerminal);
+  
+  // WSL cannot access Windows env vars, so embed actual paths at generation time
+  let settingsPathCode: string;
+  let defaultCmdFolder: string;
+
+  if (isWindowsTerminal) {
+    // Windows CMD/PowerShell: use Windows env vars directly
+    settingsPathCode = `$settingsPath = Join-Path $env:APPDATA 'Code/User/settings.json';`;
+    defaultCmdFolder = '$env:USERPROFILE';
+  } else if (isWslTerminal) {
+    // WSL: Embed actual paths in WSL format at alias generation time
+    // Because $env:APPDATA and $env:USERPROFILE are null in WSL's PowerShell
+    const wslSettingsPath = getVscodeSettingsPath(terminalType);
+    const wslUserProfile = toWslPathForAlias(HomeFolder);
+    settingsPathCode = `$settingsPath = '${wslSettingsPath}';`;
+    defaultCmdFolder = `'${wslUserProfile}'`;
+  } else if (isLinuxOnWindows) {
+    // MinGW/Cygwin: can access Windows env vars
+    settingsPathCode = `$settingsPath = Join-Path $env:APPDATA 'Code/User/settings.json';`;
+    defaultCmdFolder = '$env:USERPROFILE';
+  } else {
+    // Native Linux/macOS
+    settingsPathCode = `$settingsPath = Join-Path $env:HOME '.config/Code/User/settings.json';
     if (-not (Test-Path $settingsPath)) { $settingsPath = Join-Path $env:HOME 'Library/Application Support/Code/User/settings.json'; }`;
-  const scriptSubFolder = 'cmdAlias/' + getTerminalTypeSubFolder(terminalType);
+    defaultCmdFolder = '$env:HOME';
+  }
+
+  // MinGW/Cygwin/WSL on Windows use subdirectory for alias files
+  const useAliasSubFolder = isLinuxOnWindows;
+  const scriptSubFolder = 'cmdAlias/' + terminalSubFolder;
 
   return {
     settingsPathCode,
-    defaultCmdFolder: isWindows ? '$env:USERPROFILE' : '$env:HOME',
-    cmdFileName: isWindows ? 'msr-cmd-alias.doskeys' : 'msr-cmd-alias.bashrc',
-    cmdFileType: isWindows ? 'doskeys' : 'bashrc',
-    scriptExt: isWindows ? '.cmd' : '',
-    osSpecificGroup: isWindows ? 'msr.cmd.commonAliasNameBodyList' : 'msr.bash.commonAliasNameBodyList',
+    defaultCmdFolder,
+    cmdFileName,
+    cmdFileType: isWindowsTerminal ? 'doskeys' : 'bashrc',
+    scriptExt: isWindowsTerminal ? '.cmd' : '',
+    osSpecificGroup: isWindowsTerminal ? 'msr.cmd.commonAliasNameBodyList' : 'msr.bash.commonAliasNameBodyList',
     scriptSubFolder,
+    useAliasSubFolder,
+    terminalSubFolder,
   };
 }
 
-/** Default description for aliases found in doskeys/bashrc files (no user-defined description) */
+// Default description for aliases found in doskeys/bashrc files (no user-defined description)
 const DefaultAliasDescription = `(N/A) Not your custom alias? See built-in alias doc: https://github.com/qualiu/vscode-msr/blob/master/Common-Alias.md`;
 
-/** Generate PowerShell code to search Windows doskeys file */
+// Generate PowerShell code to search Windows doskeys file
 function getWindowsSearchCmdFileCode(): string {
   return String.raw`$foundInFile -split '\r?\n' | ForEach-Object {
           if ($_ -match '^(?<fp>.+?):(?<num>\d+):(?:\d+:)?\s*(?<content>.+)$') {
             $fp = $Matches['fp']; $numInFile = $Matches['num']; $content = $Matches['content'];
             $itemName = if ($content -match '^([\w-]+)=') { $Matches[1] } else { '' };
             if ($ShowDuplicates -or -not $foundNameSet.Contains($itemName)) {
-              if ($countInSettings -gt 0 -or $countInAliasFiles -gt 0) { Write-Host ''; }
+              if (-not $NameOnly -and ($countInSettings -gt 0 -or $countInAliasFiles -gt 0)) { Write-Host ''; }
               $countInAliasFiles++;
               if ($content -match '^([\w-]+)=(.*)$') {
                 Write-Host 'aliasName = ' -NoNewline; Write-Host $Matches[1] -ForegroundColor Green;
-                Write-Host 'aliasBody = ' -NoNewline; Write-Host $Matches[2] -ForegroundColor Cyan;
-                Write-Host 'description = ' -NoNewline; Write-Host '${DefaultAliasDescription}' -ForegroundColor DarkGray;
+                if (-not $NameOnly) {
+                  Write-Host 'aliasBody = ' -NoNewline; Write-Host $Matches[2] -ForegroundColor Cyan;
+                  Write-Host 'description = ' -NoNewline; Write-Host '${DefaultAliasDescription}' -ForegroundColor DarkGray;
+                  Write-Host ('Source = doskeys file at ' + $fp + ':' + $numInFile + ':') -ForegroundColor DarkGray;
+                }
               } else { Write-Host $content; }
-              Write-Host ('Source = doskeys file at ' + $fp + ':' + $numInFile + ':') -ForegroundColor DarkGray;
             }
           }
         };`;
 }
 
-/** Generate PowerShell code to search Linux bashrc file (multi-line format) */
+// Generate PowerShell code to search Linux bashrc file (multi-line format)
 function getLinuxSearchCmdFileCode(): string {
   return String.raw`$allLines = $foundInFile -split '\r?\n' | Where-Object { $_ -match '^.+?:\d+:' };
           $currentBlock = @(); $currentLineNum = '';
@@ -168,13 +277,15 @@ function getLinuxSearchCmdFileCode(): string {
                   if ($fullContent -match '(?s)^alias\s+(?<name>[\w-]+)=(?<body>.*)$') {
                     $itemName = $Matches['name']; $displayBody = $Matches['body'];
                     if ($ShowDuplicates -or -not $foundNameSet.Contains($itemName)) {
-                      if ($countInSettings -gt 0 -or $countInAliasFiles -gt 0) { Write-Host ''; }
+                      if (-not $NameOnly -and ($countInSettings -gt 0 -or $countInAliasFiles -gt 0)) { Write-Host ''; }
                       $countInAliasFiles++;
-                [void] $foundCmdFileSet.Add($oneCmdFilePath);
-                      Write-Host 'aliasName = ' -NoNewline; Write-Host $itemName -ForegroundColor Green;
-                      Write-Host 'aliasBody = ' -NoNewline; Write-Host $displayBody -ForegroundColor Cyan;
-                      Write-Host 'description = ' -NoNewline; Write-Host '${DefaultAliasDescription}' -ForegroundColor DarkGray;
-                      Write-Host ('Source = ' + $oneCmdFilePath + ':' + $currentLineNum + ':') -ForegroundColor DarkGray;
+                      [void] $foundCmdFileSet.Add($oneCmdFilePath);
+                Write-Host 'aliasName = ' -NoNewline; Write-Host $itemName -ForegroundColor Green;
+                if (-not $NameOnly) {
+                        Write-Host 'aliasBody = ' -NoNewline; Write-Host $displayBody -ForegroundColor Cyan;
+                        Write-Host 'description = ' -NoNewline; Write-Host '${DefaultAliasDescription}' -ForegroundColor DarkGray;
+                        Write-Host ('Source = ' + $oneCmdFilePath + ':' + $currentLineNum + ':') -ForegroundColor DarkGray;
+                      }
                     }
                     if ($bashrcNameCountMap.ContainsKey($itemName)) { $bashrcNameCountMap[$itemName]++; } else { $bashrcNameCountMap[$itemName] = 1; }
                   }
@@ -192,32 +303,31 @@ function getLinuxSearchCmdFileCode(): string {
             if ($fullContent -match '(?s)^alias\s+(?<name>[\w-]+)=(?<body>.*)$') {
               $itemName = $Matches['name']; $displayBody = $Matches['body'];
                     if ($ShowDuplicates -or -not $foundNameSet.Contains($itemName)) {
-                      if ($countInSettings -gt 0 -or $countInAliasFiles -gt 0) { Write-Host ''; }
+                      if (-not $NameOnly -and ($countInSettings -gt 0 -or $countInAliasFiles -gt 0)) { Write-Host ''; }
                       $countInAliasFiles++;
-                      [void] $foundCmdFileSet.Add($oneCmdFilePath);
-                Write-Host 'aliasName = ' -NoNewline; Write-Host $itemName -ForegroundColor Green;
-                Write-Host 'aliasBody = ' -NoNewline; Write-Host $displayBody -ForegroundColor Cyan;
-                Write-Host 'description = ' -NoNewline; Write-Host '${DefaultAliasDescription}' -ForegroundColor DarkGray;
-                Write-Host ('Source = ' + $oneCmdFilePath + ':' + $currentLineNum + ':') -ForegroundColor DarkGray;
+                [void] $foundCmdFileSet.Add($oneCmdFilePath);
+                      Write-Host 'aliasName = ' -NoNewline; Write-Host $itemName -ForegroundColor Green;
+                      if (-not $NameOnly) {
+                  Write-Host 'aliasBody = ' -NoNewline; Write-Host $displayBody -ForegroundColor Cyan;
+                  Write-Host 'description = ' -NoNewline; Write-Host '${DefaultAliasDescription}' -ForegroundColor DarkGray;
+                  Write-Host ('Source = ' + $oneCmdFilePath + ':' + $currentLineNum + ':') -ForegroundColor DarkGray;
+                }
               }
               if ($bashrcNameCountMap.ContainsKey($itemName)) { $bashrcNameCountMap[$itemName]++; } else { $bashrcNameCountMap[$itemName] = 1; }
             }
           }`;
 }
 
-/** Generate find-alias PowerShell command body (avoid $a,$b,$g,$l,$r,$t prefixed variables) */
-function getFindAliasBody(terminalType: TerminalType): string {
+// Generate find-alias PowerShell command body (avoid $a,$b,$g,$l,$r,$t prefixed variables)
+function getFindAliasBody(terminalType: TerminalType, useUnixSlash: boolean = false): string {
   const isWindows = isWindowsTerminalOnWindows(terminalType);
+  const isWslTerminal = terminalType === TerminalType.WslBash;
   const config = getOsAliasConfig(terminalType);
-  const cmdFilePathCode = `
-    $cmdFolder = ${config.defaultCmdFolder};
-    if (Test-Path $settingsPath) {
-      try {
-        $saveFolder = (Get-Content $settingsPath -Raw | ConvertFrom-Json).PSObject.Properties['msr.cmdAlias.saveFolder'].Value;
-        if ($saveFolder) { $cmdFolder = $saveFolder.Trim(); }
-      } catch { }
-    }
-    $cmdFilePath = Join-Path $cmdFolder '${config.cmdFileName}';`;
+  const cmdFileSubPath = getAliasFileSubPath(config);
+  const toUnixPath = (varName: string) => getToUnixPathCode(varName, useUnixSlash);
+  // Add --unix-slash 1 to msr commands when supported and needed (for file path output)
+  const unixSlashArg = useUnixSlash ? ' --unix-slash 1' : '';
+  const cmdFilePathCode = getCmdFilePathCode(config, cmdFileSubPath, useUnixSlash);
 
   return String.raw`
     $inputParams = @{}; $positionalParams = @();
@@ -228,13 +338,14 @@ function getFindAliasBody(terminalType: TerminalType): string {
       else { $positionalParams += $inputValue; }
     }
     $Prefix = if ($inputParams.ContainsKey('Prefix')) { $inputParams['Prefix'] } elseif ($positionalParams.Count -gt 0) { $positionalParams[0] } else { '' };
-    $IsExactEqual = if ($inputParams.ContainsKey('IsExactEqual')) { $inputParams['IsExactEqual'] -imatch '^(1|true|y)$' } elseif ($positionalParams.Count -gt 1) { $positionalParams[1] -imatch '^(1|true|y)$' } else { 0 };
-    $SearchCmdFile = if ($inputParams.ContainsKey('SearchCmdFile')) { -not ($inputParams['SearchCmdFile'] -imatch '^(0|false|n)$') } elseif ($positionalParams.Count -gt 2) { -not ($positionalParams[2] -imatch '^(0|false|n)$') } else { 1 };
-    $ShowDuplicates = if ($inputParams.ContainsKey('ShowDuplicates')) { $inputParams['ShowDuplicates'] -imatch '^(1|true|y)$' } elseif ($positionalParams.Count -gt 3) { $positionalParams[3] -imatch '^(1|true|y)$' } else { 0 };
-    $OnlyThisOS = if ($inputParams.ContainsKey('OnlyThisOS')) { -not ($inputParams['OnlyThisOS'] -imatch '^(0|false|n)$') } elseif ($positionalParams.Count -gt 4) { -not ($positionalParams[4] -imatch '^(0|false|n)$') } else { 1 };
+    $IsExactEqual = if ($inputParams.ContainsKey('IsExactEqual')) { $inputParams['IsExactEqual'] -imatch '^(1|true|y|yes)$' } elseif ($positionalParams.Count -gt 1) { $positionalParams[1] -imatch '^(1|true|y|yes)$' } else { 0 };
+    $SearchCmdFile = if ($inputParams.ContainsKey('SearchCmdFile')) { -not ($inputParams['SearchCmdFile'] -imatch '^(0|false|n|no)$') } elseif ($positionalParams.Count -gt 2) { -not ($positionalParams[2] -imatch '^(0|false|n|no)$') } else { 1 };
+    $ShowDuplicates = if ($inputParams.ContainsKey('ShowDuplicates')) { $inputParams['ShowDuplicates'] -imatch '^(1|true|y|yes)$' } elseif ($positionalParams.Count -gt 3) { $positionalParams[3] -imatch '^(1|true|y|yes)$' } else { 0 };
+    $OnlyThisOS = if ($inputParams.ContainsKey('OnlyThisOS')) { -not ($inputParams['OnlyThisOS'] -imatch '^(0|false|n|no)$') } elseif ($positionalParams.Count -gt 4) { -not ($positionalParams[4] -imatch '^(0|false|n|no)$') } else { 1 };
     $Description = if ($inputParams.ContainsKey('Description')) { $inputParams['Description'].ToLower() } elseif ($positionalParams.Count -gt 5) { $positionalParams[5].ToLower() } else { 'any' };
-    if ($Description -ne 'no' -and $Description -ne 'yes' -and $Description -ne 'any') { $Description = 'any'; }
-    if (-not $Prefix) { Write-Host 'Usage: find-alias <Prefix> [-IsExactEqual 1] [-SearchCmdFile 0] [-ShowDuplicates 1] [-OnlyThisOS 0] [-Description yes|no|any]' -ForegroundColor Red; Write-Host 'Or positional: find-alias <Prefix> [IsExactEqual] [SearchCmdFile] [ShowDuplicates] [OnlyThisOS] [Description]' -ForegroundColor Yellow; exit 1; }
+    $NameOnly = if ($inputParams.ContainsKey('NameOnly')) { $inputParams['NameOnly'] -imatch '^(1|true|y|yes)$' } else { 0 };
+    if ($Description -imatch '^(yes|y|1|true)$') { $Description = 'yes'; } elseif ($Description -imatch '^(no|n|0|false)$') { $Description = 'no'; } elseif ($Description -imatch '^(any|all|a)$') { $Description = 'any'; } else { $Description = 'any'; }
+    if (-not $Prefix) { Write-Host 'Usage: find-alias <Prefix> [-IsExactEqual 1] [-SearchCmdFile 0] [-ShowDuplicates 1] [-OnlyThisOS 0] [-Description yes|no|any] [-NameOnly 1]' -ForegroundColor Red; Write-Host 'Or positional: find-alias <Prefix> [IsExactEqual] [SearchCmdFile] [ShowDuplicates] [OnlyThisOS] [Description]' -ForegroundColor Yellow; exit 1; }
     ${config.settingsPathCode}
     ${cmdFilePathCode}
     $countInSettings = 0; $foundGroupCount = 0; $sumItemCount = 0; $sumGroupCount = 0; $foundGroupNames = @(); $countInAliasFiles = 0; $foundNames = @();
@@ -242,7 +353,7 @@ function getFindAliasBody(terminalType: TerminalType): string {
     if (Test-Path $settingsPath) {
       try {
         $settingsRaw = Get-Content $settingsPath -Raw;
-        $settings = msr -p $settingsPath -b '^\W+msr.\w*\.?\w+List\W+$' -Q '^\s*\]\W*$' -PAC | msr -S -t '(.+?),\s*$' -o '{\1}' -aPAC | msr -S -t ',(?=\s*[\}\]])' -o ' ' -aPAC | ConvertFrom-Json;
+        $settings = msr -p $settingsPath${unixSlashArg} -b '^\W+msr.\w*\.?\w+List\W+$' -Q '^\s*\]\W*$' -PAC | msr -S -t '(.+?),\s*$' -o '{\1}' -aPAC | msr -S -t ',(?=\s*[\}\]])' -o ' ' -aPAC | ConvertFrom-Json;
         $keyGroupList = @('msr.commonAliasNameBodyList','msr.bash.commonAliasNameBodyList','msr.cmd.commonAliasNameBodyList');
         $keyGroupNames = if ($OnlyThisOS) { @('msr.commonAliasNameBodyList','${config.osSpecificGroup}') } else { $keyGroupList };
         foreach ($keyGroup in $keyGroupNames) {
@@ -259,16 +370,18 @@ function getFindAliasBody(terminalType: TerminalType): string {
               $hasDesc = -not [string]::IsNullOrWhiteSpace($itemDesc);
               if ($Description -eq 'yes' -and -not $hasDesc) { continue; }
               if ($Description -eq 'no' -and $hasDesc) { continue; }
-              if ($countInSettings -gt 0) { Write-Host ''; }
+              if (-not $NameOnly -and $countInSettings -gt 0) { Write-Host ''; }
               $countInSettings++; $foundNames += $item.aliasName;
               if (-not $hasFoundInGroup) { $foundGroupCount++; $foundGroupNames += $keyGroup; $hasFoundInGroup = 1; }
               $itemNumInFile = $keyGroupStartNum + $itemIndex;
               $nameMatches = Select-String -InputObject $settingsRaw -Pattern ($dq + 'aliasName' + $dq + '\s*:\s*' + $dq + [regex]::Escape($item.aliasName) + $dq) -AllMatches;
               foreach ($oneMatch in $nameMatches.Matches) { $matchLineNum = ($settingsRaw.Substring(0, $oneMatch.Index) -split '\r?\n').Count; if ($matchLineNum -ge $keyGroupStartNum) { $itemNumInFile = $matchLineNum; break; } }
               Write-Host 'aliasName = ' -NoNewline; Write-Host $item.aliasName -ForegroundColor Green;
-              Write-Host 'aliasBody = ' -NoNewline; Write-Host $item.aliasBody -ForegroundColor Cyan;
-              Write-Host 'description = ' -NoNewline; Write-Host $itemDesc;
-              Write-Host ('Source = ' + $keyGroup + ' at ' + $settingsPath + ':' + $itemNumInFile + ':') -ForegroundColor DarkGray;
+              if (-not $NameOnly) {
+                Write-Host 'aliasBody = ' -NoNewline; Write-Host $item.aliasBody -ForegroundColor Cyan;
+                Write-Host 'description = ' -NoNewline; Write-Host $itemDesc;
+                Write-Host ('Source = ' + $keyGroup + ' at ' + $settingsPath + ':' + $itemNumInFile + ':') -ForegroundColor DarkGray;
+              }
             }
           }
         }
@@ -279,15 +392,16 @@ function getFindAliasBody(terminalType: TerminalType): string {
       $foundNameSet = New-Object 'System.Collections.Generic.HashSet[string]'([StringComparer]::OrdinalIgnoreCase);
       foreach ($name in $foundNames) { [void] $foundNameSet.Add($name); }
       ${isWindows
-      ? `$foundInFile = msr -p $cmdFilePath -t $searchPattern --nt '^\\s*#' -AC 2>$null;
+      ? `$foundInFile = msr -p $cmdFilePath${unixSlashArg} -t $searchPattern --nt '^\\s*#' -AC 2>$null;
       if ($foundInFile) {
         ${getWindowsSearchCmdFileCode()}
       }`
       : `$bashrcNameCountMap = @{};
       $foundCmdFileSet = New-Object 'System.Collections.Generic.HashSet[string]'([StringComparer]::OrdinalIgnoreCase);
-      $cmdFilePaths = @((Join-Path $env:HOME '.bashrc'), $cmdFilePath) | Where-Object { Test-Path $_ };
+      $homeBashrc = Join-Path $env:HOME '.bashrc'; ${toUnixPath('homeBashrc')}
+      $cmdFilePaths = @($homeBashrc, $cmdFilePath) | Where-Object { Test-Path $_ };
       foreach ($oneCmdFilePath in $cmdFilePaths) {
-        $foundInFile = msr -p $oneCmdFilePath -b $searchPattern -Q '^alias \\w+' -y -T -1 -AC 2>$null;
+        $foundInFile = msr -p $oneCmdFilePath${unixSlashArg} -b $searchPattern -Q '^alias \\w+' -y -T -1 -AC 2>$null;
         if ($foundInFile) {
           ${getLinuxSearchCmdFileCode()}
         }
@@ -320,20 +434,14 @@ export function replaceArgForWindowsCmdAlias(body: string, writeToEachFile: bool
   return body;
 }
 
-/** Generate rm-alias PowerShell command body (avoid $a,$b,$g,$l,$r,$t prefixed variables) */
-function getRemoveAliasBody(terminalType: TerminalType): string {
+// Generate rm-alias PowerShell command body (avoid $a,$b,$g,$l,$r,$t prefixed variables)
+function getRemoveAliasBody(terminalType: TerminalType, useUnixSlash: boolean = false): string {
   const isWindows = isWindowsTerminalOnWindows(terminalType);
   const config = getOsAliasConfig(terminalType);
-  const cmdFilePathCode = `
-    $cmdFolder = ${config.defaultCmdFolder};
-    if (Test-Path $settingsPath) {
-      try {
-        $saveFolder = (Get-Content $settingsPath -Raw | ConvertFrom-Json).PSObject.Properties['msr.cmdAlias.saveFolder'].Value;
-        if ($saveFolder) { $cmdFolder = $saveFolder.Trim(); }
-      } catch { }
-    }
-    $cmdFilePath = Join-Path $cmdFolder '${config.cmdFileName}';
-    $scriptFolder = Join-Path $cmdFolder '${config.scriptSubFolder}';`;
+  const cmdFileSubPath = getAliasFileSubPath(config);
+  // rm-alias also needs scriptFolder for deleting script files
+  const cmdFilePathCode = getCmdFilePathCode(config, cmdFileSubPath, useUnixSlash, ['scriptFolder'])
+    .replace(/(\$cmdFilePath = [^;]+;)/, `$1\n    $scriptFolder = Join-Path $cmdFolder '${config.scriptSubFolder}';`);
   return String.raw`
     $InputNames = '$1';
     if (-not $InputNames) { Write-Host 'Usage: rm-alias <AliasNames> (comma-separated)' -ForegroundColor Red; exit 1; }
@@ -417,6 +525,7 @@ let LinuxAliasMap: Map<string, string> = new Map<string, string>()
   // Pure bash versions for Linux - use (del-this-tmp-list) 2>/dev/null to suppress stderr
   .set('gpc', String.raw`git rev-parse --abbrev-ref HEAD | msr -t "(.+)" -o "git pull origin \1 $*" --to-stderr --keep-color -XM; (del-this-tmp-list) 2>/dev/null`)
   .set('gpm', String.raw`mainRef=$(git rev-parse --verify origin/main 2>/dev/null); primaryBranch=$([ -n "$mainRef" ] && echo main || echo master); msr --to-stderr --keep-color -XM -z "git pull origin $primaryBranch $*"; (del-this-tmp-list) 2>/dev/null`)
+  .set('gfm', String.raw`mainRef=$(git rev-parse --verify origin/main 2>/dev/null); primaryBranch=$([ -n "$mainRef" ] && echo main || echo master); msr --to-stderr --keep-color -XM -z "git fetch origin $primaryBranch $*"`)
   .set('gpc-sm', String.raw`git rev-parse --abbrev-ref HEAD | msr -t "(.+)" -o "git pull origin \1 --no-recurse-submodules" -XM; (del-this-tmp-list) 2>/dev/null; msr -z "git submodule sync && git submodule update --init" -t "&&" -o "\n" -PAC | msr -XM -V ne0`)
   .set('gpc-sm-reset', String.raw`git rev-parse --abbrev-ref HEAD | msr -t "(.+)" -o "git pull origin \1 --no-recurse-submodules" -XM && msr -z "git submodule sync && git submodule update --init && git submodule update -f" -t "&&" -o "\n" -PAC | msr -XM -V ne0; (del-this-tmp-list) 2>/dev/null; git status`)
   .set('git-sm-init', String.raw`msr -XMz "git submodule sync" && echo git submodule update --init $* | msr -XM; (del-this-tmp-list) 2>/dev/null; git status`)
@@ -446,6 +555,7 @@ let LinuxAliasMap: Map<string, string> = new Map<string, string>()
 const CommonAliasMap: Map<string, string> = new Map<string, string>()
   .set('gpc', String.raw`git rev-parse --abbrev-ref HEAD | msr -t "(.+)" -o "git pull origin \1 $*" --to-stderr --keep-color -XM & del-this-tmp-list 2>nul`)
   .set('gpm', String.raw`pwsh -Command "$mainRef = git rev-parse --verify origin/main 2>$null; $primaryBranch = if ($mainRef) { 'main' } else { 'master' }; msr --to-stderr --keep-color -XM -z \"git pull origin $primaryBranch $*\"" & del-this-tmp-list 2>nul`)
+  .set('gfm', String.raw`pwsh -Command "$mainRef = git rev-parse --verify origin/main 2>$null; $primaryBranch = if ($mainRef) { 'main' } else { 'master' }; msr --to-stderr --keep-color -XM -z \"git fetch origin $primaryBranch $*\""`)
   .set('gph', String.raw`git rev-parse --abbrev-ref HEAD | msr -t "(.+)" -o "git push origin \1 $*" -XM`)
   .set('gpc-sm', String.raw`git rev-parse --abbrev-ref HEAD | msr -t "(.+)" -o "git pull origin \1 --no-recurse-submodules" -XM
           & del-this-tmp-list 2>nul & msr -z "git submodule sync && git submodule update --init" -t "&&" -o "\n" -PAC | msr -XM -V ne0`)
@@ -501,7 +611,7 @@ const CommonAliasMap: Map<string, string> = new Map<string, string>()
   .set('gdm-dl', String.raw`pwsh -Command "$mainRef = git rev-parse --verify origin/main 2>$null; $primaryRef = if ($mainRef) { 'origin/main' } else { 'origin/master' }; $cnt3 = @(git diff --name-only --diff-filter=D ($primaryRef + '...') 2>$null).Count; $cnt2 = @(git diff --name-only --diff-filter=D $primaryRef 2>$null).Count; $dots = if ($cnt3 -le $cnt2) { '...' } else { '' }; msr --to-stderr --keep-color -XM -z \"git diff --name-only --diff-filter=D $primaryRef$dots $*\""`)
   .set('gdm-nt', String.raw`pwsh -Command "$mainRef = git rev-parse --verify origin/main 2>$null; $primaryRef = if ($mainRef) { 'origin/main' } else { 'origin/master' }; $cnt3 = @(git diff --name-only ($primaryRef + '...') 2>$null).Count; $cnt2 = @(git diff --name-only $primaryRef 2>$null).Count; $dots = if ($cnt3 -le $cnt2) { '...' } else { '' }; $dq = [char]34; $inputArgs = '$*'.Trim(); $matchResult = [regex]::Match($inputArgs, '(^|\s+)([12]?>>?\s*\S+)\s*$'); $fileArgs = if ($matchResult.Success) { $inputArgs.Substring(0, $matchResult.Index).Trim() } else { $inputArgs }; $pipeTail = if ($matchResult.Success) { ' ' + $matchResult.Groups[2].Value.Trim() } else { '' }; $command = 'git diff ' + $primaryRef + $dots + ' ' + $fileArgs + ' | msr -b ' + $dq + '^\s*diff\s+' + $dq + ' -Q ' + $dq + $dq + ' -y --nt ' + $dq + '^diff\s+.*?test' + $dq + ' -i -PIC' + $pipeTail; msr -V lt0 --to-stderr --keep-color -XM -z $command"`)
   .set('to-alias-body', String.raw`pwsh -Command "
-          $WithQuotes = '$1' -imatch '^(true|1|y)$';
+          $WithQuotes = '$1' -imatch '^(1|true|y|yes)$';
           $cmdBody = Get-Clipboard;
           if ([string]::IsNullOrWhiteSpace($cmdBody)) {
             Write-Host 'Clipboard is empty! Please copy the alias body (raw command) to clipboard first.' -ForegroundColor Red;
@@ -569,7 +679,7 @@ function getPathEnv(targets: string[] = ['User']): string {
   return Array.from(pathSet).join(" + ';' + ");
 }
 
-/** Generate check-xxx-env PowerShell body with statistics */
+// Generate check-xxx-env PowerShell body with statistics
 function getCheckEnvBody(envTarget: string): string {
   const displayName = envTarget === 'User' ? 'User' : (envTarget === 'Process' ? 'Tmp' : 'System');
   const envVarsCode = envTarget === 'Process'
@@ -621,7 +731,7 @@ function getCheckEnvBody(envTarget: string): string {
     if ($maxKey) { Write-Host (' (' + $maxKey + ')') -ForegroundColor DarkGray; } else { Write-Host ''; }`;
 }
 
-/** Generate check-xxx-path PowerShell body with duplicate detection and existence check */
+// Generate check-xxx-path PowerShell body with duplicate detection and existence check
 function getCheckPathBody(envTarget: string): string {
   const pathValueCode = envTarget === 'Process'
     ? '$env:PATH'
@@ -818,7 +928,7 @@ function getResetEnvCmd(writeToEachFile: boolean, name: string = 'reset-env'): s
   return writeToEachFile ? replaceArgForWindowsCmdAlias(body, writeToEachFile) : name + '=' + body;
 }
 
-/** Generate add-xxx-path command (supports DeleteNonExistsPaths flag) */
+// Generate add-xxx-path command (supports DeleteNonExistsPaths flag)
 function getAddPathValueCmd(envTarget: string): string {
   const permissionHint = envTarget === 'Machine'
     ? `Write-Host 'ERROR: Modifying system PATH requires Administrator privileges. Please run CMD/PowerShell as Administrator.' -ForegroundColor Red; exit 1;`
@@ -1145,7 +1255,7 @@ if (IsWindows) {
 
   // Replace 'pwsh' with 'PowerShell' when pwsh.exe is not available on Windows
   if (!HasPwshExeOnWindows) {
-    ['to-alias-body', 'gpm', 'gdm', 'gdm-m', 'gdm-l', 'gdm-al', 'gdm-ml', 'gdm-dl', 'gdm-nt'].forEach(name => {
+    ['to-alias-body', 'gpm', 'gfm', 'gdm', 'gdm-m', 'gdm-l', 'gdm-al', 'gdm-ml', 'gdm-dl', 'gdm-nt'].forEach(name => {
       let body = WindowsAliasMap.get(name) || '';
       body = body.replace(/^pwsh/, 'PowerShell');
       WindowsAliasMap.set(name, body);
@@ -1177,12 +1287,34 @@ export function getCommonAliasMap(terminalType: TerminalType, writeToEachFile: b
   return cmdAliasMap;
 }
 
-/** Generate find-alias or rm-alias command for the specified terminal type */
-function generatePowerShellAliasCommand(terminalType: TerminalType, bodyGenerator: (t: TerminalType) => string): string {
+// Get Windows native msr.exe path (excluding Cygwin symlink)
+function getWindowsNativeMsrPath(): string {
+  const [isExists, msrPath] = isToolExistsInPath('msr.exe', TerminalType.CMD);
+  if (isExists && msrPath) {
+    return msrPath;
+  }
+  // Fallback: return empty, PowerShell script will handle it
+  return '';
+}
+
+// Generate find-alias or rm-alias command for the specified terminal type
+function generatePowerShellAliasCommand(terminalType: TerminalType, bodyGenerator: (t: TerminalType, useUnixSlash: boolean) => string): string {
   const isWindowsTerminal = isWindowsTerminalOnWindows(terminalType);
-  let bodyRaw = bodyGenerator(terminalType);
+  const isLinuxOnWindows = isLinuxStyleTerminalOnWindows(terminalType);
+  const useUnixSlash = isLinuxOnWindows && IsUniformSlashSupported;
+  let bodyRaw = bodyGenerator(terminalType, useUnixSlash);
   if (isWindowsTerminal) {
     return `${WindowsPowerShellCmdHeader} "${bodyRaw.replace(TrimMultilineRegex, ' ')}"`;
+  }
+  bodyRaw = bodyRaw.replace(TrimMultilineRegex, ' ');
+  // For Cygwin: embed Windows native msr.exe path to avoid symlink execution error
+  if (terminalType === TerminalType.CygwinBash) {
+    const windowsMsrPath = getWindowsNativeMsrPath();
+    if (windowsMsrPath) {
+      const escapedPath = windowsMsrPath.replace(/\\/g, '\\\\\\\\');
+      const setMsrAlias = `Set-Alias -Name msr -Value \\\"${escapedPath}\\\" -Scope Script;`;
+      bodyRaw = setMsrAlias + ' ' + bodyRaw;
+    }
   }
   let body = 'pwsh -Command "' + bodyRaw + '"';
   body = replacePowerShellQuoteForLinuxAlias(body);

@@ -184,6 +184,16 @@ More override settings see: [**full priority rule**](Add-New-Language-Support-Fo
 
 ## Make Command Shortcuts to Search or Replace In or Out of VSCODE
 
+### Auto Dump Alias to Script Files
+
+Config `msr.default.autoDumpAliasToFilesByTerminalTypePattern` auto dumps general scripts (not [project specific](#switch-between-general-and-project-specific-command-shortcuts)):
+- Default = `"^(CMD|PowerShell|LinuxBash|CygwinBash|MinGWBash|WslBash|Pwsh)$"` for all terminal types.
+- In vscode terminals, alias are always project specific (auto run `use-this-alias`).
+- Set empty `""` to disable auto dumping or if you want to keep your manual dumped scripts.
+- Benefits: Save time + Help Cygwin/MinGW/WSL terminals which hard to open as main terminal.
+
+### Old Method to Manually Cook and Dump Alias to Script Files
+
 Two methods to cook alias files in a second:
 
 - Open any file in vscode, right click, choose menu: **"Cook general + Dump other alias to scripts"**.

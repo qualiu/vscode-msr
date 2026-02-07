@@ -26,6 +26,7 @@ You can override any built-in alias by creating a custom alias with the same nam
 
 - Use `rm-alias` to remove obsolete or conflicting aliases (e.g., [custom aliases](Create-Custom-Common-Alias-Once-and-for-All.md) in [settings.json](https://marketplace.visualstudio.com/items?itemName=qualiu.vscode-msr#custom-alias-to-auto-sync-across-local-and-remote-ssh-hosts-plus-docker-containers) overriding built-in aliases).
   - Example: `rm-alias gdm,gdm-l,gdm-ml,gda,gda-l,gda-ml`
+  - More usage: `rm-alias -h` or **without args** (same for `find-alias`).
 - View alias conflicts in VSCode's **OUTPUT** panel → **"MSR-Def-Ref"** channel when a project is opened.
 - Many aliases require PowerShell/pwsh. See [Install PowerShell](#install-powershell) at the end of this document.
 
@@ -33,7 +34,7 @@ You can override any built-in alias by creating a custom alias with the same nam
 | ------------------- | ------------------------------------------------------------------------ | ------------------------------------------------------------- |
 | `to-alias-body`     | Convert clipboard content to JSON alias body for settings.json           | `to-alias-body` \| `to-alias-body 1`                          |
 | `find-alias`        | Find alias by name or prefix                                             | `find-alias gdm` \| `find-alias gdm 1` \| `find-alias gdm-ml` |
-| `rm-alias`          | Remove alias(es) from doskeys/bashrc + script file + settings.json       | `rm-alias my-alias` \| `rm-alias a1,a2,a3`                    |
+| `rm-alias`          | Remove alias(es) from doskeys/bashrc + script file + settings.json       | `rm-alias my-alias` \| `rm-alias a1,a2,a3 -SettingsOnly 1`  |
 | `update-alias`      | Reload all aliases with project-specific including related env variables | `update-alias`                                                |
 | `use-this-alias`    | Load project-specific alias from current folder                          | `use-this-alias`                                              |
 | `del-this-tmp-list` | Delete temp file list used by gfind-xxx                                  | `del-this-tmp-list`                                           |
@@ -143,11 +144,18 @@ Compare your current branch with the `origin/main` or `origin/master` branch usi
 
 ### Environment Variable Management
 
+- To get usage of `check-xxx-env` / `check-xxx-path`:
+  - Run the alias with `-h` like `check-user-env -h` or `check-user-path -h`.
+
 | Alias             | Usage                                              | Examples                                                                     |
 | ----------------- | -------------------------------------------------- | ---------------------------------------------------------------------------- |
 | `reload-env`      | Reload all environment variables from system       | `reload-env`                                                                 |
 | `reset-env`       | Reset environment to system defaults               | `reset-env`                                                                  |
 | `reload-path`     | Reload PATH environment variable                   | `reload-path`                                                                |
+| `add-user-env`    | Add/set user environment variable                  | `add-user-env MY_VAR "my value"`                                             |
+| `add-sys-env`     | Add/set system environment variable (Admin needed) | `add-sys-env JAVA_HOME "C:\Program Files\Java\jdk"`                          |
+| `del-user-env`    | Delete user environment variable                   | `del-user-env MY_VAR`                                                        |
+| `del-sys-env`     | Delete system environment variable (Admin needed)  | `del-sys-env OLD_VAR`                                                        |
 | `add-user-path`   | Add path to user PATH (auto-removes duplicates)    | `add-user-path C:\tools` \| `add-user-path C:\tools yes`                     |
 | `add-sys-path`    | Add path to system PATH (auto-removes duplicates)  | `add-sys-path C:\tools` \| `add-sys-path C:\tools yes`                       |
 | `add-tmp-path`    | Add path to session PATH (auto-removes duplicates) | `add-tmp-path C:\tools` \| `add-tmp-path "C:\Program Files" 1`               |

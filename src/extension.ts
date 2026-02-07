@@ -1,11 +1,12 @@
 // The module 'vscode' contains the VS Code extensibility API
 // Import the module and reference it with the alias vscode in your code below
 import * as vscode from 'vscode';
+import { setExtensionContext } from './aliasHashUtils';
 import { RunCommandChecker } from './ToolChecker';
 import { getFindingCommandByCurrentWord, runFindingCommand } from './commands';
 import { getConfigValueByProjectAndExtension, getConfigValueOfActiveProject, getConfigValueOfProject, getPostInitCommands } from './configUtils';
 import { DefaultRepoFolderName, DefaultWorkspaceFolder, IsSupportedSystem, IsWindows, RunCmdTerminalName, WorkspaceCount, getDefaultRepoFolderByActiveFile, getRepoFolder, isNullOrEmpty } from './constants';
-import { CookAliasArgs, cookCmdShortcutsOrFile } from './cookCommandAlias';
+import { asyncCheckAndDumpAliasToFiles, CookAliasArgs, cookCmdShortcutsOrFile } from './cookCommandAlias';
 import { DefaultRepoFolder, FileExtensionToMappedExtensionMap, MappedExtToCodeFilePatternMap, MyConfig, WorkspaceToGitIgnoreMap, getConfig, getExtraSearchPaths, getGitIgnore, printConfigInfo } from './dynamicConfig';
 import { FindCommandType, FindType, ForceFindType, TerminalType } from './enums';
 import { GitIgnore } from './gitUtils';
@@ -38,6 +39,9 @@ let IsExtensionActivated = false;
 export function activate(context: vscode.ExtensionContext) {
 	// Use the console to output diagnostic information (outputLog) and errors (console.error)
 	// This line of code will only be executed once when your extension is activated
+
+	// Save extension context for global state access (used by aliasHashUtils)
+	setExtensionContext(context);
 
 	// The command has been defined in the package.json file
 	// Now provide the implementation of the command with registerCommand
@@ -139,6 +143,9 @@ export function activate(context: vscode.ExtensionContext) {
 		} else {
 			outputInfoQuietByTime(`Skip cooking alias: terminalName = ${terminalName}, title = ${terminalTitle}, initialPath = ${initialPath}, matchNameRegex = ${matchNameRegex.source}`);
 		}
+
+		// Check and auto-dump alias to script files if configured
+		asyncCheckAndDumpAliasToFiles(terminal);
 	}));
 
 	// Mark extension as fully activated after a short delay
@@ -146,6 +153,8 @@ export function activate(context: vscode.ExtensionContext) {
 	setTimeout(() => {
 		IsExtensionActivated = true;
 		outputDebugByTime('Extension activation complete, now accepting new terminal events');
+		// Check and auto-dump alias to script files at startup
+		asyncCheckAndDumpAliasToFiles(undefined);
 	}, 2000);
 }
 

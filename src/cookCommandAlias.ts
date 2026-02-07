@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { calculateAliasHash, hasAliasChanged, saveAliasHash } from './aliasHashUtils';
 import { IsFileTimeOffsetSupported, RunCommandChecker, ToolChecker, setNotCheckInputPathInCommandLine, setOutputColumnIndexInCommandLine } from './ToolChecker';
 import { ProjectToGitFindFileExtraOptionsMap, getFindTopDistributionCommand, getSortCommandText } from "./commands";
 import { getCommandAliasText, getCommonAliasMap, HasPwshExeOnWindows, replaceArgForLinuxCmdAlias, replaceArgForWindowsCmdAlias, replaceForLoopVariableForWindowsScript, replacePowerShellVarsForLinuxAlias } from './commonAlias';
@@ -9,7 +10,7 @@ import { FindCommandType, TerminalType } from "./enums";
 import { createDirectory, getFileModifyTime, readTextFile, saveTextToFile } from './fileUtils';
 import { asyncSetJunkEnvForWindows, getJunkEnvCommandForTipFile, getResetJunkPathEnvCommand, getSearchGitSubModuleEnvName, getSkipJunkPathEnvCommand, getTrimmedGitRepoEnvName } from './junkPathEnvArgs';
 import { outputDebug, outputDebugByTime, outputErrorByTime, outputInfo, outputInfoByDebugModeByTime, outputInfoQuiet, outputInfoQuietByTime, outputWarn, outputWarnByTime } from "./outputUtils";
-import { escapeRegExp } from "./regexUtils";
+import { EmptyRegex, escapeRegExp } from "./regexUtils";
 import { getRunCmdTerminal, runCommandInTerminal, runPostInitCommands, sendCommandToTerminal } from './runCommandUtils';
 import { DefaultTerminalType, getCmdAliasSaveFolder, getInitLinuxScriptDisplayPath, getInitLinuxScriptStoragePath, getTerminalInitialPath, getTerminalNameOrShellExeName, getTerminalShellExePath, getTipFileDisplayPath, getTipFileStoragePath, isBashTerminalType, isLinuxTerminalOnWindows, isPowerShellTerminal, isWindowsTerminalOnWindows, toStoragePath, toTerminalPath } from './terminalUtils';
 import { getSetToolEnvCommand, getToolExportFolder } from "./toolSource";
@@ -503,12 +504,17 @@ export function cookCmdShortcutsOrFile(cookArgs: CookAliasArgs) {
         }
       }
     } else if (!args.ForProject) {
-      allCmdAliasText += scriptContent + newLine + newLine;
+      // Remove trailing whitespace from each line to avoid unnecessary diff
+      const cleanedContent = scriptContent.replace(/[ \t]+$/gm, '');
+      allCmdAliasText += cleanedContent + newLine + newLine;
     }
   });
   if (args.WriteToEachFile && canWriteScripts) {
     outputInfoQuietByTime(`Cost ${getElapsedSecondsToNow(writeScriptsStartTime).toFixed(3)}s to write aliases to files.`);
   }
+
+  // Normalize file content: trim trailing whitespace and ensure single trailing newline
+  allCmdAliasText = normalizeFileContent(allCmdAliasText, newLine);
 
   if (args.WriteToEachFile) {
     if (canWriteScripts && writeScriptFailureCount < cmdAliasMap.size) {
@@ -1066,7 +1072,19 @@ function getExistingCmdAlias(terminalType: TerminalType, writeToEachFile: boolea
 
   if (newCount > 0 || (inconsistentCount > 0 && MyConfig.OverwriteInconsistentCommonAliasByExtension)) {
     const sortedKeys = Array.from(cmdAliasMap.keys()).sort();
-    const newCmdAliasText = sortedKeys.map(key => cmdAliasMap.get(key)).join(isWindowsTerminal ? '\r\n\r\n' : '\n\n');
+    // Remove trailing whitespace from each line within alias body to avoid unnecessary diff
+    const aliasContent = sortedKeys.map(key => {
+      const body = cmdAliasMap.get(key) || '';
+      return body.replace(/[ \t]+$/gm, '');
+    }).join(isWindowsTerminal ? '\r\n\r\n' : '\n\n');
+    // For non-Windows terminals, must add bash header and environment variable settings
+    const aliasHeadText = isWindowsTerminal ? '' : getSkipJunkPathEnvCommand(terminalType, '', false, '');
+    const newLine = isWindowsTerminal ? '\r\n' : '\n';
+    // Normalize: trim trailing whitespace and ensure single trailing newline
+    const newCmdAliasText = normalizeFileContent(
+      getBashFileHeader(isWindowsTerminal) + aliasHeadText + (isWindowsTerminal ? '' : '\n') + aliasContent,
+      newLine
+    );
     if (!saveTextToFile(defaultCmdAliasFile, newCmdAliasText)) {
       outputErrorByTime(`Failed to save ${newCount} new alias to file: ${defaultCmdAliasFileForTerminal}`);
     } else {
@@ -1153,4 +1171,133 @@ function getCmdAliasMapFromText(cmdAliasText: string, map: Map<string, string>, 
     remainCommonKeys.forEach(key => outputInfo(`Found new common alias: ${key}`));
   }
   return [inconsistentCount, remainCommonKeys.size];
+}
+
+// Normalize: remove trailing whitespace, ensure single trailing newline
+function normalizeFileContent(content: string, newLine: string): string {
+  content = content.replace(/[ \t]+$/gm, '');
+  return content.trimEnd() + newLine;
+}
+
+const AutoDumpAliasMinIntervalSeconds = 10;
+let autoDumpMarkerFile: string | undefined;
+
+function getAutoDumpMarkerFilePath(): string {
+  if (!autoDumpMarkerFile) {
+    autoDumpMarkerFile = path.join(TempStorageFolder, '.vscode-msr-last-auto-dump');
+  }
+  return autoDumpMarkerFile;
+}
+
+// Check multi-window coordination interval
+function canAutoUpdateByMarkerFile(): boolean {
+  const markerFile = getAutoDumpMarkerFilePath();
+  try {
+    if (fs.existsSync(markerFile)) {
+      const stat = fs.statSync(markerFile);
+      const elapsedSeconds = (Date.now() - stat.mtimeMs) / 1000;
+      if (elapsedSeconds < AutoDumpAliasMinIntervalSeconds) {
+        outputDebugByTime(`Skip auto-dump: only ${elapsedSeconds.toFixed(1)}s since last dump (minInterval=${AutoDumpAliasMinIntervalSeconds}s)`);
+        return false;
+      }
+    }
+  } catch (err) {
+    outputDebugByTime(`Failed to check marker file: ${err}`);
+  }
+  return true;
+}
+
+function updateAutoDumpMarkerFile(): void {
+  const markerFile = getAutoDumpMarkerFilePath();
+  try {
+    createDirectory(path.dirname(markerFile));
+    fs.writeFileSync(markerFile, new Date().toISOString());
+    outputDebugByTime(`Updated auto-dump marker file: ${markerFile}`);
+  } catch (err) {
+    outputDebugByTime(`Failed to update marker file: ${err}`);
+  }
+}
+
+function getTerminalTypeFromTerminal(terminal: vscode.Terminal | undefined): TerminalType {
+  if (!terminal) {
+    return DefaultTerminalType;
+  }
+
+  const initialPath = getTerminalInitialPath(terminal) || '';
+  const terminalName = getTerminalNameOrShellExeName(terminal);
+
+  if (IsWindows) {
+    if (/cmd.exe$|^Command Prompt|^CMD/i.test(terminalName || initialPath)) {
+      return TerminalType.CMD;
+    } else if (/PowerShell.exe$|^PowerShell$/i.test(terminalName || initialPath)) {
+      return TerminalType.PowerShell;
+    } else if (/Cygwin.*?bin\\bash.exe$|^Cygwin/i.test(initialPath)) {
+      return TerminalType.CygwinBash;
+    } else if (/System(32)?.bash.exe$|wsl.exe$|^WSL/i.test(initialPath)) {
+      return TerminalType.WslBash;
+    } else if (/Git\S+bash.exe$|^Git Bash|MinGW/i.test(initialPath)) {
+      return TerminalType.MinGWBash;
+    } else if (/bash/i.test(terminalName)) {
+      return TerminalType.WslBash;
+    } else {
+      return TerminalType.PowerShell;
+    }
+  } else {
+    if (/PowerShell|pwsh/i.test(terminalName)) {
+      return TerminalType.Pwsh;
+    } else {
+      return TerminalType.LinuxBash;
+    }
+  }
+}
+
+function shouldAutoDumpForTerminalType(terminalType: TerminalType): boolean {
+  const regex = MyConfig.AutoDumpAliasToFilesByTerminalTypeRegex;
+  if (!regex || regex === EmptyRegex) {
+    return false;
+  }
+
+  const terminalTypeName = TerminalType[terminalType];
+  return regex.test(terminalTypeName);
+}
+
+// Auto-dump alias to script files if configured and changed
+export async function asyncCheckAndDumpAliasToFiles(terminal: vscode.Terminal | undefined): Promise<void> {
+  const terminalType = getTerminalTypeFromTerminal(terminal);
+
+  if (!shouldAutoDumpForTerminalType(terminalType)) {
+    outputDebugByTime(`Auto-dump disabled for terminal type: ${TerminalType[terminalType]}`);
+    return;
+  }
+
+  if (!canAutoUpdateByMarkerFile()) {
+    return;
+  }
+
+  const [cmdAliasMap, ,] = getCommandAliasMap(terminalType, DefaultRepoFolder, false, true, true);
+
+  const newHash = calculateAliasHash(cmdAliasMap);
+  if (!hasAliasChanged(terminalType, newHash)) {
+    outputDebugByTime(`Alias unchanged for ${TerminalType[terminalType]}, skip auto-dump`);
+    return;
+  }
+
+  outputInfoQuietByTime(`Auto-dumping ${cmdAliasMap.size} alias to script files for ${TerminalType[terminalType]}...`);
+  updateAutoDumpMarkerFile();
+
+  try {
+    cookCmdShortcutsOrFile({
+      FilePath: DefaultRepoFolder || '.',
+      WriteToEachFile: true,
+      DumpOtherCmdAlias: true,
+      OnlyCookFile: true,
+      SilentAll: true,
+      Terminal: terminal
+    } as CookAliasArgs);
+
+    await saveAliasHash(terminalType, newHash);
+    outputInfoQuietByTime(`Successfully auto-dumped alias scripts for ${TerminalType[terminalType]}`);
+  } catch (err) {
+    outputErrorByTime(`Failed to auto-dump alias scripts: ${err}`);
+  }
 }

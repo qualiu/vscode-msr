@@ -3,7 +3,7 @@
 	"displayName": "Code mining + Replace file text + Find definition and reference for all types.",
 	"description": "Code mining + Replace file text + Find definition and reference in multiple repository paths by msr for all coding languages + configuration + doc files.",
 	"author": "qualiu@microsoft.com",
-	"version": "2.1.97",
+	"version": "2.1.98",
 	"icon": "images/vscode-msr-icon.png",
 	"license": "completely free",
 	"publisher": "qualiu",
@@ -2067,6 +2067,11 @@
 					"description": "Example of custom command line to find selected text in Bond + Protocol Buffers + Thrift files.",
 					"type": "string",
 					"default": "%AutoDecideSkipFolderToSearch% -f %FileExt% -t \"^\\s*(message|struct|enum|union)\\s+%1\\b\" --xp test,mock,deprecate"
+				},
+				"msr.default.autoDumpAliasToFilesByTerminalTypePattern": {
+					"description": "Regex pattern to match TerminalType names (CMD, PowerShell, LinuxBash, CygwinBash, MinGWBash, WslBash, Pwsh) for auto-dumping alias script files when opening a terminal. Empty means disabled.",
+					"type": "string",
+					"default": "^(CMD|PowerShell|LinuxBash|CygwinBash|MinGWBash|WslBash|Pwsh)$"
 				}
 			}
 		}
@@ -2080,14 +2085,11 @@
 		"package": "vsce package --allow-star-activation"
 	},
 	"devDependencies": {
-		"@types/glob": "^7.1.1",
 		"@types/mocha": "^5.2.6",
 		"@types/node": "^18.19.130",
 		"@types/vscode": "^1.36.0",
 		"@vscode/test-electron": "^2.5.2",
-		"glob": "^7.1.4",
 		"mocha": "^11.7.1",
-		"tslint": "^5.12.1",
 		"typescript": "^5.9.3"
 	},
 	"__metadata": {

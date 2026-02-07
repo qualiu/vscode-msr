@@ -162,6 +162,7 @@ class DynamicConfig {
     public CheckLanguageProcessIntervalMinutes = 15;
     public OverwriteInconsistentCommonAliasByExtension = true;
     public AutoRestoreEnvAliasTerminalNameRegex: RegExp = new RegExp('to-load');
+    public AutoDumpAliasToFilesByTerminalTypeRegex: RegExp = new RegExp('to-load');
     public ReplaceTabTo = ' '.repeat(4);
 
     private UseGitFileListToSearchSingleWorkspace: string = 'auto';
@@ -353,6 +354,7 @@ class DynamicConfig {
         this.AutoUpdateSearchTool = getConfigValueOfActiveProject('autoUpdateSearchTool') === 'true';
         this.CheckLanguageProcessIntervalMinutes = Math.max(5, Number(getConfigValueOfActiveProject('checkLanguageProcessIntervalMinutes') || '20'));
         this.OverwriteInconsistentCommonAliasByExtension = getConfigValueOfActiveProject('overwriteInconsistentCommonAliasByExtension') !== 'false';
+        this.AutoDumpAliasToFilesByTerminalTypeRegex = createRegex(getConfigValueOfProject(repoFolderName, 'autoDumpAliasToFilesByTerminalTypePattern'), 'i');
         SearchConfig.reload();
 
         this.ExcludeFoldersFromSettings.clear();

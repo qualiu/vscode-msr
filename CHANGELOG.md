@@ -2,6 +2,12 @@
 
 All notable changes to this "vscode-msr" extension will be documented in this file.
 
+## [2.1.98]
+
+- Added config `msr.default.autoDumpAliasToFilesByTerminalTypePattern` to auto dump alias/doskeys to script files.
+- Added new alias like `add-user-env` + `add-sys-env` + `del-user-env` + `del-sys-env`.
+- Improved alias like `rm-alias` + `find-alias` + `check-xxx-env` + `check-xxx-path`.
+
 ## [2.1.97]
 
 - Added `gfm` with trivial improvement for other alias; Supported `find-alias` for WSL + MinGW + Cygwin on Windows.

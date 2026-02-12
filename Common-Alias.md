@@ -53,6 +53,7 @@ You can override any built-in alias by creating a custom alias with the same nam
 | `gpm`   | Pull main/master branch from origin (auto-detect)                     | `gpm` \| `gpm --rebase` \| `gpm --no-edit`    |
 | `gph`   | Push current branch to origin                                         | `gph` \| `gph -f` \| `gph --delete`           |
 | `gfc`   | Fetch current branch from origin                                      | `gfc`                                         |
+| `gfcs`  | Shallow fetch current branch (depth=1)                                | `gfcs` \| `gfcs --prune`                      |
 | `gfm`   | Fetch main/master branch from origin (auto-detect)                    | `gfm`                                         |
 | `gsh`   | Hard reset current branch to origin                                   | `gsh`                                         |
 | `gst`   | Show git status                                                       | `gst` \| `gst -s`\| `gst -u`                  |
@@ -60,6 +61,7 @@ You can override any built-in alias by creating a custom alias with the same nam
 | `gdc`   | Diff tool for current branch vs origin                                | `gdc` \| `gdc -- path/to/file`                |
 | `gdc-l` | List changed files between current branch and origin                  | `gdc-l` \| `gdc-l -- path/`                   |
 | `gdf`   | Diff tool for specific commit or branch                               | `gdf HEAD~1` \| `gdf {branch-name-or-commit}` |
+| `gsf`   | Show files changed by a commit (supports HEAD~n, commit hash)         | `gsf HEAD` \| `gsf abc123` \| `gsf HEAD~3`    |
 | `glc`   | Show brief history commits + file list of **origin**/{current} branch | `glc` \| `glc -n 3`                           |
 | `glcc`  | Show brief history commits + file list of **local** {current} branch  | `glcc` \| `glcc -n 3`                         |
 

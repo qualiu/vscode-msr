@@ -65,6 +65,17 @@ export function outputWarnByTime(message: string, showWindow: boolean = true) {
 	outputWarn(nowText() + message, showWindow);
 }
 
+export function outputWarnQuiet(message: string, showWindow: boolean = false) {
+	if (MessageLevel.WARN >= LogLevel) {
+		getOutputChannel().appendLine(message);
+		showOutputChannel(showWindow, false);
+	}
+}
+
+export function outputWarnQuietByTime(message: string, showWindow: boolean = false) {
+	outputWarnQuiet(nowText() + message, showWindow);
+}
+
 export function outputError(message: string, showWindow: boolean = true) {
 	if (MessageLevel.ERROR >= LogLevel) {
 		showOutputChannel(showWindow);

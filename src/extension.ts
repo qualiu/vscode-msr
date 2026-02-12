@@ -5,7 +5,7 @@ import { setExtensionContext } from './aliasHashUtils';
 import { RunCommandChecker } from './ToolChecker';
 import { getFindingCommandByCurrentWord, runFindingCommand } from './commands';
 import { getConfigValueByProjectAndExtension, getConfigValueOfActiveProject, getConfigValueOfProject, getPostInitCommands } from './configUtils';
-import { DefaultRepoFolderName, DefaultWorkspaceFolder, IsSupportedSystem, IsWindows, RunCmdTerminalName, WorkspaceCount, getDefaultRepoFolderByActiveFile, getRepoFolder, isNullOrEmpty } from './constants';
+import { DefaultRepoFolderName, DefaultWorkspaceFolder, IsDebugMode, IsSupportedSystem, IsWindows, RunCmdTerminalName, WorkspaceCount, getDefaultRepoFolderByActiveFile, getRepoFolder, isNullOrEmpty } from './constants';
 import { asyncCheckAndDumpAliasToFiles, CookAliasArgs, cookCmdShortcutsOrFile } from './cookCommandAlias';
 import { DefaultRepoFolder, FileExtensionToMappedExtensionMap, MappedExtToCodeFilePatternMap, MyConfig, WorkspaceToGitIgnoreMap, getConfig, getExtraSearchPaths, getGitIgnore, printConfigInfo } from './dynamicConfig';
 import { FindCommandType, FindType, ForceFindType, TerminalType } from './enums';
@@ -17,7 +17,7 @@ import { SearchChecker } from './searchChecker';
 import { Searcher, createCommandSearcher, createSearcher, getCurrentFileSearchInfo, setReRunMark, stopAllSearchers } from './searcher';
 import { getRepoFolderFromTerminalCreation, getTerminalInitialPath, getTerminalNameOrShellExeName } from './terminalUtils';
 import { MsrExe } from './toolSource';
-import { getElapsedSecondsToNow, getRepoFolderName, getRepoFolders, quotePaths, replaceSearchTextHolder, toPath } from './utils';
+import { getElapsedSecondsToNow, getRepoFolderName, getRepoFolders, isWeeklyCheckTime, quotePaths, replaceSearchTextHolder, toPath } from './utils';
 import path = require('path');
 
 outputDebugByTime('Start loading extension and initialize ...');
@@ -103,6 +103,8 @@ export function activate(context: vscode.ExtensionContext) {
 	context.subscriptions.push(vscode.window.onDidOpenTerminal(terminal => {
 		RestoredEnvAliasTerminalMap.set(terminal, true);
 		if (terminal.name === RunCmdTerminalName) {
+			// Trigger async dump alias to script files for newly created MSR-RUN-CMD
+			asyncCheckAndDumpAliasToFiles(terminal);
 			return;
 		}
 
@@ -144,7 +146,7 @@ export function activate(context: vscode.ExtensionContext) {
 			outputInfoQuietByTime(`Skip cooking alias: terminalName = ${terminalName}, title = ${terminalTitle}, initialPath = ${initialPath}, matchNameRegex = ${matchNameRegex.source}`);
 		}
 
-		// Check and auto-dump alias to script files if configured
+		// Check and auto-dump alias to script files for newly created terminals (not MSR-RUN-CMD)
 		asyncCheckAndDumpAliasToFiles(terminal);
 	}));
 
@@ -153,8 +155,11 @@ export function activate(context: vscode.ExtensionContext) {
 	setTimeout(() => {
 		IsExtensionActivated = true;
 		outputDebugByTime('Extension activation complete, now accepting new terminal events');
-		// Check and auto-dump alias to script files at startup
-		asyncCheckAndDumpAliasToFiles(undefined);
+		// Check and auto-dump alias to script files at startup for MSR-RUN-CMD terminal.
+		// Force check weekly or in debug mode to ensure script files exist and content matches.
+		const forceCheck = isWeeklyCheckTime() || IsDebugMode;
+		const [runCmdTerminal] = getRunCmdTerminalWithInfo();
+		asyncCheckAndDumpAliasToFiles(runCmdTerminal, forceCheck);
 	}, 2000);
 }
 

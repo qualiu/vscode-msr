@@ -2,6 +2,12 @@
 
 All notable changes to this "vscode-msr" extension will be documented in this file.
 
+## [2.1.99]
+
+- Added new Git aliases: `gfcs` (shallow fetch current branch) + `gsf` (show files changed by a commit).
+- Added weekly check mechanism to force verify alias script files exist and content matches.
+- Improved startup alias check with elapsed time logging.
+
 ## [2.1.98]
 
 - Added config `msr.default.autoDumpAliasToFilesByTerminalTypePattern` to auto dump alias/doskeys to script files.

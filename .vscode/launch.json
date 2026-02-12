@@ -16,7 +16,14 @@
             "outFiles": [
                 "${workspaceFolder}/out/**/*.js"
             ],
-            "preLaunchTask": "npm: watch"
+            "preLaunchTask": "npm: watch",
+            "skipFiles": [
+                "<node_internals>/**",
+                "**/node_modules/**",
+                "${env:LOCALAPPDATA}/Programs/Microsoft VS Code/**/*.js",
+                "/Applications/Visual Studio Code.app/Contents/Resources/app/out/**/*.js",
+                "/usr/share/code/resources/app/out/**/*.js"
+            ]
         },
         {
             "name": "Extension Tests",

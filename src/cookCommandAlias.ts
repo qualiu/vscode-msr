@@ -9,7 +9,7 @@ import { AdditionalFileExtensionMapNames, DefaultRepoFolder, MappedExtToCodeFile
 import { FindCommandType, TerminalType } from "./enums";
 import { createDirectory, getFileModifyTime, readTextFile, saveTextToFile } from './fileUtils';
 import { asyncSetJunkEnvForWindows, getJunkEnvCommandForTipFile, getResetJunkPathEnvCommand, getSearchGitSubModuleEnvName, getSkipJunkPathEnvCommand, getTrimmedGitRepoEnvName } from './junkPathEnvArgs';
-import { outputDebug, outputDebugByTime, outputErrorByTime, outputInfo, outputInfoByDebugModeByTime, outputInfoQuiet, outputInfoQuietByTime, outputWarn, outputWarnByTime } from "./outputUtils";
+import { outputDebug, outputDebugByTime, outputErrorByTime, outputInfo, outputInfoByDebugModeByTime, outputInfoQuiet, outputInfoQuietByTime, outputWarn, outputWarnByTime, outputWarnQuietByTime } from "./outputUtils";
 import { EmptyRegex, escapeRegExp } from "./regexUtils";
 import { getRunCmdTerminal, runCommandInTerminal, runPostInitCommands, sendCommandToTerminal } from './runCommandUtils';
 import { DefaultTerminalType, getCmdAliasSaveFolder, getInitLinuxScriptDisplayPath, getInitLinuxScriptStoragePath, getTerminalInitialPath, getTerminalNameOrShellExeName, getTerminalShellExePath, getTipFileDisplayPath, getTipFileStoragePath, isBashTerminalType, isLinuxTerminalOnWindows, isPowerShellTerminal, isWindowsTerminalOnWindows, toStoragePath, toTerminalPath } from './terminalUtils';
@@ -1197,12 +1197,12 @@ function canAutoUpdateByMarkerFile(): boolean {
       const stat = fs.statSync(markerFile);
       const elapsedSeconds = (Date.now() - stat.mtimeMs) / 1000;
       if (elapsedSeconds < AutoDumpAliasMinIntervalSeconds) {
-        outputDebugByTime(`Skip auto-dump: only ${elapsedSeconds.toFixed(1)}s since last dump (minInterval=${AutoDumpAliasMinIntervalSeconds}s)`);
+        outputInfoQuietByTime(`Skip auto-dump: only ${elapsedSeconds.toFixed(1)}s since last dump (minInterval=${AutoDumpAliasMinIntervalSeconds}s)`);
         return false;
       }
     }
   } catch (err) {
-    outputDebugByTime(`Failed to check marker file: ${err}`);
+    outputWarnQuietByTime(`Failed to check marker file: ${err}`);
   }
   return true;
 }
@@ -1261,25 +1261,31 @@ function shouldAutoDumpForTerminalType(terminalType: TerminalType): boolean {
   return regex.test(terminalTypeName);
 }
 
-// Auto-dump alias to script files if configured and changed
-export async function asyncCheckAndDumpAliasToFiles(terminal: vscode.Terminal | undefined): Promise<void> {
+// Auto-dump alias to script files if configured and changed. When forceCheckUpdate is true, force check if each alias's script file exists or content matches (update if not exist or mismatch)
+export async function asyncCheckAndDumpAliasToFiles(terminal: vscode.Terminal | undefined, forceCheckUpdate: boolean = false): Promise<void> {
+  const checkStartTime = new Date();
   const terminalType = getTerminalTypeFromTerminal(terminal);
 
   if (!shouldAutoDumpForTerminalType(terminalType)) {
-    outputDebugByTime(`Auto-dump disabled for terminal type: ${TerminalType[terminalType]}`);
+    outputInfoQuietByTime(`Auto-dump disabled for terminal type: ${TerminalType[terminalType]}`);
     return;
   }
 
-  if (!canAutoUpdateByMarkerFile()) {
+  if (!forceCheckUpdate && !canAutoUpdateByMarkerFile()) {
     return;
   }
 
   const [cmdAliasMap, ,] = getCommandAliasMap(terminalType, DefaultRepoFolder, false, true, true);
 
   const newHash = calculateAliasHash(cmdAliasMap);
-  if (!hasAliasChanged(terminalType, newHash)) {
-    outputDebugByTime(`Alias unchanged for ${TerminalType[terminalType]}, skip auto-dump`);
+  if (!forceCheckUpdate && !hasAliasChanged(terminalType, newHash)) {
+    const elapsedSeconds = getElapsedSecondsToNow(checkStartTime);
+    outputInfoQuietByTime(`Cost ${elapsedSeconds.toFixed(3)}s to check alias unchanged for ${TerminalType[terminalType]}, skip auto-dump.`);
     return;
+  }
+
+  if (forceCheckUpdate) {
+    outputInfoQuietByTime(`Force checking and updating alias scripts for ${TerminalType[terminalType]}...`);
   }
 
   outputInfoQuietByTime(`Auto-dumping ${cmdAliasMap.size} alias to script files for ${TerminalType[terminalType]}...`);
@@ -1296,7 +1302,8 @@ export async function asyncCheckAndDumpAliasToFiles(terminal: vscode.Terminal | 
     } as CookAliasArgs);
 
     await saveAliasHash(terminalType, newHash);
-    outputInfoQuietByTime(`Successfully auto-dumped alias scripts for ${TerminalType[terminalType]}`);
+    const totalElapsedSeconds = getElapsedSecondsToNow(checkStartTime);
+    outputInfoQuietByTime(`Cost ${totalElapsedSeconds.toFixed(3)}s to auto-dump alias scripts for ${TerminalType[terminalType]}.`);
   } catch (err) {
     outputErrorByTime(`Failed to auto-dump alias scripts: ${err}`);
   }

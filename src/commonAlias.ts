@@ -583,6 +583,7 @@ let LinuxAliasMap: Map<string, string> = new Map<string, string>()
   .set('out-rp', String.raw`export MSR_OUT_FULL_PATH=0 && echo "Will output relative file paths."`)
   .set('out-wp', String.raw`export MSR_UNIX_SLASH=0 && echo "Now will output backslash '\\' (Windows style) for result paths."`)
   .set('out-up', String.raw`export MSR_UNIX_SLASH=1 && echo "Now will output forward slash '/' (Unix style) for result paths."`)
+  .set('gsf', String.raw`git --no-pager diff --name-only $1^! $2 $3 $4 $5 $6 $7 $8 $9`)
   ;
 
 const CommonAliasMap: Map<string, string> = new Map<string, string>()
@@ -602,7 +603,7 @@ const CommonAliasMap: Map<string, string> = new Map<string, string>()
   .set('gdc', String.raw`git rev-parse --abbrev-ref HEAD | msr -t "(.+)" -o "git difftool origin/\1 $*" -XM`)
   .set('gdc-l', String.raw`git rev-parse --abbrev-ref HEAD | msr -t "(.+)" -o "git diff --name-only origin/\1 $*" -XM`)
   .set('gdf', String.raw`git diff --name-only $1 | msr -t "(.+)" -o "git difftool $* \1" -XM`)
-  .set('gsf', String.raw`git --no-pager diff --name-only $1^! $2 $3 $4 $5 $6 $7 $8 $9`)
+  .set('gsf', String.raw`git --no-pager diff --name-only $1^^! $2 $3 $4 $5 $6 $7 $8 $9`)
   .set('gsh', String.raw`git rev-parse --abbrev-ref HEAD | msr -t "(.+)" -o "git reset --hard origin/\1" -XM`)
   .set('gsh-sm', String.raw`git rev-parse --abbrev-ref HEAD | msr -t "(.+)" -o "git reset --hard origin/\1" -XM
           && msr -z "git submodule sync --init && git submodule update -f" -t "&&" -o "\n" -PAC | msr -XM -V ne0 & git status`)

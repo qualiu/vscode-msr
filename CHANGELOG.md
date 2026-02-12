@@ -2,6 +2,10 @@
 
 All notable changes to this "vscode-msr" extension will be documented in this file.
 
+## [2.1.100]
+
+- Fixed `gsf` alias on Windows(CMD).
+
 ## [2.1.99]
 
 - Added new Git aliases: `gfcs` (shallow fetch current branch) + `gsf` (show files changed by a commit).

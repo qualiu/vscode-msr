@@ -86,6 +86,7 @@
     "MINGW",
     "msr",
     "MSYSTEM",
+    "notcontains",
     "notmatch",
     "nterface",
     "objd",

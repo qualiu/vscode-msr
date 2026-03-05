@@ -3,7 +3,7 @@
 	"displayName": "Code mining + Replace file text + Find definition and reference for all types.",
 	"description": "Code mining + Replace file text + Find definition and reference in multiple repository paths by msr for all coding languages + configuration + doc files.",
 	"author": "qualiu@microsoft.com",
-	"version": "2.1.100",
+	"version": "2.2.1",
 	"icon": "images/vscode-msr-icon.png",
 	"license": "completely free",
 	"publisher": "qualiu",
@@ -1484,6 +1484,16 @@
 					"type": "string",
 					"default": "",
 					"description": "Add '@SetLocal EnableExtensions EnableDelayedExpansion' or set to empty when cooking each command alias/doskeys to a batch script file named alias.cmd"
+				},
+				"msr.cookFindDefinitionAlias.extraExtensionPattern": {
+					"type": "string",
+					"default": "",
+					"description": "Regex pattern of extra file extensions to generate find-xxx-def/gfind-xxx-def alias. Extensions with specific definition config (like msr.cpp.definition) always auto-generate. This controls extra extensions beyond auto-detected. Default empty = no extra generation. Use '.' to enable ALL extensions. Example: '^(txt|log)$' to also generate find-txt-def/gfind-txt-def and find-log-def/gfind-log-def."
+				},
+				"msr.cookAlias.recursiveGitFindExtensionPattern": {
+					"type": "string",
+					"default": "",
+					"description": "Regex pattern of file extensions to generate rgfind-xxx aliases which search child directories that are independent git repositories (contain their own .git folder). Default empty = disabled for all. Use '.' to enable ALL extensions. Example: '^(cpp|java|py)$' will generate rgfind-xxx and rgfind-xxx-ref for each matching extension, plus rgfind-xxx-def if a definition alias exists for that extension. Supports all platforms (Windows/Linux/macOS/WSL/MinGW/Cygwin)."
 				},
 				"msr.searchRelativePathForLinuxTerminalsOnWindows": {
 					"type": "boolean",

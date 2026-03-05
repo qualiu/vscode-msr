@@ -243,20 +243,19 @@ const DefaultAliasDescription = `(N/A) Not your custom alias? See built-in alias
 
 // Generate PowerShell code to search Windows doskeys file
 function getWindowsSearchCmdFileCode(): string {
-  return String.raw`$foundInFile -split '\r?\n' | ForEach-Object {
+  return String.raw`$hitInFile -split '\r?\n' | ForEach-Object {
           if ($_ -match '^(?<fp>.+?):(?<num>\d+):(?:\d+:)?\s*(?<content>.+)$') {
             $fp = $Matches['fp']; $numInFile = $Matches['num']; $content = $Matches['content'];
             $itemName = if ($content -match '^([\w-]+)=') { $Matches[1] } else { '' };
-            if ($ShowDuplicates -or -not $foundNameSet.Contains($itemName)) {
-              if (-not $NameOnly -and ($countInSettings -gt 0 -or $countInAliasFiles -gt 0)) { Write-Host ''; }
-              $countInAliasFiles++;
+            if (($ShowDup -or -not $hitNameSet.Contains($itemName)) -and (-not $isRegex -or $itemName -match $Prefix)) {
+              if (($sb -or $sd -or $ss) -and ($cntSets -gt 0 -or $cntFiles -gt 0)) { Write-Host ''; }
+              $cntFiles++;
               if ($content -match '^([\w-]+)=(.*)$') {
-                Write-Host 'aliasName = ' -NoNewline; Write-Host $Matches[1] -ForegroundColor Green;
-                if (-not $NameOnly) {
-                  Write-Host 'aliasBody = ' -NoNewline; Write-Host $Matches[2] -ForegroundColor Cyan;
-                  Write-Host 'description = ' -NoNewline; Write-Host '${DefaultAliasDescription}' -ForegroundColor DarkGray;
-                  Write-Host ('Source = doskeys file at ' + $fp + ':' + $numInFile + ':') -ForegroundColor DarkGray;
-                }
+                $itemBody = $Matches[2]; $sumBodyLen += $itemBody.Length;
+                if ($sn) { Write-Host 'aliasName = ' -No; Write-Host $Matches[1] -Fore Green; }
+                if ($sb) { Write-Host 'aliasBody = ' -No; Write-Host $itemBody -Fore Cyan; }
+                if ($sd) { Write-Host 'description = ' -No; Write-Host '${DefaultAliasDescription}' -Fore DarkGray; }
+                if ($ss) { Write-Host 'location = ' -No; Write-Host ('doskeys file at ' + $fp + ':' + $numInFile + ':') -Fore DarkGray; }
               } else { Write-Host $content; }
             }
           }
@@ -265,57 +264,23 @@ function getWindowsSearchCmdFileCode(): string {
 
 // Generate PowerShell code to search Linux bashrc file (multi-line format)
 function getLinuxSearchCmdFileCode(): string {
-  return String.raw`$allLines = $foundInFile -split '\r?\n' | Where-Object { $_ -match '^.+?:\d+:' };
-          $currentBlock = @(); $currentLineNum = '';
+  // NOTE: The regex '^.+?:\d+:(.*)' must NOT use '\s*' after the colon, otherwise it strips leading whitespace (indentation) from content
+  return String.raw`$allLines = $hitInFile -split '\r?\n' | Where-Object { $_ -match '^.+?:\d+:' };
+          $curBlock = @(); $curRow = '';
+          function ProcessAliasBlock { if ($curBlock.Count -eq 0) { return; } $fullContent = ($curBlock | ForEach-Object { if ($_ -match '^.+?:\d+:(.*)') { $Matches[1] } else { $_ } }) -join ([char]10); $fullContent = $fullContent.Trim(); if ($fullContent -match '(?s)^alias\s+(?<name>[\w-]+)=(?<body>.*)$') { $script:itemName = $Matches['name']; $displayBody = $Matches['body']; $script:sumBodyLen += $displayBody.Length; if (($ShowDup -or -not $hitNameSet.Contains($script:itemName)) -and (-not $isRegex -or $script:itemName -match $Prefix)) { if (($sb -or $sd -or $ss) -and ($script:cntSets -gt 0 -or $script:cntFiles -gt 0)) { Write-Host ''; } $script:cntFiles++; [void] $hitCmdFileSet.Add($oneCmdFilePath); if ($sn) { Write-Host 'aliasName = ' -No; Write-Host $script:itemName -Fore Green; } if ($sb) { Write-Host 'aliasBody = ' -No; Write-Host $displayBody -Fore Cyan; } if ($sd) { Write-Host 'description = ' -No; Write-Host '${DefaultAliasDescription}' -Fore DarkGray; } if ($ss) { Write-Host 'location = ' -No; Write-Host ($oneCmdFilePath + ':' + $curRow + ':') -Fore DarkGray; } } if ($bashrcNameCountMap.ContainsKey($script:itemName)) { $bashrcNameCountMap[$script:itemName]++; } else { $bashrcNameCountMap[$script:itemName] = 1; } } }
           foreach ($oneLine in $allLines) {
             if ($oneLine -match '^(?<fp>.+?):(?<num>\d+):\s*(?<content>.*)$') {
               $lineNum = $Matches['num']; $content = $Matches['content'];
               if ($content -match '^alias\s+[\w-]+=') {
-                if ($currentBlock.Count -gt 0) {
-                  $fullContent = ($currentBlock | ForEach-Object { if ($_ -match '^.+?:\d+:\s*(.*)$') { $Matches[1] } else { $_ } }) -join ([char]10);
-                  $fullContent = $fullContent.Trim();
-                  if ($fullContent -match '(?s)^alias\s+(?<name>[\w-]+)=(?<body>.*)$') {
-                    $itemName = $Matches['name']; $displayBody = $Matches['body'];
-                    if ($ShowDuplicates -or -not $foundNameSet.Contains($itemName)) {
-                      if (-not $NameOnly -and ($countInSettings -gt 0 -or $countInAliasFiles -gt 0)) { Write-Host ''; }
-                      $countInAliasFiles++;
-                      [void] $foundCmdFileSet.Add($oneCmdFilePath);
-                Write-Host 'aliasName = ' -NoNewline; Write-Host $itemName -ForegroundColor Green;
-                if (-not $NameOnly) {
-                        Write-Host 'aliasBody = ' -NoNewline; Write-Host $displayBody -ForegroundColor Cyan;
-                        Write-Host 'description = ' -NoNewline; Write-Host '${DefaultAliasDescription}' -ForegroundColor DarkGray;
-                        Write-Host ('Source = ' + $oneCmdFilePath + ':' + $currentLineNum + ':') -ForegroundColor DarkGray;
-                      }
-                    }
-                    if ($bashrcNameCountMap.ContainsKey($itemName)) { $bashrcNameCountMap[$itemName]++; } else { $bashrcNameCountMap[$itemName] = 1; }
-                  }
-                }
-                $currentBlock = @($oneLine);
-                $currentLineNum = $lineNum;
+                ProcessAliasBlock;
+                $curBlock = @($oneLine);
+                $curRow = $lineNum;
               } else {
-                $currentBlock += $oneLine;
+                $curBlock += $oneLine;
               }
             }
           }
-          if ($currentBlock.Count -gt 0) {
-            $fullContent = ($currentBlock | ForEach-Object { if ($_ -match '^.+?:\d+:\s*(.*)$') { $Matches[1] } else { $_ } }) -join ([char]10);
-            $fullContent = $fullContent.Trim();
-            if ($fullContent -match '(?s)^alias\s+(?<name>[\w-]+)=(?<body>.*)$') {
-              $itemName = $Matches['name']; $displayBody = $Matches['body'];
-                    if ($ShowDuplicates -or -not $foundNameSet.Contains($itemName)) {
-                      if (-not $NameOnly -and ($countInSettings -gt 0 -or $countInAliasFiles -gt 0)) { Write-Host ''; }
-                      $countInAliasFiles++;
-                [void] $foundCmdFileSet.Add($oneCmdFilePath);
-                      Write-Host 'aliasName = ' -NoNewline; Write-Host $itemName -ForegroundColor Green;
-                      if (-not $NameOnly) {
-                  Write-Host 'aliasBody = ' -NoNewline; Write-Host $displayBody -ForegroundColor Cyan;
-                  Write-Host 'description = ' -NoNewline; Write-Host '${DefaultAliasDescription}' -ForegroundColor DarkGray;
-                  Write-Host ('Source = ' + $oneCmdFilePath + ':' + $currentLineNum + ':') -ForegroundColor DarkGray;
-                }
-              }
-              if ($bashrcNameCountMap.ContainsKey($itemName)) { $bashrcNameCountMap[$itemName]++; } else { $bashrcNameCountMap[$itemName] = 1; }
-            }
-          }`;
+          ProcessAliasBlock;`;
 }
 
 // Generate find-alias PowerShell command body (avoid $a,$b,$g,$l,$r,$t prefixed variables)
@@ -329,98 +294,102 @@ function getFindAliasBody(terminalType: TerminalType, useUnixSlash: boolean = fa
   const cmdFilePathCode = getCmdFilePathCode(config, cmdFileSubPath, useUnixSlash);
 
   return String.raw`
-    $inputArgs = @{}; $positionalArgs = @();
-    $currentArgName = $null;
-    foreach ($inputValue in @('$*' -split '\s+' | Where-Object { $_ })) {
-      if ($inputValue -match '^-(\w+)$') { $currentArgName = $Matches[1]; }
-      elseif ($currentArgName) { $inputArgs[$currentArgName] = $inputValue; $currentArgName = $null; }
-      else { $positionalArgs += $inputValue; }
+    $inArgs = @{}; $posArgs = @();
+    $curArgName = $null;
+    foreach ($va in @('$*' -split '\s+' | Where-Object { $_ })) {
+      if ($va -match '^-(\w+)$') { $curArgName = $Matches[1]; }
+      elseif ($curArgName) { $inArgs[$curArgName] = $va; $curArgName = $null; }
+      else { $posArgs += $va; }
     }
-    function Get-ParamValue($argName) { $matched = @($inputArgs.Keys | Where-Object { $argName -like ($_ + '*') }); if ($matched.Count -eq 1) { return $inputArgs[$matched[0]]; } elseif ($inputArgs.ContainsKey($argName)) { return $inputArgs[$argName]; } return $null; }
-    $Prefix = $pv = Get-ParamValue 'Prefix'; if ($null -eq $pv) { if ($positionalArgs.Count -gt 0) { $Prefix = $positionalArgs[0] } else { $Prefix = '' } };
-    $pv = Get-ParamValue 'IsExactEqual'; $IsExactEqual = if ($null -ne $pv) { $pv -imatch '^(1|true|y|yes)$' } elseif ($positionalArgs.Count -gt 1) { $positionalArgs[1] -imatch '^(1|true|y|yes)$' } else { 0 };
-    $pv = Get-ParamValue 'SettingsOnly'; $SettingsOnly = if ($null -ne $pv) { $pv -imatch '^(1|true|y|yes)$' } elseif ($positionalArgs.Count -gt 2) { $positionalArgs[2] -imatch '^(1|true|y|yes)$' } else { 0 };
-    $pv = Get-ParamValue 'ShowDuplicates'; $ShowDuplicates = if ($null -ne $pv) { $pv -imatch '^(1|true|y|yes)$' } elseif ($positionalArgs.Count -gt 3) { $positionalArgs[3] -imatch '^(1|true|y|yes)$' } else { 0 };
-    $pv = Get-ParamValue 'OnlyThisOS'; $OnlyThisOS = if ($null -ne $pv) { -not ($pv -imatch '^(0|false|n|no)$') } elseif ($positionalArgs.Count -gt 4) { -not ($positionalArgs[4] -imatch '^(0|false|n|no)$') } else { 1 };
-    $pv = Get-ParamValue 'Description'; $Description = if ($null -ne $pv) { $pv.ToLower() } elseif ($positionalArgs.Count -gt 5) { $positionalArgs[5].ToLower() } else { 'any' };
-    $pv = Get-ParamValue 'NameOnly'; $NameOnly = if ($null -ne $pv) { $pv -imatch '^(1|true|y|yes)$' } else { 0 };
-    if ($Description -imatch '^(yes|y|1|true)$') { $Description = 'yes'; } elseif ($Description -imatch '^(no|n|0|false)$') { $Description = 'no'; } elseif ($Description -imatch '^(any|all|a)$') { $Description = 'any'; } else { $Description = 'any'; }
-    if (-not $Prefix) { Write-Host 'Usage: find-alias <Prefix> [-IsExactEqual 0] [-SettingsOnly 0] [-ShowDuplicates 0] [-OnlyThisOS 1] [-Description any] [-NameOnly 0]' -ForegroundColor Red; Write-Host 'Set 1 to enable, 0 to disable. -Description: yes=has, no=none, any=all' -ForegroundColor Yellow; exit 1; }
+    function Get-ParamValue($argName) { $matched = @($inArgs.Keys | Where-Object { $argName -like ($_ + '*') }); if ($matched.Count -eq 1) { return $inArgs[$matched[0]]; } elseif ($inArgs.ContainsKey($argName)) { return $inArgs[$argName]; } return $null; }
+    $Prefix = $pv = Get-ParamValue 'Prefix'; if ($null -eq $pv) { if ($posArgs.Count -gt 0) { $Prefix = $posArgs[0] } else { $Prefix = '' } };
+    $pv = Get-ParamValue 'IsExactEqual'; $IsExactEqual = if ($null -ne $pv) { $pv -imatch '^(1|true|y)' } elseif ($posArgs.Count -gt 1) { $posArgs[1] -imatch '^(1|true|y)' } else { 0 };
+    $pv = Get-ParamValue 'SettingsOnly'; $SettingsOnly = if ($null -ne $pv) { $pv -imatch '^(1|true|y)' } elseif ($posArgs.Count -gt 2) { $posArgs[2] -imatch '^(1|true|y)' } else { 0 };
+    $pv = Get-ParamValue 'ShowDup'; $ShowDup = if ($null -ne $pv) { $pv -imatch '^(1|true|y)' } elseif ($posArgs.Count -gt 3) { $posArgs[3] -imatch '^(1|true|y)' } else { 0 };
+    $pv = Get-ParamValue 'OnlyThisOS'; $OnlyThisOS = if ($null -ne $pv) { -not ($pv -imatch '^(0|false|n)') } elseif ($posArgs.Count -gt 4) { -not ($posArgs[4] -imatch '^(0|false|n)') } else { 1 };
+    $pv = Get-ParamValue 'Description'; $Description = if ($null -ne $pv) { $pv.ToLower() } elseif ($posArgs.Count -gt 5) { $posArgs[5].ToLower() } else { 'any' };
+    $pv = Get-ParamValue 'Output'; $Out = if ($pv) { $pv.ToLower() } else { 'all' };
+    $sn = $Out -match 'name|^all$'; $sb = $Out -match 'body|^all$'; $sd = $Out -match 'desc|^all$'; $ss = $Out -match 'lo|^all$';
+    if ($Description -imatch '^(1|true|y)') { $Description = 'yes'; } elseif ($Description -imatch '^(0|false|n)') { $Description = 'no'; } elseif ($Description -imatch '^(any|all|a)$') { $Description = 'any'; } else { $Description = 'any'; }
+    $isRegex = $Prefix -match '[^\w\-]';
+    $matchMode = if ($IsExactEqual) { ' by name' } elseif ($isRegex) { ' by regex' } else { ' by prefix' };
+    if (-not $Prefix) { Write-Host 'Usage: find-alias <Prefix|Regex> [-IsExactEqual 0] [-SettingsOnly 0] [-ShowDup 0] [-OnlyThisOS 1] [-Description any] [-Output name+body+desc+location]' -Fore Red; exit 1; }
     ${config.settingsPathCode}
     ${cmdFilePathCode}
-    $countInSettings = 0; $foundGroupCount = 0; $sumItemCount = 0; $sumGroupCount = 0; $foundGroupNames = @(); $countInAliasFiles = 0; $foundNames = @();
+    $cntSets = 0; $hitGroups = 0; $sumItems = 0; $sumGroups = 0; $hitGrpNames = @(); $cntFiles = 0; $hitNames = @(); $sumBodyLen = 0;
     $dq = [char]34;
     if (Test-Path $settingsPath) {
       try {
         $settingsRaw = Get-Content $settingsPath -Raw;
-        $settings = msr -p $settingsPath${unixSlashArg} -b '^\W+msr.\w*\.?\w+List\W+$' -Q '^\s*\]\W*$' -PAC | msr -S -t '(.+?),\s*$' -o '{\1}' -aPAC | msr -S -t ',(?=\s*[\}\]])' -o ' ' -aPAC | ConvertFrom-Json;
+        $jsonLines = msr -p $settingsPath -b '^\W+msr.\w*\.?\w+List\W+$' -Q '^\s*\]\W*$' -PAC;
+        $settings = '{' + [string]::Join([Environment]::NewLine, $jsonLines).Trim().TrimEnd(',') + '}' | ConvertFrom-Json;
         $keyGroupList = @('msr.commonAliasNameBodyList','msr.bash.commonAliasNameBodyList','msr.cmd.commonAliasNameBodyList');
         $keyGroupNames = if ($OnlyThisOS) { @('msr.commonAliasNameBodyList','${config.osSpecificGroup}') } else { $keyGroupList };
-        foreach ($keyGroup in $keyGroupNames) {
-          $itemList = $settings.PSObject.Properties[$keyGroup].Value;
-          if (-not $itemList) { continue; }
-          $sumGroupCount++; $sumItemCount += $itemList.Count; $hasFoundInGroup = 0;
-          $matchesOfKey = Select-String -InputObject $settingsRaw -Pattern ('(?m)^\s*' + $dq + [regex]::Escape($keyGroup) + $dq) -AllMatches;
-          $keyGroupStartRow = if ($matchesOfKey.Matches.Count -gt 0) { ($settingsRaw.Substring(0, $matchesOfKey.Matches[0].Index) -split '\r?\n').Count } else { 0 };
-          $itemIndex = 0;
-          foreach ($item in $itemList) {
-            $itemIndex++;
-            if (($IsExactEqual -and $item.aliasName -eq $Prefix) -or (-not $IsExactEqual -and $item.aliasName -like ($Prefix + '*'))) {
-              $itemDesc = $item.description;
-              $hasDesc = -not [string]::IsNullOrWhiteSpace($itemDesc);
+        foreach ($kg in $keyGroupNames) {
+          $objList = $settings.PSObject.Properties[$kg].Value;
+          if (-not $objList) { continue; }
+          $sumGroups++; $sumItems += $objList.Count; $hasHitInGroup = 0;
+          $matchedKeys = Select-String -InputObject $settingsRaw -Pattern ('(?m)^\s*' + $dq + [regex]::Escape($kg) + $dq) -AllMatches;
+          $kgBegRow = if ($matchedKeys.Matches.Count -gt 0) { ($settingsRaw.Substring(0, $matchedKeys.Matches[0].Index) -split '\r?\n').Count } else { 0 };
+          $idx = 0;
+          foreach ($obj in $objList) {
+            $idx++;
+            if (($IsExactEqual -and ($obj.aliasName -eq $Prefix)) -or ($isRegex -and ($obj.aliasName -match $Prefix)) -or ((-not $IsExactEqual) -and (-not $isRegex) -and ($obj.aliasName -like ($Prefix + '*')))) {
+              $objDesc = $obj.description;
+              $hasDesc = -not [string]::IsNullOrWhiteSpace($objDesc);
               if ($Description -eq 'yes' -and -not $hasDesc) { continue; }
               if ($Description -eq 'no' -and $hasDesc) { continue; }
-              if (-not $NameOnly -and $countInSettings -gt 0) { Write-Host ''; }
-              $countInSettings++; $foundNames += $item.aliasName;
-              if (-not $hasFoundInGroup) { $foundGroupCount++; $foundGroupNames += $keyGroup; $hasFoundInGroup = 1; }
-              $itemRow = $keyGroupStartRow + $itemIndex;
-              $nameMatches = Select-String -InputObject $settingsRaw -Pattern ($dq + 'aliasName' + $dq + '\s*:\s*' + $dq + [regex]::Escape($item.aliasName) + $dq) -AllMatches;
-              foreach ($oneMatch in $nameMatches.Matches) { $matchRow = ($settingsRaw.Substring(0, $oneMatch.Index) -split '\r?\n').Count; if ($matchRow -ge $keyGroupStartRow) { $itemRow = $matchRow; break; } }
-              Write-Host 'aliasName = ' -NoNewline; Write-Host $item.aliasName -ForegroundColor Green;
-              if (-not $NameOnly) {
-                Write-Host 'aliasBody = ' -NoNewline; Write-Host $item.aliasBody -ForegroundColor Cyan;
-                Write-Host 'description = ' -NoNewline; Write-Host $itemDesc;
-                Write-Host ('Source = ' + $keyGroup + ' at ' + $settingsPath + ':' + $itemRow + ':') -ForegroundColor DarkGray;
-              }
+              if (($sb -or $sd -or $ss) -and $cntSets -gt 0) { Write-Host ''; }
+              $cntSets++; $hitNames += $obj.aliasName;
+              if (-not $hasHitInGroup) { $hitGroups++; $hitGrpNames += $kg; $hasHitInGroup = 1; }
+              $objRow = $kgBegRow + $idx;
+              $nameMatches = Select-String -InputObject $settingsRaw -Pattern ($dq + 'aliasName' + $dq + '\s*:\s*' + $dq + [regex]::Escape($obj.aliasName) + $dq) -AllMatches;
+              foreach ($oneMatch in $nameMatches.Matches) { $matchRow = ($settingsRaw.Substring(0, $oneMatch.Index) -split '\r?\n').Count; if ($matchRow -ge $kgBegRow) { $objRow = $matchRow; break; } }
+              $objBody = $obj.aliasBody; $sumBodyLen += $objBody.Length;
+              if ($sn) { Write-Host 'aliasName = ' -No; Write-Host $obj.aliasName -Fore Green; }
+              if ($sb) { Write-Host 'aliasBody = ' -No; Write-Host $objBody -Fore Cyan; }
+              if ($sd) { Write-Host 'description = ' -No; Write-Host $objDesc; }
+              if ($ss) { Write-Host 'location = ' -No; Write-Host ($kg + ' at ' + $settingsPath + ':' + $objRow + ':') -Fore DarkGray; }
             }
           }
         }
-      } catch { }
+      } catch {
+        Write-Host ('Error reading settings: ' + $_.Exception.Message) -Fore Red;
+      }
     }
-    if (-not $SettingsOnly -and $Description -ne 'yes' -and ($countInSettings -eq 0 -or -not $IsExactEqual)${isWindows ? ' -and (Test-Path $cmdFilePath)' : ''}) {
-      $searchPattern = if ($IsExactEqual) { '^\s*${isWindows ? '' : '(alias\\s+)?'}' + [regex]::Escape($Prefix) + '=' } else { '^\s*${isWindows ? '' : '(alias\\s+)?'}' + [regex]::Escape($Prefix) + '[\w-]*=' };
-      $foundNameSet = New-Object 'System.Collections.Generic.HashSet[string]'([StringComparer]::OrdinalIgnoreCase);
-      foreach ($name in $foundNames) { [void] $foundNameSet.Add($name); }
+    if (-not $SettingsOnly -and $Description -ne 'yes' -and ($cntSets -eq 0 -or -not $IsExactEqual)${isWindows ? ' -and (Test-Path $cmdFilePath)' : ''}) {
+      $searchPattern = if ($IsExactEqual) { '^\s*${isWindows ? '' : '(alias\\s+)?'}' + [regex]::Escape($Prefix) + '=' } elseif ($isRegex) { '^\s*${isWindows ? '' : '(alias\\s+)?'}[\w-]+=' } else { '^\s*${isWindows ? '' : '(alias\\s+)?'}' + [regex]::Escape($Prefix) + '[\w-]*=' };
+      $hitNameSet = New-Object 'System.Collections.Generic.HashSet[string]'([StringComparer]::OrdinalIgnoreCase);
+      foreach ($name in $hitNames) { [void] $hitNameSet.Add($name); }
       ${isWindows
-      ? `$foundInFile = msr -p $cmdFilePath${unixSlashArg} -t $searchPattern --nt '^\\s*#' -AC 2>$null;
-      if ($foundInFile) {
+      ? `$hitInFile = msr -p $cmdFilePath${unixSlashArg} -t $searchPattern --nt '^\\s*#' -AC 2>$null;
+      if ($hitInFile) {
         ${getWindowsSearchCmdFileCode()}
       }`
       : `$bashrcNameCountMap = @{};
-      $foundCmdFileSet = New-Object 'System.Collections.Generic.HashSet[string]'([StringComparer]::OrdinalIgnoreCase);
+      $hitCmdFileSet = New-Object 'System.Collections.Generic.HashSet[string]'([StringComparer]::OrdinalIgnoreCase);
       $homeBashrc = Join-Path $env:HOME '.bashrc'; ${toUnixPath('homeBashrc')}
       $cmdFilePaths = @($homeBashrc, $cmdFilePath) | Where-Object { Test-Path $_ };
       foreach ($oneCmdFilePath in $cmdFilePaths) {
-        $foundInFile = msr -p $oneCmdFilePath${unixSlashArg} -b $searchPattern -Q '^alias \\w+' -y -T -1 -AC 2>$null;
-        if ($foundInFile) {
+        $hitInFile = msr -p $oneCmdFilePath${unixSlashArg} -b $searchPattern -Q '^alias \\w+' -y -T -1 -AC 2>$null;
+        if ($hitInFile) {
           ${getLinuxSearchCmdFileCode()}
         }
       }
       $dupNames = @($bashrcNameCountMap.Keys | Where-Object { $bashrcNameCountMap[$_] -gt 1 });
       if ($dupNames.Count -gt 0) {
         Write-Host '';
-        Write-Host ('Found ' + $dupNames.Count + ' duplicate alias in 2 bashrc files: ' + ($dupNames -join ' + ')) -ForegroundColor Yellow;
+        Write-Host ('Found ' + $dupNames.Count + ' duplicate alias in 2 bashrc files: ' + ($dupNames -join ' + ')) -Fore Yellow;
       }`}
     }
     $summaryParts = @();
-    $sumFound = $countInSettings + $countInAliasFiles;
-    if ($sumFound -gt 0) { $summaryParts += 'Found ' + [string]$sumFound + ' alias(es) in total.'; }
-    if ($countInAliasFiles -gt 0) { $summaryParts += 'Found ' + [string]$countInAliasFiles + ' alias(es) in ${config.cmdFileType} file(s): ' + ${isWindows ? '$cmdFilePath' : '($foundCmdFileSet -join ([char]44 + [char]32))'} + '.'; }
-    if ($countInSettings -gt 0) { $summaryParts += 'Found ' + [string]$countInSettings + ' alias(es) in ' + $foundGroupCount + ' groups from ' + $sumItemCount + ' aliases in ' + $sumGroupCount + ' groups: ' + ($foundGroupNames -join ', ') + ' in ' + $settingsPath + '.'; }
-    if ($summaryParts.Count -gt 0) { Write-Host ''; Write-Host ($summaryParts -join ' ') -ForegroundColor Green; }
-    elseif ($countInSettings -eq 0 -and $countInAliasFiles -eq 0) {
-      $notFoundMsg = if ($IsExactEqual) { 'Not found alias name = ' } else { 'Not found alias starting with: ' };
-      Write-Host ($notFoundMsg + $Prefix + ' or not matching other conditions.') -ForegroundColor Red;
+    $sumFound = $cntSets + $cntFiles;
+    if ($sumFound -gt 0) { $summaryParts += 'Found ' + [string]$sumFound + ' aliases' + $matchMode + ' in total, sumAliasBodyLen = ' + [string]$sumBodyLen + '.'; }
+    if ($cntFiles -gt 0) { $summaryParts += 'Found ' + [string]$cntFiles + ' aliases in ${config.cmdFileType} file(s): ' + ${isWindows ? '$cmdFilePath' : '($hitCmdFileSet -join ([char]44 + [char]32))'} + '.'; }
+    if ($cntSets -gt 0) { $summaryParts += 'Found ' + [string]$cntSets + ' aliases in ' + $hitGroups + ' groups from ' + $sumItems + ' aliases in ' + $sumGroups + ' groups: ' + ($hitGrpNames -join ', ') + ' in ' + $settingsPath + '.'; }
+    if ($summaryParts.Count -gt 0) { Write-Host ''; Write-Host ($summaryParts -join ' ') -Fore Green; }
+    elseif ($cntSets -eq 0 -and $cntFiles -eq 0) {
+      Write-Host ('No alias found' + $matchMode + ': ' + $Prefix + ' or not matching other conditions.') -Fore Red;
     }`;
 }
 
@@ -455,28 +424,33 @@ function getRemoveAliasBody(terminalType: TerminalType, useUnixSlash: boolean = 
     ? `function ToUnixPath($p) { return $p -replace [regex]::Escape([char]92), [char]47; }`
     : `function ToUnixPath($p) { return $p; }`;
   return String.raw`
-    $inputArgs = @{}; $positionalArgs = @();
-    $currentArgName = $null;
-    foreach ($inputValue in @('$*' -split '\s+' | Where-Object { $_ })) {
-      if ($inputValue -match '^-(\w+)$') { $currentArgName = $Matches[1]; }
-      elseif ($currentArgName) { $inputArgs[$currentArgName] = $inputValue; $currentArgName = $null; }
-      else { $positionalArgs += $inputValue; }
+    $inArgs = @{}; $posArgs = @();
+    $curArgName = $null;
+    foreach ($va in @('$*' -split '\s+' | Where-Object { $_ })) {
+      if ($va -match '^-(\w+)$') { $curArgName = $Matches[1]; }
+      elseif ($curArgName) { $inArgs[$curArgName] = $va; $curArgName = $null; }
+      else { $posArgs += $va; }
     }
-    function Get-ParamValue($argName) { $matched = @($inputArgs.Keys | Where-Object { $argName -like ($_ + '*') }); if ($matched.Count -eq 1) { return $inputArgs[$matched[0]]; } elseif ($inputArgs.ContainsKey($argName)) { return $inputArgs[$argName]; } return $null; }
-    $InputNames = if ($positionalArgs.Count -gt 0) { $positionalArgs -join ',' } else { '' };
-    $pv = Get-ParamValue 'SettingsOnly'; $SettingsOnly = if ($null -ne $pv) { $pv -imatch '^(1|true|y|yes)$' } else { 0 };
-    $pv = Get-ParamValue 'OnlyThisOS'; $OnlyThisOS = if ($null -ne $pv) { -not ($pv -imatch '^(0|false|n|no)$') } else { 1 };
-    $pv = Get-ParamValue 'KeepScripts'; $KeepScripts = if ($null -ne $pv) { $pv -imatch '^(1|true|y|yes)$' } else { 0 };
-    if (-not $InputNames) { Write-Host 'Usage: rm-alias <AliasNames> [-SettingsOnly 0] [-OnlyThisOS 1] [-KeepScripts 0]' -ForegroundColor Red; Write-Host 'AliasNames: comma-separated alias names to delete' -ForegroundColor Yellow; Write-Host '-SettingsOnly 1: Only delete from settings.json (skip doskeys/bashrc and script files)' -ForegroundColor Yellow; Write-Host '-OnlyThisOS 0: Check all 3 groups in settings.json (common + bash + cmd), not just current OS groups' -ForegroundColor Yellow; Write-Host '-KeepScripts 1: Keep script files (do not delete them)' -ForegroundColor Yellow; exit 1; }
+    function Get-ParamValue($argName) { $matched = @($inArgs.Keys | Where-Object { $argName -like ($_ + '*') }); if ($matched.Count -eq 1) { return $inArgs[$matched[0]]; } elseif ($inArgs.ContainsKey($argName)) { return $inArgs[$argName]; } return $null; }
+    $InputNames = if ($posArgs.Count -gt 0) { $posArgs -join ',' } else { '' };
+    $pv = Get-ParamValue 'SettingsOnly'; $SettingsOnly = if ($null -ne $pv) { $pv -imatch '^(1|true|y)' } else { 0 };
+    $pv = Get-ParamValue 'OnlyThisOS'; $OnlyThisOS = if ($null -ne $pv) { -not ($pv -imatch '^(0|false|n)') } else { 1 };
+    $pv = Get-ParamValue 'KeepScripts'; $KeepScripts = if ($null -ne $pv) { $pv -imatch '^(1|true|y)' } else { 0 };
+    $pv = Get-ParamValue 'Preview'; $Preview = if ($null -ne $pv) { $pv -imatch '^(1|true|y)' } else { 0 };
+    if (-not $InputNames) { Write-Host 'Usage: rm-alias <AliasNames|Regex> [-SettingsOnly 0] [-OnlyThisOS 1] [-KeepScripts 0] [-Preview 0]' -Fore Red; Write-Host 'AliasNames: comma names or regex (auto-detected by special chars ^$.*+?|[])' -Fore Yellow; Write-Host 'Examples: rm-alias find-cs,find-py | rm-alias "find-.*" | rm-alias "^rgfind-.*" -Preview true' -Fore Cyan; Write-Host '-SettingsOnly 1: Only remove from settings.json, skip doskeys/bashrc and scripts' -Fore Yellow; Write-Host '-OnlyThisOS 0: Check all groups in settings, not just current OS' -Fore Yellow; Write-Host '-KeepScripts 1: Keep script files' -Fore Yellow; Write-Host '-Preview 1: Show matched aliases without deleting' -Fore Yellow; exit 1; }
     ${toUnixSlashFunc}
     ${config.settingsPathCode}
     ${cmdFilePathCode}
-    $inputNameList = @($InputNames -split '\s*,\s*' | Where-Object { $_ });
+    $isRegexMode = $InputNames -notmatch '^[\w\-,]+$';
+    $matchMode = if ($isRegexMode) { ' by regex' } else { ' by name' };
+    $inputNameList = @();
+    if (-not $isRegexMode) {
+      $inputNameList = @($InputNames -split '\s*,\s*' | Where-Object { $_ });
+    }
     $deleteCount = 0;
     $notFoundNames = @();
     $foundInCmdFile = @();
     $foundInSettings = @();
-    $deletedScripts = @();
     $cmdFileContent = $null;
     $cmdFileModified = 0;
     if (-not $SettingsOnly -and (Test-Path $cmdFilePath)) { $cmdFileContent = Get-Content $cmdFilePath -Raw; }
@@ -486,6 +460,71 @@ function getRemoveAliasBody(terminalType: TerminalType, useUnixSlash: boolean = 
     $dq = [char]34;
     if (Test-Path $settingsPath) { try { $settingsRaw = Get-Content $settingsPath -Raw; $settings = $settingsRaw | ConvertFrom-Json; } catch { } }
     $keyGroupNames = if ($OnlyThisOS) { @('msr.commonAliasNameBodyList','${config.osSpecificGroup}') } else { @('msr.commonAliasNameBodyList','msr.bash.commonAliasNameBodyList','msr.cmd.commonAliasNameBodyList') };
+    if ($isRegexMode) {
+      $regexPattern = $InputNames;
+      $matchedNames = @();
+      if (-not $SettingsOnly -and $cmdFileContent) {
+        ${isWindows
+      ? `$cmdFileContent -split '\\r?\\n' | ForEach-Object {
+          if ($_ -match '^([\\w-]+)=' -and $Matches[1] -match $regexPattern) { $matchedNames += $Matches[1]; }
+        };`
+      : `$cmdFileContent -split '\\r?\\n' | ForEach-Object {
+          if ($_ -match '^\\s*alias\\s+([\\w-]+)=' -and $Matches[1] -match $regexPattern) { $matchedNames += $Matches[1]; }
+        };`}
+      }
+      if ($settings -and $settingsRaw) {
+        foreach ($keyGroup in $keyGroupNames) {
+          $prop = $settings.PSObject.Properties[$keyGroup];
+          if ($prop -and $prop.Value) {
+            foreach ($item in $prop.Value) {
+              if ($item.aliasName -match $regexPattern -and $matchedNames -notcontains $item.aliasName) {
+                $matchedNames += $item.aliasName;
+              }
+            }
+          }
+        }
+      }
+      if (-not $SettingsOnly -and -not $KeepScripts -and (Test-Path $scriptFolder)) {
+        Get-ChildItem -Path $scriptFolder -File | ForEach-Object {
+          $scriptName = $_.BaseName;
+          if ($scriptName -match $regexPattern -and $matchedNames -notcontains $scriptName) {
+            $matchedNames += $scriptName;
+          }
+        };
+      }
+      $matchedNames = @($matchedNames | Sort-Object -Unique);
+      if ($matchedNames.Count -eq 0) {
+        Write-Host ('No alias matched regex pattern: ' + $regexPattern) -Fore Red;
+        exit 1;
+      }
+      $inputNameList = $matchedNames;
+    }
+    function Get-SrcRow($raw, $pt) { $ms = Select-String -InputObject $raw -Pattern $pt -AllMatches; if ($ms.Matches.Count -gt 0) { ($raw.Substring(0, $ms.Matches[0].Index) -split '\r?\n').Count } else { 0 } }
+    function Test-AliasExists($pn) {
+      if ($cmdFileContent) { ${isWindows
+      ? `if ($cmdFileContent -match ('(?m)^\\s*' + [regex]::Escape($pn) + '=')) { return 1; }`
+      : `if ($cmdFileContent -match ('(?m)^\\s*alias\\s+' + [regex]::Escape($pn) + '=')) { return 1; }`} }
+      if ($settings) { foreach ($kg in $keyGroupNames) { $pp = $settings.PSObject.Properties[$kg]; if ($pp -and $pp.Value) { foreach ($it in $pp.Value) { if ($it.aliasName -eq $pn) { return 1; } } } } }
+      if (-not $SettingsOnly -and -not $KeepScripts) { if (Test-Path (Join-Path $scriptFolder ($pn + '${config.scriptExt}'))) { return 1; } }
+      return 0;
+    }
+    function Show-Names($nl, $c) { foreach ($n in $nl) { Write-Host ('  - ' + $n) -Fore $c; } }
+    if ($Preview) {
+      $existNames = @(); $missNames = @();
+      foreach ($pn in $inputNameList) { if (Test-AliasExists $pn) { $existNames += $pn; } else { $missNames += $pn; } }
+      Write-Host '[Preview] Would delete the following aliases:' -Fore Cyan;
+      Show-Names $existNames Yellow;
+      if ($missNames.Count -gt 0) {
+        Write-Host ('[Preview] Not found in any source (' + $missNames.Count + '):') -Fore DarkGray;
+        Show-Names $missNames DarkGray;
+      }
+      if ($isRegexMode) {
+        Write-Host ('Found ' + $inputNameList.Count + ' matching regex: ' + $InputNames + ', ' + $existNames.Count + ' to delete, ' + $missNames.Count + ' not found.') -Fore Green;
+      } else {
+        Write-Host ('Input ' + $inputNameList.Count + ' aliases' + $matchMode + ', ' + $existNames.Count + ' found to delete, ' + $missNames.Count + ' not found.') -Fore Green;
+      }
+      exit 0;
+    }
     foreach ($itemName in $inputNameList) {
       $foundForItem = 0;
       if (-not $SettingsOnly -and $cmdFileContent) {
@@ -506,8 +545,7 @@ function getRemoveAliasBody(terminalType: TerminalType, useUnixSlash: boolean = 
         $scriptPath = Join-Path $scriptFolder ($itemName + '${config.scriptExt}');
         if (Test-Path $scriptPath) {
           Remove-Item -Path $scriptPath -Force;
-          Write-Host ('Deleted script file: ' + (ToUnixPath $scriptPath)) -ForegroundColor Yellow;
-          $deletedScripts += (ToUnixPath $scriptPath);
+          Write-Host ('Deleted script file: ' + (ToUnixPath $scriptPath)) -Fore Yellow;
           $deleteCount++; $foundForItem = 1;
         }
       }
@@ -520,11 +558,9 @@ function getRemoveAliasBody(terminalType: TerminalType, useUnixSlash: boolean = 
             if ($newItemList.Count -lt $itemList.Count) {
               $prop.Value = $newItemList;
               $settingsModified++;
-              $matchesOfKey = Select-String -InputObject $settingsRaw -Pattern ('(?m)^\s*' + $dq + [regex]::Escape($keyGroup) + $dq) -AllMatches;
-              $keyGroupStartRow = if ($matchesOfKey.Matches.Count -gt 0) { ($settingsRaw.Substring(0, $matchesOfKey.Matches[0].Index) -split '\r?\n').Count } else { 0 };
-              $itemRow = $keyGroupStartRow;
-              $nameMatches = Select-String -InputObject $settingsRaw -Pattern ($dq + 'aliasName' + $dq + '\s*:\s*' + $dq + [regex]::Escape($itemName) + $dq) -AllMatches;
-              foreach ($oneMatch in $nameMatches.Matches) { $matchRow = ($settingsRaw.Substring(0, $oneMatch.Index) -split '\r?\n').Count; if ($matchRow -ge $keyGroupStartRow) { $itemRow = $matchRow; break; } }
+              $kgRow = Get-SrcRow $settingsRaw ('(?m)^\s*' + $dq + [regex]::Escape($keyGroup) + $dq);
+              $itemRow = Get-SrcRow $settingsRaw ($dq + 'aliasName' + $dq + '\s*:\s*' + $dq + [regex]::Escape($itemName) + $dq);
+              if ($itemRow -lt $kgRow -or $itemRow -eq 0) { $itemRow = $kgRow; }
               $foundInSettings += ($keyGroup + ': ' + $itemName + ' at ' + (ToUnixPath $settingsPath) + ':' + $itemRow + ':');
               $deleteCount++; $foundForItem = 1;
             }
@@ -535,41 +571,39 @@ function getRemoveAliasBody(terminalType: TerminalType, useUnixSlash: boolean = 
     }
     if ($cmdFileModified -gt 0) {
       Set-Content -Path $cmdFilePath -Value $cmdFileContent.TrimEnd() -NoNewline;
-      Write-Host ('Removed ' + $foundInCmdFile.Count + ' alias(es) from ' + $cmdFilePath + ': ' + ($foundInCmdFile -join ', ')) -ForegroundColor Green;
-    }
-    if ($deletedScripts.Count -gt 0) {
-      Write-Host ('Deleted ' + $deletedScripts.Count + ' script file(s): ' + ($deletedScripts -join ', ')) -ForegroundColor Green;
+      Write-Host ('Removed ' + $foundInCmdFile.Count + ' aliases from ' + (ToUnixPath $cmdFilePath)) -Fore Green;
     }
     if ($settingsModified -gt 0) {
       $newJson = $settings | ConvertTo-Json -Depth 100;
       Set-Content -Path $settingsPath -Value $newJson -Encoding UTF8;
-      Write-Host ('Removed ' + $foundInSettings.Count + ' alias(es) from ' + ($foundInSettings -join ', ')) -ForegroundColor Green;
+      Write-Host ('Removed ' + $foundInSettings.Count + ' aliases from ' + (ToUnixPath $settingsPath)) -Fore Green;
     }
     if ($notFoundNames.Count -gt 0) {
-      Write-Host ('Alias not found: ' + ($notFoundNames -join ', ')) -ForegroundColor Red;
+      Write-Host ('Alias not found' + $matchMode + ': ' + ($notFoundNames -join ', ')) -Fore Red;
     }
     if ($deleteCount -gt 0) {
-      Write-Host ('Total removed: ' + $deleteCount + ' item(s)') -ForegroundColor Cyan;
+      Write-Host ('Total removed' + $matchMode + ': ' + $deleteCount + ' items') -Fore Cyan;
     }`;
 }
 
 let LinuxAliasMap: Map<string, string> = new Map<string, string>()
   .set('vim-to-row', String.raw`msr -z "$1" -t "^(.+?):(\d+)(:.*)?$" -o "vim +\2 +\"set number\" \"\1\"" -XM`)
-  // Pure bash versions for Linux - use (del-this-tmp-list) 2>/dev/null to suppress stderr
-  .set('gpc', String.raw`git rev-parse --abbrev-ref HEAD | msr -t "(.+)" -o "git pull origin \1 $*" --to-stderr --keep-color -XM; (del-this-tmp-list) 2>/dev/null`)
-  .set('gpm', String.raw`mainRef=$(git rev-parse --verify origin/main 2>/dev/null); primaryBranch=$([ -n "$mainRef" ] && echo main || echo master); msr --to-stderr --keep-color -XM -z "git pull origin $primaryBranch $*"; (del-this-tmp-list) 2>/dev/null`)
+  // Pure bash versions for Linux - git hash check in update-repo-paths handles cache refresh automatically
+  .set('gpc', String.raw`git rev-parse --abbrev-ref HEAD | msr -t "(.+)" -o "git pull origin \1 $*" --to-stderr --keep-color -XM`)
+  .set('gpm', String.raw`mainRef=$(git rev-parse --verify origin/main 2>/dev/null); primaryBranch=$([ -n "$mainRef" ] && echo main || echo master); msr --to-stderr --keep-color -XM -z "git pull origin $primaryBranch $*"`)
   .set('gfm', String.raw`mainRef=$(git rev-parse --verify origin/main 2>/dev/null); primaryBranch=$([ -n "$mainRef" ] && echo main || echo master); msr --to-stderr --keep-color -XM -z "git fetch origin $primaryBranch $*"`)
-  .set('gpc-sm', String.raw`git rev-parse --abbrev-ref HEAD | msr -t "(.+)" -o "git pull origin \1 --no-recurse-submodules" -XM; (del-this-tmp-list) 2>/dev/null; msr -z "git submodule sync && git submodule update --init" -t "&&" -o "\n" -PAC | msr -XM -V ne0`)
-  .set('gpc-sm-reset', String.raw`git rev-parse --abbrev-ref HEAD | msr -t "(.+)" -o "git pull origin \1 --no-recurse-submodules" -XM && msr -z "git submodule sync && git submodule update --init && git submodule update -f" -t "&&" -o "\n" -PAC | msr -XM -V ne0; (del-this-tmp-list) 2>/dev/null; git status`)
-  .set('git-sm-init', String.raw`msr -XMz "git submodule sync" && echo git submodule update --init $* | msr -XM; (del-this-tmp-list) 2>/dev/null; git status`)
-  .set('git-sm-reset', String.raw`msr -XMz "git submodule sync" && msr -XMz "git submodule init" && echo git submodule update -f $* | msr -XM; (del-this-tmp-list) 2>/dev/null; git status`)
-  .set('git-sm-restore', String.raw`echo git restore . --recurse-submodules $* | msr -XM; (del-this-tmp-list) 2>/dev/null; git status`)
+  .set('gpc-sm', String.raw`git rev-parse --abbrev-ref HEAD | msr -t "(.+)" -o "git pull origin \1 --no-recurse-submodules" -XM; msr -z "git submodule sync && git submodule update --init" -t "&&" -o "\n" -PAC | msr -XM -V ne0`)
+  .set('gpc-sm-reset', String.raw`git rev-parse --abbrev-ref HEAD | msr -t "(.+)" -o "git pull origin \1 --no-recurse-submodules" -XM && msr -z "git submodule sync && git submodule update --init && git submodule update -f" -t "&&" -o "\n" -PAC | msr -XM -V ne0; git status`)
+  .set('git-sm-init', String.raw`msr -XMz "git submodule sync" && echo git submodule update --init $* | msr -XM; git status`)
+  .set('git-sm-reset', String.raw`msr -XMz "git submodule sync" && msr -XMz "git submodule init" && echo git submodule update -f $* | msr -XM; git status`)
+  .set('git-sm-restore', String.raw`echo git restore . --recurse-submodules $* | msr -XM; git status`)
+  .set('git-rm-junk', String.raw`git ls-files --others --exclude-standard | msr -t "(.+)" -o "rm -f \"\1\"" -XMO; git status`)
   .set('gdm', String.raw`mainRef=$(git rev-parse --verify origin/main 2>/dev/null); primaryRef=$([ -n "$mainRef" ] && echo origin/main || echo origin/master); cnt3=$(git diff --name-only "$primaryRef..." 2>/dev/null | wc -l); cnt2=$(git diff --name-only $primaryRef 2>/dev/null | wc -l); dots=$([ $cnt3 -le $cnt2 ] && echo "..." || echo ""); msr --to-stderr --keep-color -XM -z "git difftool $primaryRef$dots $*"`)
-  .set('gdm-l', String.raw`mainRef=$(git rev-parse --verify origin/main 2>/dev/null); primaryRef=$([ -n "$mainRef" ] && echo origin/main || echo origin/master); cnt3=$(git diff --name-only "$primaryRef..." 2>/dev/null | wc -l); cnt2=$(git diff --name-only $primaryRef 2>/dev/null | wc -l); dots=$([ $cnt3 -le $cnt2 ] && echo "..." || echo ""); msr --to-stderr --keep-color -XM -z "git diff --name-only $primaryRef$dots $*"`)
-  .set('gdm-al', String.raw`mainRef=$(git rev-parse --verify origin/main 2>/dev/null); primaryRef=$([ -n "$mainRef" ] && echo origin/main || echo origin/master); cnt3=$(git diff --name-only --diff-filter=A "$primaryRef..." 2>/dev/null | wc -l); cnt2=$(git diff --name-only --diff-filter=A $primaryRef 2>/dev/null | wc -l); dots=$([ $cnt3 -le $cnt2 ] && echo "..." || echo ""); msr --to-stderr --keep-color -XM -z "git diff --name-only --diff-filter=A $primaryRef$dots $*"`)
+  .set('gdm-l', String.raw`mainRef=$(git rev-parse --verify origin/main 2>/dev/null); primaryRef=$([ -n "$mainRef" ] && echo origin/main || echo origin/master); cnt3=$(git diff --name-only "$primaryRef..." 2>/dev/null | wc -l); cnt2=$(git diff --name-only $primaryRef 2>/dev/null | wc -l); dots=$([ $cnt3 -le $cnt2 ] && echo "..." || echo ""); msr --to-stderr --keep-color -XM -z "git --no-pager diff --name-only $primaryRef$dots $*"`)
+  .set('gdm-al', String.raw`mainRef=$(git rev-parse --verify origin/main 2>/dev/null); primaryRef=$([ -n "$mainRef" ] && echo origin/main || echo origin/master); cnt3=$(git diff --name-only --diff-filter=A "$primaryRef..." 2>/dev/null | wc -l); cnt2=$(git diff --name-only --diff-filter=A $primaryRef 2>/dev/null | wc -l); dots=$([ $cnt3 -le $cnt2 ] && echo "..." || echo ""); msr --to-stderr --keep-color -XM -z "git --no-pager diff --name-only --diff-filter=A $primaryRef$dots $*"`)
   .set('gdm-m', String.raw`mainRef=$(git rev-parse --verify origin/main 2>/dev/null); primaryRef=$([ -n "$mainRef" ] && echo origin/main || echo origin/master); cnt3=$(git diff --name-only --diff-filter=M "$primaryRef..." 2>/dev/null | wc -l); cnt2=$(git diff --name-only --diff-filter=M $primaryRef 2>/dev/null | wc -l); dots=$([ $cnt3 -le $cnt2 ] && echo "..." || echo ""); msr --to-stderr --keep-color -XM -z "git difftool --diff-filter=M $primaryRef$dots $*"`)
-  .set('gdm-ml', String.raw`mainRef=$(git rev-parse --verify origin/main 2>/dev/null); primaryRef=$([ -n "$mainRef" ] && echo origin/main || echo origin/master); cnt3=$(git diff --name-only --diff-filter=M "$primaryRef..." 2>/dev/null | wc -l); cnt2=$(git diff --name-only --diff-filter=M $primaryRef 2>/dev/null | wc -l); dots=$([ $cnt3 -le $cnt2 ] && echo "..." || echo ""); msr --to-stderr --keep-color -XM -z "git diff --name-only --diff-filter=M $primaryRef$dots $*"`)
-  .set('gdm-dl', String.raw`mainRef=$(git rev-parse --verify origin/main 2>/dev/null); primaryRef=$([ -n "$mainRef" ] && echo origin/main || echo origin/master); cnt3=$(git diff --name-only --diff-filter=D "$primaryRef..." 2>/dev/null | wc -l); cnt2=$(git diff --name-only --diff-filter=D $primaryRef 2>/dev/null | wc -l); dots=$([ $cnt3 -le $cnt2 ] && echo "..." || echo ""); msr --to-stderr --keep-color -XM -z "git diff --name-only --diff-filter=D $primaryRef$dots $*"`)
+  .set('gdm-ml', String.raw`mainRef=$(git rev-parse --verify origin/main 2>/dev/null); primaryRef=$([ -n "$mainRef" ] && echo origin/main || echo origin/master); cnt3=$(git diff --name-only --diff-filter=M "$primaryRef..." 2>/dev/null | wc -l); cnt2=$(git diff --name-only --diff-filter=M $primaryRef 2>/dev/null | wc -l); dots=$([ $cnt3 -le $cnt2 ] && echo "..." || echo ""); msr --to-stderr --keep-color -XM -z "git --no-pager diff --name-only --diff-filter=M $primaryRef$dots $*"`)
+  .set('gdm-dl', String.raw`mainRef=$(git rev-parse --verify origin/main 2>/dev/null); primaryRef=$([ -n "$mainRef" ] && echo origin/main || echo origin/master); cnt3=$(git diff --name-only --diff-filter=D "$primaryRef..." 2>/dev/null | wc -l); cnt2=$(git diff --name-only --diff-filter=D $primaryRef 2>/dev/null | wc -l); dots=$([ $cnt3 -le $cnt2 ] && echo "..." || echo ""); msr --to-stderr --keep-color -XM -z "git --no-pager diff --name-only --diff-filter=D $primaryRef$dots $*"`)
   .set('gdm-nt', String.raw`mainRef=$(git rev-parse --verify origin/main 2>/dev/null); primaryRef=$([ -n "$mainRef" ] && echo origin/main || echo origin/master); cnt3=$(git diff --name-only "$primaryRef..." 2>/dev/null | wc -l); cnt2=$(git diff --name-only $primaryRef 2>/dev/null | wc -l); dots=$([ $cnt3 -le $cnt2 ] && echo "..." || echo ""); echo "git diff $primaryRef$dots $* | msr -b \"^\s*diff\s+\" -Q \"\" -y --nt \"^diff\s+.*?test\" -i -PIC" | msr -V lt0 --to-stderr --keep-color -XM`)
   .set('git-add-safe-dir', String.raw`repoRootDir=$(git rev-parse --show-toplevel);
       git config --global --get-all safe.directory
@@ -587,21 +621,21 @@ let LinuxAliasMap: Map<string, string> = new Map<string, string>()
   ;
 
 const CommonAliasMap: Map<string, string> = new Map<string, string>()
-  .set('gpc', String.raw`git rev-parse --abbrev-ref HEAD | msr -t "(.+)" -o "git pull origin \1 $*" --to-stderr --keep-color -XM & del-this-tmp-list 2>nul`)
-  .set('gpm', String.raw`pwsh -Command "$mainRef = git rev-parse --verify origin/main 2>$null; $primaryBranch = if ($mainRef) { 'main' } else { 'master' }; msr --to-stderr --keep-color -XM -z \"git pull origin $primaryBranch $*\"" & del-this-tmp-list 2>nul`)
+  // Git hash check in update-repo-paths handles cache refresh automatically - no need for del-this-tmp-list
+  .set('gpc', String.raw`git rev-parse --abbrev-ref HEAD | msr -t "(.+)" -o "git pull origin \1 $*" --to-stderr --keep-color -XM`)
+  .set('gpm', String.raw`pwsh -Command "$mainRef = git rev-parse --verify origin/main 2>$null; $primaryBranch = if ($mainRef) { 'main' } else { 'master' }; msr --to-stderr --keep-color -XM -z \"git pull origin $primaryBranch $*\""`)
   .set('gfm', String.raw`pwsh -Command "$mainRef = git rev-parse --verify origin/main 2>$null; $primaryBranch = if ($mainRef) { 'main' } else { 'master' }; msr --to-stderr --keep-color -XM -z \"git fetch origin $primaryBranch $*\""`)
   .set('gph', String.raw`git rev-parse --abbrev-ref HEAD | msr -t "(.+)" -o "git push origin \1 $*" -XM`)
   .set('gpc-sm', String.raw`git rev-parse --abbrev-ref HEAD | msr -t "(.+)" -o "git pull origin \1 --no-recurse-submodules" -XM
-          & del-this-tmp-list 2>nul & msr -z "git submodule sync && git submodule update --init" -t "&&" -o "\n" -PAC | msr -XM -V ne0`)
+          & msr -z "git submodule sync && git submodule update --init" -t "&&" -o "\n" -PAC | msr -XM -V ne0`)
   .set('gpc-sm-reset', String.raw`git rev-parse --abbrev-ref HEAD | msr -t "(.+)" -o "git pull origin \1 --no-recurse-submodules" -XM
           && msr -z "git submodule sync && git submodule update --init && git submodule update -f" -t "&&" -o "\n" -PAC | msr -XM -V ne0
-          & del-this-tmp-list 2>nul
           & git status`)
   .set('gca', String.raw`git commit --amend --no-edit $*`)
   .set('gfc', String.raw`git rev-parse --abbrev-ref HEAD | msr -t "(.+)" -o "git fetch origin \1" -XM`)
   .set('gfcs', String.raw`git rev-parse --abbrev-ref HEAD | msr -t "(.+)" -o "git fetch origin \1:refs/remotes/origin/\1 --depth=1 $*" -XM`)
   .set('gdc', String.raw`git rev-parse --abbrev-ref HEAD | msr -t "(.+)" -o "git difftool origin/\1 $*" -XM`)
-  .set('gdc-l', String.raw`git rev-parse --abbrev-ref HEAD | msr -t "(.+)" -o "git diff --name-only origin/\1 $*" -XM`)
+  .set('gdc-l', String.raw`git rev-parse --abbrev-ref HEAD | msr -t "(.+)" -o "git --no-pager diff --name-only origin/\1 $*" -XM`)
   .set('gdf', String.raw`git diff --name-only $1 | msr -t "(.+)" -o "git difftool $* \1" -XM`)
   .set('gsf', String.raw`git --no-pager diff --name-only $1^^! $2 $3 $4 $5 $6 $7 $8 $9`)
   .set('gsh', String.raw`git rev-parse --abbrev-ref HEAD | msr -t "(.+)" -o "git reset --hard origin/\1" -XM`)
@@ -609,45 +643,45 @@ const CommonAliasMap: Map<string, string> = new Map<string, string>()
           && msr -z "git submodule sync --init && git submodule update -f" -t "&&" -o "\n" -PAC | msr -XM -V ne0 & git status`)
   .set('gst', String.raw`git status $*`)
   .set('git-gc', String.raw`git reflog expire --all --expire=now && git gc --prune=now --aggressive`)
-  .set('git-rb-list', String.raw`git for-each-ref --format="%(refname:short)" refs/remotes/origin`)
+  .set('git-rb-list', String.raw`git --no-pager for-each-ref --format="%(refname:short)" refs/remotes/origin`)
   .set('git-shallow-clone', String.raw`echo git clone --single-branch --depth 1 $* && git clone --single-branch --depth 1 $*`)
   .set('git-clean', String.raw`msr -z "git clean -xffd && git submodule foreach --recursive git clean -xffd" -t "&&" -o "\n" -PAC | msr -XM`)
   .set('git-sm-prune', String.raw`msr -XM -z "git prune" && msr -XMz "git submodule foreach git prune"`)
-  .set('git-sm-init', String.raw`msr -XMz "git submodule sync" && echo git submodule update --init $* | msr -XM & del-this-tmp-list 2>nul & git status`)
+  .set('git-sm-init', String.raw`msr -XMz "git submodule sync" && echo git submodule update --init $* | msr -XM & git status`)
   .set('git-sm-reset', String.raw`msr -XMz "git submodule sync" && msr -XMz "git submodule init" && echo git submodule update -f $*
-          | msr -XM & del-this-tmp-list 2>nul & git status`)
-  .set('git-sm-restore', String.raw`echo git restore . --recurse-submodules $* | msr -XM & del-this-tmp-list 2>nul & git status`)
+          | msr -XM & git status`)
+  .set('git-sm-restore', String.raw`echo git restore . --recurse-submodules $* | msr -XM & git status`)
   .set('git-sm-reinit', String.raw`msr -XM -z "git submodule deinit -f ." && msr -XM -z "git submodule update --init" & git status`)
   .set('git-sm-update-remote', String.raw`msr -XMz "git submodule sync" && echo git submodule update --remote $* | msr -XM & git status`)
-  .set('git-cherry-pick-branch-new-old-commits', String.raw`git log $1 | msr -b "^commit $2" -q "^commit $3" -t "^commit (\w+)" -o "\1" -M -C
+  .set('git-cherry-pick-branch-new-old-commits', String.raw`git --no-pager log $1 | msr -b "^commit $2" -q "^commit $3" -t "^commit (\w+)" -o "\1" -M -C
           | msr -s "^:(\d+):" -n --dsc -t "^:\d+:(?:\d+:)?\s+(\w+)" -o "git cherry-pick \1" -X -V ne0 $4 $5 $6 $7 $8 $9`)
   .set('git-sm-check', String.raw`git diff --name-only HEAD
-          | msr -x / -o \ -aPAC | msr -t "(.+)" -o "if exist \1\* pushd \1 && git status --untracked-files=all --short && git diff --name-only" -XM $*`)
+          | msr -x / -o \ -aPAC | msr -t "(.+)" -o "if exist \1\* pushd \1 && git status --untracked-files=all --short && git --no-pager diff --name-only" -XM $*`)
   .set('git-sm-delete', String.raw`git diff --name-only HEAD
           | msr -x / -o \ -aPAC | msr -t "(.+)" -o "if exist \1\* pushd \1
               && git status --untracked-files=all --short
-              && git diff --name-only
+              && git --no-pager diff --name-only
               && git status --untracked-files=all --short
             | msr -t \"^\\W+\\s+(.+)\\s*$\" -o \"git clean -dfx \\1\" -XM" -XM`)
   .set('sfs', String.raw`msr -l --sz --wt -p $*`)
   .set('sft', String.raw`msr -l --wt --sz -p $*`)
-  .set('git-find-commit', String.raw`git log --since="36 months ago" --date=format-local:"%Y-%m-%d %H:%M:%S %z" --pretty=format:"%H %ad %an %s" --grep=$*`)
-  .set('git-find-content', String.raw`git log --since="36 months ago" --date=format-local:"%Y-%m-%d %H:%M:%S %z" --pretty=format:"%H %ad %an %s" -S $*`)
-  .set('git-find-log', String.raw`git log --since="36 months ago" --date=format-local:"%Y-%m-%d %H:%M:%S %z" | msr -b "^commit \w+" -Q "" -y -aPAC -it $* | msr -i -t "^(commit\W+|Author:|Date:)|$1" -P -e "^commit\W+.*|(^Author:.*)|^Date:.*"`)
-  .set('git-find-creation', String.raw`git log --since="36 months ago" --date=format-local:"%Y-%m-%d %H:%M:%S %z" --pretty=format:"%H %ad %an %s" --follow --diff-filter=A --name-status -- $*`)
-  .set('git-find-deletion', String.raw`git log --since="36 months ago" --date=format-local:"%Y-%m-%d %H:%M:%S %z" --pretty=format:"%H %ad %an %s" --follow --diff-filter=D --name-status -- $*`)
-  .set('git-find-update', String.raw`git log --since="36 months ago" --date=format-local:"%Y-%m-%d %H:%M:%S %z" --pretty=format:"%H %ad %an %s" --follow --diff-filter=M --name-status -- $*`)
-  .set('glc', String.raw`git rev-parse --abbrev-ref HEAD | msr -t "(.+)" -o "git log --date=format-local:\"%Y-%m-%d %H:%M:%S %z\" --pretty=format:\"%H %ad %an %s\" --name-only origin/\1 $*" -XIM --to-stderr --keep-color`)
-  .set('glcc', String.raw`git rev-parse --abbrev-ref HEAD | msr -t "(.+)" -o "git log --date=format-local:\"%Y-%m-%d %H:%M:%S %z\" --pretty=format:\"%H %ad %an %s\" --name-only \1 $*" -XIM --to-stderr --keep-color`)
+  .set('git-find-commit', String.raw`git --no-pager log --since="36 months ago" --date=format-local:"%Y-%m-%d %H:%M:%S %z" --pretty=format:"%H %ad %an %s" --grep=$*`)
+  .set('git-find-content', String.raw`git --no-pager log --since="36 months ago" --date=format-local:"%Y-%m-%d %H:%M:%S %z" --pretty=format:"%H %ad %an %s" -S $*`)
+  .set('git-find-log', String.raw`git --no-pager log --since="36 months ago" --date=format-local:"%Y-%m-%d %H:%M:%S %z" | msr -b "^commit \w+" -Q "" -y -aPAC -it $* | msr -i -t "^(commit\W+|Author:|Date:)|$1" -P -e "^commit\W+.*|(^Author:.*)|^Date:.*"`)
+  .set('git-find-creation', String.raw`git --no-pager log --since="36 months ago" --date=format-local:"%Y-%m-%d %H:%M:%S %z" --pretty=format:"%H %ad %an %s" --follow --diff-filter=A --name-status -- $*`)
+  .set('git-find-deletion', String.raw`git --no-pager log --since="36 months ago" --date=format-local:"%Y-%m-%d %H:%M:%S %z" --pretty=format:"%H %ad %an %s" --follow --diff-filter=D --name-status -- $*`)
+  .set('git-find-update', String.raw`git --no-pager log --since="36 months ago" --date=format-local:"%Y-%m-%d %H:%M:%S %z" --pretty=format:"%H %ad %an %s" --follow --diff-filter=M --name-status -- $*`)
+  .set('glc', String.raw`git rev-parse --abbrev-ref HEAD | msr -t "(.+)" -o "git --no-pager log --date=format-local:\"%Y-%m-%d %H:%M:%S %z\" --pretty=format:\"%H %ad %an %s\" --name-only origin/\1 $*" -XIM --to-stderr --keep-color`)
+  .set('glcc', String.raw`git rev-parse --abbrev-ref HEAD | msr -t "(.+)" -o "git --no-pager log --date=format-local:\"%Y-%m-%d %H:%M:%S %z\" --pretty=format:\"%H %ad %an %s\" --name-only \1 $*" -XIM --to-stderr --keep-color`)
   .set('gdm', String.raw`pwsh -Command "$mainRef = git rev-parse --verify origin/main 2>$null; $primaryRef = if ($mainRef) { 'origin/main' } else { 'origin/master' }; $cnt3 = @(git diff --name-only ($primaryRef + '...') 2>$null).Count; $cnt2 = @(git diff --name-only $primaryRef 2>$null).Count; $dots = if ($cnt3 -le $cnt2) { '...' } else { '' }; msr --to-stderr --keep-color -XM -z \"git difftool $primaryRef$dots $*\""`)
-  .set('gdm-l', String.raw`pwsh -Command "$mainRef = git rev-parse --verify origin/main 2>$null; $primaryRef = if ($mainRef) { 'origin/main' } else { 'origin/master' }; $cnt3 = @(git diff --name-only ($primaryRef + '...') 2>$null).Count; $cnt2 = @(git diff --name-only $primaryRef 2>$null).Count; $dots = if ($cnt3 -le $cnt2) { '...' } else { '' }; msr --to-stderr --keep-color -XM -z \"git diff --name-only $primaryRef$dots $*\""`)
-  .set('gdm-al', String.raw`pwsh -Command "$mainRef = git rev-parse --verify origin/main 2>$null; $primaryRef = if ($mainRef) { 'origin/main' } else { 'origin/master' }; $cnt3 = @(git diff --name-only --diff-filter=A ($primaryRef + '...') 2>$null).Count; $cnt2 = @(git diff --name-only --diff-filter=A $primaryRef 2>$null).Count; $dots = if ($cnt3 -le $cnt2) { '...' } else { '' }; msr --to-stderr --keep-color -XM -z \"git diff --name-only --diff-filter=A $primaryRef$dots $*\""`)
+  .set('gdm-l', String.raw`pwsh -Command "$mainRef = git rev-parse --verify origin/main 2>$null; $primaryRef = if ($mainRef) { 'origin/main' } else { 'origin/master' }; $cnt3 = @(git diff --name-only ($primaryRef + '...') 2>$null).Count; $cnt2 = @(git diff --name-only $primaryRef 2>$null).Count; $dots = if ($cnt3 -le $cnt2) { '...' } else { '' }; msr --to-stderr --keep-color -XM -z \"git --no-pager diff --name-only $primaryRef$dots $*\""`)
+  .set('gdm-al', String.raw`pwsh -Command "$mainRef = git rev-parse --verify origin/main 2>$null; $primaryRef = if ($mainRef) { 'origin/main' } else { 'origin/master' }; $cnt3 = @(git diff --name-only --diff-filter=A ($primaryRef + '...') 2>$null).Count; $cnt2 = @(git diff --name-only --diff-filter=A $primaryRef 2>$null).Count; $dots = if ($cnt3 -le $cnt2) { '...' } else { '' }; msr --to-stderr --keep-color -XM -z \"git --no-pager diff --name-only --diff-filter=A $primaryRef$dots $*\""`)
   .set('gdm-m', String.raw`pwsh -Command "$mainRef = git rev-parse --verify origin/main 2>$null; $primaryRef = if ($mainRef) { 'origin/main' } else { 'origin/master' }; $cnt3 = @(git diff --name-only --diff-filter=M ($primaryRef + '...') 2>$null).Count; $cnt2 = @(git diff --name-only --diff-filter=M $primaryRef 2>$null).Count; $dots = if ($cnt3 -le $cnt2) { '...' } else { '' }; msr --to-stderr --keep-color -XM -z \"git difftool --diff-filter=M $primaryRef$dots $*\""`)
-  .set('gdm-ml', String.raw`pwsh -Command "$mainRef = git rev-parse --verify origin/main 2>$null; $primaryRef = if ($mainRef) { 'origin/main' } else { 'origin/master' }; $cnt3 = @(git diff --name-only --diff-filter=M ($primaryRef + '...') 2>$null).Count; $cnt2 = @(git diff --name-only --diff-filter=M $primaryRef 2>$null).Count; $dots = if ($cnt3 -le $cnt2) { '...' } else { '' }; msr --to-stderr --keep-color -XM -z \"git diff --name-only --diff-filter=M $primaryRef$dots $*\""`)
-  .set('gdm-dl', String.raw`pwsh -Command "$mainRef = git rev-parse --verify origin/main 2>$null; $primaryRef = if ($mainRef) { 'origin/main' } else { 'origin/master' }; $cnt3 = @(git diff --name-only --diff-filter=D ($primaryRef + '...') 2>$null).Count; $cnt2 = @(git diff --name-only --diff-filter=D $primaryRef 2>$null).Count; $dots = if ($cnt3 -le $cnt2) { '...' } else { '' }; msr --to-stderr --keep-color -XM -z \"git diff --name-only --diff-filter=D $primaryRef$dots $*\""`)
+  .set('gdm-ml', String.raw`pwsh -Command "$mainRef = git rev-parse --verify origin/main 2>$null; $primaryRef = if ($mainRef) { 'origin/main' } else { 'origin/master' }; $cnt3 = @(git diff --name-only --diff-filter=M ($primaryRef + '...') 2>$null).Count; $cnt2 = @(git diff --name-only --diff-filter=M $primaryRef 2>$null).Count; $dots = if ($cnt3 -le $cnt2) { '...' } else { '' }; msr --to-stderr --keep-color -XM -z \"git --no-pager diff --name-only --diff-filter=M $primaryRef$dots $*\""`)
+  .set('gdm-dl', String.raw`pwsh -Command "$mainRef = git rev-parse --verify origin/main 2>$null; $primaryRef = if ($mainRef) { 'origin/main' } else { 'origin/master' }; $cnt3 = @(git diff --name-only --diff-filter=D ($primaryRef + '...') 2>$null).Count; $cnt2 = @(git diff --name-only --diff-filter=D $primaryRef 2>$null).Count; $dots = if ($cnt3 -le $cnt2) { '...' } else { '' }; msr --to-stderr --keep-color -XM -z \"git --no-pager diff --name-only --diff-filter=D $primaryRef$dots $*\""`)
   .set('gdm-nt', String.raw`pwsh -Command "$mainRef = git rev-parse --verify origin/main 2>$null; $primaryRef = if ($mainRef) { 'origin/main' } else { 'origin/master' }; $cnt3 = @(git diff --name-only ($primaryRef + '...') 2>$null).Count; $cnt2 = @(git diff --name-only $primaryRef 2>$null).Count; $dots = if ($cnt3 -le $cnt2) { '...' } else { '' }; $dq = [char]34; $inputArgs = '$*'.Trim(); $matchResult = [regex]::Match($inputArgs, '(^|\s+)([12]?>>?\s*\S+)\s*$'); $fileArgs = if ($matchResult.Success) { $inputArgs.Substring(0, $matchResult.Index).Trim() } else { $inputArgs }; $pipeTail = if ($matchResult.Success) { ' ' + $matchResult.Groups[2].Value.Trim() } else { '' }; $command = 'git diff ' + $primaryRef + $dots + ' ' + $fileArgs + ' | msr -b ' + $dq + '^\s*diff\s+' + $dq + ' -Q ' + $dq + $dq + ' -y --nt ' + $dq + '^diff\s+.*?test' + $dq + ' -i -PIC' + $pipeTail; msr -V lt0 --to-stderr --keep-color -XM -z $command"`)
   .set('to-alias-body', String.raw`pwsh -Command "
-          $WithQuotes = '$1' -imatch '^(1|true|y|yes)$';
+          $WithQuotes = '$1' -imatch '^(1|true|y)';
           $cmdBody = Get-Clipboard;
           if ([string]::IsNullOrWhiteSpace($cmdBody)) {
             Write-Host 'Clipboard is empty! Please copy the alias body (raw command) to clipboard first.' -ForegroundColor Red;
@@ -726,17 +760,17 @@ function getCheckEnvBody(envTarget: string): string {
     $inputArgs = [Console]::In.ReadToEnd().Trim();
     if ([string]::IsNullOrWhiteSpace($inputArgs) -or $inputArgs -imatch '^ECHO is o(n|ff)\W*$') { $inputArgs = ''; }
     if ($inputArgs -imatch '^(-h|--help)$') { Write-Host 'Usage: ${cmdName} [NameMatch] [-ValueMatch {regex}] [-IgnoreCase 1]' -ForegroundColor Cyan; Write-Host 'NameMatch: regex pattern to filter environment variable names (optional)' -ForegroundColor Yellow; Write-Host '-ValueMatch {regex}: regex pattern to filter environment variable values (optional)' -ForegroundColor Yellow; Write-Host '-IgnoreCase 1: case-insensitive matching (default), set 0 for case-sensitive' -ForegroundColor Yellow; exit 0; }
-    $namedArgs = @{}; $positionalArgs = @();
-    $currentArgName = $null;
+    $namedArgs = @{}; $posArgs = @();
+    $curArgName = $null;
     foreach ($inputValue in @($inputArgs -split '\s+' | Where-Object { $_ })) {
-      if ($inputValue -match '^-(\w+)$') { $currentArgName = $Matches[1]; }
-      elseif ($currentArgName) { $namedArgs[$currentArgName] = $inputValue.Trim([char]34); $currentArgName = $null; }
-      else { $positionalArgs += $inputValue.Trim([char]34); }
+      if ($inputValue -match '^-(\w+)$') { $curArgName = $Matches[1]; }
+      elseif ($curArgName) { $namedArgs[$curArgName] = $inputValue.Trim([char]34); $curArgName = $null; }
+      else { $posArgs += $inputValue.Trim([char]34); }
     }
     function Get-ParamValue($argName) { $matched = @($namedArgs.Keys | Where-Object { $argName -like ($_ + '*') }); if ($matched.Count -eq 1) { return $namedArgs[$matched[0]]; } elseif ($namedArgs.ContainsKey($argName)) { return $namedArgs[$argName]; } return $null; }
-    $pv = Get-ParamValue 'NameMatch'; $NameMatch = if ($null -ne $pv) { $pv } elseif ($positionalArgs.Count -gt 0) { $positionalArgs[0] } else { '' };
-    $pv = Get-ParamValue 'ValueMatch'; $ValueMatch = if ($null -ne $pv) { $pv } elseif ($positionalArgs.Count -gt 1) { $positionalArgs[1] } else { '' };
-    $pv = Get-ParamValue 'IgnoreCase'; $IgnoreCase = if ($null -ne $pv) { -not ($pv -imatch '^(0|false|n|no)$') } elseif ($positionalArgs.Count -gt 2) { -not ($positionalArgs[2] -imatch '^(0|false|n|no)$') } else { 1 };
+    $pv = Get-ParamValue 'NameMatch'; $NameMatch = if ($null -ne $pv) { $pv } elseif ($posArgs.Count -gt 0) { $posArgs[0] } else { '' };
+    $pv = Get-ParamValue 'ValueMatch'; $ValueMatch = if ($null -ne $pv) { $pv } elseif ($posArgs.Count -gt 1) { $posArgs[1] } else { '' };
+    $pv = Get-ParamValue 'IgnoreCase'; $IgnoreCase = if ($null -ne $pv) { -not ($pv -imatch '^(0|false|n)') } elseif ($posArgs.Count -gt 2) { -not ($posArgs[2] -imatch '^(0|false|n)') } else { 1 };
     $matchOptions = if ($IgnoreCase) { [System.Text.RegularExpressions.RegexOptions]::IgnoreCase } else { [System.Text.RegularExpressions.RegexOptions]::None };
     $envVars = ${envVarsCode};
     $keyCount = 0;
@@ -778,26 +812,24 @@ function getCheckEnvBody(envTarget: string): string {
 
 // Generate check-xxx-path PowerShell body with duplicate detection and existence check
 function getCheckPathBody(envTarget: string): string {
-  const pathValueCode = envTarget === 'Process'
-    ? '$env:PATH'
-    : getPathEnv([envTarget]);
+  const pathValueCode = envTarget === 'Process' ? '$env:PATH' : getPathEnv([envTarget]);
   const displayName = envTarget === 'Process' ? 'Tmp' : envTarget;
   const cmdName = envTarget === 'User' ? 'check-user-path' : (envTarget === 'Process' ? 'check-tmp-path' : 'check-sys-path');
   const addPathCmd = envTarget === 'Process' ? 'add-tmp-path' : `add-${envTarget.toLowerCase()}-path`;
   return String.raw`
     $inputArgs = '$*'.Trim();
     if ($inputArgs -imatch '^(-h|--help)$') { Write-Host 'Usage: ${cmdName} [PathOrMultiline] [-CheckPath {path}]' -ForegroundColor Cyan; Write-Host 'PathOrMultiline: set 1/yes/true for multiline output, or a path to check existence' -ForegroundColor Yellow; Write-Host '-CheckPath {path}: specific path to check if it exists in PATH (alternative to positional arg)' -ForegroundColor Yellow; Write-Host 'Output colors: Red=non-existing, Yellow=duplicate(first), DarkYellow=duplicate(later), Magenta=no-permission' -ForegroundColor Yellow; exit 0; }
-    $namedArgs = @{}; $positionalArgs = @();
-    $currentArgName = $null;
+    $namedArgs = @{}; $posArgs = @();
+    $curArgName = $null;
     $inputTokens = @($inputArgs -split '\s+' | Where-Object { $_ });
     for ($idx = 0; $idx -lt $inputTokens.Count; $idx++) {
       $inputValue = $inputTokens[$idx];
-      if ($inputValue -match '^-(\w+)$') { $currentArgName = $Matches[1]; }
-      elseif ($currentArgName) { $namedArgs[$currentArgName] = $inputValue.Trim([char]34); $currentArgName = $null; }
-      else { $positionalArgs += ($inputTokens[$idx..($inputTokens.Count-1)] -join ' ').Trim([char]34); break; }
+      if ($inputValue -match '^-(\w+)$') { $curArgName = $Matches[1]; }
+      elseif ($curArgName) { $namedArgs[$curArgName] = $inputValue.Trim([char]34); $curArgName = $null; }
+      else { $posArgs += ($inputTokens[$idx..($inputTokens.Count-1)] -join ' ').Trim([char]34); break; }
     }
     function Get-ParamValue($argName) { $matched = @($namedArgs.Keys | Where-Object { $argName -like ($_ + '*') }); if ($matched.Count -eq 1) { return $namedArgs[$matched[0]]; } elseif ($namedArgs.ContainsKey($argName)) { return $namedArgs[$argName]; } return $null; }
-    $pv = Get-ParamValue 'PathOrMultiline'; $PathOrMultiline = if ($null -ne $pv) { $pv } elseif ($positionalArgs.Count -gt 0) { $positionalArgs[0] } else { '' };
+    $pv = Get-ParamValue 'PathOrMultiline'; $PathOrMultiline = if ($null -ne $pv) { $pv } elseif ($posArgs.Count -gt 0) { $posArgs[0] } else { '' };
     $pv = Get-ParamValue 'CheckPath'; if ($null -ne $pv) { $PathOrMultiline = $pv; }
     $pathValue = ${pathValueCode};
     $pathItems = @($pathValue -split '\s*;\s*' | Where-Object { $_ } | ForEach-Object { $_.TrimEnd('\\/') });
@@ -810,7 +842,7 @@ function getCheckPathBody(envTarget: string): string {
       try { if (-not (Test-Path $onePath -ErrorAction Stop)) { [void] $nonExistSet.Add($onePath); } }
       catch { [void] $noPermSet.Add($onePath); }
     }
-    $isMultilineMode = $PathOrMultiline -imatch '^(yes|y|1|true)$';
+    $isMultilineMode = $PathOrMultiline -imatch '^(1|true|y)';
     $isCheckMode = -not [string]::IsNullOrWhiteSpace($PathOrMultiline) -and -not ($PathOrMultiline -imatch '^(yes|y|1|true|0|false|no|n)$');
     if ($isCheckMode) {
       $checkPath = $PathOrMultiline.TrimEnd('\\/');
@@ -1069,18 +1101,18 @@ function getAddPathValueCmd(envTarget: string): string {
       $fullInput = $env:TMP_ADD_PATH_INPUT;
       if ([string]::IsNullOrWhiteSpace($fullInput)) { $fullInput = ''; }
       $fullInput = $fullInput.Trim().Trim([char]34);
-      $namedArgs = @{}; $positionalArgs = @();
-      $currentArgName = $null;
+      $namedArgs = @{}; $posArgs = @();
+      $curArgName = $null;
       foreach ($inputValue in @($fullInput -split '\s*;\s*' | Where-Object { $_ })) {
         $inputValue = $inputValue.Trim([char]34);
         if ($inputValue -match '^-(\w+)\s+(.+)$') { $namedArgs[$Matches[1]] = $Matches[2].Trim([char]34); }
-        elseif ($inputValue -match '^-(\w+)$') { $currentArgName = $Matches[1]; }
-        elseif ($currentArgName) { $namedArgs[$currentArgName] = $inputValue; $currentArgName = $null; }
-        else { $positionalArgs += $inputValue; }
+        elseif ($inputValue -match '^-(\w+)$') { $curArgName = $Matches[1]; }
+        elseif ($curArgName) { $namedArgs[$curArgName] = $inputValue; $curArgName = $null; }
+        else { $posArgs += $inputValue; }
       }
       function Get-ParamValue($argName) { $matched = @($namedArgs.Keys | Where-Object { $argName -like ($_ + '*') }); if ($matched.Count -eq 1) { return $namedArgs[$matched[0]]; } elseif ($namedArgs.ContainsKey($argName)) { return $namedArgs[$argName]; } return $null; }
-      $pv = Get-ParamValue 'Paths'; $pathsToAdd = if ($null -ne $pv) { $pv } elseif ($positionalArgs.Count -gt 0) { $positionalArgs -join ';' } else { '' };
-      $pv = Get-ParamValue 'DeleteNonExistsPaths'; $DeleteNonExistsPaths = if ($null -ne $pv) { $pv -imatch '^(1|true|y|yes)$' } else { 0 };
+      $pv = Get-ParamValue 'Paths'; $pathsToAdd = if ($null -ne $pv) { $pv } elseif ($posArgs.Count -gt 0) { $posArgs -join ';' } else { '' };
+      $pv = Get-ParamValue 'DeleteNonExistsPaths'; $DeleteNonExistsPaths = if ($null -ne $pv) { $pv -imatch '^(1|true|y)' } else { 0 };
       $pathValues = $env:PATH;
       $newValue = $pathValues.Trim().TrimEnd('\; ') + ';' + $pathsToAdd.Trim().TrimEnd('\; ');
       $values = $newValue -split '\\*\s*;\s*';
@@ -1103,18 +1135,18 @@ function getAddPathValueCmd(envTarget: string): string {
   }
   const cmdAlias = String.raw`${WindowsPowerShellCmdHeader} "
     $fullInput = '$*'.Trim().Trim([char]34);
-    $namedArgs = @{}; $positionalArgs = @();
-    $currentArgName = $null;
+    $namedArgs = @{}; $posArgs = @();
+    $curArgName = $null;
     foreach ($inputValue in @($fullInput -split '\s*;\s*' | Where-Object { $_ })) {
       $inputValue = $inputValue.Trim([char]34);
       if ($inputValue -match '^-(\w+)\s+(.+)$') { $namedArgs[$Matches[1]] = $Matches[2].Trim([char]34); }
-      elseif ($inputValue -match '^-(\w+)$') { $currentArgName = $Matches[1]; }
-      elseif ($currentArgName) { $namedArgs[$currentArgName] = $inputValue; $currentArgName = $null; }
-      else { $positionalArgs += $inputValue; }
+      elseif ($inputValue -match '^-(\w+)$') { $curArgName = $Matches[1]; }
+      elseif ($curArgName) { $namedArgs[$curArgName] = $inputValue; $curArgName = $null; }
+      else { $posArgs += $inputValue; }
     }
     function Get-ParamValue($argName) { $matched = @($namedArgs.Keys | Where-Object { $argName -like ($_ + '*') }); if ($matched.Count -eq 1) { return $namedArgs[$matched[0]]; } elseif ($namedArgs.ContainsKey($argName)) { return $namedArgs[$argName]; } return $null; }
-    $pv = Get-ParamValue 'Paths'; $pathsToAdd = if ($null -ne $pv) { $pv } elseif ($positionalArgs.Count -gt 0) { $positionalArgs -join ';' } else { '' };
-    $pv = Get-ParamValue 'DeleteNonExistsPaths'; $DeleteNonExistsPaths = if ($null -ne $pv) { $pv -imatch '^(1|true|y|yes)$' } else { 0 };
+    $pv = Get-ParamValue 'Paths'; $pathsToAdd = if ($null -ne $pv) { $pv } elseif ($posArgs.Count -gt 0) { $posArgs -join ';' } else { '' };
+    $pv = Get-ParamValue 'DeleteNonExistsPaths'; $DeleteNonExistsPaths = if ($null -ne $pv) { $pv -imatch '^(1|true|y)' } else { 0 };
     $oldPathValue = ${getPathEnv([envTarget])};
     $newValue = $oldPathValue.Trim().TrimEnd('\; ') + ';' + $pathsToAdd.Trim().TrimEnd('\; ');
     $values = $newValue -split '\\*\s*;\s*';
@@ -1151,17 +1183,17 @@ function getRemovePathValueCmd(envTarget: string): string {
       $deleteInput = $env:TMP_DEL_PATH_INPUT;
       if ([string]::IsNullOrWhiteSpace($deleteInput)) { $deleteInput = ''; }
       $deleteInput = $deleteInput.Trim().Trim([char]34);
-      $namedArgs = @{}; $positionalArgs = @();
-      $currentArgName = $null;
+      $namedArgs = @{}; $posArgs = @();
+      $curArgName = $null;
       foreach ($inputValue in @($deleteInput -split '\s*;\s*' | Where-Object { $_ })) {
         $inputValue = $inputValue.Trim([char]34);
         if ($inputValue -match '^-(\w+)\s+(.+)$') { $namedArgs[$Matches[1]] = $Matches[2].Trim([char]34); }
-        elseif ($inputValue -match '^-(\w+)$') { $currentArgName = $Matches[1]; }
-        elseif ($currentArgName) { $namedArgs[$currentArgName] = $inputValue; $currentArgName = $null; }
-        else { $positionalArgs += $inputValue; }
+        elseif ($inputValue -match '^-(\w+)$') { $curArgName = $Matches[1]; }
+        elseif ($curArgName) { $namedArgs[$curArgName] = $inputValue; $curArgName = $null; }
+        else { $posArgs += $inputValue; }
       }
       function Get-ParamValue($argName) { $matched = @($namedArgs.Keys | Where-Object { $argName -like ($_ + '*') }); if ($matched.Count -eq 1) { return $namedArgs[$matched[0]]; } elseif ($namedArgs.ContainsKey($argName)) { return $namedArgs[$argName]; } return $null; }
-      $pv = Get-ParamValue 'Paths'; $pathsInput = if ($null -ne $pv) { $pv } elseif ($positionalArgs.Count -gt 0) { $positionalArgs -join ';' } else { '' };
+      $pv = Get-ParamValue 'Paths'; $pathsInput = if ($null -ne $pv) { $pv } elseif ($posArgs.Count -gt 0) { $posArgs -join ';' } else { '' };
       $deleteValues = ($pathsInput.Trim().TrimEnd('\; ')) -split '\\*\s*;\s*';
       $deleteValueSet = New-Object System.Collections.Generic.HashSet[String]([StringComparer]::OrdinalIgnoreCase);
       foreach ($pv in $deleteValues) {
@@ -1183,17 +1215,17 @@ function getRemovePathValueCmd(envTarget: string): string {
   }
   const cmdAlias = String.raw`${WindowsPowerShellCmdHeader} "
     $fullInput = '$*'.Trim().Trim([char]34);
-    $namedArgs = @{}; $positionalArgs = @();
-    $currentArgName = $null;
+    $namedArgs = @{}; $posArgs = @();
+    $curArgName = $null;
     foreach ($inputValue in @($fullInput -split '\s*;\s*' | Where-Object { $_ })) {
       $inputValue = $inputValue.Trim([char]34);
       if ($inputValue -match '^-(\w+)\s+(.+)$') { $namedArgs[$Matches[1]] = $Matches[2].Trim([char]34); }
-      elseif ($inputValue -match '^-(\w+)$') { $currentArgName = $Matches[1]; }
-      elseif ($currentArgName) { $namedArgs[$currentArgName] = $inputValue; $currentArgName = $null; }
-      else { $positionalArgs += $inputValue; }
+      elseif ($inputValue -match '^-(\w+)$') { $curArgName = $Matches[1]; }
+      elseif ($curArgName) { $namedArgs[$curArgName] = $inputValue; $curArgName = $null; }
+      else { $posArgs += $inputValue; }
     }
     function Get-ParamValue($argName) { $matched = @($namedArgs.Keys | Where-Object { $argName -like ($_ + '*') }); if ($matched.Count -eq 1) { return $namedArgs[$matched[0]]; } elseif ($namedArgs.ContainsKey($argName)) { return $namedArgs[$argName]; } return $null; }
-    $pv = Get-ParamValue 'Paths'; $pathsInput = if ($null -ne $pv) { $pv } elseif ($positionalArgs.Count -gt 0) { $positionalArgs -join ';' } else { '' };
+    $pv = Get-ParamValue 'Paths'; $pathsInput = if ($null -ne $pv) { $pv } elseif ($posArgs.Count -gt 0) { $posArgs -join ';' } else { '' };
     $deleteValues = ($pathsInput.Trim().TrimEnd('\; ')) -split '\\*\s*;\s*';
     $deleteValueSet = New-Object System.Collections.Generic.HashSet[String]([StringComparer]::OrdinalIgnoreCase);
     foreach ($pv in $deleteValues) {
@@ -1287,6 +1319,7 @@ const WindowsAliasMap: Map<string, string> = new Map<string, string>()
           | nin %USERPROFILE%/.gitconfig "^(\S+)" "^\s*directory\s*=\s*(\S+)" -i -PAC
           | msr -t "(.+)" -o "git config --global --add safe.directory \1" -XMI)
         & msr -XMI -z "git config --global --get-all safe.directory | msr -ix %a -P as final check"`)
+  .set('git-rm-junk', String.raw`git ls-files --others --exclude-standard | msr -x / -o \ -aPAC | msr -t "(.+)" -o "del /A /f \"\1\"" -XMO & git status`)
   .set('add-user-env', getAddEnvCmd('User'))
   .set('add-sys-env', getAddEnvCmd('Machine'))
   .set('del-user-env', getDelEnvCmd('User'))

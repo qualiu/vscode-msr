@@ -163,6 +163,8 @@ class DynamicConfig {
     public OverwriteInconsistentCommonAliasByExtension = true;
     public AutoRestoreEnvAliasTerminalNameRegex: RegExp = new RegExp('to-load');
     public AutoDumpAliasToFilesByTerminalTypeRegex: RegExp = new RegExp('to-load');
+    public CookFindDefinitionAliasExtraExtensionRegex: RegExp = new RegExp('to-load');
+    public CookRecursiveGitFindExtensionRegex: RegExp = new RegExp('^$');
     public ReplaceTabTo = ' '.repeat(4);
 
     private UseGitFileListToSearchSingleWorkspace: string = 'auto';
@@ -355,6 +357,8 @@ class DynamicConfig {
         this.CheckLanguageProcessIntervalMinutes = Math.max(5, Number(getConfigValueOfActiveProject('checkLanguageProcessIntervalMinutes') || '20'));
         this.OverwriteInconsistentCommonAliasByExtension = getConfigValueOfActiveProject('overwriteInconsistentCommonAliasByExtension') !== 'false';
         this.AutoDumpAliasToFilesByTerminalTypeRegex = createRegex(getConfigValueOfProject(repoFolderName, 'autoDumpAliasToFilesByTerminalTypePattern'), 'i');
+        this.CookFindDefinitionAliasExtraExtensionRegex = createRegex(getConfigValueOfProject(repoFolderName, 'cookFindDefinitionAlias.extraExtensionPattern'), 'i');
+        this.CookRecursiveGitFindExtensionRegex = createRegex(getConfigValueOfProject(repoFolderName, 'cookAlias.recursiveGitFindExtensionPattern'), 'i');
         SearchConfig.reload();
 
         this.ExcludeFoldersFromSettings.clear();

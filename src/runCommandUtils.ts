@@ -11,6 +11,29 @@ import fs = require('fs');
 
 const ClearCmd = IsWindows && !UsePowershell ? 'cls' : "clear";
 
+// Queue for newly created Pwsh terminals: collects commands instead of sending them immediately.
+// This avoids PSReadLine paste detection which concatenates rapid multiple sendText() calls into one line.
+// See: https://github.com/microsoft/vscode/issues/236397 ("PSReadLine is swallowing the \r")
+const PendingPwshCommands = new Map<vscode.Terminal, string[]>();
+
+// Enable deferred send mode for a newly created Pwsh terminal.
+// All subsequent sendCommandToTerminal() calls for this terminal will queue commands instead of sending.
+export function enablePwshDeferredSend(terminal: vscode.Terminal): void {
+  PendingPwshCommands.set(terminal, []);
+}
+
+// Flush all queued commands: combine with ' ; ' and send as ONE sendText() call.
+// Single sendText() avoids PSReadLine paste detection that would concatenate multiple rapid sends.
+export function flushPwshDeferredCommands(terminal: vscode.Terminal): void {
+  const commands = PendingPwshCommands.get(terminal);
+  PendingPwshCommands.delete(terminal);
+  if (commands && commands.length > 0) {
+    const combinedCmd = commands.join(' ; ');
+    outputDebugByTime(`Flushing ${commands.length} deferred Pwsh commands: ${combinedCmd.substring(0, 200)}...`);
+    terminal.sendText(combinedCmd, true);
+  }
+}
+
 // MSR-RUN-CMD terminal
 let RunCmdTerminal: vscode.Terminal | undefined;
 
@@ -110,7 +133,19 @@ export function sendCommandToTerminal(command: string, terminal: vscode.Terminal
     terminal.sendText((isLinuxOnWindows || IsMacOS ? 'clear' : ClearCmd) + os.EOL, true);
   }
 
-  terminal.sendText(command.trim() + os.EOL, true);
+  const trimmedCmd = command.trim();
+
+  // If this terminal has deferred mode enabled (newly created Pwsh), queue instead of sending
+  if (PendingPwshCommands.has(terminal)) {
+    if (trimmedCmd.length > 0) {
+      PendingPwshCommands.get(terminal)!.push(trimmedCmd);
+      outputDebugByTime(`Queued deferred Pwsh command: ${trimmedCmd.substring(0, 120)}`);
+    }
+    return;
+  }
+
+  const cmdSuffix = (!IsWindows || isLinuxOnWindows) && !trimmedCmd.endsWith(';') ? ' ;' : '';
+  terminal.sendText(trimmedCmd + cmdSuffix + os.EOL, true);
   if (IsMacOS) { // MacOS terminal will break if sending command lines to fast.
     try {
       const sleepMilliseconds = command.trim().length / 1000;

@@ -1,18 +1,18 @@
 import * as vscode from 'vscode';
 import { calculateAliasHash, hasAliasChanged, saveAliasHash } from './aliasHashUtils';
-import { IsFileTimeOffsetSupported, RunCommandChecker, ToolChecker, setNotCheckInputPathInCommandLine, setOutputColumnIndexInCommandLine } from './ToolChecker';
+import { RunCommandChecker, ToolChecker, setNotCheckInputPathInCommandLine, setOutputColumnIndexInCommandLine } from './ToolChecker';
 import { ProjectToGitFindFileExtraOptionsMap, getFindTopDistributionCommand, getSortCommandText } from "./commands";
 import { getCommandAliasText, getCommonAliasMap, HasPwshExeOnWindows, replaceArgForLinuxCmdAlias, replaceArgForWindowsCmdAlias, replaceForLoopVariableForWindowsScript, replacePowerShellVarsForLinuxAlias } from './commonAlias';
-import { getConfigValueByPriorityList, getConfigValueByProjectAndExtension, getConfigValueOfActiveProject, getConfigValueOfProject } from "./configUtils";
-import { CheckReCookAliasFileSeconds, DefaultRepoFolderName, GitFileListExpirationTimeEnvName, GitRepoEnvName, GitTmpListFilePrefix, HomeFolder, IsDebugMode, IsWSL, IsWindows, RunCmdTerminalName, TempStorageFolder, TrimProjectNameRegex, WslCheckingCommand, getAliasFileName, getBashFileHeader, getEnvNameRef, getEnvNameRefRegex, getProjectFolderKey, getRepoFolder, getSkipJunkPathArgs, getTipInfoTemplate, isNullOrEmpty } from "./constants";
+import { getConfigValueByPriorityList, getConfigValueByProjectAndExtension, getConfigValueOfActiveProject, getConfigValueOfProject, shouldGenerateDefinitionAlias } from "./configUtils";
+import { DefaultRepoFolderName, GitRepoEnvName, GitTmpListFilePrefix, HomeFolder, IsDebugMode, IsWSL, IsWindows, RunCmdTerminalName, TempStorageFolder, TrimProjectNameRegex, WslCheckingCommand, getAliasFileName, getBashFileHeader, getEnvNameRefRegex, getProjectFolderKey, getRepoFolder, getSkipJunkPathArgs, getTipInfoTemplate, isNullOrEmpty } from "./constants";
 import { AdditionalFileExtensionMapNames, DefaultRepoFolder, MappedExtToCodeFilePatternMap, MyConfig } from "./dynamicConfig";
 import { FindCommandType, TerminalType } from "./enums";
-import { createDirectory, getFileModifyTime, readTextFile, saveTextToFile } from './fileUtils';
-import { asyncSetJunkEnvForWindows, getJunkEnvCommandForTipFile, getResetJunkPathEnvCommand, getSearchGitSubModuleEnvName, getSkipJunkPathEnvCommand, getTrimmedGitRepoEnvName } from './junkPathEnvArgs';
+import { createDirectory, readTextFile, saveTextToFile } from './fileUtils';
+import { asyncSetJunkEnvForWindows, getJunkEnvCommandForTipFile, getResetJunkPathEnvCommand, getSkipJunkPathEnvCommand } from './junkPathEnvArgs';
 import { outputDebug, outputDebugByTime, outputErrorByTime, outputInfo, outputInfoByDebugModeByTime, outputInfoQuiet, outputInfoQuietByTime, outputWarn, outputWarnByTime, outputWarnQuietByTime } from "./outputUtils";
 import { EmptyRegex, escapeRegExp } from "./regexUtils";
-import { getRunCmdTerminal, runCommandInTerminal, runPostInitCommands, sendCommandToTerminal } from './runCommandUtils';
-import { DefaultTerminalType, getCmdAliasSaveFolder, getInitLinuxScriptDisplayPath, getInitLinuxScriptStoragePath, getTerminalInitialPath, getTerminalNameOrShellExeName, getTerminalShellExePath, getTipFileDisplayPath, getTipFileStoragePath, isBashTerminalType, isLinuxTerminalOnWindows, isPowerShellTerminal, isWindowsTerminalOnWindows, toStoragePath, toTerminalPath } from './terminalUtils';
+import { enablePwshDeferredSend, flushPwshDeferredCommands, getRunCmdTerminal, runCommandInTerminal, runPostInitCommands, sendCommandToTerminal } from './runCommandUtils';
+import { DefaultTerminalType, getCmdAliasSaveFolder, getInitLinuxScriptDisplayPath, getInitLinuxScriptStoragePath, getTerminalInitialPath, getTerminalNameOrShellExeName, getTerminalShellExePath, getTipFileStoragePath, isBashTerminalType, isLinuxTerminalOnWindows, isPowerShellTerminal, isWindowsTerminalOnWindows, toStoragePath, toTerminalPath } from './terminalUtils';
 import { getSetToolEnvCommand, getToolExportFolder } from "./toolSource";
 import { getElapsedSecondsToNow, getLoadAliasFileCommand, getPowerShellName, getRepoFolderName, getUniqueStringSetNoCase, isPowerShellCommand, isWeeklyCheckTime, quotePaths, replaceTextByRegex } from "./utils";
 import { FindJavaSpringReferenceByPowerShellAlias } from './wordReferenceUtils';
@@ -22,7 +22,123 @@ import os = require('os');
 import path = require('path');
 
 const CookCmdDocUrl = 'https://marketplace.visualstudio.com/items?itemName=qualiu.vscode-msr#command-shortcuts';
-let FileToCheckTimeMap = new Map<string, Date>();
+
+// Constants for git hash based cache validation
+const GitHashFilePrefix = "git-hash-";
+
+// Script name for centralized cache logic
+const UpdateRepoPathsScriptName = "update-repo-paths";
+
+// Generate update-repo-paths script: detect git repo, get repo name, validate cache by hash
+// Sets MSR_REPO_PATHS_FILE and MSR_REPO_ROOT env vars via EndLocal trick for Windows CMD
+// Exports MSR_REPO_PATHS_FILE and MSR_REPO_ROOT for Linux/bash callers
+function getUpdateRepoPathsScriptContent(isWindowsTerminal: boolean): string {
+  if (isWindowsTerminal) {
+    // Windows CMD script - use git hash check with relative paths
+    // Uses SetLocal/EndLocal trick to export env vars to caller's environment
+    // Note: Only the first line needs '@' prefix. After 'echo off', subsequent commands are not echoed.
+    // Note: msr uses (.+) with $1 for capture groups, not .+ with \0
+    // Note: Must nest for /f loops to use %%a directly instead of !gitRoot! to avoid delayed expansion conflict
+    // Call use-this-alias BEFORE SetLocal to set Skip_Junk_Name/Skip_Junk_Paths env vars in caller's scope.
+    // These env vars survive EndLocal since they were set before SetLocal.
+    // gfind-xxx.cmd uses %Skip_Junk_Name% "%Skip_Junk_Paths%" which need to be resolved at parse time.
+    return `@echo off
+call use-this-alias >nul 2>&1
+git rev-parse --is-inside-work-tree >nul 2>&1 || (
+  echo Not in a git repo or git not found: %CD% | msr -t .+ --colors Red --to-stderr --keep-color -aPA
+  exit /b 1
+)
+SetLocal EnableDelayedExpansion
+for /f "tokens=*" %%a in ('git rev-parse --show-toplevel 2^>nul') do (
+  set "gitRoot=%%a"
+  for /f "tokens=*" %%b in ('msr -z "%%a" -t ".*?([^\\\\/]+?)\\s*$" -o "\\1" -aPAC ^| msr -t "${TrimProjectNameRegex.source}" -o "-" -aPAC') do set "repoName=%%b"
+)
+if not defined repoName set "repoName=tmp"
+set "tmpPathsFile=%tmp%\\${GitTmpListFilePrefix}!repoName!"
+set "hashFile=%tmp%\\${GitHashFilePrefix}!repoName!"
+for /f "tokens=*" %%h in ('git rev-parse HEAD 2^>nul') do set "curHash=%%h"
+if exist "!hashFile!" set /p savedHash=<"!hashFile!"
+if "!curHash!" NEQ "!savedHash!" goto :UpdatePaths
+if not exist "!tmpPathsFile!" goto :UpdatePaths
+goto :SkipUpdate
+:UpdatePaths
+git -C "!gitRoot!" ls-files %Git_List_Args% > "!tmpPathsFile!"
+echo !curHash!>"!hashFile!"
+echo Updated repo file paths into !tmpPathsFile! | msr -e .+ -aMP -v dmt --to-stderr --keep-color --exit 0
+:SkipUpdate
+EndLocal & set "MSR_REPO_PATHS_FILE=%tmpPathsFile%" & set "MSR_REPO_ROOT=%gitRoot%"
+`;
+  } else {
+    // Linux/Bash script - use git hash check with relative paths
+    // Exports MSR_REPO_PATHS_FILE and MSR_REPO_ROOT for callers to use
+    // Call use-this-alias to set Skip_Junk_Name/Skip_Junk_Paths env vars for gfind-xxx.
+    return `#!/bin/bash
+source use-this-alias >/dev/null 2>&1
+git rev-parse --is-inside-work-tree >/dev/null 2>&1 || {
+  echo "Not in a git repo or git not found: $PWD" | msr -t .+ --colors Red --to-stderr --keep-color -aPA
+  return 1 2>/dev/null || exit 1
+}
+gitRoot=$(git rev-parse --show-toplevel 2>/dev/null)
+repoName=$(echo "$gitRoot" | msr -t ".*?([^/]+?)\\s*$" -o "\\1" -aPAC | msr -t "${TrimProjectNameRegex.source}" -o "-" -aPAC)
+[ -z "$repoName" ] && repoName="tmp"
+tmpPathsFile="/tmp/${GitTmpListFilePrefix}$repoName"
+hashFile="/tmp/${GitHashFilePrefix}$repoName"
+curHash=$(git rev-parse HEAD 2>/dev/null)
+savedHash=$(cat "$hashFile" 2>/dev/null)
+if [ "$curHash" != "$savedHash" ] || [ ! -f "$tmpPathsFile" ]; then
+  git -C "$gitRoot" ls-files $Git_List_Args > "$tmpPathsFile"
+  echo "$curHash" > "$hashFile"
+  echo "Updated repo file paths into $tmpPathsFile" | msr -e .+ -aMP -v dmt --to-stderr --keep-color --exit 0
+fi
+export MSR_REPO_PATHS_FILE="$tmpPathsFile"
+export MSR_REPO_ROOT="$gitRoot"
+`;
+  }
+}
+
+// Generate call command for update-repo-paths:
+// Windows: simple 'call' since the script exports env vars via EndLocal trick
+// Linux: 'source' to run in same shell and inherit exported vars
+function getUpdateRepoPathsCallCommand(isWindowsTerminal: boolean, scriptFolder: string, writeToEachFile: boolean): string {
+  if (isWindowsTerminal) {
+    // The script sets MSR_REPO_PATHS_FILE and MSR_REPO_ROOT via EndLocal & set trick
+    // Script files: multi-line with error check (exit if not in git repo)
+    // Doskey: single line with && (naturally skips rest if call fails)
+    const scriptName = UpdateRepoPathsScriptName + '.cmd';
+    return writeToEachFile
+      ? `call ${scriptName} || exit /b 1\n`
+      : `call ${scriptName} && `;
+  } else {
+    // For script files: use source with newline; for alias: use source with && (single line)
+    return writeToEachFile
+      ? `source "${scriptFolder}/${UpdateRepoPathsScriptName}" || exit 1\n`
+      : `source "${scriptFolder}/${UpdateRepoPathsScriptName}" && `;
+  }
+}
+
+// Get env var ref for tmp repo paths file
+// Windows doskey: !VAR! for delayed expansion inside cmd /v:on subprocess
+// Windows scripts: %VAR% since each line is parsed separately after call update-repo-paths.cmd
+// Linux: $MSR_REPO_PATHS_FILE
+function getTmpRepoPathsEnvRef(isWindowsTerminal: boolean): string {
+  if (isWindowsTerminal) {
+    // Both doskey and script files use cmd /v:on /c with !VAR! delayed expansion
+    return '"!MSR_REPO_PATHS_FILE!"';
+  }
+  return '"$MSR_REPO_PATHS_FILE"';
+}
+
+// Get env var ref for git root path
+// Windows doskey: !VAR! for delayed expansion inside cmd /v:on subprocess
+// Windows scripts: %VAR% since each line is parsed separately after call update-repo-paths.cmd
+// Linux: $MSR_REPO_ROOT
+function getGitRootEnvRef(isWindowsTerminal: boolean): string {
+  if (isWindowsTerminal) {
+    // Both doskey and script files use cmd /v:on /c with !VAR! delayed expansion
+    return '"!MSR_REPO_ROOT!"';
+  }
+  return '"$MSR_REPO_ROOT"';
+}
 
 function getGeneralCmdAliasFilePath(terminalType: TerminalType) {
   const isWindowsTerminal = isWindowsTerminalOnWindows(terminalType);
@@ -93,59 +209,126 @@ function getShellExeAndTerminalType(terminal: vscode.Terminal | undefined, isNew
   }
 }
 
-function duplicateSearchFileCmdAlias(repoFolder: string, terminalType: TerminalType, cmdAliasMap: Map<string, string>, isForProjectCmdAlias: boolean, writeToEachFile: boolean) {
+function duplicateSearchFileCmdAlias(_repoFolder: string, terminalType: TerminalType, cmdAliasMap: Map<string, string>, isForProjectCmdAlias: boolean, writeToEachFile: boolean) {
   // Duplicate find-xxx to gfind-xxx (use "git ls-file" + find-xxx), except find-nd / find-ndp
-  const repoFolderName = getRepoFolderName(repoFolder);
   const isWindowsTerminal = isWindowsTerminalOnWindows(terminalType);
-  const tmpFileName = isForProjectCmdAlias
-    ? GitTmpListFilePrefix + getProjectFolderKey((repoFolderName + '-' + path.basename(path.dirname(repoFolder))))
-    : GitTmpListFilePrefix + getTrimmedGitRepoEnvName(isWindowsTerminal);
   const powerShellCmdHead = getPowerShellName(terminalType, HasPwshExeOnWindows) + ' -Command';
   const sortedCmdKeys = Array.from(cmdAliasMap.keys()).sort();
   const saveAliasFolder = getCmdAliasSaveFolder(true, false, terminalType);
+  // For bash terminals on Windows (WSL/Cygwin/MinGW), convert Windows storage path to terminal path.
+  // Without this conversion, backslashes in C:\Users\... are eaten by bash, producing C:Users.../update-repo-paths.
+  const saveAliasFolderForTerminal = isWindowsTerminal ? saveAliasFolder : toTerminalPath(saveAliasFolder, terminalType);
   const needReplaceArgForLoop = writeToEachFile && isWindowsTerminalOnWindows(terminalType);
   const allArgs = isWindowsTerminal ? "$*" : '"${@}"';
   const findRepoEnvNameRegex = getEnvNameRefRegex(GitRepoEnvName, isWindowsTerminal);
-  const refreshDuration = getEnvNameRef(GitFileListExpirationTimeEnvName, isWindowsTerminal);
+
+  // For unified approach: use update-repo-paths script for both alias and script files
+  const tmpRepoPathsEnvRef = getTmpRepoPathsEnvRef(isWindowsTerminal);
+  const gitRootEnvRef = getGitRootEnvRef(isWindowsTerminal);
+
   sortedCmdKeys.forEach(key => {
     const findBody = cmdAliasMap.get(key) || '';
     if (key.match(/^(find|sort)-/) && !key.startsWith('find-nd') && /msr(\.exe)? -rp/.test(findBody)) {
       const isPowerShellScript = findBody.includes(powerShellCmdHead); // like find-spring-ref to gfind-spring-ref
-      const tmpListFile = isPowerShellScript && isWindowsTerminal
-        ? path.join(TempStorageFolder, tmpFileName)
-        : quotePaths((isWindowsTerminal ? '%tmp%\\' : '/tmp/') + tmpFileName);
 
-      const listFileCommand = `git ls-files ${getSearchGitSubModuleEnvName(isWindowsTerminal)}`.trimRight() + ` > ${tmpListFile}`;
-      let checkAndListCommand = listFileCommand + (isPowerShellScript ? '; ' : ' && ');
-      // avoid missing updating tmp file list for gfind-xxx due to time check
-      if (IsFileTimeOffsetSupported && !writeToEachFile) { // && isForProjectCmdAlias) {
-        const checkTime = `msr -l --w1 ${refreshDuration} -p ${tmpListFile}`;
-        if (isPowerShellScript) {
-          checkAndListCommand = '$foundFile = ' + checkTime + ' -PAC 2>$null; if ([string]::IsNullOrEmpty($foundFile)) { ' + listFileCommand + ' }';
-          if (!isWindowsTerminal) {
-            checkAndListCommand = checkAndListCommand.replace(/\$(\w+)/g, '\\$$$1');
-          }
-        } else {
-          if (isWindowsTerminal) {
-            checkAndListCommand = '( ' + checkTime + ' 2>nul | msr -t "^Matched 1" >nul && ' + listFileCommand + ' ) & ';
-          } else {
-            checkAndListCommand = checkTime + ' 2>/dev/null -PAC -H 0; [ $? -ne 1 ] && ' + listFileCommand + '; '
-          }
-        }
-      }
+      // Unified approach: use MSR_REPO_PATHS_FILE env var set by update-repo-paths script
+      // For doskey/alias: same as script files, call update-repo-paths first
+      const tmpListFile = tmpRepoPathsEnvRef;
 
-      let gitFindBody = findBody.replace(/(msr(\.exe)?) -rp\s+(".+?"|\S+)/, checkAndListCommand.trimRight() + ' $1 -w ' + tmpListFile)
+      // No inline cache check needed - update-repo-paths handles everything
+      let gitFindBody = findBody.replace(/(msr(\.exe)?) -rp\s+(".+?"|\S+)/, '$1 -w ' + tmpListFile)
         .replace(/\s+(--nd|--np)\s+".+?"\s*/, ' ');
+
+      // Remove -W option for gfind-xxx: we use pushd to cd into gitRoot with relative path cache
+      // so output paths will be naturally relative (no need for -W to output full paths)
+      gitFindBody = gitFindBody.replace(/\s+-W\b/, ' ');
+
       gitFindBody = setNotCheckInputPathInCommandLine(gitFindBody);
       if (isForProjectCmdAlias && TerminalType.CygwinBash === terminalType && isPowerShellCommand(gitFindBody, terminalType)) {
         gitFindBody = gitFindBody.replace(/\bmsr (-+\w+)/g, 'msr.exe $1'); // workaround for cygwin PowerShell
       }
-      const gitFindName = 'g' + key;;
+
+      // IMPORTANT: Must rename alias BEFORE prepending updateRepoPathsCall,
+      // because the regex ^key won't match after prepending the call prefix
+      const gitFindName = 'g' + key;
+      // Allow overwriting gfind-xxx aliases (auto-generated) to ensure latest logic (e.g. update-repo-paths source/call) is applied.
+      // Even if it exists in the map (loaded from file), we regenerate it from the source 'find-xxx' command.
+
       if (isWindowsTerminal) {
         gitFindBody = gitFindBody.replace(new RegExp('^' + key), gitFindName);
       } else {
         gitFindBody = gitFindBody.replace(new RegExp('^alias\\s+' + key), 'alias ' + gitFindName)
           .replace(new RegExp("\\b_" + key.replace(/-/g, '_') + "\\b", 'g'), '_' + gitFindName.replace(/-/g, '_')); // [optional]: replace inner function name
+      }
+
+      // Prepend update-repo-paths call for both script files and doskey/alias
+      // Script files: multi-line format with simple 'call' then use %VAR% on subsequent lines
+      // Doskey: 'call && cmd /v:on /c' to use !VAR! delayed expansion in subprocess
+      // NOTE: Must be done AFTER alias renaming since doskey format is "name=body"
+      // For relative paths: wrap msr command with pushd/popd to cd to gitRoot
+      if (!isPowerShellScript) {
+        const updateRepoPathsCall = getUpdateRepoPathsCallCommand(isWindowsTerminal, saveAliasFolderForTerminal, writeToEachFile);
+        if (isWindowsTerminal && !writeToEachFile) {
+          // For Windows doskey: use "cmd /v:on /c" to execute in subprocess with delayed expansion
+          // !VAR! refs are NOT expanded by outer shell (no delayed expansion by default)
+          // They pass through to subprocess where cmd /v:on enables delayed expansion
+          // This avoids popd issue because subprocess auto-returns to original directory after exit
+          // and the subprocess exit code (msr's return value) is propagated back to caller
+          // NOTE: Without outer quotes, inner quotes stay as-is, but & must be escaped as ^&
+          // Format: gfind-xxx=call update-repo-paths.cmd && cmd /v:on /c pushd "!MSR_REPO_ROOT!" ^&^& msr -w "!MSR_REPO_PATHS_FILE!" ...
+          const msrCommandMatch = gitFindBody.match(new RegExp('^' + gitFindName + '=(.+)$'));
+          if (msrCommandMatch) {
+            const msrCommand = msrCommandMatch[1];
+            // Escape & as ^& for cmd /v:on /c without outer quotes
+            const escapedMsrCommand = msrCommand.replace(/&/g, '^&');
+            gitFindBody = `${gitFindName}=${updateRepoPathsCall}cmd /v:on /c pushd ${gitRootEnvRef} ^&^& ${escapedMsrCommand}`;
+          }
+        } else if (!isWindowsTerminal && !writeToEachFile) {
+          // For Linux bash inline aliases: insert source command INSIDE the alias quotes.
+          // gitFindBody format: alias gfind-xxx='msr ...' or alias gfind-xxx='function _gfind_xxx() {...}; _gfind_xxx'
+          // NOTE: Must save msr exit code before popd, then return it to preserve msr return value
+          if (/\bfunction\s+\w+/m.test(gitFindBody) || /=\s*['"]\s*function\b/.test(gitFindBody)) {
+            // Insert INSIDE the function body after the opening brace
+            // Add pushd/popd wrapper: pushd "$MSR_REPO_ROOT" && ... ; local msrExit=$?; popd; return $msrExit
+            gitFindBody = gitFindBody.replace(/(function\s+\w+[\s\S]*?\{\s*)/, `$1${updateRepoPathsCall}pushd ${gitRootEnvRef} >/dev/null && `);
+            // Add exit code save before popd, and return it after popd
+            // NOTE: In single-quoted alias, $? should NOT be escaped (no backslash needed)
+            gitFindBody = gitFindBody.replace(/(\s*\}\s*;\s*\w+)/, ` ; local msrExit=$?; popd >/dev/null; return $msrExit$1`);
+          } else {
+            // Simple alias without function wrapper - wrap in function with pushd/popd
+            // Must use function to properly capture "${@}" arguments and prevent them from leaking to popd
+            // Without function wrapper, bash alias text substitution appends args at the END of the expansion,
+            // causing args like "-l" to become "popd >/dev/null -l" which fails with "popd: -l: invalid number"
+            // Use getCommandAliasText (same proven code path as gfind-md-ref) to ensure correct multi-line formatting
+            // NOTE: Save msr exit code before popd, then return it to preserve msr return value
+            // NOTE: In single-quoted alias, $? should NOT be escaped (no backslash needed)
+            const aliasMatch = gitFindBody.match(/^(alias\s+\S+=)(['"])(.+)\2$/);
+            if (aliasMatch) {
+              const innerBody = aliasMatch[3]; // the body inside quotes, already has "${@}"
+              const wrappedBody = `${updateRepoPathsCall}pushd ${gitRootEnvRef} >/dev/null && ${innerBody} ; local msrExit=$?; popd >/dev/null; return $msrExit`;
+              // useFunction=true for function wrapping, addTailArgs=false since innerBody already has "${@}",
+              // hideCmdAddColor=false since body was already processed
+              gitFindBody = getCommandAliasText(gitFindName, wrappedBody, true, terminalType, writeToEachFile, false, false, false);
+            } else {
+              // Fallback: log warning and use old approach (has popd bug with trailing args, but works without args)
+              outputWarnByTime(`gfind function-wrap regex did not match for ${gitFindName}, using fallback. Body: ${gitFindBody.substring(0, 120)}`);
+              gitFindBody = gitFindBody.replace(/(alias\s+\S+=['"])/, `$1${updateRepoPathsCall}pushd ${gitRootEnvRef} >/dev/null && `);
+              gitFindBody = gitFindBody.replace(/(['"])$/, ` ; local msrExit=$?; popd >/dev/null; return $msrExit$1`);
+            }
+          }
+        } else {
+          // For script files (Windows CMD or Linux bash): prepend to body and wrap with pushd/popd
+          // NOTE: Save msr exit code before popd, then return it to preserve msr return value
+          if (isWindowsTerminal) {
+            // Windows CMD script: same as doskey, use cmd /v:on /c subprocess with delayed expansion
+            // Subprocess automatically restores directory on exit and propagates msr exit code
+            const escapedBody = gitFindBody.replace(/&/g, '^&');
+            gitFindBody = `${updateRepoPathsCall}cmd /v:on /c pushd ${gitRootEnvRef} ^&^& ${escapedBody}`;
+          } else {
+            // Linux bash script: pushd "$MSR_REPO_ROOT" && ... ; msrExit=$?; popd; exit $msrExit
+            gitFindBody = updateRepoPathsCall + `pushd ${gitRootEnvRef} >/dev/null && ${gitFindBody} ; msrExit=$?; popd >/dev/null; exit $msrExit`;
+          }
+        }
       }
 
       if (writeToEachFile) {
@@ -157,12 +340,23 @@ function duplicateSearchFileCmdAlias(repoFolder: string, terminalType: TerminalT
         return;
       }
 
-      // Duplicate to rgfind-xxx, skip WSL/MinGW/Cygwin terminals on Windows due to unable to cook alias to script files (unless using them as main terminal)
-      if (!isLinuxTerminalOnWindows(terminalType)) {
+      // Duplicate to rgfind-xxx for all terminal types (CMD/PowerShell/WSL/MinGW/Cygwin/Linux/macOS)
+      // Check if this extension should generate rgfind-xxx based on msr.cookAlias.recursiveGitFindExtensionPattern
+      // Extract extension from key (e.g., 'find-cpp' -> 'cpp', 'find-cs-ref' -> 'cs', 'find-ui-def' -> 'ui')
+      // Use non-greedy match to extract extension before optional -ref/-def suffix
+      const extMatch = key.match(/^find-(\w+?)(?:-(?:ref|def))?$/);
+      const extension = extMatch ? extMatch[1] : '';
+
+      // Only generate rgfind-xxx if extension matches the configured pattern (default empty = disabled for all)
+      // rgfind-xxx: Only search subdirectories that are independent git repos (have .git directory)
+      // This is the core job of rgfind-xxx - no smart fallback to gfind-xxx for current directory
+      // Special case: always generate rgfind-file as a general-purpose alias (no extension filter)
+      const isGeneralFindAlias = key === 'find-file';
+      if (!isNullOrEmpty(extension) && (isGeneralFindAlias || MyConfig.CookRecursiveGitFindExtensionRegex.test(extension))) {
         const recursiveGitFindName = 'rg' + key;
         let recursiveGitFindBody = isWindowsTerminal
-          ? `for /f "tokens=*" %a in ('dir /A:D /B .') do @pushd "%CD%\\%a" && ${gitFindName} ${allArgs} -O & popd`
-          : `for folder in $(ls -d $PWD/*/); do pushd "$folder" >/dev/null && ${saveAliasFolder}/${gitFindName} ${allArgs} -O; popd > /dev/null; done`;
+          ? `for /f "tokens=*" %a in ('dir /A:D /B .') do @if exist "%CD%\\%a\\.git" pushd "%CD%\\%a" && ${gitFindName} ${allArgs} -O & popd`
+          : `for folder in $(ls -d $PWD/*/); do [ -d "$folder/.git" ] && pushd "$folder" >/dev/null && ${saveAliasFolderForTerminal}/${gitFindName} ${allArgs} -O; popd > /dev/null; done`;
         if (needReplaceArgForLoop) {
           recursiveGitFindBody = replaceForLoopVariableForWindowsScript(recursiveGitFindBody);
         }
@@ -221,7 +415,7 @@ function showTipByCommand(terminal: vscode.Terminal | undefined, terminalType: T
     + ` Change user settings for all functions:`
     + ` Toggle-Enable/Disable finding definition`
     + ` + Adjust-Color + Fuzzy-Code-Mining + Hide/Show-Menus`
-    + ` + Use git-ignore + Git operations: gpc / gpc-sm / del-this-tmp-list for gfind-xxx.`
+    + ` + Use git-ignore + Git operations: gpc / gpc-sm for gfind-xxx.`
     + ` ${CookCmdDocUrl} for Advanced/Menu/Mouse search + preview->replace.`
     + ` Outside terminals/IDEs: use-this-alias / out-fp / out-rp.`;
 
@@ -417,24 +611,8 @@ export function cookCmdShortcutsOrFile(cookArgs: CookAliasArgs) {
     + String.raw` [ -f "$thisFile" ] && source $thisFile || echo "Not found alias file: $thisFile - Please open a folder to cook alias."`;
   cmdAliasMap.set('use-this-alias', getCommandAliasText('use-this-alias', useThisAliasBody, isWindowsTerminal, terminalType, args.WriteToEachFile, false));
 
-  const tmpListFileName = GitTmpListFilePrefix + '%b';
-  const removeThisTmpListBody = (isWindowsTerminal
-    ? useThisAliasBody
-      .replace(new RegExp(`%b\\.${projectAliasFileSuffix.replace(/\./g, '\\.')}`, 'g'), tmpListFileName) // Replace all occurrences
-      .replace(/call (\S+)/g, 'del $1 && echo Deleted tmp list file: $1') // Change call to del
-    : useThisAliasBody
-      .replace(new RegExp(`${linuxTmpFolder}/`, 'g'), '/tmp/' + GitTmpListFilePrefix) // Replace folder prefix
-      .replace(new RegExp(`\\.${projectAliasFileSuffix.replace(/\./g, '\\.')}`, 'g'), '') // Remove suffix
-      .replace(/source (\S+)/g, 'rm $1 && echo "Deleted tmp list file: $1"') // Change source to rm
-  )
-    .replace(/Not found alias file:/g, 'Not found tmp list file:') // Fix error message (common for both)
-    .replace(/ - Please open a folder to cook alias\./g, '') // Remove irrelevant hint (common for both)
-    .replace(isWindowsTerminal ? /echo (Not found tmp list file:[^)]+)\)/g : /echo "Not found tmp list file: \$thisFile[^"]*"/g,
-      isWindowsTerminal ? 'echo $1 1>&2 )' : 'echo "Not found tmp list file: $thisFile" >&2'); // Output error to stderr
-  cmdAliasMap.set('del-this-tmp-list', getCommandAliasText('del-this-tmp-list', removeThisTmpListBody, false, terminalType, args.WriteToEachFile, false));
-
   const shouldCheckUpdateAlias = isWeeklyCheckTime() || IsDebugMode;
-  ['use-this-alias', 'del-this-tmp-list', 'add-user-path', 'reload-env', 'reset-env'].forEach(name => {
+  ['use-this-alias', 'add-user-path', 'reload-env', 'reset-env'].forEach(name => {
     let scriptBody = cmdAliasMap.get(name) as string;
     if (isNullOrEmpty(scriptBody)) {
       return;
@@ -499,17 +677,64 @@ export function cookCmdShortcutsOrFile(cookArgs: CookAliasArgs) {
     let scriptContent = cmdAliasMap.get(key) || '';
     if (args.WriteToEachFile) {
       if (canWriteScripts && !skipWritingScriptNames.has(key) && (args.DumpOtherCmdAlias || key.match(/^(r?g?find|sort)-|malias/))) {
+        // Add use-this-alias prefix for find-xxx/sort-xxx script files (not gfind/rgfind/gsort/rgsort)
+        // This loads project-specific Skip_Junk_Paths for precise filtering with <1s overhead
+        // CMD scripts parse line-by-line, so call on line 1 sets env vars for %VAR% on line 2
+        if (key.match(/^(find|sort)-/) && !key.match(/^(r?g)(find|sort)-/)) {
+          if (isWindowsTerminal) {
+            scriptContent = `call use-this-alias >nul 2>&1${newLine}${scriptContent}`;
+          } else {
+            scriptContent = `source "${generalAliasFolderForBash}/use-this-alias" >/dev/null 2>&1${newLine}${scriptContent}`;
+          }
+        }
         if (!writeOneAliasToFile(key, scriptContent, true)) {
           writeScriptFailureCount++;
         }
       }
     } else if (!args.ForProject) {
+      // Add use-this-alias prefix for find-xxx/sort-xxx doskey/alias (not gfind/rgfind/gsort/rgsort)
+      // This loads project-specific Skip_Junk_Paths for precise filtering
+      // Exclude PowerShell-wrapped commands (find-spring-ref etc.) which have complex quoting
+      const isPowerShellBody = /\b(PowerShell|pwsh)\s+-Command\b/i.test(scriptContent);
+      if (key.match(/^(find|sort)-/) && !key.match(/^(r?g)(find|sort)-/) && !isPowerShellBody) {
+        if (isWindowsTerminal) {
+          // For Windows doskey: need cmd /v:on /c with delayed expansion
+          // Doskey is parsed as single line - %VAR% expanded before call runs
+          // Replace %Skip_Junk_Name% and %Skip_Junk_Paths% with !VAR! for delayed expansion
+          // Use & (not &&) so find-xxx still runs even if use-this-alias fails (best effort)
+          // Format: find-cs=call use-this-alias & cmd /v:on /c msr ... !Skip_Junk_Name! "!Skip_Junk_Paths!" ...
+          const doskeyMatch = scriptContent.match(/^([\w-]+)=(.+)$/s);
+          if (doskeyMatch) {
+            let body = doskeyMatch[2];
+            body = body.replace(/%Skip_Junk_Name%/g, '!Skip_Junk_Name!').replace(/%Skip_Junk_Paths%/g, '!Skip_Junk_Paths!');
+            body = body.replace(/&/g, '^&');
+            scriptContent = `${doskeyMatch[1]}=call use-this-alias & cmd /v:on /c ${body}`;
+          }
+        } else {
+          // For Linux alias: insert source inside the alias quotes
+          // $VAR is expanded at execution time, so no delayed expansion needed
+          const sourceCmd = `source "${generalAliasFolderForBash}/use-this-alias" 2>/dev/null; `;
+          if (/\bfunction\s+\w+/m.test(scriptContent) || /=\s*['"]\s*function\b/.test(scriptContent)) {
+            // Function-wrapped alias: insert source after opening brace
+            scriptContent = scriptContent.replace(/(function\s+\w+[\s\S]*?\{\s*)/, `$1${sourceCmd}`);
+          } else {
+            // Simple alias: insert source after opening quote
+            scriptContent = scriptContent.replace(/(alias\s+\S+=['"])/, `$1${sourceCmd}`);
+          }
+        }
+      }
       // Remove trailing whitespace from each line to avoid unnecessary diff
       const cleanedContent = scriptContent.replace(/[ \t]+$/gm, '');
       allCmdAliasText += cleanedContent + newLine + newLine;
     }
   });
   if (args.WriteToEachFile && canWriteScripts) {
+    // Write update-repo-paths script for centralized cache logic
+    const updateRepoPathsScriptPath = path.join(singleScriptsSaveFolder, isWindowsTerminal ? UpdateRepoPathsScriptName + '.cmd' : UpdateRepoPathsScriptName);
+    const updateRepoPathsContent = getUpdateRepoPathsScriptContent(isWindowsTerminal);
+    if (!saveTextToFile(updateRepoPathsScriptPath, updateRepoPathsContent, 'update-repo-paths script', true)) {
+      outputWarnByTime(`Failed to write ${UpdateRepoPathsScriptName} script to: ${updateRepoPathsScriptPath}`);
+    }
     outputInfoQuietByTime(`Cost ${getElapsedSecondsToNow(writeScriptsStartTime).toFixed(3)}s to write aliases to files.`);
   }
 
@@ -519,7 +744,17 @@ export function cookCmdShortcutsOrFile(cookArgs: CookAliasArgs) {
   if (args.WriteToEachFile) {
     if (canWriteScripts && writeScriptFailureCount < cmdAliasMap.size) {
       if (!isWindowsTerminal) {
-        runCmdInTerminal('chmod 700 ' + singleScriptsFolderForTerminal + (args.DumpOtherCmdAlias ? '/*' : '/*find-*'));
+        if (isLinuxTerminalOnWindows) {
+          // MinGW/Cygwin/WSL on Windows: must use terminal command with terminal-specific path
+          runCmdInTerminal('chmod 700 ' + singleScriptsFolderForTerminal + '/*');
+        } else {
+          // Native Linux/macOS: use ChildProcess.exec() to run in background without occupying the terminal
+          ChildProcess.exec('chmod 700 ' + singleScriptsSaveFolder + '/*', (err) => {
+            if (err) {
+              outputWarnQuietByTime(`Failed to chmod scripts in: ${singleScriptsSaveFolder}/*, error: ${err.message}`);
+            }
+          });
+        }
       }
       outputCmdAliasGuide(args.Terminal ? defaultCmdAliasFilePath : cmdAliasFileStoragePath, saveAliasFolder);
     }
@@ -539,8 +774,7 @@ export function cookCmdShortcutsOrFile(cookArgs: CookAliasArgs) {
     const expectedCount = cmdAliasMap.size - (args.ForProject ? 2 : 0);
     let shouldCheckUpdateCommonAlias = aliasCountFromFile < expectedCount;
     if (!shouldCheckUpdateCommonAlias && !args.IsSelfLoopCalling && (isWeeklyCheckTime() || isLinuxTerminalOnWindows)) {
-      const fileTime = FileToCheckTimeMap.get(defaultCmdAliasFilePath) || getFileModifyTime(defaultCmdAliasFilePath);
-      shouldCheckUpdateCommonAlias = getElapsedSecondsToNow(fileTime) > CheckReCookAliasFileSeconds;
+      shouldCheckUpdateCommonAlias = true;
     }
 
     if (shouldCheckUpdateCommonAlias) {
@@ -549,7 +783,6 @@ export function cookCmdShortcutsOrFile(cookArgs: CookAliasArgs) {
       cookCmdShortcutsOrFile({ FilePath: '', Terminal: args.Terminal, IsSelfLoopCalling: true, OnlyCookFile: args.OnlyCookFile, SilentAll: true } as CookAliasArgs);
       const elapsedSeconds = getElapsedSecondsToNow(time1);
       outputInfoQuietByTime(`Cost ${elapsedSeconds}s to re-cook/update common alias file: ${defaultCmdAliasFilePath}`);
-      FileToCheckTimeMap.set(defaultCmdAliasFilePath, new Date());
     }
 
     if (!args.OnlyCookFile) {
@@ -580,6 +813,15 @@ export function cookCmdShortcutsOrFile(cookArgs: CookAliasArgs) {
   }
 
   const useGitIgnore = MyConfig.canUseGoodGitIgnore(repoFolder);
+  // For newly created Pwsh terminals: enable deferred send mode at sendCommandToTerminal level.
+  // All sendText() calls are queued and later flushed as ONE combined sendText() call.
+  // This avoids PSReadLine paste detection which concatenates rapid multiple sendText() calls into one line.
+  // See: https://github.com/microsoft/vscode/issues/236397 ("PSReadLine is swallowing the \r")
+  const isPwshDeferredInit = TerminalType.Pwsh === terminalType && args.IsNewlyCreated && args.Terminal !== undefined;
+  if (isPwshDeferredInit) {
+    enablePwshDeferredSend(args.Terminal!);
+  }
+
   if (isPowerShellTerminal(terminalType)) {
     const setEnvPathCmd = getSetToolEnvCommand(terminalType, [generalScriptFilesFolder], true);
     runCmdInTerminal(setEnvPathCmd);
@@ -590,26 +832,28 @@ export function cookCmdShortcutsOrFile(cookArgs: CookAliasArgs) {
     if (fs.existsSync(projectAliasFilePath)) { // avoid non-exist error, needless for main terminal which called by use-this-alias later.
       runCmdInTerminal(getLoadAliasFileCommand(quotedProjectAliasFileForTerminal, isWindowsTerminal));
     }
-  } else {
+  } else if (TerminalType.Pwsh !== terminalType) {
     runCmdInTerminal(`source ${quotedCmdAliasFileForTerminal}`);
   }
 
   if (TerminalType.PowerShell === terminalType) { // && !useGitIgnore) { // avoid missing env settings
-    const tipFileDisplayPath = getTipFileDisplayPath(terminalType);
+    //const tipFileDisplayPath = getTipFileDisplayPath(terminalType);
     runPostInitCommands(args.Terminal, terminalType, repoFolderName); // Must be run before 'cmd /k' for PowerShell
-    const quotedFileForPS = (quotedCmdAliasFileForTerminal === cmdAliasFileStoragePath ? cmdAliasFileStoragePath : '`"' + cmdAliasFileStoragePath + '`"').replace(TempStorageFolder, '%TMP%');
-    const loadAliasCmd = getLoadAliasFileCommand(quotedFileForPS, isWindowsTerminal, false);
-    const replaceTipValueArg = `-x S#C -o ${cmdAliasMap.size}`;
-    const cmd = `cmd /k "${loadAliasCmd}`
-      + ` & ${tipFileDisplayPath.replace(TempStorageFolder, '%TMP%')} ${replaceTipValueArg}`
-      + ` & echo Type exit to back to PowerShell.| msr -aPA -e .+ -x exit"`;
-    runCmdInTerminal(cmd, true);
+    // const quotedFileForPS = (quotedCmdAliasFileForTerminal === cmdAliasFileStoragePath ? cmdAliasFileStoragePath : '`"' + cmdAliasFileStoragePath + '`"').replace(TempStorageFolder, '%TMP%');
+    // const loadAliasCmd = getLoadAliasFileCommand(quotedFileForPS, isWindowsTerminal, false);
+    // const replaceTipValueArg = `-x S#C -o ${cmdAliasMap.size}`;
+    // const cmd = `cmd /k "${loadAliasCmd}`
+    //  + ` & ${tipFileDisplayPath.replace(TempStorageFolder, '%TMP%')} ${replaceTipValueArg}`
+    //  + ` & echo Type exit to back to PowerShell.| msr -aPA -e .+ -x exit"`;
+    // runCmdInTerminal(cmd, true);
   } else if (TerminalType.Pwsh === terminalType && !useGitIgnore) {
-    runPowerShellShowFindCmdLocation();
+    if (!isPwshDeferredInit) {
+      runPowerShellShowFindCmdLocation();
+    }
     if (!args.SilentAll) {
       showTipByCommand(args.Terminal, terminalType, cmdAliasMap.size);
     }
-    runCmdInTerminal('bash --init-file ' + quotedCmdAliasFileForTerminal);
+    // runCmdInTerminal('bash --init-file ' + quotedCmdAliasFileForTerminal);
   } else if (!args.SilentAll) {
     showTipByCommand(args.Terminal, terminalType, cmdAliasMap.size, initLinuxTerminalCommands);
   }
@@ -622,17 +866,28 @@ export function cookCmdShortcutsOrFile(cookArgs: CookAliasArgs) {
     runCmdInTerminal(getLoadAliasFileCommand(projectAliasFilePath, isWindowsTerminal));
   }
 
-  if (TerminalType.PowerShell !== terminalType && !args.SilentAll) {
+  if (TerminalType.PowerShell !== terminalType && !(TerminalType.Pwsh === terminalType && args.IsNewlyCreated) && !args.SilentAll) {
     runPostInitCommands(args.Terminal, terminalType, repoFolderName);
   }
 
-  if (TerminalType.WslBash === terminalType) {
-    runCmdInTerminal(WslCheckingCommand);
+  // Flush all queued commands as ONE combined sendText() for newly created Pwsh terminals.
+  // processId.then() ensures the terminal process is allocated; setTimeout(1500) waits for
+  // pwsh startup + PSReadLine initialization. Since we send ONE combined command (not multiple),
+  // PSReadLine won't trigger paste detection even if the command arrives before full readiness —
+  // the single stdin write will be processed normally when PSReadLine initializes.
+  if (isPwshDeferredInit && args.Terminal) {
+    const pwshTerminal = args.Terminal;
+    pwshTerminal.processId.then(() => {
+      setTimeout(() => {
+        flushPwshDeferredCommands(pwshTerminal);
+      }, 1500);
+    });
   }
 
   function runPowerShellShowFindCmdLocation(searchFileNamePattern = "^g?find-\\w+-def") {
     if (fs.existsSync(generalScriptFilesFolder)) {
-      runCmdInTerminal('msr -l --wt --sz -p ' + quotePaths(generalScriptFilesFolder) + ` -f "${searchFileNamePattern}" -H 2 -T2 -M`);
+      const cmd = 'msr -l --wt --sz -p ' + quotePaths(generalScriptFilesFolder) + ` -f "${searchFileNamePattern}" -H 2 -T2 -M`;
+      runCmdInTerminal(cmd);
     } else {
       runCmdInTerminal('echo "Please cook command alias/doskeys (by menu of right-click) to generate and use find-xxx in external IDEs or terminals."');
     }
@@ -666,7 +921,7 @@ export function cookCmdShortcutsOrFile(cookArgs: CookAliasArgs) {
     const toolExportFolder = toTerminalPath(getToolExportFolder(terminalType), terminalType);
     const defaultAdding = `${toolExportFolder}:${generalAliasFolderForBash}`.replace(/^\s*:/, '');
     if (TerminalType.Pwsh === terminalType) {
-      return `$env:PATH = $env:HOME + ":" + $env:PATH + ":"  + "${defaultAdding}"`;
+      return `export PATH="$HOME:$PATH:${defaultAdding}"`;
     }
 
     let initLinuxCommands = "";
@@ -724,6 +979,10 @@ export function cookCmdShortcutsOrFile(cookArgs: CookAliasArgs) {
     }
 
     initLinuxCommands += `source ${rcName}` + "\n";
+
+    if (terminalType === TerminalType.WslBash) {
+      initLinuxCommands += WslCheckingCommand + "\n";
+    }
 
     return initLinuxCommands;
   }
@@ -789,6 +1048,17 @@ export function getCommandAliasMap(
     commands.push(getCommandAlias(cmdName, body, false));
 
     findTypes.forEach(fd => {
+      // Skip generating find-xxx-def alias for extensions without specific definition patterns
+      // This avoids creating useless aliases like find-xml-def, find-json-def that fall back to generic patterns
+      if (fd === 'definition' && !shouldGenerateDefinitionAlias(projectKey, ext, ext, MyConfig.CookFindDefinitionAliasExtraExtensionRegex)) {
+        // Clean up old aliases that may have been loaded from existing alias file
+        const defName = cmdName + '-def';
+        cmdAliasMap.delete(defName);
+        cmdAliasMap.delete('g' + defName);
+        cmdAliasMap.delete('rg' + defName);
+        return; // Skip this extension for definition alias
+      }
+
       // msr.cpp.member.definition msr.py.class.definition msr.default.class.definition msr.default.definition
       let searchPattern = getConfigValueByProjectAndExtension(projectKey, ext, ext, fd);
 
@@ -1182,6 +1452,36 @@ function normalizeFileContent(content: string, newLine: string): string {
 const AutoDumpAliasMinIntervalSeconds = 10;
 let autoDumpMarkerFile: string | undefined;
 
+// Check and update script file for terminal type: create if missing, update if content mismatch
+function checkAndUpdateScriptFile(
+  terminalType: TerminalType,
+  scriptName: string,
+  getExpectedContent: (isWindowsTerminal: boolean) => string
+): boolean {
+  const isWindowsTerminal = isWindowsTerminalOnWindows(terminalType);
+  const scriptFolder = getCmdAliasSaveFolder(true, false, terminalType);
+  const fullScriptName = isWindowsTerminal ? scriptName + '.cmd' : scriptName;
+  const scriptPath = path.join(scriptFolder, fullScriptName);
+
+  const expectedContent = getExpectedContent(isWindowsTerminal);
+
+  // File doesn't exist - create it
+  if (!fs.existsSync(scriptPath)) {
+    outputInfoQuietByTime(`Creating missing script: ${scriptPath}`);
+    createDirectory(scriptFolder);
+    return saveTextToFile(scriptPath, expectedContent, scriptName, true);
+  }
+
+  // Check if content matches
+  const existingContent = readTextFile(scriptPath);
+  if (existingContent !== expectedContent) {
+    outputInfoQuietByTime(`Updating script with new content: ${scriptPath}`);
+    return saveTextToFile(scriptPath, expectedContent, scriptName, true);
+  }
+
+  return false; // No change needed
+}
+
 function getAutoDumpMarkerFilePath(): string {
   if (!autoDumpMarkerFile) {
     autoDumpMarkerFile = path.join(TempStorageFolder, '.vscode-msr-last-auto-dump');
@@ -1231,7 +1531,7 @@ function getTerminalTypeFromTerminal(terminal: vscode.Terminal | undefined): Ter
       return TerminalType.CMD;
     } else if (/PowerShell.exe$|^PowerShell$/i.test(terminalName || initialPath)) {
       return TerminalType.PowerShell;
-    } else if (/Cygwin.*?bin\\bash.exe$|^Cygwin/i.test(initialPath)) {
+    } else if (/Cygwin.*?bin\\bash.exe$|Cygwin/i.test(initialPath)) {
       return TerminalType.CygwinBash;
     } else if (/System(32)?.bash.exe$|wsl.exe$|^WSL/i.test(initialPath)) {
       return TerminalType.WslBash;
@@ -1265,6 +1565,10 @@ function shouldAutoDumpForTerminalType(terminalType: TerminalType): boolean {
 export async function asyncCheckAndDumpAliasToFiles(terminal: vscode.Terminal | undefined, forceCheckUpdate: boolean = false): Promise<void> {
   const checkStartTime = new Date();
   const terminalType = getTerminalTypeFromTerminal(terminal);
+
+  // Always check and update the update-repo-paths script for current terminal type
+  // This ensures the script exists and is up-to-date even if auto-dump is disabled or hash unchanged
+  checkAndUpdateScriptFile(terminalType, UpdateRepoPathsScriptName, getUpdateRepoPathsScriptContent);
 
   if (!shouldAutoDumpForTerminalType(terminalType)) {
     outputInfoQuietByTime(`Auto-dump disabled for terminal type: ${TerminalType[terminalType]}`);

@@ -30,14 +30,13 @@ You can override any built-in alias by creating a custom alias with the same nam
 - View alias conflicts in VSCode's **OUTPUT** panel → **"MSR-Def-Ref"** channel when a project is opened.
 - Many aliases require PowerShell/pwsh. See [Install PowerShell](#install-powershell) at the end of this document.
 
-| Alias               | Usage                                                                    | Examples                                                      |
-| ------------------- | ------------------------------------------------------------------------ | ------------------------------------------------------------- |
-| `to-alias-body`     | Convert clipboard content to JSON alias body for settings.json           | `to-alias-body` \| `to-alias-body 1`                          |
-| `find-alias`        | Find alias by name or prefix                                             | `find-alias gdm` \| `find-alias gdm 1` \| `find-alias gdm-ml` |
-| `rm-alias`          | Remove alias(es) from doskeys/bashrc + script file + settings.json       | `rm-alias my-alias` \| `rm-alias a1,a2,a3 -SettingsOnly 1`  |
-| `update-alias`      | Reload all aliases with project-specific including related env variables | `update-alias`                                                |
+| Alias               | Usage                                                                    | Examples                                                          |
+| ------------------- | ------------------------------------------------------------------------ | ----------------------------------------------------------------- |
+| `to-alias-body`     | Convert clipboard content to JSON alias body for settings.json           | `to-alias-body` \| `to-alias-body 1`                              |
+| `find-alias`        | Find alias by name/prefix or regex (auto-detect by special chars)        | `find-alias gdm` \| `find-alias gdm 1` \| `find-alias "^gfind"`   |
+| `rm-alias`          | Remove aliases by names or regex (auto-detect, supports Preview) | `rm-alias a1,a2` \| `rm-alias "^gfind"` \| `rm-alias . -Preview 1` |
+| `update-alias`      | Reload all aliases with project-specific including related env variables | `update-alias`                                                    |
 | `use-this-alias`    | Load project-specific alias from current folder                          | `use-this-alias`                                              |
-| `del-this-tmp-list` | Delete temp file list used by gfind-xxx                                  | `del-this-tmp-list`                                           |
 | `list-alias`        | List all project alias files                                             | `list-alias`                                                  |
 | `open-alias`        | Open alias file in editor                                                | `open-alias`                                                  |
 | `open-this-alias`   | Open project-specific alias file                                         | `open-this-alias`                                             |
@@ -102,6 +101,7 @@ Compare your current branch with the `origin/main` or `origin/master` branch usi
 | `git-rb-list`                            | List all remote branches                            | `git-rb-list`                                                   |
 | `git-shallow-clone`                      | Clone repository with depth 1                       | `git-shallow-clone https://github.com/user/repo.git`            |
 | `git-clean`                              | Clean all untracked files recursively               | `git-clean`                                                     |
+| `git-rm-junk`                            | Delete untracked files shown by `git status`        | `git-rm-junk`                                                   |
 | `git-add-safe-dir`                       | Add current repo to git safe directories            | `git-add-safe-dir`                                              |
 | `git-cherry-pick-branch-new-old-commits` | Cherry-pick commits from branch between two commits | `git-cherry-pick-branch-new-old-commits {branch} abc123 def456` |
 

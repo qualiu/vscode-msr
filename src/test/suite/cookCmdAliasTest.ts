@@ -1,5 +1,6 @@
 import * as assert from 'assert';
 import { replaceForLoopVariableForWindowsScript } from '../../commonAlias';
+import { hasSpecificDefinitionConfig, shouldGenerateDefinitionAlias } from '../../configUtils';
 import { getCommandAliasMap } from '../../cookCommandAlias';
 import { TerminalType } from '../../enums';
 
@@ -215,4 +216,78 @@ export function testForLoopCmdAlias() {
     assert.strictEqual(result, expected || '');
     console.info('');
   });
+}
+
+// Test hasSpecificDefinitionConfig function
+export function testHasSpecificDefinitionConfig() {
+  // Extensions without specific definition config should return false
+  assert.strictEqual(hasSpecificDefinitionConfig('', 'xyz', 'xyz'), false);
+  assert.strictEqual(hasSpecificDefinitionConfig('', 'unknown', 'unknown'), false);
+  
+  // Common languages with definition patterns should return true
+  // These are configured in package.json with specific definition patterns
+  assert.strictEqual(hasSpecificDefinitionConfig('', 'cs', 'cs'), true);
+  assert.strictEqual(hasSpecificDefinitionConfig('', 'java', 'java'), true);
+  assert.strictEqual(hasSpecificDefinitionConfig('', 'py', 'py'), true);
+  assert.strictEqual(hasSpecificDefinitionConfig('', 'go', 'go'), true);
+  assert.strictEqual(hasSpecificDefinitionConfig('', 'cpp', 'cpp'), true);
+  
+  console.info('testHasSpecificDefinitionConfig passed');
+}
+
+// Test shouldGenerateDefinitionAlias function
+export function testShouldGenerateDefinitionAlias() {
+  const emptyRegex = new RegExp('^$');     // Disabled - matches nothing
+  const allRegex = new RegExp('.');         // Enable all - matches any character
+  const specificRegex = new RegExp('^(cs|java)$');  // Only cs and java
+  
+  // Case 1: Extension with specific definition config - always generates regardless of regex
+  assert.strictEqual(shouldGenerateDefinitionAlias('', 'cs', 'cs', emptyRegex), true);
+  assert.strictEqual(shouldGenerateDefinitionAlias('', 'java', 'java', emptyRegex), true);
+  
+  // Case 2: Extension without specific config + empty regex = no generation
+  assert.strictEqual(shouldGenerateDefinitionAlias('', 'xyz', 'xyz', emptyRegex), false);
+  assert.strictEqual(shouldGenerateDefinitionAlias('', 'txt', 'txt', emptyRegex), false);
+  
+  // Case 3: Extension without specific config + matching regex = generate
+  assert.strictEqual(shouldGenerateDefinitionAlias('', 'xyz', 'xyz', allRegex), true);
+  assert.strictEqual(shouldGenerateDefinitionAlias('', 'txt', 'txt', allRegex), true);
+  
+  // Case 4: Extension without specific config + specific regex
+  assert.strictEqual(shouldGenerateDefinitionAlias('', 'md', 'md', specificRegex), false);
+  
+  console.info('testShouldGenerateDefinitionAlias passed');
+}
+
+// Test rgfind-xxx alias generation control
+export function testRgfindAliasGeneration() {
+  // Get the command alias map and check for rgfind-xxx patterns
+  const [mapCmd] = getCommandAliasMap(TerminalType.CMD, '', false, false);
+  const [mapLinux] = getCommandAliasMap(TerminalType.LinuxBash, '', false, false);
+  
+  // Check if any rgfind-xxx aliases exist (depends on CookRecursiveGitFindExtensionRegex config)
+  const cmdRgfindAliases = Array.from(mapCmd.keys()).filter(k => k.startsWith('rgfind-'));
+  const linuxRgfindAliases = Array.from(mapLinux.keys()).filter(k => k.startsWith('rgfind-'));
+  
+  console.info('CMD rgfind aliases count: ' + cmdRgfindAliases.length);
+  console.info('Linux rgfind aliases count: ' + linuxRgfindAliases.length);
+  
+  // With default empty regex ('^$'), no rgfind-xxx should be generated
+  // If config is changed to '.', rgfind-xxx will be generated for all find-xxx aliases
+  // This test validates the mechanism works - actual count depends on configuration
+  
+  // Verify any generated rgfind aliases have proper format
+  cmdRgfindAliases.forEach(alias => {
+    const body = mapCmd.get(alias) || '';
+    assert.ok(body.includes('for /f') || body.includes('for %'),
+      'CMD rgfind alias should use for loop: ' + alias);
+  });
+  
+  linuxRgfindAliases.forEach(alias => {
+    const body = mapLinux.get(alias) || '';
+    assert.ok(body.includes('for ') && body.includes(' in '),
+      'Linux rgfind alias should use for loop: ' + alias);
+  });
+  
+  console.info('testRgfindAliasGeneration passed');
 }

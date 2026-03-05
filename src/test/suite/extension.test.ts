@@ -5,6 +5,7 @@ import * as vscode from 'vscode';
 import { checkConfigKeysInDoc, checkDuplicateDescription, validateRegexPatterns } from './configAndDocTest';
 import { testForLoopCmdAlias, testLinuxGeneralCmdAlias, testLinuxGeneralCmdAliasScript, testWindowsGeneralCmdAlias, testWindowsGeneralCmdAliasScript } from './cookCmdAliasTest';
 import { testCmdTerminalWithBackSlash, testCmdTerminalWithForwardSlash, testLinuxTerminal, testNotSkipDotPaths, testOmitExemptions } from './gitIgnoreTest';
+import { testHasSpecificDefinitionConfig, testShouldGenerateDefinitionAlias, testRgfindAliasGeneration } from './cookCmdAliasTest';
 import { testEscapeRegex, testEscapeRegexForFindingCommands, testSpecialCaseReplacing } from './utilsTest';
 
 suite('Test-1: Basic utils test', () => {
@@ -60,4 +61,10 @@ suite('Test-4: Cook each doskey/alias to a batch script file for Windows doskey'
     test('Test Linux alias of multiple scripts.', testLinuxGeneralCmdAlias);
     test('Test Linux alias of multiple scripts.', testLinuxGeneralCmdAliasScript);
     test('Test use "%%x" for looping variable "%x" when cooking doskey/alias to files on Windows.', testForLoopCmdAlias);
+});
+
+suite('Test-5: Alias generation control for find-xxx-def and rgfind-xxx', () => {
+    test('Test hasSpecificDefinitionConfig detects extensions with definition patterns.', testHasSpecificDefinitionConfig);
+    test('Test shouldGenerateDefinitionAlias controls find-xxx-def generation.', testShouldGenerateDefinitionAlias);
+    test('Test rgfind-xxx alias generation based on extension pattern config.', testRgfindAliasGeneration);
 });

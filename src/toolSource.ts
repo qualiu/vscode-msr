@@ -114,6 +114,9 @@ export function getSetToolEnvCommand(terminalType: TerminalType, foldersToAddPat
 		: '';
 
 	if (directRun && isPowerShellTerminal(terminalType)) {
+		if (TerminalType.Pwsh === terminalType) {
+			return `$env:PATH += ":${toolFolders.join(':')}"`;
+		}
 		return `$env:Path += ";${toolFolders.join(';')};"`;
 	}
 
@@ -126,7 +129,6 @@ export function getSetToolEnvCommand(terminalType: TerminalType, foldersToAddPat
 			return checkDuplicate + os.EOL + 'if %ERRORLEVEL% EQU 0 SET "PATH=%PATH%;' + toolFolders.join(';') + ';"'
 				+ os.EOL + String.raw`for /f "tokens=*" %%a in ('msr -z "%PATH%;" -t "\\*?\s*;\s*" -o "\n" -aPAC ^| nin nul "(\S+.+)" -i -u -PAC ^| msr -S -t "[\r\n]+(\S+)" -o ";\1" -aPAC') do set "PATH=%%a"`;
 		case TerminalType.Pwsh:
-			return `$env:Path += ";${toolFolders.join(';')};"`;
 		case TerminalType.LinuxBash:
 		case TerminalType.MinGWBash:
 		default:

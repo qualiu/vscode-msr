@@ -136,7 +136,6 @@ export function activate(context: vscode.ExtensionContext) {
 
 		const matchNameRegex = /^(PowerShell|CMD|Command(\s+Prompt)?)|bash|\w*sh.exe$|cmd.exe|wsl.exe/i;
 		if (MyConfig.InitProjectCmdAliasForNewTerminals
-			&& !initialPath.endsWith('/pwsh') // skip PowerShell on Linux/MacOS
 			&& (
 				initialPath === workspaceFolder // default shell, no value set.
 				|| (!IsWindows || isNullOrEmpty(terminalName) || matchNameRegex.test(terminalName) || matchNameRegex.test(initialPath))

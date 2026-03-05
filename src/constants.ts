@@ -45,7 +45,6 @@ export const HomeFolder = IsWindows ? path.join(process.env['USERPROFILE'] || '.
 export const SystemBinFolder = IsWindows ? (process.env['SystemRoot'] || String.raw`C:\WINDOWS\system32`) : (IsMacOS ? '/usr/local/bin/' : '/usr/bin/');
 export const TempStorageFolder = IsWindows ? os.tmpdir() : '/tmp/';
 export const InitLinuxTerminalFileName = 'init-linux-terminal.sh';
-export const CheckReCookAliasFileSeconds = 3600; // mitigate alias file inconsistency especially for Linux terminals on Windows.
 
 // Environment variable names
 export const SkipJunkPathEnvArgName: string = "Skip_Junk_Name";

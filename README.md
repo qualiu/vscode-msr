@@ -225,14 +225,15 @@ Auto [**set project specific alias**](#auto-set-command-shortcuts-for-new-termin
 
 - Create [**custom common alias**](#custom-alias-to-auto-sync-across-local-and-remote-ssh-hosts-plus-docker-containers) **once-for-all** to help automate daily work across Windows + Remote SSH hosts + containers.
 - Please use [**built-in aliases**](./Common-Alias.md) like `gpc` or `gpc-sm`/`gpc-sm-reset` / `git-sm-xxx` to pull/update your git repository.
-- Set `msr.refreshTmpGitFileListDuration` to large value(like `12hours` / `3days`) if you always use them.
-  - Run `gpc` or [**del-this-tmp-list**](#try-rgfind-xxx-to-search-multiple-git-repositories) whenever you need to update git-paths (used by [**gfind-xxx**](#try-to-use-gfind-xxx-instead-of-find-xxx-aliasdoskey)).
-- 4 methods to solve `gfind-xxx` drawbacks of possible using outdated tmp-git-paths-list:
-  - 1(Radical): Set `msr.refreshTmpGitFileListDuration` with **small value** like `0second` / `2m`.
-  - 2(Normal): Run `del-this-tmp-list` before `gfind-xxx` if you added new files, or switched branches, or used `gfind-xxx` in descendant folders.
-  - 3(Inaccurate): Use [**find-xxx**](#try-rgfind-xxx-to-search-multiple-git-repositories) which has same results of `gfind-xxx` most time.
+- The `gfind-xxx` aliases use **git hash-based cache validation**:
+  - Cache is automatically refreshed when git commit changes (branch switch, new commits, etc.)
+  - The `update-repo-paths` script checks `git rev-parse HEAD` hash to detect changes.
+  - Set `msr.refreshTmpGitFileListDuration` to large value (like `12hours` / `3days`) for time-based fallback.
+- 3 methods to handle `gfind-xxx` cache if needed:
+  - 1(Auto): Git hash check handles most cases automatically (branch switches, new commits).
+  - 2(Alternative): Use [**find-xxx**](#try-rgfind-xxx-to-search-multiple-git-repositories) which has same results of `gfind-xxx` most time.
     - For menus: Change [msr.useGitFileListToSearchSingleWorkspace](#try-to-use-gfind-xxx-instead-of-find-xxx-aliasdoskey) from `auto` to `false`.
-  - 4(Inaccurate): Run `update-alias` to [switch to **general** alias](#switch-between-general-and-project-specific-command-shortcuts) `Git_List_Expire` for `gfind-xxx`.
+  - 3(Manual): Run `update-alias` to [switch to **general** alias](#switch-between-general-and-project-specific-command-shortcuts) `Git_List_Expire` for `gfind-xxx`.
 
 ### Try to Use gfind-xxx instead of find-xxx alias/doskey
 
@@ -246,7 +247,7 @@ Use **gfind-xxx** alias/doskey/scripts which uses **accurate** source file paths
   - Default = `auto` which use git-file-list only when it's a git repo + found git exemptions.
     - If no git exemptions, `find-xxx` are same with `gfind-xxx`.
   - Set to `true` if you always want to use `gfind-xxx` to search.
-  - Set to `false` if you frequently hit drawbacks of `gfind-xxx` + bored of using [del-this-tmp-list](#best-practice-to-update-git-repo-and-search-code).
+  - Set to `false` if you frequently hit drawbacks of `gfind-xxx` cache timing.
 - To skip huge dependent git submodules(sub-repos) for a large project/repository:
   - Set `msr.searchGitSubModuleFolders` = `false` or set it per repo like:
     - `msr.{repo-folder-name}.searchGitSubModuleFolders` = `false`.
@@ -341,9 +342,11 @@ After [cooking alias scripts](#make-command-shortcuts-to-search-or-replace-in-or
   - `find-xxx` may waste time on non-repo files thus **may not** provide accurate results as `gfind-xxx`.
     - But `find-xxx` are **better** than `gfind-xxx` in scenarios below:
       - New files not in git - `gfind-xxx` cannot find them, use `find-xxx`.
-      - Switched branches or search-folders or sub-modules(without `git-sm-xxx`):
-        - Run [**del-this-tmp-list**](#best-practice-to-update-git-repo-and-search-code) before `gfind-xxx`, or use `find-xxx`.
-  - `gfind-xxx` / `rgfind-xxx` auto run `git ls-files` first to get precise file list save to a tmp file.
+      - Files in `.gitignore` - `gfind-xxx` excludes them, use `find-xxx` if needed.
+  - `gfind-xxx` / `rgfind-xxx` use **git hash-based cache validation**:
+    - Auto run `update-repo-paths` script which checks `git rev-parse HEAD` hash.
+    - Cache is refreshed automatically when git commit changes (branch switch, pulls, etc.).
+    - Uses `git ls-files` to get precise file list saved to a tmp file.
 
 ```bash
 Now you can directly use the command shortcuts in/out-of vscode to search + replace like:

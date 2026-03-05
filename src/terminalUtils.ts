@@ -44,7 +44,12 @@ export function getCmdAliasSaveFolder(isMultipleScripts: boolean, isForProjectCm
 export function getTipFileStoragePath(terminalType: TerminalType): string {
   const isWindowsTerminal = isWindowsTerminalOnWindows(terminalType);
   const tmpAliasStorageFolder = getCmdAliasSaveFolder(false, true, terminalType);
-  return toStoragePath(path.join(tmpAliasStorageFolder, getTipGuideFileName(isWindowsTerminal)));
+  let fileName = getTipGuideFileName(isWindowsTerminal);
+  if (!isWindowsTerminal) {
+    const typeSuffix = TerminalType[terminalType].toLowerCase().replace(/bash$/i, '');
+    fileName = fileName.replace(/\.sh$/, `-${typeSuffix}.sh`);
+  }
+  return toStoragePath(path.join(tmpAliasStorageFolder, fileName));
 }
 
 export function getTipFileDisplayPath(terminalType: TerminalType): string {
@@ -56,7 +61,9 @@ export function getTipFileDisplayPath(terminalType: TerminalType): string {
 
 export function getInitLinuxScriptStoragePath(terminalType: TerminalType,): string {
   const folder = path.dirname(getTipFileStoragePath(terminalType));
-  return path.join(folder, InitLinuxTerminalFileName);
+  const typeSuffix = TerminalType[terminalType].toLowerCase().replace(/bash$/i, '');
+  const fileName = InitLinuxTerminalFileName.replace(/\.sh$/, `-${typeSuffix}.sh`);
+  return path.join(folder, fileName);
 }
 
 export function getInitLinuxScriptDisplayPath(terminalType: TerminalType): string {

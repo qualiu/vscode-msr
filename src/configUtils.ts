@@ -122,6 +122,49 @@ export function getConfigValueByPriorityList(priorityPrefixList: string[], confi
   return '';
 }
 
+// Check if extension has specific definition config (not fallback to default) for find-xxx-def alias generation
+export function hasSpecificDefinitionConfig(repoFolderName: string, extension: string, mappedExt: string): boolean {
+  const config = vscode.workspace.getConfiguration('msr');
+  repoFolderName = getProjectFolderKey(repoFolderName);
+
+  // Priority list for specific definition configs (excluding 'default' and empty prefix)
+  // Order: project.ext > project.mappedExt > ext > mappedExt
+  const specificPrefixes = [
+    repoFolderName + '.' + extension,
+    repoFolderName + '.' + mappedExt,
+    extension,
+    mappedExt,
+  ].filter(p => p && !p.startsWith('.') && p !== repoFolderName);
+
+  // Also check for sub-configs like class.definition, member.definition
+  const definitionKeys = ['definition', 'class.definition', 'member.definition'];
+
+  for (const prefix of specificPrefixes) {
+    for (const key of definitionKeys) {
+      const configName = prefix + '.' + key;
+      const value = config.get(configName);
+      if (value !== undefined && value !== null && typeof value === 'string' && value.length > 0) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+// Check if find-xxx-def alias should be generated: by extra extension pattern or specific definition config
+export function shouldGenerateDefinitionAlias(repoFolderName: string, extension: string, mappedExt: string, extraExtensionRegex: RegExp): boolean {
+  // Check extra extension pattern - if matches, generate (additional to auto-detected)
+  if (extraExtensionRegex.source !== 'to-load' && extraExtensionRegex.source.length > 0) {
+    if (extraExtensionRegex.test(extension) || extraExtensionRegex.test(mappedExt)) {
+      return true;
+    }
+  }
+
+  // Auto-detect: check if extension has specific definition config
+  return hasSpecificDefinitionConfig(repoFolderName, extension, mappedExt);
+}
+
 export function getPostInitCommands(terminalType: TerminalType, repoFolderName: string) {
   const terminalTypeName = TerminalType[terminalType].toString();
   const typeName = (terminalTypeName[0].toLowerCase() + terminalTypeName.substring(1))

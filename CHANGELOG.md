@@ -2,6 +2,16 @@
 
 All notable changes to this "vscode-msr" extension will be documented in this file.
 
+## [2.2.1]
+
+- No longer switch newly created PowerShell (including `pwsh`) terminals to CMD or Bash on any platform.
+- Optimized `gfind-xxx`: Use git commit hash for cache validation, added `update-repo-paths` script, fixed subdirectory issues with relative paths and `pushd/popd`.
+- Enhanced `rgfind-xxx`: Extended to all platforms (Linux, macOS, WSL, MinGW, Cygwin), only search independent git sub-repos.
+- Enhanced `find-alias`/`rm-alias`: Auto-detect regex patterns, `-Preview` mode for safe deletion preview, added `sumAliasBodyLen` in summary.
+- Added configs: `msr.cookFindDefinitionAlias.extraExtensionPattern` for additional `find-xxx-def`, `msr.cookAlias.recursiveGitFindExtensionPattern` for `rgfind-xxx`.
+- Separated `tip-guide.sh` and `init-linux-terminal.sh` files to reduce changes.
+- Other improvements: Skip useless `find-xxx-def` for extensions without definition patterns, improved error messages & Cygwin detection, added `git-rm-junk` alias.
+
 ## [2.1.100]
 
 - Fixed `gsf` alias on Windows(CMD).

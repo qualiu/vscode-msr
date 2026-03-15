@@ -94,7 +94,9 @@ msr -rp . -f "\.cs$" -t "oldName" -o "newName" -RK
 | `--xd` | Skip link dirs | `--xd` |
 | `-G` | Read link files | `-G` (links under input paths) |
 
-> **Note**: `--sp`/`--xp` texts can include path separators (`/` or `\`). On Windows, `/` is also accepted for convenience.
+> **Note**:
+> - `--sp`/`--xp` texts can include path separators (`/` or `\`).
+> - For Windows path separator compatibility (`-p` and `-w`), see [msr and nin Shared Reference — Path Separator Compatibility on Windows](msr-nin-shared-reference.md#path-separator-compatibility-on-windows).
 
 ### Output Options (Advanced)
 

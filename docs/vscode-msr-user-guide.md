@@ -156,6 +156,18 @@ find-java -t oldName -o newName
 find-ts -t myFunc | msr -t "import"
 ```
 
+> ⚠️ **PowerShell `|` in regex**: When calling `.cmd` aliases from PowerShell with regex containing `|`, CMD misinterprets `|` as a pipe. Two workarounds:
+>
+> ```bash
+> # Method 1: Use --% stop-parsing token (recommended, simpler)
+> gfind-ts --% -t "ClassA|ClassB" -e "get(X|Y)" -H 10
+>
+> # Method 2: Wrap with cmd /c and escape inner quotes with ""
+> cmd /c "gfind-ts -t ""ClassA|ClassB"" -e ""get(X|Y)"" -H 10"
+> ```
+>
+> This only affects PowerShell calling `.cmd` files. CMD terminals and bash are not affected.
+
 **`-def` and `-ref` aliases** (`find-{ext}-def`, `find-{ext}-ref`, `find-def`, `find-ref`, `find-class`, etc.) use the **first argument as the search term** (embedded in the built-in `-t` pattern via `$1`). Extra arguments are appended:
 
 ```bash
@@ -185,7 +197,7 @@ find-ts -t "pattern"        # TypeScript files
 find-js -t "pattern"        # JavaScript files
 
 # Search across broader categories
-find-code -t "pattern"      # All code files
+find-code -t "pattern"      # Common programming language files (not scripts/configs/docs)
 find-doc -t "pattern"       # Documentation files
 find-config -t "pattern"    # Configuration files
 find-script -t "pattern"    # Script files (.sh, .bat, .cmd, .ps1)
@@ -355,7 +367,7 @@ git-find-update "config"        # Search file update history
 
 ### Other Alias Categories
 
-Beyond code searching, the extension provides aliases for many common development tasks. Use `find-alias <keyword>` to discover them, or see [Common-Alias.md](../Common-Alias.md) for the complete reference with detailed usage examples.
+Beyond code searching, the extension provides aliases for many common development tasks. Use `find-alias <keyword>` to discover them, or see [Common-Alias.md](https://github.com/qualiu/vscode-msr/blob/master/Common-Alias.md) for the complete reference with detailed usage examples.
 
 | Category                        | Key aliases                                                     | Discovery command                            |
 | ------------------------------- | --------------------------------------------------------------- | -------------------------------------------- |
@@ -448,7 +460,7 @@ gfind-cs-ref Logger -x "using"    # References containing "using" literally
 
 - **VS Code terminals**: Aliases are loaded automatically when you open a terminal.
 - **External terminals**: Run `update-alias` or `use-this-alias` in an external terminal to load aliases.
-- **Alias files**: On Windows, aliases are stored in `%USERPROFILE%\msr-cmd-alias.doskeys`. On Linux/macOS, they are in `~/msr-cmd-alias.bashrc`. See [Common-Alias.md — Alias Loading](../Common-Alias.md#alias-loading-for-different-terminal-types) for the full terminal-to-file mapping.
+- **Alias files**: On Windows, aliases are stored in `%USERPROFILE%\msr-cmd-alias.doskeys`. On Linux/macOS, they are in `~/msr-cmd-alias.bashrc`. See [Common-Alias.md — Alias Loading](https://github.com/qualiu/vscode-msr/blob/master/Common-Alias.md#alias-loading-for-different-terminal-types) for the full terminal-to-file mapping.
 
 > **Important for git repos**: **Open the repo directory in VS Code** to automatically generate aliases and repo-specific environment variables (`$Skip_Junk_Paths`, `$Skip_Junk_Name`). When properly initialized, `find-*` aliases use `--np "git ignore path regex pattern"` (derived from `.gitignore`) for precise exclusion. Without initialization, they fall back to the default `--nd "junk folder regex pattern"` from the `msr.default.skipFolders` setting (configurable). For external terminals, run `use-this-alias` to load already-generated repo-specific aliases (requires VS Code to have opened the repo first).
 

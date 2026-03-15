@@ -150,6 +150,8 @@ msr -rp . -f "\.log$" -t "CRITICAL" -H 3 -J
 
 > **Optimization parameters reference**: `-d` (directory name regex match), `--nd` (directory name regex exclusion), `--sp` (path must contain ALL texts, AND logic), `--xp` (exclude if path contains ANY text, OR logic), `-f` (filename pattern), `-x` (plain text AND filter), `-H N -J` (global fast exit after N matches). See [Performance Tuning](performance-tuning.md#optimization-decision-tree) for the optimization decision tree and parameter speedup reference.
 
+**Windows path separator note (practical):** see [msr and nin Shared Reference — Path Separator Compatibility on Windows](msr-nin-shared-reference.md#path-separator-compatibility-on-windows). `findstr` may still parse `/` as an option prefix, so forward-slash file paths are not consistently reliable there.
+
 **Why ripgrep can't replace msr:**
 
 1. **No in-place replacement** — rg outputs to stdout only; msr writes files with `-R`

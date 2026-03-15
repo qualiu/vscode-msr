@@ -61,8 +61,8 @@ msr -rp . -f "\.cs$" -t "old" -o "new"
 # Set analysis first
 nin error.log nul "(\w+Exception)" -pd --sum -H 10
 
-# VS Code alias first
-gfind-code -t "TODO|FIXME"
+# VS Code alias first (gfind-small covers all file types ≤1.6MB)
+gfind-small -t "TODO"
 ```
 
 ---
@@ -152,8 +152,8 @@ After installing the vscode-msr extension, open a terminal in VS Code:
 # Search Python files
 gfind-py -t "pattern"
 
-# Search all code files
-gfind-code -t "TODO|FIXME"
+# Search across all file types (≤1.6MB, safe broad search)
+gfind-small -t "TODO"
 
 # Find class definitions
 gfind-cs-def MyClass

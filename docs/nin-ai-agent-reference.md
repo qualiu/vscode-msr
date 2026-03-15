@@ -93,30 +93,32 @@ nin <File1-or-nul> <File2-or-nul> [Regex-pattern-1] [Regex-pattern-2] [Options]
 
 **Critical: What text does `-t`/`-x`/`--nt`/`--nx` filter against? (Validated)**
 
-The filter target depends on the **output mode**, not the original line:
+In **normal mode** (without `-n`), these filters target the **full original line**. `-w` changes the **output form**, not the normal-mode filter target:
 
 | Output mode | Filter target for `-t`/`-x`/`--nt`/`--nx` |
 |-------------|---------------------------------------------|
-| Default (no `-w`) | **Captured key only** (group[1] text) |
-| With `-w` | **Full original line** |
-| With `-n` (not-captured lines) | **Not filtered at all** — not-captured lines always pass through regardless of `-t`/`-x`/`--nt`/`--nx` |
+| Default (no `-w`, no `-n`) | **Full original line** |
+| With `-w` (no `-n`) | **Full original line** |
+| With `-n` | Not-captured lines always pass through. **`--nt`/`--nx` excluded matched lines are demoted to not-captured and output as whole lines — effectively `--nt`/`--nx` become no-op under `-n`** |
+
+> **Validated normal-mode rule**: even without `-w`, filters can match later columns in the original line.
+> **Validated `-n` caveat**: `--nt`/`--nx` under `-n` do NOT delete matched lines — they are reclassified as not-captured and output as-is. Use two-file `-wn` (with exclude file) or `-w --nt` (without `-n`) instead.
+> Example: `nin hosts.txt nul "^(\S+)" -x "active"` matches `web-01 active` / `db-old active` and outputs `web-01` / `db-old`.
 
 This has important practical implications:
 
 ```bash
-# Filter by STATUS COLUMN (column 4) — must use -w (whole line) for multi-column matching
-nin hosts.txt nul "^(\S+)" -w  --nt "maintenance|decommission" -PAC
-# Works: --nt matches against the whole line including status column
+# Filter by STATUS COLUMN — even without -w, filter still sees the whole original line
+nin hosts.txt nul "^(\S+)" --nt "maintenance|decommission" -PAC
+# Works: maintenance/decommission can be matched in later columns
+# Output is still key-only because -w is not used
 
-# Filter by MACHINE NAME PATTERN — captured key is the name, so -w not needed
-nin hosts.txt nul "^(\S+)" --nt "^web-|^db-old$" -PAC
-# Works: --nt matches against the captured machine name
+# Same filter, but show whole lines instead of keys
+nin hosts.txt nul "^(\S+)" -w --nt "maintenance|decommission" -PAC
+# Works: same whole-line filtering, different output form
 
-# -wn + --nt: not-captured lines (comments) are NOT filtered, pass through unconditionally
-nin hosts.txt nul "^(\S+)" -wn --nt "web-0[23]|db-old" -PAC
-# Result: web-02/web-03/db-old machine lines removed, BUT all comment/blank lines kept as-is
-# Note: empty lines between sections are also not-captured, so they pass through too
-# Use -w --nt (without -n) if you want ONLY matched lines with column filtering (no comments)
+# `-n` is for passing through not-captured lines.
+# `-w -n` outputs matched whole lines plus not-captured lines.
 ```
 
 ### Output Control
@@ -141,13 +143,14 @@ nin hosts.txt nul "^(\S+)" -wn --nt "web-0[23]|db-old" -PAC
 - Without `-n`: only lines that matched the regex are output
 - With `-n`: additionally outputs lines that did NOT match the regex
 - Not-captured lines are output **as-is** (full original line, regardless of `-w`)
-- **Empty lines are silently skipped** even with `-n`
+- **Empty lines in file body are silently skipped** even with `-n`; however, a trailing newline at end-of-file creates an empty-line entry that participates in unique counting and sorting (use `-Z` to skip it)
 
-**`-w -n` combination (structure-preserving filter):**
+**`-w -n` combination:**
 - Matched lines → full original line
 - Not-matched non-empty lines → full original line as-is
-- Net effect: reconstructs the full file structure, minus filtered-out entries
-- Primary use case: filter config files while preserving all comments and formatting
+- **Two-file mode + `-wn`**: structure-preserving **filter** — excludes items from file2 while preserving all comments, headers, and blank lines from file1 (the primary use case for editing config/hosts files)
+- **Single-file mode + `-wn`**: structure-preserving **pass-through** — outputs everything (since no second file to diff against)
+- ⚠️ **`-wn --nt` (single-file) is a no-op**: `--nt` excluded lines are demoted to not-captured, then `-n` outputs them as-is. Use two-file mode or `-w --nt` (without `-n`) instead
 
 **`-S` (switch first — swap roles):**
 - Swaps file1 and file2 roles AND their respective regex patterns
@@ -221,7 +224,13 @@ nin hosts.txt nul "^(\S+)" -wn --nt "web-0[23]|db-old" -PAC
 | `-O, --out-not-0-sum` | flag | Output summary only if results > 0 |
 | `-I, --info-normal-out` | flag | Output summary to **stdout** instead of stderr. This makes the summary line capturable in shell variables: `result=$(nin ... -I)` |
 | `-C, --no-color` | flag | Disable color output |
+| `--colors` | string | Set fore/back colors for `-t`/`-e`/`-x` and summary. See [Color Customization](msr-nin-shared-reference.md#color-customization) |
+| `--keep-color` | flag | Preserve ANSI colors when piping (Windows/MinGW) |
+| `--unix-slash` | int | Set 1 to output forward slash `/` on Windows/MinGW/Cygwin |
+| `--not-warn-bom` | flag | Suppress BOM encoding warnings for non-UTF8 BOM files |
 | `-c, --show-command` | flag | Show command line |
+| `--to-stderr` | flag | Output result to stderr instead of stdout |
+| `--verbose` | flag | Show parsed arguments, return value, time zone, BOM rows and EXE path, etc. |
 
 ### Input Control
 

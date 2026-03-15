@@ -141,11 +141,11 @@ Technical reference for **AI agents** to accurately invoke msr commands.
 | `-J, --jump-out`        | flag   | Exit after outputting H lines. **With `-H 1 -J`: stops at first match across all files (existence check). With `-H N -J`: global fast exit after N matches.**             |
 
 **Block matching behavior (validated by test):**
-- `-b` only (no `-Q`): each matching line starts a new block; block ends when next `-b` match or EOF.
-- `-Q ""` (empty string): shorthand meaning same pattern as `-b`; **must add `-y`** to correctly split into 4 blocks — without `-y` only 2 blocks result (end line consumed, not reused as next begin).
-- `-a` with block mode: outputs **entire block** (all lines), not just matched lines. When `--nt`/`--nx` used in block mode, the **entire block** is excluded if any line matches (different from normal line-filter behavior).
-- `-S` in block mode: single-line regex treats the **entire block content** as one string; `^`/`$` match block start/end.
-- `-b` + `-q`: reading starts from first `-b` match and stops when `-q` matches (inclusive), even mid-block.
+- `-b` only (no `-Q`): starts reading from first `-b` match, skips all lines above it, and outputs remaining lines to EOF (or to `-q` match). **No blocks created** — output is a flat line stream, not segmented into blocks.
+- `-b` + `-Q`: defines block begin/end patterns to match multiple arbitrary blocks. `-Q ""` (empty string) is shorthand meaning same pattern as `-b`; **must add `-y`** to correctly split into 4 blocks — without `-y` only 2 blocks result (end line consumed, not reused as next begin).
+- `-a` with block mode (`-b` + `-Q`): outputs **entire block** (all lines), not just matched lines. When `--nt`/`--nx` used in block mode, the **entire block** is excluded if any line matches (different from normal line-filter behavior).
+- `-S` in block mode (`-b` + `-Q`): single-line regex treats the **entire block content** as one string; `^`/`$` match block start/end.
+- `-b` + `-q` (no `-Q`): reading starts from first `-b` match and stops when `-q` matches (inclusive). No block boundaries — just a start/stop range.
 
 ### Output Control
 

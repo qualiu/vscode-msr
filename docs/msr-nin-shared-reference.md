@@ -6,6 +6,17 @@ Shared reference for **msr** and **nin** — both tools come from the [same repo
 
 ---
 
+## Parameter Usage Rules
+
+**All** msr/nin parameters (both short flags and long options) can only be specified **once** per command line. Duplicating any parameter causes an error: `cannot be specified more than once`.
+
+This rule applies not only to direct `msr`/`nin` commands, but also to their wrappers — `gfind-*` / `find-*` aliases and script files — which already have built-in parameters.
+
+**Key rules:**
+- `-t` (regex match), `-x` (plain text match), `--nt` (regex exclude), and `--nx` (text exclude) — these 4 can be used **together** in the same command (AND combination filtering), but each can only appear **once**.
+- `gfind-*` / `find-*` aliases have built-in parameters (e.g., `-I`, `-f`, `--nd`). Do **not** repeat these when appending extra arguments.
+- Common mistakes: using `-PIC` with aliases (already has `-I`) → use `-PC` instead; adding `-f` to `find-py` (already has `-f` built-in) → not allowed.
+
 ## Regex Syntax
 
 Both msr and nin use the **same regex engine** — Boost regex (PCRE-compatible with extensions). All regex features behave identically between the two tools.
@@ -19,6 +30,44 @@ Both msr and nin use the **same regex engine** — Boost regex (PCRE-compatible 
 - **Single-line mode** (`-S`): treats input as single string; `^`/`$` match start/end of entire content instead of individual lines.
 
 ---
+
+## Path Separator Compatibility on Windows
+
+Both `msr` and `nin` accept **both** path separators on Windows input paths:
+
+- Relative paths: `docs/file.md` and `docs\file.md`
+- Absolute paths: `C:/repo/docs/file.md` and `C:\repo\docs\file.md`
+
+For `msr`, comma-separated multi-path input in `-p` also supports mixed separators in one command:
+
+```bash
+msr -p "C:/repo/docs/a.md,C:\repo\docs\b.md" -t "pattern" -l
+```
+
+Why this is useful:
+
+- Easier cross-platform script reuse (Windows/Linux/macOS examples look consistent)
+- Fewer escaping issues in JSON/regex-heavy command templates
+- Less path normalization logic needed in automation and AI-generated commands
+
+---
+
+## PowerShell Pipe Character in Arguments
+
+When calling `.cmd` scripts (including `gfind-*`, `find-*` aliases) from **PowerShell** on Windows, regex arguments containing `|` are misinterpreted as pipe operators by CMD. This affects any `.cmd` file invocation, not just msr/nin.
+
+**Two workarounds:**
+
+```bash
+# Method 1: Use --% stop-parsing token (recommended, simpler)
+gfind-ts --% -t "ClassA|ClassB" -e "get(X|Y)" -H 10
+find-cs --% -t "TODO|FIXME" -o "RESOLVED" -j
+
+# Method 2: Wrap entire command with cmd /c and escape inner quotes with ""
+cmd /c "gfind-ts -t ""ClassA|ClassB"" -e ""get(X|Y)"" -H 10"
+```
+
+> **Note**: This only affects PowerShell calling `.cmd` files. CMD terminals (doskeys) and bash terminals are not affected.
 
 ## Return Value Cross-Platform Behavior
 
@@ -264,6 +313,10 @@ While msr and nin share the same regex engine and many parameters, a few single-
 | `-A` | `--no-any-info` — suppress ALL info including summary | `--no-any-info` — suppress ALL info including summary | Same meaning ✅ |
 | `-M` | `--no-summary` — suppress summary only | `--no-summary` — suppress summary only | Same meaning ✅ |
 | `-C` | `--no-color` — disable color output | `--no-color` — disable color output | Same meaning ✅ |
+| `-a` | `--out-all` — output all lines including non-matches | `--ascending` — ascending sort | Completely different ⚠️ |
+| `-w` | `--read-paths` — read file list from a text file | `--out-whole-line` — output whole line instead of key | Completely different ⚠️ |
+| `-n` | `--sort-as-number` — numeric sort | `--out-not-captured` — also output non-matching lines | Completely different ⚠️ |
+| `-m` | `--show-count` — prefix match count to each line | `--intersection` — intersection set mode | Completely different ⚠️ |
 
 > ⚠️ **Critical for piping msr → nin**: When piping msr output to nin, use `-PIC` on msr (not `-PAC`) to keep summary on stderr for diagnostics. For aliases (which already include `-I`), use `-PC` instead.
 >

@@ -2,6 +2,11 @@
 
 All notable changes to this "vscode-msr" extension will be documented in this file.
 
+## [2.2.2]
+
+- Improved `list-alias` + `use-alias`.
+- Improved PowerShell terminal initialization on Windows.
+
 ## [2.2.1]
 
 - No longer switch newly created PowerShell (including `pwsh`) terminals to CMD or Bash on any platform.

@@ -80,6 +80,8 @@ nin myfile.txt nul -u
 nin myfile.txt /dev/null -u   # Linux/Mac
 ```
 
+> **Note**: For Windows path separator compatibility in file arguments, see [msr and nin Shared Reference — Path Separator Compatibility on Windows](msr-nin-shared-reference.md#path-separator-compatibility-on-windows).
+
 ### Regex Capture Groups
 
 nin uses **capture group[1]** as the key for comparison:
@@ -258,9 +260,6 @@ nin hosts-full.txt allowlist.txt "^(\S+)" "^(\S+)" -mwn -PAC > hosts-allowed.txt
 # Case-insensitive removal (WEB-03 matches web-03)
 nin hosts-full.txt remove-list.txt "^(\S+)" "^(\S+)" -wni -PAC > hosts-updated.txt
 
-# Remove by status column directly, no second file needed (comments preserved with -n)
-nin hosts.txt nul "^(\S+)" -wn --nt "maintenance|decommission" -PAC > hosts-active.txt
-
 # Multi-step pipeline: nin removes entries, msr filters by column
 nin hosts.txt decommission-list.txt "^(\S+)" "^(\S+)" -wn -PAC |
 msr -t "^\s*#|active$" -PAC > hosts-active-only.txt
@@ -313,7 +312,7 @@ With `-n`, nin also outputs lines that did **not match** the regex (not-captured
 **Rules for `-n`:**
 - Lines that matched → output the captured key (or whole line if `-w` used)
 - Lines that did NOT match → output the whole not-captured line as-is
-- Empty lines → silently skipped (not output even with `-n`)
+- Empty lines in file body → silently skipped (not output even with `-n`); however, a trailing newline at end-of-file creates an empty-line entry that participates in unique counting and sorting (use `-Z` to skip it)
 
 ```bash
 # Given file:
@@ -332,9 +331,14 @@ nin file.txt nul "name = (\w+)" -n -PAC
 #   Gamma
 ```
 
-#### `-w -n` combination: structure-preserving filter
+#### `-w -n` combination: structure-preserving output
 
-The **most powerful combination** — outputs whole lines for matched entries AND passes through all non-matched lines. This reconstructs the original file structure while filtering out excluded entries.
+This combination outputs whole lines for matched entries AND passes through all non-matched lines.
+
+- **Two-file mode + `-wn`**: structure-preserving **filter** — excludes items from file2 while preserving all comments, headers, and blank lines from file1. This is the primary use case for editing config/hosts files.
+- **Single-file mode + `-wn`**: structure-preserving **pass-through** — outputs everything (no second file to diff against).
+
+> ⚠️ **`-wn --nt` (single-file) is a no-op**: `--nt` excluded lines are demoted to not-captured, then `-n` re-outputs them as-is. Use **two-file mode** `-wn` (with exclude list file) or **`-w --nt`** (without `-n`, loses blank lines) instead.
 
 ```bash
 nin file.txt nul "name = (\w+)" -wn -PAC
@@ -408,32 +412,31 @@ nin file.txt nul "(\w+)" -pd 2>nul
 | `--enhance <regex>` | Color highlight only — **never filters lines** | `--enhance "\d+"` |
 | `-H N` | Output first N lines | `-H 20` |
 | `-T N` | Output last N lines | `-T 10` |
-| `-k N` | Stop when item count drops below N (`-pd`) or exceeds N (`-pa`) | `-pd -k 5` |
+| `-k N` | Stop when item count drops below N (descending `-pd`) or exceeds N (ascending `-pa`) | `-pd -k 5` |
 | `-K P` | Stop when **current item's** percentage < P% (per-item, NOT cumulative) | `-pd -K 10.0` |
 
 > **`-t` vs `--enhance`**: `-t` and `-x` filter which lines appear in output. `--enhance` (short: `-e`) only adds color and never removes lines.
 > When both `-t` and `-e` are used, nin colors using the merged regex `(-t)|-e` — so both patterns are highlighted.
 
-> **What do `-t`/`-x`/`--nt`/`--nx` filter against?** The answer depends on output mode:
-> - **Without `-w`**: filters against the **captured key** (group[1] only)
-> - **With `-w`**: filters against the **full original line** (all columns)
-> - **With `-n`**: not-captured lines (comments, headers) **always pass through** — they are never filtered by `-t`/`-x`/`--nt`/`--nx`
+> **What do `-t`/`-x`/`--nt`/`--nx` filter against?**
+> - **Normal mode (no `-n`)**: filters against the **full original line**
+> - **Without `-w`**: output still shows captured key only
+> - **With `-w`**: output shows whole line
+> - **With `-n`**: also output not-captured lines (comments, headers)
+> - **With `-w -n`**: output matched whole lines plus not-captured lines
+> - **Key distinction**: `-w` changes **output form** (key vs whole line), not the normal-mode filter target
 
 ```bash
-# Filter by machine name pattern (key = first word, no -w needed)
-nin hosts.txt nul "^(\S+)" --nt "^web-|^db-old$" -PAC
-# Removes lines whose machine name matches the pattern
+# Filter by machine name prefix (--nt matches against FULL original line, not captured key)
+nin hosts.txt nul "^(\S+)" --nt "^web-" -PAC
+# Removes lines starting with web- (^web- matches full line start)
+# NOTE: --nt "^db-old$" would NOT work because $ doesn't match mid-line;
+# use --nt "^db-old\b" or --nt "^db-old\s" instead
 
-# Filter by STATUS COLUMN (requires -w to match whole line)
+# Filter by STATUS COLUMN (status text is in the full line, not captured key)
 nin hosts.txt nul "^(\S+)" -w --nt "maintenance|decommission" -PAC
 # Removes lines containing 'maintenance' or 'decommission' anywhere in the line
-# Comments are excluded from output because -n is not used
-
-# Filter by status AND preserve comments (use -wn)
-nin hosts.txt nul "^(\S+)" -wn --nt "maintenance|decommission" -PAC
-# WARNING: -n causes not-captured lines (comments, blank lines) to pass through unconditionally
-# The matched machine lines with maintenance/decommission ARE removed, but blank lines between
-# sections remain (they are not-captured). Use -w --nt (without -n) for pure data-only output.
+# Comments survive (captured as '#'), blank lines lost (no -n)
 ```
 
 ### For Clean Output
@@ -445,6 +448,12 @@ nin hosts.txt nul "^(\S+)" -wn --nt "maintenance|decommission" -PAC
 | `-M` | No summary |
 | `-A` | No any info |
 | `-I` | Route summary to stdout (default: stderr) |
+| `--colors` | Set fore/back colors for `-t`/`-e`/`-x` and summary (see [Color Customization](msr-nin-shared-reference.md#color-customization)) |
+| `--keep-color` | Preserve ANSI colors when piping (Windows/MinGW) |
+| `--unix-slash 1` | Output forward slash `/` on Windows/MinGW/Cygwin |
+| `--not-warn-bom` | Suppress BOM encoding warnings for non-UTF8 BOM files |
+| `--to-stderr` | Output result to stderr instead of stdout |
+| `--verbose` | Show parsed arguments, return value, time zone, BOM info, etc. |
 
 ## Tips and Best Practices
 

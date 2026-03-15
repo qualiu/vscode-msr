@@ -112,26 +112,27 @@ Use the same 3-step pipeline for all replacements.
 ### Step 1: Scope verification
 
 ```bash
-gfind-code -t "OldName" -l -PC
-gfind-code -t "OldName" -H 30 -C
+# Use gfind-{ext} when language is known (most cases); use gfind-small only for unknown/mixed file types
+gfind-cs -t "OldName" -l -PC
+gfind-cs -t "OldName" -H 30 -C
 ```
 
 ### Step 2: Preview changes
 
 ```bash
-gfind-code -t "OldName" -o "NewName" -j -C
+gfind-cs -t "OldName" -o "NewName" -j -C
 ```
 
 ### Step 3: Apply with safety
 
 ```bash
-gfind-code -t "OldName" -o "NewName" -RK
+gfind-cs -t "OldName" -o "NewName" -RK
 ```
 
 Then verify residual hits:
 
 ```bash
-gfind-code -t "OldName" -H 1 -J
+gfind-cs -t "OldName" -H 1 -J
 ```
 
 For block-scoped replacement (INI/XML/YAML fragments), use `-b/-Q` patterns from [msr User Guide](msr-user-guide.md#block-matching-multi-line).
@@ -160,7 +161,8 @@ msr -p src/orders/processor.py -t "class OrderProcessor" -U 2 -D 25 -C
 ### 3) Noise control
 
 ```bash
-gfind-code -t "pattern" --nt "^.{300,}$" -H 40 -C
+# Use gfind-{ext} for known language; gfind-small for broad/unknown file types
+gfind-py -t "pattern" --nt "^.{300,}$" -H 40 -C
 ```
 
 ### 4) Keep outputs parse-friendly

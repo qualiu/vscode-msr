@@ -3,7 +3,7 @@
 	"displayName": "Code mining + Replace file text + Find definition and reference for all types.",
 	"description": "Code mining + Replace file text + Find definition and reference in multiple repository paths by msr for all coding languages + configuration + doc files.",
 	"author": "qualiu@microsoft.com",
-	"version": "2.2.1",
+	"version": "2.2.2",
 	"icon": "images/vscode-msr-icon.png",
 	"license": "completely free",
 	"publisher": "qualiu",
@@ -2099,8 +2099,12 @@
 		"@types/node": "^18.19.130",
 		"@types/vscode": "^1.36.0",
 		"@vscode/test-electron": "^2.5.2",
-		"mocha": "^11.7.1",
+		"mocha": "^11.7.5",
 		"typescript": "^5.9.3"
+	},
+	"overrides": {
+		"serialize-javascript": "^7.0.4",
+		"diff": "^8.0.3"
 	},
 	"__metadata": {
 		"id": "f13afa91-7000-4512-acbc-776fa5766d5a",

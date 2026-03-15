@@ -1,58 +1,35 @@
 # [vscode-msr](https://github.com/qualiu/vscode-msr/blob/master/README.md#vscode-msr) for [IDEs on Windows/Linux/MacOS](#the-cookeddumped-aliasdoskey-can-be-used-in-many-ides-not-just-vscode)
 
-Have you suffered issues below in your daily work?
+> **Cross-language code search, replace, and mining** for developers and AI agents — search 20K+ files in 1-3 seconds, zero dependencies, 2-3 MB total.
 
-- **Find Definition**: Unable to `jump-to-definition`?
-  - Lack of dependency packages / build , or failed to build?
-  - IDE/extension often caught some problems?
-  - Cannot cross `multiple languages`? `C#` , `C++` , `Java`/`Scala`, `Python`, `Proto`, etc.
-  - Cannot cross `multiple repositories`?
-- **Search Code**
-  - Clumsy and slow in IDE? Too **narrow** `vscode` panel to preview?
-  - Wasting time to click and expand **each** item?
-  - Lack of a powerful tool to [**learn/ramp-up code by yourself**](#code-mining-without-or-with-little-knowledge) ? (filter + stats + compare/analogy).
-  - `What if` a **colorful** + **fast** glance for **all search results** + [**rich and powerful filters**](#search-files-with-rich-filters)?
-- **Replace File Text**
-  - **Missed changes to some files**(like `doc`/`config`) or **other languages** not loaded in IDE?
-  - Your replacing tool **added** or **removed** the `tail empty line` ? And cause wrong `git diff` ?
-  - Your replacing tool changed your file time even nothing changed?
-  - `What if` a fast way to replace? [**Just reuse**](#reuse-the-command-to-search-further-or-replace-file-text) the **`powerful search used above`**?
-- Just **read code** but **inefficient** ? or **insufficient** resource on laptop?
-  - Too slow + hard to prepare environment for IDE to load code? Especially from other teams?
-  - Must install **X GB language plugins**?
-  - Must download **Y GB packages** to the disk?
-  - Must build **Z GB outputs** to the disk (like C#) before you can read code?
-  - Offer **N GB running memory** to the `official/professional` language extensions?
+### Why vscode-msr?
 
-Then it's the **light** + **right** tool for you(**2~3 MB** storage + **1~5 MB** running memory) to search + replace file text.
+- **Find definitions** across languages (`C++`, `Java`, `C#`, `Python`, etc.) and repositories.
+  - No build, no packages, no language server needed. No X GB plugins, Y GB downloads, or Z GB build outputs.
+- **Search + safely replace text** in code/config/doc files with [rich filters](#search-files-with-rich-filters) and [instant preview](#replace-file-text-with-preview-and-backup).
+  - Just reuse the search command, add `-o "new" -R`. Safe: skips unchanged files (no fake `git diff` or mtime changes).
+- **Full-width colorful results** in terminal — no more clicking and expanding each item in narrow IDE panels.
+  - [**Code mining**](#code-mining-without-or-with-little-knowledge): ramp up on unfamiliar codebases with fuzzy search, filters, and statistics.
+- **AI Agent friendly** — single-command search with 5-dimension AND filtering, return value = match count.
+  - Auto git-scoped `gfind-*` aliases. See [AI Agent Usage Guide](docs/ai-agent-usage-guide.md).
+- **Lightweight** — 2-3 MB storage, 1-5 MB memory. No cache, no server, no network.
 
-**Note**: ([**Temp-toggle**](#get-the-best-combined-power) or [**change settings**](#disable-finding-definition-and-references-for-specific-file-types) for languages disabled by default settings.)
+**Note**: [**Temp-toggle**](#get-the-best-combined-power) or [**change settings**](#disable-finding-definition-and-references-for-specific-file-types) for languages disabled by default.
 
-## You Can Start Using this without Doing Anything
+## Quick Start
 
-You can start [**search**](#search-files-with-rich-filters) + [**replace**](#replace-file-text-with-preview-and-backup) + [**code mining**](#code-mining-without-or-with-little-knowledge) via [**mouse**/**menus**](#hide-or-show-more-context-menus) + [**keys**](#get-the-best-combined-power) + [**terminals**](#make-command-shortcuts-to-search-or-replace-in-or-out-of-vscode) **without** reading/doing anything **except**:
+Works immediately after installing — [**search**](#search-files-with-rich-filters) + [**replace**](#replace-file-text-with-preview-and-backup) + [**code mining**](#code-mining-without-or-with-little-knowledge) via [**menus**](#hide-or-show-more-context-menus) + [**keys**](#get-the-best-combined-power) + [**terminals**](#make-command-shortcuts-to-search-or-replace-in-or-out-of-vscode). Optional steps:
 
-- [Cook doskey/alias](#make-command-shortcuts-to-search-or-replace-in-or-out-of-vscode) if you want to search/replace **out of vscode** (in `CMD`/`Bash` + other IDEs).
-  - See [**Best Practice** to search/update repo](#best-practice-to-update-git-repo-and-search-code) + [Get **Combined Power**](#get-the-best-combined-power).
-  - Create [**custom common alias**](#custom-alias-to-auto-sync-across-local-and-remote-ssh-hosts-plus-docker-containers)(see [difference](./Create-Custom-Common-Alias-Once-and-for-All.md#difference-between-custom-alias-and-normal-alias)) **once-for-all** to auto sync across all vscode + platforms.
-- For Windows: [**Trust msr**](#avoid-security-software-downgrade-search-performance-on-windows) if you cannot get search results in **1~2 seconds** for **code files** <= **10000**.
-  - For WSL: [Use short mount paths for WSL](#use-short-mount-paths-for-wsl-bash-terminal-on-windows) to enable **clicking** result file paths + **locate** into IDEs.
-- [**Adjust output colors**](#adjust-your-color-theme-if-result-file-path-folder-color-is-not-clear) of both **file paths** and **matched text** with 2 methods.
+- [Cook doskey/alias](#make-command-shortcuts-to-search-or-replace-in-or-out-of-vscode) to use `find-xxx`/`gfind-xxx` **outside** vscode (CMD/Bash/other IDEs).
+  - See [**Best Practice**](#best-practice-to-update-git-repo-and-search-code) + [**Custom Alias**](#custom-alias-to-auto-sync-across-local-and-remote-ssh-hosts-plus-docker-containers) to auto-sync across platforms.
+- Windows: [**Trust msr**](#avoid-security-software-downgrade-search-performance-on-windows) if search is slow. WSL: [Use short mount paths](#use-short-mount-paths-for-wsl-bash-terminal-on-windows).
+- [**Adjust colors**](#adjust-your-color-theme-if-result-file-path-folder-color-is-not-clear) for file paths and matched text.
 
 ### Supported Platforms
 
-- **Windows**
-  - `x86_64` + `x86_32`: Version >= `Windows XP` including **MinGW** on 64-bit + 32-bit Windows.
-  - `Arm64`: Version >= `Windows 8.1`.
-  - **Cygwin**: Version >= `Cygwin 5.4.0`.
-  - **WSL**: Same with `Linux` below.
-- **Linux**
-  - `x86_64` + `x86_32`: Kernel >= `2.6.32`: 64-bit + 32-bit **Ubuntu** + **CentOS** + **Fedora**.
-  - `Arm64`: Kernel >= `4.15` (like `Ubuntu 18.04`).
-- **MacOS**
-  - `Arm64`: Version >= `Darwin 21.1.0`.
-- **FreeBSD**
-  - `amd64`: Version >= `FreeBSD 11.0` (older versions may work but not tested).
+**Windows** (x86_64, x86_32, Arm64, MinGW, Cygwin, WSL) · **Linux** (x86_64, x86_32, Arm64) · **macOS** (Arm64) · **FreeBSD** (amd64)
+
+See [Download Links](docs/download-links.md) for the full platform/architecture/version matrix.
 
 ## Features
 
@@ -77,8 +54,45 @@ You can start [**search**](#search-files-with-rich-filters) + [**replace**](#rep
 - **Automated** command shortcuts on **Linux** + **WSL** + [**4 types of terminals on Windows**](#supported-4-terminal-types-on-windows).
 
 - [Simple + flexible config](#other-optional-settings-and-full-priority-order-of-config-override-rule): **General Regex** of `C++`,`Java`,`C#`,`Python`.
+  - Built-in `find-{ext}`/`gfind-{ext}` aliases for: **C++/C**, **Java**/Scala/Groovy, **C#**, **Python**, **Go**, **Rust**, **TypeScript**, **JavaScript**, **Vue**, **PHP**, **SQL**, **Shell**, **PowerShell**, **Batch**, **Protobuf**, **Bond**, **Thrift**, **Gradle**, **JSON**, **YAML**, **XML**, **Markdown**, **INI**, conf, csv, txt.
+  - Grouped aliases: `find-bp` (Bond+Proto+Thrift), `find-ui` (JS+TS+Vue), `find-code`, `find-doc`, `find-config`.
+  - Users can add more via [settings](docs/vscode-msr-user-guide.md#custom-user-aliases). Run `find-alias gfind -Output name` to discover all.
 
 - All just leverage [tiny msr+nin EXE](https://github.com/qualiu/msr/blob/master/README.md) **without** `storage`/`cache`, `server`/`service`, `network`, etc.
+
+## Documentation
+
+### Extension Guides
+
+| Document | Description |
+|----------|-------------|
+| [Quick Start](docs/quick-start.md) | 5-minute quick start for msr, nin, and aliases |
+| [vscode-msr User Guide](docs/vscode-msr-user-guide.md) | Alias system, code mining, and Go-to-Definition guide |
+| [Common Alias Reference](Common-Alias.md) | All built-in alias/doskey reference with examples |
+| [Custom Alias Guide](Create-Custom-Common-Alias-Once-and-for-All.md) | Create custom alias once, auto-sync across all platforms |
+| [Use Cases & Comparisons](docs/use-cases-and-comparisons.md) | Real-world use cases and tool comparisons |
+| [Extra Path Settings](Extra-Path-Settings.md) | Configure extra search paths for multi-repo scenarios |
+| [Add New Language](Add-New-Language-Support-For-Developers.md) | Developer guide for adding language support |
+
+### msr/nin Tool References
+
+| Document | Description |
+|----------|-------------|
+| [msr User Guide](docs/msr-user-guide.md) | Complete msr guide (search, replace, filters, block matching) |
+| [nin User Guide](docs/nin-user-guide.md) | Complete nin guide (set operations, distribution, Pareto) |
+| [Shared Reference](docs/msr-nin-shared-reference.md) | Parameters, encoding, colors, cross-platform behavior |
+| [Performance Tuning](docs/performance-tuning.md) | Performance tuning tips |
+| [Download Links](docs/download-links.md) | Download links for all platforms |
+| [Manual Download](Manually-Download-Tools.md) | Manual download commands for all platforms |
+
+### AI Agent References
+
+| Document | Description |
+|----------|-------------|
+| [AI Agent Usage Guide](docs/ai-agent-usage-guide.md) | How to integrate msr/nin/aliases with AI agents |
+| [msr AI Agent Reference](docs/msr-ai-agent-reference.md) | msr parameter reference optimized for agents |
+| [nin AI Agent Reference](docs/nin-ai-agent-reference.md) | nin parameter reference optimized for agents |
+| [vscode-msr AI Agent Reference](docs/vscode-msr-ai-agent-reference.md) | Alias invocation rules and fallbacks for agents |
 
 [Screenshot-1](images/find-def-ref.gif): Search **Definitions** + **References** for **C++** / **Python** / **Java** in `vscode`:
 
@@ -807,79 +821,35 @@ Code mining examples (run in vscode terminals: like `MSR-RUN-CMD` or add/open **
 - Fuzzy search a class/method: (Try [**gfind-xxx**](#try-to-use-gfind-xxx-instead-of-find-xxx-aliasdoskey) for precise searching + [**rgfind-xxx**](#try-rgfind-xxx-to-search-multiple-git-repositories) for multi-repos)
 
   - **find-def** `"\w*Keyword\w*You-Heard-or-Knew\w*"` -i
-    - **gfind-def** `"\w*Keyword\w*You-Heard-or-Knew\w*"` -x `class` --sp `"/common/,/lib"`
-    - **gfind-def** `"\w*Keyword\w*You-Heard-or-Knew\w*"` -x `struct` -k `12`
-
-- Fuzzy search a class/method, with [**optional args**](https://github.com/qualiu/msr#brief-summary-of-msr-exe) like **ignore case**(**-i**) :
-
   - **find-cpp-def** `"\w*Keyword\w*"` **-i**
-  - **find-cpp-ref** `"\w*Keyword\w*"` **-i** -x `class` --xp `"test,mock,/obj,/bin/"`
   - **find-ref** `"class\s+\w*Keyword\w*"` **-i** --nx `";"` --sp `src/,/lib/`
-    - **gfind-java-ref** `"class\s+\w*Keyword\w*"` **-i** --nt `";\s*$"`
-    - **gfind-java-ref** `"\w*Keyword\w*"` **-i** -x `class`
-  - **find-all** -i -t `"class\s+\w*keyword\w*"`
   - **find-cs-def** `"\w*Keyword\w*"` **-i -x** `enum`
-  - **find-cs-def** `"\w*Keyword\w*"` **-ix** `public` -H `20` -T `20` --nx `internal` -d `"^(src)$|keyword"` --nd `"test|^(unit|bin$)|demo"`
-  - **find-py-def** `"\w*Keyword\w*"` **-i** --nt `"private|protected"` --pp `"/src/|keyword"` --xp `test,/unit,/bin/,demo` --np `"test|/unit|/bin/"`
-  - **find-py-def** `"\w*Keyword\w*"` **-i** --nx `private` --nt `"protected|internal"` --xp `test,/unit,/bin/,demo` --pp `"/src/|keyword"` -H 20 -J ...
 
 - Replace File Text: Add **-o** `"replace-to-xxx"` + Append **-R** to `replace` (**Preview** replacing result **without** `-R`):
 
-  - **find-ref** `OldName` -o `NewName` -L `row1` -N `row2` --nt ... --nx ... --sp ... -xp ... --pp ...
-    - **gfind-ref** `OldName` -o `NewName` -x `"And has text"` --nt ... --nx ... --sp ... -xp ... --pp ...
-    - **gfind-java-ref** `OldName` -o `NewName` -x ... --nt ... --nx ... --sp ... -xp ... --pp ...
-    - **gfind-file** -t `"\bOld Text\b"` -o `"New Text"` **-j** -- to preview only **changed** replacing.
-  - **gfind-config** -t ... -o ...
-    - **gfind-small** -t ... -o ...
+  - **find-ref** `OldName` -o `NewName` --nt ... --nx ... --sp ... --xp ... --pp ...
+  - **gfind-file** -t `"\bOld Text\b"` -o `"New Text"` **-j** -- to preview only **changed** replacing.
 
 - **Accelerate searching** if you know the language type (like `Python`/`C#`), the **more** filters the **faster**:
 
-  - **find-py-def** `"\w*(get|set|update)\w*Method-Keyword-You-Heard\w*"` -ix `public` --nx ... --nt ... --xp ... --sp ... --pp ... --np ... -d ... --nd ...
-  - **find-cs-def** `"\w*(get|set|update)\w*Method-Keyword-You-Heard\w*"` -i
-  - **find-cpp-ref** `"(class|enum)\s+\w*Class-Keyword-You-Heard\w*"` -i
+  - **find-py-def** `"\w*(get|set|update)\w*Method-Keyword-You-Heard\w*"` -i
   - **find-java-ref** `"(class|enum)\s+\w*Class-Keyword-You-Heard\w*"` -i
-  - **find-go-ref** `"\w*Class-Keyword-You-Heard\w*"` -i -x `class`
-  - **find-ui** -it `"regex-pattern"` -x `"and-plain-text"`
-  - **find-code** -it `"(class|enum)\s+\w*Class-Keyword-You-Heard\w*"`
-  - **find-all** -i -t `"(class|enum)\s+\w*Class-Keyword-You-Heard\w*"`
   - **find-cpp-member-ref** `m_variable` -- to find `m_variable` + `getVariable` + `setVariable` + `_variable` + `variable_`
-    - **gfind-cpp-member-ref** `m_variable` -x `set` -- to find `setVariable`
   - **find-spring-ref** `setVariable` -- to find `variable` + `getVariable` + `setVariable`
-    - **find-spring-ref** `variable` -x `is` -- to find `isVariable`
-
-- Others like: (run command `alias find-xxx` to see the command template like `alias find-all`)
-
-  - **find-doc** -it `"regex-pattern"` -x `"and-plain-text"` --nx ... --nt ... --xp ... --sp ... --pp ... -d ... --nd ...
-  - **find-config** -it `"regex-pattern"` -x `"and-plain-text"`
-  - **find-small** -it `"regex-pattern"` -x `"and-plain-text"`
 
 - **General finding commands** like:
 
   - **find-nd** -it `"regex-pattern"` -x `"and-plain-text"` [**optional args**](https://github.com/qualiu/msr#brief-summary-of-msr-exe)
-  - **find-nd** -f `"\.(cs|py|java)$"` -it `"regex-pattern"` -x `"and-plain-text"`
   - **find-ndp** `path1,path2,pathN` -f `"\.(cs|py|java)$"` -it `"regex-pattern"` -x `"and-plain-text"`
-  - **find-ndp** `path1,path2,pathN` -it `"regex-pattern"` -x `"and-plain-text"` ...
-  - **find-file** -it `"regex-pattern"` --sp `"sub-path1/,/sub-path2/"`
   - **find-file** -it `"regex-pattern"` -x `"and-plain-text"` --s1 `100KB` --s2 `3.5MB` -f ...
   - **gfind-file** / **gfind-all** / **gfind-small** / **gfind-ref** / ...
 
-- With other optional args like:
-
-  - **find-all** -it `"regex-pattern"` -x `"and-plain-text"` -l just list matched file paths.
-  - **find-all** -x `"and-plain-text"` -it `"regex-pattern"` -o `"replace-regex-to-this"` -R replace file text
-  - **find-all** -it `"regex-pattern"` -x `"and-plain-text"` -o `"replace-plain-text-to-this"` -R replace file text
-  - **find-all** -it `"regex-pattern"` -x `"and-plain-text"` -U 5 -D 3 -H 100 -c Output `100 lines` with `5-rows-up` + `3-rows-down` for each match.
-  - **find-all** -it `"regex-pattern"` -x `"and-plain-text"` --nx `"not-contain-text"` --nt `"not-match-regex"` --xp `/bin/,debug/,test` --pp `expected-path-regex` --np `skip-path-regex` -U 3 -D 2 -H 100 -T 100 ...
-
 - Other functions:
   - **find-top-source-type** `-H 9` : Get `top 9` language types by file count/percentage in current workspace/repository.
-  - **find-top-source-type** `-k 100` : Get top languages which file `count >= 100`.
-  - **find-top-source-type** `-K 2.5` : Get top languages which file count `percentage >= 2.5%`.
-  - **find-top-type** -H 9 `-w` : Get top 9 file types and show one example file path (`whole/full` path) of each type.
   - **sort-source-by-time** `-T 9` : Get `newest 9 source files` sorting `source files` by file write/modify time.
-  - **sort-by-time** `-T 9` : Get `newest 9 files` sorting `all files` by file write/modify time.
   - **sort-by-size** `-T 9` : Get `newest 9 files` sorting `all files` by file size.
-  - **sort-by-size** -T 9 `-W` : Get `newest 9 files` sorting `all files` by file size + Show `full paths` (absolute paths).
+
+See [vscode-msr User Guide](docs/vscode-msr-user-guide.md) for comprehensive code mining examples and advanced alias usage.
 
 Once you found the results:
 
@@ -953,24 +923,14 @@ You can use any 1 of **3 methods** below to filter results or take further searc
   - System console (like CMD/Bash) **out of vscode**: See [switch general/specific shortcuts](#switch-between-general-and-project-specific-command-shortcuts).
 - Write raw [**msr/nin**](https://github.com/qualiu/msr#almost-no-learning-cost) commands with **70+/30+** composable [optional-args](https://github.com/qualiu/msr#brief-summary-of-msr-exe) (brief **Quick-Start** at bottom of running `msr -h` or `nin -h`).
 
-Change the value of **-t** / **--np** / **--nd** if already used in command line.
+Key filter options (change the value of **-t** / **--np** / **--nd** if already used in command line):
 
-- Filter result text:
-  - **-x** `"need plain text"` , **--nx** `"exclude plain-text"`
-  - **-t** `"search/include Regex"` , **--nt** `"exclude Regex"`
-- Filter result file name, folder, full-path:
-  - **-d** `"match folders Regex"`, **--nd** `"exclude folder Regex"`
-  - **--pp** `"full path Regex"` , **--np** `"exclude full path Regex"`
-  - **--sp** `src/,/lib/,common/,.cpp` , **--xp** `"/full-paths,or/sub-paths,sub-path-text,.hpp"`
-- You can also add more `msr` commands to the command line like:
-  - `msr original command` **|** `msr -i -t "^\s*public" -P -A -C`
-- Get matched file `list` (**-l**) -> Generate commands (**-o** `msr xxx`) -> Execute commands (**-X**):
-  - `msr original command` **-l** -PAC **|** `msr -t "(.+)" -o "msr -p \1 -t \"class To-Search\" xxx"` **-X**
-- More advanced search like: Execute(**-X**) + Only output matched command(**-O**) + No summary(**-M**)
-  - `command lines` | msr **-X -M -O** --to-stderr
-    - Same with **-XMO**; Use **to-stderr** to redirect command lines info to stderr.
-    - Use **-P** to hide beginning command lines like: **-XPM** or **-X -P -M**.
-    - Use **-I** to hide end(return) command lines like: **-XMI** or **-X -M -I**.
+- Filter text: **-t** `"Regex"` , **--nt** `"exclude Regex"` , **-x** `"plain text"` , **--nx** `"exclude text"`
+- Filter paths: **-d** `"folder Regex"` , **--nd** `"exclude folder"` , **--pp** `"path Regex"` , **--np** `"exclude path"`
+- Filter sub-paths: **--sp** `src/,/lib/,common/` , **--xp** `"/full-paths,or/sub-paths"`
+- Pipe for further filtering: `msr original command` **|** `msr -i -t "^\s*public" -P -A -C`
+
+See [msr User Guide](docs/msr-user-guide.md) for the full list of 70+ composable filter options.
 
 ### Replace File Text with Preview and Backup
 
@@ -987,57 +947,14 @@ Reuse the search command above (or `find-reference` command line in `vscode`), y
 
 ## Brief Usage Summary for Search or Configuration
 
-Besides the [overview doc](https://github.com/qualiu/msr/blob/master/README.md) and [readme.txt](https://raw.githubusercontent.com/qualiu/msr/master/tools/readme.txt) here's brief summary(try [**msrUI**](https://github.com/qualiu/msrUI) if [**built-in help**](https://github.com/qualiu/msr/blob/master/README.md#msr-overview-windows-or-linux) not good enough):
+To test or tune `Regex` patterns for finding definitions or references, use [msr](https://github.com/qualiu/msr#liberate--digitize-daily-works-by-2-exe-file-processing-data-mining-map-reduce):
 
-- Easy to add, update or tune `Regex` patterns to improve existing or support new coding languages:
-  - Use above debugging method with the output info.
-  - To test or tune your `Regex` patterns: Use the [auto-downloaded](#default-auto-check-and-download-tools-and-add-to-path) tool [msr](https://github.com/qualiu/msr#liberate--digitize-daily-works-by-2-exe-file-processing-data-mining-map-reduce) of your [system type](#more-freely-to-use-and-help-you-more) to test like:
-    - Input a string from input-arg (`-z`) or pipe (like `echo`):
-      - msr **-z** `"class CPP_EXPORT MatchThisCppClass"` -t `"^\s*class (\w+\s+)?\bMatchThisCppClass"`
-      - **echo** `class CPP_EXPORT MatchThisCppClass` `|` msr -t `"^\s*class (\w+\s+)?\bMatchThisCppClass"`
-    - Input a file like:
-      - msr **-p** `my-class.hpp` -t `"^\s*class (\w+\s+)?\bMatchThisCppClass"`
-    - Input paths and recursively search like:
-      - msr **-r -p** `my-class.hpp,src,folder2` -t `"^\s*class (\w+\s+)?\bMatchThisCppClass"`
-- Use the rich searching options of [msr-EXE](https://github.com/qualiu/msr/blob/master/README.md) like below, **combine** these **optional** options (**You Can Use All**):
-  - Set searching paths: (Can use both)
-    - Recursively(`-r`) search one or more files or directories, like: **-r** **-p** `file1,folder2,file2,folder3,folderN`
-    - Read paths (path list) from files, like: **-w** `path-list-1.txt,path-list-2.txt`
-  - Set max search depth (begin from input folder), like: **-k** `16` (default max search depth = `33`).
-  - Filter text by `line-matching` (default) or `whole-file-text-matching` (add **-S** / **--single-line** Regex mode):
-    - Ignore case:
-      - Add **-i** (`--ignore-case`)
-    - Regex patterns:
-      - **-t** `should-match-Regex-pattern`
-      - **--nt** `should-not-match-Regex-pattern`
-    - Plain text:
-      - **-x** `should-contain-plain-text`
-      - **--nx** `should-not-contain-plain-text`
-  - Filter `file name`: **-f** `should-match-Regex` , **--nf** `should-not-match`
-  - Filter `directory name`: **-d** `at-least-one-match` , **--nd** `none-should-match`
-  - Filter `full path pattern`: **--pp** `should-match` , **--np** `should-not-match`
-  - Skip/Exclude link files: **--xf**
-  - Skip/Exclude link folders: **--xd**
-  - Skip full or sub paths: **--xp** `d:\win\dir,my\sub,\bin\`
-    - Newer msr supports forward slash(`/`) on Windows to ease slash-escaping:
-      - **--xp** `d:/win/dir,my/sub,/bin/` same as `d:\win\dir,my\sub,\bin\`
-        - (You can omit double quotes since no spaces and special characters).
-      - **--sp** `common/,lib/` same as `common\,lib\`
-      - **--np** `"d:/win/dir|my/sub|/bin/"` same as `"d:\\win\\dir|my\\sub|\\bin\\\\"`
-        - (Need more slashes if end with a slash + double quote).
-      - **--pp** `"/src/|/common"` same as `"\\src\\|\\common"`.
-    - Check if your msr support forward slash(`/`) by command:
-      - `msr -h | msr -x "Support '/'"`
-  - Try to read once for link files: **-G** (link files' folders must be or under input root paths of `-p` or/and `-w`)
-  - Filter `file size`: **--s1** <= size <= **s2** , like set one or two: **--s1** `1B` **--s2** `1.5MB`
-  - Filter `file time`: like **--w1** `2019-07`, **--w2** `"2019-07-16 13:20"` or `2019-07-16T13:20:01` (quote it if has spaces).
-  - Filter rows by begin + end row numbers: like **-L** 10 **-N** 200 (for each file).
-  - Filter rows by begin + end Regex: like **-b** `"^\s*public.*?class"` **-q** `"^\s*\}\s*$"`
-  - Filter rows by 1 or more blocks: **-b** `"^\s*public.*?class"` **-Q** `"^\s*\}\s*$"`
-  - Filter rows by 1 or more blocks + **stop** like: **-b** `"^\s*public.*?class"` **-Q** `"^\s*\}\s*$"` **-q** `"stop-matching-regex"`
-  - **Quickly** pick up `head{N}` results + **Jump out**(`-J`), like: **-H** `30` **-J** or **-J** **-H** `300` or **-JH** `300` etc.
-  - Don't color matched text: **-C** (`Faster` to output, and **must be set** for `Linux/Cygwin` to further process).
-  - Output summary `info` to **stderr** + **hide** `warnings in stderr` (like BOM encoding): **-I** : You can see **-I -C** or **-IC** or **-J -I -C** or **-JIC** etc. in [package.json](package.json)
+- Input from arg: msr **-z** `"class CPP_EXPORT MyClass"` -t `"^\s*class (\w+\s+)?\bMyClass"`
+- Input from pipe: **echo** `class CPP_EXPORT MyClass` `|` msr -t `"^\s*class (\w+\s+)?\bMyClass"`
+- Input from file: msr **-p** `my-class.hpp` -t `"^\s*class (\w+\s+)?\bMyClass"`
+- Recursively search: msr **-r -p** `my-class.hpp,src,folder2` -t `"^\s*class (\w+\s+)?\bMyClass"`
+
+See [msr User Guide](docs/msr-user-guide.md) for the complete reference of all 70+ composable search/replace options including text filters, path filters, file size/time filters, block matching, and more. Also see [overview doc](https://github.com/qualiu/msr/blob/master/README.md) and [readme.txt](https://raw.githubusercontent.com/qualiu/msr/master/tools/readme.txt) (or try [**msrUI**](https://github.com/qualiu/msrUI)).
 
 ## Welcome to Contribute
 

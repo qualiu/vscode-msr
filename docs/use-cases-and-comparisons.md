@@ -114,8 +114,9 @@ gfind-cs-ref OrderService -H 30
 #### Representative workflow
 
 ```bash
-# 1) Scope risky markers
-gfind-code -t "TODO|FIXME|HACK|XXX" -i
+# 1) Scope risky markers (gfind-small covers all file types ≤1.6MB including scripts/configs)
+gfind-small -t "TODO|FIXME|HACK|XXX" -i
+# PowerShell note: if | causes pipe error, use: gfind-small --% -t "TODO|FIXME|HACK|XXX" -i
 
 # 2) Preview rename (changed lines only)
 gfind-cs -t "OldClassName" -o "NewClassName" -j
@@ -270,7 +271,7 @@ For detailed comparison tables, benchmarks, and irreplaceable-feature analysis:
 | Search code by language | `gfind-py -t "pattern"`               |
 | Find definitions        | `gfind-cpp-def MyClass`               |
 | Find references         | `gfind-java-ref myMethod`             |
-| Search all code         | `gfind-code -t "pattern"`             |
+| Search all file types   | `gfind-small -t "pattern"`            |
 | Search any file type    | `gfind-file -f "\.ext$" -t "pattern"` |
 | File type distribution  | `gfind-top-type`                      |
 | Folder distribution     | `gfind-top-folder`                    |

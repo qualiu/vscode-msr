@@ -415,7 +415,7 @@ function showTipByCommand(terminal: vscode.Terminal | undefined, terminalType: T
     + ` Change user settings for all functions:`
     + ` Toggle-Enable/Disable finding definition`
     + ` + Adjust-Color + Fuzzy-Code-Mining + Hide/Show-Menus`
-    + ` + Use git-ignore + Git operations: gpc / gpc-sm for gfind-xxx.`
+    + ` + Use git-ignore + Git operations: gdm-l / gdm-nt / gdm / gpm / gpc / gpc-sm for gfind-xxx.`
     + ` ${CookCmdDocUrl} for Advanced/Menu/Mouse search + preview->replace.`
     + ` Outside terminals/IDEs: use-this-alias / out-fp / out-rp.`;
 
@@ -638,10 +638,28 @@ export function cookCmdShortcutsOrFile(cookArgs: CookAliasArgs) {
   }
 
   // list-alias + use-alias
-  const tmpBody = 'msr -l --wt --sz -p ' + quotePaths(tmpAliasFolderForTerminal) + ' -f "' + projectAliasFileSuffix + '$" $*';
-  cmdAliasMap.set('list-alias', getCommandAliasText('list-alias', tmpBody, true, terminalType, false, false));
+  // list-alias: without args lists all alias files; with arg "1" lists only the current repo's alias file (like use-this-alias)
+  const listAllBody = 'msr -l -M --wt --sz -p ' + quotePaths(tmpAliasFolderForTerminal) + ' --pp "' + projectAliasFileSuffix + '$"';
+  let listAliasBody: string;
+  if (isWindowsTerminal) {
+    listAliasBody = String.raw`@if "$1" == "1" (`
+      + String.raw` @for /f "tokens=*" %a in ('git rev-parse --show-toplevel 2^>nul ^|^| echo "%CD%"') do`
+      + String.raw` @for /f "tokens=*" %b in ('msr -z "%a" -t ".*?([^\\/]+?)\s*$" -o "\1" -aPAC ^|`
+      + String.raw` msr -t "${TrimProjectNameRegex.source}" -o "-" -aPAC') do`
+      + String.raw` @if exist "%tmp%\%b.${projectAliasFileSuffix}" (`
+      + String.raw` msr -l -M --wt --sz -p "%tmp%\%b.${projectAliasFileSuffix}" $2 $3 $4 $5 $6 $7 $8 $9`
+      + String.raw` ) else ( echo Not found alias file: %tmp%\%b.${projectAliasFileSuffix} )`
+      + ` ) else ( ${listAllBody} $* )`;
+  } else {
+    listAliasBody = 'if [ "${1}" = "1" ]; then shift; '
+      + String.raw`thisFile=${linuxTmpFolder}/$(echo $(git rev-parse --show-toplevel 2>/dev/null || echo "$PWD") |`
+      + String.raw` msr -t ".*?([^/]+?)\s*$" -o "\1" -aPAC | msr -t "${TrimProjectNameRegex.source}" -o "-" -aPAC).${projectAliasFileSuffix}; `
+      + 'if [ -f "$thisFile" ]; then msr -l -M --wt --sz -p "$thisFile" "${@}"; else echo "Not found alias file: $thisFile"; fi; '
+      + 'else ' + listAllBody + ' "${@}"; fi';
+  }
+  cmdAliasMap.set('list-alias', getCommandAliasText('list-alias', listAliasBody, true, terminalType, args.WriteToEachFile, false));
   const useBody = isWindowsTerminal ? 'call $1' : 'source $1';
-  cmdAliasMap.set('use-alias', getCommandAliasText('use-alias', useBody, true, terminalType, false, false));
+  cmdAliasMap.set('use-alias', getCommandAliasText('use-alias', useBody, true, terminalType, args.WriteToEachFile, false));
 
   [FindCommandType.FindTopFolder, FindCommandType.FindTopType, FindCommandType.FindTopSourceFolder, FindCommandType.FindTopSourceType, FindCommandType.FindTopCodeFolder, FindCommandType.FindTopCodeType].forEach(findTopCmd => {
     const findTopBody = getFindTopDistributionCommand(true, args.ForProject, true, findTopCmd, repoFolder);
@@ -676,11 +694,11 @@ export function cookCmdShortcutsOrFile(cookArgs: CookAliasArgs) {
   sortedKeys.forEach(key => {
     let scriptContent = cmdAliasMap.get(key) || '';
     if (args.WriteToEachFile) {
-      if (canWriteScripts && !skipWritingScriptNames.has(key) && (args.DumpOtherCmdAlias || key.match(/^(r?g?find|sort)-|malias/))) {
+      if (canWriteScripts && !skipWritingScriptNames.has(key) && (args.DumpOtherCmdAlias || key.match(/^(r?g?find|sort)-|malias|^(list|use)-alias$/))) {
         // Add use-this-alias prefix for find-xxx/sort-xxx script files (not gfind/rgfind/gsort/rgsort)
         // This loads project-specific Skip_Junk_Paths for precise filtering with <1s overhead
         // CMD scripts parse line-by-line, so call on line 1 sets env vars for %VAR% on line 2
-        if (key.match(/^(find|sort)-/) && !key.match(/^(r?g)(find|sort)-/)) {
+        if (key.match(/^(find|sort)-/) && !key.match(/^(r?g)(find|sort)-/) && /Skip_Junk_Name|Skip_Junk_Paths|msr\s+-rp\b/.test(scriptContent)) {
           if (isWindowsTerminal) {
             scriptContent = `call use-this-alias >nul 2>&1${newLine}${scriptContent}`;
           } else {
@@ -696,7 +714,8 @@ export function cookCmdShortcutsOrFile(cookArgs: CookAliasArgs) {
       // This loads project-specific Skip_Junk_Paths for precise filtering
       // Exclude PowerShell-wrapped commands (find-spring-ref etc.) which have complex quoting
       const isPowerShellBody = /\b(PowerShell|pwsh)\s+-Command\b/i.test(scriptContent);
-      if (key.match(/^(find|sort)-/) && !key.match(/^(r?g)(find|sort)-/) && !isPowerShellBody) {
+      const usesJunkPaths = /Skip_Junk_Name|Skip_Junk_Paths|msr\s+-rp\b/.test(scriptContent);
+      if (key.match(/^(find|sort)-/) && !key.match(/^(r?g)(find|sort)-/) && !isPowerShellBody && usesJunkPaths) {
         if (isWindowsTerminal) {
           // For Windows doskey: need cmd /v:on /c with delayed expansion
           // Doskey is parsed as single line - %VAR% expanded before call runs
@@ -829,7 +848,7 @@ export function cookCmdShortcutsOrFile(cookArgs: CookAliasArgs) {
 
   if (isWindowsTerminal) {
     asyncAddUserPathToEnvForWindows(generalScriptFilesFolder, rawWindowsPathSet);
-    if (fs.existsSync(projectAliasFilePath)) { // avoid non-exist error, needless for main terminal which called by use-this-alias later.
+    if (fs.existsSync(projectAliasFilePath) && !isPowerShellTerminal(terminalType)) { // avoid non-exist error, needless for main terminal which called by use-this-alias later.
       runCmdInTerminal(getLoadAliasFileCommand(quotedProjectAliasFileForTerminal, isWindowsTerminal));
     }
   } else if (TerminalType.Pwsh !== terminalType) {
@@ -1340,26 +1359,11 @@ function getExistingCmdAlias(terminalType: TerminalType, writeToEachFile: boolea
     outputInfo(`Found ${newCount} new common alias, will save all ${cmdAliasMap.size} alias to file: ${defaultCmdAliasFileForTerminal}`);
   }
 
-  if (newCount > 0 || (inconsistentCount > 0 && MyConfig.OverwriteInconsistentCommonAliasByExtension)) {
-    const sortedKeys = Array.from(cmdAliasMap.keys()).sort();
-    // Remove trailing whitespace from each line within alias body to avoid unnecessary diff
-    const aliasContent = sortedKeys.map(key => {
-      const body = cmdAliasMap.get(key) || '';
-      return body.replace(/[ \t]+$/gm, '');
-    }).join(isWindowsTerminal ? '\r\n\r\n' : '\n\n');
-    // For non-Windows terminals, must add bash header and environment variable settings
-    const aliasHeadText = isWindowsTerminal ? '' : getSkipJunkPathEnvCommand(terminalType, '', false, '');
-    const newLine = isWindowsTerminal ? '\r\n' : '\n';
-    // Normalize: trim trailing whitespace and ensure single trailing newline
-    const newCmdAliasText = normalizeFileContent(
-      getBashFileHeader(isWindowsTerminal) + aliasHeadText + (isWindowsTerminal ? '' : '\n') + aliasContent,
-      newLine
-    );
-    if (!saveTextToFile(defaultCmdAliasFile, newCmdAliasText)) {
-      outputErrorByTime(`Failed to save ${newCount} new alias to file: ${defaultCmdAliasFileForTerminal}`);
-    } else {
-      outputInfoQuietByTime(`Updated ${inconsistentCount} alias, added ${newCount} alias, see ${cmdAliasMap.size} alias in file: ${defaultCmdAliasFileForTerminal}`);
-    }
+  // Don't save the doskey file here - cookCmdShortcutsOrFile will save the complete version later
+  // (with use-this-alias prefix for find-xxx/sort-xxx). Saving here produces an intermediate version
+  // without the prefix, causing perpetual "inconsistent" detection for custom find-xxx aliases from settings.json.
+  if (newCount > 0 || inconsistentCount > 0) {
+    outputInfoQuietByTime(`Found ${newCount} new + ${inconsistentCount} inconsistent alias, total ${cmdAliasMap.size} alias for: ${defaultCmdAliasFileForTerminal}`);
   }
 
   return cmdAliasMap;

@@ -135,7 +135,7 @@ Fastest ────────────────────────
 | Reversed  | `syntax,csharp,compile`       | 75      | 333          | 0.64s |
 | Shuffled  | `csharp,syntax,compile`       | 75      | 333          | 0.62s |
 
-You don't need to remember the order of directory hierarchy. Just remember the keywords. Compare with `--pp` (regex), which requires path-order matching (e.g., `--pp "compile.*csharp.*syntax"`).
+You don't need to remember the order of directory hierarchy. Just remember the keywords. Compare with `--pp` (regex), which requires path-order matching (e.g., `--pp "compile.*?csharp.*?syntax"`).
 
 ### `--sp` vs `-d` vs `--pp`
 

@@ -83,7 +83,7 @@ Do not invoke base aliases without a match filter.
 
 ```bash
 # Correct
-gfind-py -t "pattern"
+gfind-py -t "\bTargetSymbol\b"
 gfind-cs -x "TODO"
 
 # Risky (can flood output)

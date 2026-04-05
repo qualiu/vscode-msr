@@ -49,10 +49,10 @@ A focused guide for **humans** covering real-world applications and comparison e
 
 | Value           | Description                                                | Example                                        |
 | --------------- | ---------------------------------------------------------- | ---------------------------------------------- |
-| **Efficiency**  | One command replaces multi-tool pipelines                  | `msr -rp . -t "TODO" -l` vs `find + grep + wc` |
+| **Efficiency**  | One command replaces multi-tool pipelines                  | `msr -rp . -t "\bTODO\b" -l` vs `find + grep + wc` |
 | **Precision**   | Context-aware scoring, namespace filtering, block matching | Go to Definition ranks results by relevance    |
 | **Safety**      | Preview-by-default, auto-backup, skip-write if unchanged   | No accidental overwrites, clean `git status`   |
-| **Integration** | VS Code aliases, AI-agent friendly                         | `gfind-py -t "pattern"` works out of the box   |
+| **Integration** | VS Code aliases, AI-agent friendly                         | `gfind-py -t "\bTargetSymbol\b"` works out of the box   |
 | **Analysis**    | Built-in P05-P99.999 stats, Pareto analysis                | `msr -s "" -n -H 0 -C` for latency percentiles |
 
 ### Irreplaceable Advantages
@@ -102,8 +102,8 @@ This scenario combines code navigation, clickable terminal jumping, safe rename/
 - With index: `{path}:{row}:{column}: {line-text}`
 
 ```bash
-gfind-cs -t "OrderService" -C
-gfind-cs-ref OrderService -H 30
+gfind-cs -t "\bTargetService\b" -C
+gfind-cs-ref TargetService -H 30
 ```
 
 #### IDE terminal clickable navigation guides
@@ -119,16 +119,16 @@ gfind-small -t "TODO|FIXME|HACK|XXX" -i
 # PowerShell note: if | causes pipe error, use: gfind-small --% -t "TODO|FIXME|HACK|XXX" -i
 
 # 2) Preview rename (changed lines only)
-gfind-cs -t "OldClassName" -o "NewClassName" -j
+gfind-cs -t "\bOldSymbol\b" -o "NewSymbol" -j
 
 # 3) Apply rename safely with backup
-gfind-cs -t "OldClassName" -o "NewClassName" -RK
+gfind-cs -t "\bOldSymbol\b" -o "NewSymbol" -RK
 
 # 4) Verify references
-gfind-cs-ref NewClassName -H 50
+gfind-cs-ref NewSymbol -H 50
 
 # 5) Trace symbol history
-git-find-content "OldClassName|NewClassName"
+git-find-content "OldSymbol|NewSymbol"
 ```
 
 ---
@@ -145,7 +145,7 @@ git diff --name-only HEAD~1 | msr -t "\.(cs|java|ts|py)$" -PIC > /tmp/scope.txt
 msr -w /tmp/scope.txt -t "\S\s+$" --no-check -l
 
 # Existence check (fast global stop)
-msr -w /tmp/scope.txt -t "deprecated_api" --no-check -H 1 -J
+msr -w /tmp/scope.txt -t "\bdeprecatedApi\b" --no-check -H 1 -J
 
 # Exact count for threshold decision
 msr -w /tmp/scope.txt -t "TODO|FIXME" --no-check -H 0
@@ -235,44 +235,44 @@ For detailed comparison tables, benchmarks, and irreplaceable-feature analysis:
 
 | Task                          | Command                                                                                       |
 | ----------------------------- | --------------------------------------------------------------------------------------------- |
-| Search files recursively      | `msr -rp . -f "\.ext$" -t "pattern"`                                                          |
-| Preview all matches           | `msr -rp . -f "\.ext$" -t "old" -o "new"`                                                     |
-| Preview changes only          | `msr -rp . -f "\.ext$" -t "old" -o "new" -j`                                                  |
-| Full output with replacements | `msr -rp . -f "\.ext$" -t "old" -o "new" -a`                                                  |
-| Replace with backup           | `msr -rp . -f "\.ext$" -t "old" -o "new" -RK`                                                 |
-| List files only               | `msr -rp . -f "\.ext$" -t "pattern" -l`                                                       |
-| Context lines                 | `msr -rp . -f "\.ext$" -t "pattern" -U 3 -D 3`                                                |
-| Block extraction              | `msr -p file -b "begin" -Q "end" -t "filter" -a`                                              |
+| Search files recursively      | `msr -rp . -f "\.ext$" -t "\bTargetSymbol\b"`                                                 |
+| Preview all matches           | `msr -rp . -f "\.ext$" -t "\bOldSymbol\b" -o "NewSymbol"`                                     |
+| Preview changes only          | `msr -rp . -f "\.ext$" -t "\bOldSymbol\b" -o "NewSymbol" -j`                                  |
+| Full output with replacements | `msr -rp . -f "\.ext$" -t "\bOldSymbol\b" -o "NewSymbol" -a`                                  |
+| Replace with backup           | `msr -rp . -f "\.ext$" -t "\bOldSymbol\b" -o "NewSymbol" -RK`                                 |
+| List files only               | `msr -rp . -f "\.ext$" -t "\bTargetSymbol\b" -l`                                              |
+| Context lines                 | `msr -rp . -f "\.ext$" -t "\bTargetSymbol\b" -U 3 -D 3`                                       |
+| Block extraction              | `msr -p file -b "begin" -Q "end" -t "\bTargetFilter\b" -a`                                    |
 | Time-sorted merge             | `msr -rp logs/ -f "\.log$" -F "time-regex"`                                                   |
 | Numeric statistics            | `msr -p file -t "(\d+)" -s "" -n -H 0 -C`                                                     |
 | Batch execute                 | `msr -p list.txt -t "(.+)" -o "cmd \"\1\"" -XMO`                                              |
-| Existence check               | `msr -p file -t "pattern" -H 1 -J`                                                            |
-| Exact count (scripting)       | `msr -p file -t "pattern" -H 0`                                                               |
+| Existence check               | `msr -p file -t "\bTargetSymbol\b" -H 1 -J`                                                   |
+| Exact count (scripting)       | `msr -p file -t "\bTargetSymbol\b" -H 0`                                                      |
 
 ### Common nin Patterns
 
 | Task                        | Command                                       |
 | --------------------------- | --------------------------------------------- |
-| Difference set              | `nin file1 file2 "regex"`                     |
-| Intersection                | `nin file1 file2 "regex" -m`                  |
-| Unique lines                | `nin file nul -u`                             |
-| Unique with regex key       | `nin file nul "regex" -u`                     |
-| Frequency distribution      | `nin file nul "regex" -pd`                    |
-| Top N distribution          | `nin file nul "regex" -pd -H N`               |
-| Pareto analysis             | `nin file nul "regex" -pd --sum -K 5.0`       |
-| Structure-preserving filter | `nin file exclude "regex1" "regex2" -wn -PAC` |
-| Pipe distribution           | `command \| nin nul "regex" -pd`              |
-| Silent count (scripting)    | `nin file nul "regex" -pd -H 0 2>nul`         |
+| Difference set              | `nin file1 file2 "(regex)"`                       |
+| Intersection                | `nin file1 file2 "(regex)" -m`                    |
+| Unique lines                | `nin file nul -u`                                 |
+| Unique with regex key       | `nin file nul "(regex)" -u`                       |
+| Frequency distribution      | `nin file nul "(regex)" -pd`                      |
+| Top N distribution          | `nin file nul "(regex)" -pd -H N`                 |
+| Pareto analysis             | `nin file nul "(regex)" -pd --sum -K 5.0`         |
+| Structure-preserving filter | `nin file exclude "(regex1)" "(regex2)" -wn -PAC` |
+| Pipe distribution           | `command \| nin nul "(regex)" -pd`                |
+| Silent count (scripting)    | `nin file nul "(regex)" -pd -H 0 2>nul`           |
 
 ### Common vscode-msr Alias Patterns
 
 | Task                    | Alias Example                         |
 | ----------------------- | ------------------------------------- |
-| Search code by language | `gfind-py -t "pattern"`               |
+| Search code by language | `gfind-py -t "\bTargetSymbol\b"`      |
 | Find definitions        | `gfind-cpp-def MyClass`               |
 | Find references         | `gfind-java-ref myMethod`             |
-| Search all file types   | `gfind-small -t "pattern"`            |
-| Search any file type    | `gfind-file -f "\.ext$" -t "pattern"` |
+| Search all file types   | `gfind-small -t "\bTargetSymbol\b"`   |
+| Search any file type    | `gfind-file -f "\.ext$" -t "\bTargetSymbol\b"` |
 | File type distribution  | `gfind-top-type`                      |
 | Folder distribution     | `gfind-top-folder`                    |
 | Discover aliases        | `find-alias keyword`                  |

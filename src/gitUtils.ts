@@ -23,7 +23,7 @@ export class GitIgnore {
   private IgnoreFilePath: string = '';
   private UseGitIgnoreFile: boolean;
   private OmitGitIgnoreExemptions: boolean;
-  private SkipDotFolders: boolean = true;
+  private SkipDotFolders: boolean = false;
   private SkipPathPattern: string = '';
   private RepoFolder: string = '';
   private RepoFolderName: string = '';
@@ -59,12 +59,22 @@ export class GitIgnore {
     try {
       const ignorableDotFolderNameRegex = new RegExp(ignorableDotFolderNamePattern, 'i');
       const folderNames = ChildProcess.execSync(String.raw`git ls-tree -d --name-only HEAD`, options).toString().split(/[\r?\n]+/);
+      // Only skip all dot folders if ALL dot-folders match ignorableDotFolderNameRegex
+      let hasAnyDotFolder = false;
+      let allDotFoldersIgnorable = true;
       for (let i = 0; i < folderNames.length; i++) {
-        if (folderNames[i].startsWith(".") && !folderNames[i].match(ignorableDotFolderNameRegex)) {
-          this.SkipDotFolders = false;
-          outputInfoQuietByTime(`Not skip all dot folders: Found repo-child-folder = ${folderNames[i]} , ignorableDotFolderNamePattern = "${ignorableDotFolderNamePattern}"`);
-          break;
+        if (folderNames[i].startsWith(".")) {
+          hasAnyDotFolder = true;
+          if (!folderNames[i].match(ignorableDotFolderNameRegex)) {
+            allDotFoldersIgnorable = false;
+            outputInfoQuietByTime(`Not skip all dot folders: Found repo-child-folder = ${folderNames[i]} , ignorableDotFolderNamePattern = "${ignorableDotFolderNamePattern}"`);
+            break;
+          }
         }
+      }
+      if (hasAnyDotFolder && allDotFoldersIgnorable) {
+        this.SkipDotFolders = true;
+        outputInfoQuietByTime(`Skip all dot folders: All dot-folders match ignorableDotFolderNamePattern = "${ignorableDotFolderNamePattern}"`);
       }
     } catch (error) {
       outputInfoQuietByTime("Cannot use git ls-tree to check git folder: " + error);

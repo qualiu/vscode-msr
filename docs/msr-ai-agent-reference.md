@@ -64,7 +64,8 @@ Technical reference for **AI agents** to accurately invoke msr commands.
 - `--sp` is **AND** logic (`A,B,C` means path contains all three texts).
 - `--xp` is **OR** logic (`A,B,C` means path excluded if it contains any one of them).
 - `-xp` is **not** `--xp`: single dash is parsed as `-x p` and can cause duplicate `-x` errors. Always use `--xp`.
-- For vscode-msr aliases (`gfind-xxx`/`find-xxx`), avoid overriding alias-built `--nd`/`--np` unless intentional; use `-d`/`--sp`/`--xp` for user-side narrowing.
+- `--nf` (filename regex exclude) and `--pp` (full-path regex include) are **safe add-on filters** for alias workflows; they do not collide with alias-built `--nd`/`--np`.
+- For vscode-msr aliases (`gfind-xxx`/`find-xxx`), avoid overriding alias-built `--nd`/`--np` unless intentional; use `-d`/`--sp`/`--xp` first, then add `--nf`/`--pp` if extra narrowing is needed.
 
 ### File Size and Time Filters
 

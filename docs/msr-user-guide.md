@@ -48,17 +48,17 @@ msr -rp . -f "\.txt$" -x "keyword" -PIC
 
 ```bash
 # Preview all matches (without -R): shows ALL matched lines with replacement result
-msr -rp . -f "\.cs$" -t "oldName" -o "newName"
+msr -rp . -f "\.cs$" -t "\bOldSymbol\b" -o "NewSymbol"
 
 # Preview changes only (-j): shows ONLY lines that would actually change
-msr -rp . -f "\.cs$" -t "oldName" -o "newName" -j
+msr -rp . -f "\.cs$" -t "\bOldSymbol\b" -o "NewSymbol" -j
 
 # Full output with replacements (-a): ALL lines output (matched lines transformed, others as-is)
 # Like sed 's/old/new/' — useful for piping or redirecting to produce complete transformed content
-msr -rp . -f "\.cs$" -t "oldName" -o "newName" -a
+msr -rp . -f "\.cs$" -t "\bOldSymbol\b" -o "NewSymbol" -a
 
 # Actually replace files (with -R) and backup (with -K)
-msr -rp . -f "\.cs$" -t "oldName" -o "newName" -RK
+msr -rp . -f "\.cs$" -t "\bOldSymbol\b" -o "NewSymbol" -RK
 ```
 
 ## Key Options Explained
@@ -83,11 +83,11 @@ msr -rp . -f "\.cs$" -t "oldName" -o "newName" -RK
 | Option | Meaning | Example |
 |--------|---------|---------|
 | `-f` | Match filename | `-f "\.cs$"` |
-| `--nf` | Exclude filename | `--nf "test"` |
+| `--nf` | Exclude filename | `--nf "\.(g|generated)\.cs$"` |
 | `-d` | Must have dir | `-d "src"` |
 | `--nd` | Exclude dir | `--nd "bin\|obj"` |
-| `--pp` | Match full path | `--pp "src.*test"` |
-| `--np` | Exclude full path | `--np "backup"` |
+| `--pp` | Match full path | `--pp "src.*?Controllers"` |
+| `--np` | Exclude full path | `--np "backup|archive"` |
 | `--xp` | Exclude if path has **any** text (OR) | `--xp "test/,mock/"` |
 | `--sp` | Path must have **all** texts (AND) | `--sp "src/,lib/"` |
 | `--xf` | Skip link files | `--xf` |
@@ -319,9 +319,9 @@ git diff master --name-only          # ⚠️ may misinterpret "master" as a pat
 tar -czf output.tar.gz dir/          # ✅ only this order works
 
 # msr: parameters freely reorderable — all three forms are identical
-msr -rp . -f "\.cs$" -t "todo" -IC
-msr -t "todo" -f "\.cs$" -rp . -IC
-msr -IC -t "todo" -rp . -f "\.cs$"
+msr -rp . -f "\.cs$" -t "\bTODO\b" -IC
+msr -t "\bTODO\b" -f "\.cs$" -rp . -IC
+msr -IC -t "\bTODO\b" -rp . -f "\.cs$"
 ```
 
 Parameters also support both **short names and long names** interchangeably. Use short names for interactive commands and long names for self-documenting scripts:
@@ -334,7 +334,7 @@ msr -rp . -it "error" -IC
 msr --recursive --path . --ignore-case --text-match "error" --no-extra --no-color
 
 # Mixing short and long names freely:
-msr -rp . --ignore-case -t "error" -IC
+msr -rp . --ignore-case -t "\berror\b" -IC
 
 # Same for nin:
 nin file.txt nul -u                  # short
@@ -347,17 +347,17 @@ This makes commands easier to read in shared scripts (`--ignore-case` is instant
 Always preview changes before using `-R`:
 ```bash
 # Step 1a: Preview all matches (shows every matched line with replacement result)
-msr -rp . -f "\.cs$" -t "old" -o "new"
+msr -rp . -f "\.cs$" -t "\bOldSymbol\b" -o "NewSymbol"
 
 # Step 1b: Preview changes only (shows ONLY lines that actually change)
-msr -rp . -f "\.cs$" -t "old" -o "new" -j
+msr -rp . -f "\.cs$" -t "\bOldSymbol\b" -o "NewSymbol" -j
 
 # Step 1c: Full output with replacements (ALL lines: matched transformed + unmatched as-is)
 # Like sed 's/old/new/' — useful for stream processing, piping, or redirecting
-msr -rp . -f "\.cs$" -t "old" -o "new" -a
+msr -rp . -f "\.cs$" -t "\bOldSymbol\b" -o "NewSymbol" -a
 
 # Step 2: Replace with backup
-msr -rp . -f "\.cs$" -t "old" -o "new" -RK
+msr -rp . -f "\.cs$" -t "\bOldSymbol\b" -o "NewSymbol" -RK
 ```
 
 ### Three Safety Guarantees for File Replacement
@@ -370,7 +370,7 @@ If the replacement result is identical to the original content, msr **does not w
 
 ```bash
 # Only files with actual changes are written
-msr -rp src/ -f "\.java$" -t "oldApi" -o "newApi" -R
+msr -rp src/ -f "\.java$" -t "\bOldSymbol\b" -o "NewSymbol" -R
 # Files where replacement changed nothing: NOT written, mtime unchanged
 
 # Practical impact:
@@ -386,11 +386,11 @@ msr writes files using the **system's native line ending style** — CRLF (`\r\n
 
 ```bash
 # On Windows: LF files are converted to CRLF after replacement
-msr -p unix-lf-file.txt -t "old" -o "new" -R
+msr -p unix-lf-file.txt -t "\bold\b" -o "new" -R
 # Original LF (\n) → Output CRLF (\r\n)
 
 # On Linux: CRLF files are converted to LF after replacement (same behavior as sed)
-msr -p windows-crlf-file.txt -t "old" -o "new" -R
+msr -p windows-crlf-file.txt -t "\bold\b" -o "new" -R
 # Original CRLF (\r\n) → Output LF (\n)
 
 # This is the same behavior as sed — both use system native line endings.
@@ -470,15 +470,15 @@ msr -p config.ini -b "^\[section" -Q "^$" -C
 # → Matched 4 blocks with 21 lines
 
 # B2: Filter within blocks — only output lines matching -t
-msr -p config.ini -b "^\[section" -Q "^$" -t "admin" -C
+msr -p config.ini -b "^\[section" -Q "^$" -t "\badmin\b" -C
 # → 2 lines ("role = admin") across 2 blocks; other lines hidden
 
 # B3: -a outputs entire block when ANY line matches -t
-msr -p config.ini -b "^\[section" -Q "^$" -t "admin" -a -C
+msr -p config.ini -b "^\[section" -Q "^$" -t "\badmin\b" -a -C
 # → Full section-alpha and section-gamma blocks output
 
 # B4: --nt excludes entire block containing match
-msr -p config.ini -b "^\[section" -Q "^$" -a --nt "error" -C
+msr -p config.ini -b "^\[section" -Q "^$" -a --nt "\berror\b" -C
 # → 3 blocks output; section-beta (has "error = true") excluded entirely
 
 # B5: --block N outputs only Nth block
@@ -490,11 +490,11 @@ msr -p config.ini -b "^\[section" -Q "^$" -a --block 1~3 -C
 # → section-alpha, beta, gamma output
 
 # B7: --sep-block inserts blank lines between output blocks
-msr -p config.ini -b "^\[section" -Q "^$" -t "admin" -a --sep-block 2 -C
+msr -p config.ini -b "^\[section" -Q "^$" -t "\badmin\b" -a --sep-block 2 -C
 # → 2 blank lines inserted between the 2 matched blocks
 
 # B8: -S single-line mode — match across lines within each block
-msr -p config.xml -b "^<\w" -Q "^</" -S -t "localhost" -C
+msr -p config.xml -b "^<\w" -Q "^</" -S -t "\blocalhost\b" -C
 # → Treats each XML block as one string; only block with "localhost" matches
 
 # B9: -q stops reading file immediately at match
@@ -523,7 +523,7 @@ The `-w` parameter reads a list of file or directory paths from a text file, ind
 ```bash
 # Generate the list once, skip node_modules/bin/obj/etc automatically
 git ls-files > /tmp/tracked.txt
-msr -w /tmp/tracked.txt -t "pattern" --no-check
+msr -w /tmp/tracked.txt -t "\bTargetSymbol\b" --no-check
 
 # Equivalent vscode-msr alias (pre-configured):
 gfind-xxx  # uses git ls-files internally
@@ -540,7 +540,7 @@ msr -w changed.txt -t "TODO|FIXME|System\.exit" --no-check
 
 # Only search files changed vs master branch
 git diff --name-only master > changed.txt
-msr -w changed.txt -f "\.java$" -t "DeprecatedApi" --no-check
+msr -w changed.txt -f "\.java$" -t "\bDeprecatedSymbol\b" --no-check
 
 # Practical: check code style only on changed files (avoid full-repo scan in CI)
 git diff --name-only HEAD~1 | msr -t "\.(cs|java|ts)$" -PIC > scope.txt
@@ -554,9 +554,9 @@ msr -w scope.txt -S -t "(\r?\n){3,}" -H 0 --no-check && echo "Blank line check p
 msr -rp /enterprise/src -f "\.(cs|java)$" -l -PIC > src-files.txt
 
 # Step 2: Run multiple searches using the cached list (fast)
-msr -w src-files.txt -t "OldApiV1" --no-check
-msr -w src-files.txt -t "DeprecatedClass" --no-check
-msr -w src-files.txt -t "TODO.*security" -i --no-check
+msr -w src-files.txt -t "\bLegacyApiV1\b" --no-check
+msr -w src-files.txt -t "\bDeprecatedSymbol\b" --no-check
+msr -w src-files.txt -t "\bTODO\b.*?\bsecurity\b" -i --no-check
 
 # Step 3: Auto-refresh cache if older than 30 minutes
 msr -l --w1 30m -p src-files.txt 2>nul || \
@@ -582,11 +582,11 @@ msr -w configs.txt -t "old-server\.example\.com" -o "new-server.example.com" -R 
 ```bash
 # CMake/MSBuild: use compile_commands.json to get source files
 jq -r '.[].file' compile_commands.json | sort -u > build-sources.txt
-msr -w build-sources.txt -t "deprecated_include" --no-check
+msr -w build-sources.txt -t "\bdeprecated_include\b" --no-check
 
 # Find large files, then search their content
 msr -rp . -f "\.log$" --s1 10MB -l -PIC > large-logs.txt
-msr -w large-logs.txt -t "CRITICAL" -H 5 --no-check
+msr -w large-logs.txt -t "\bCRITICAL\b" -H 5 --no-check
 ```
 
 ### Pipeline with nin for Log Analysis
@@ -769,7 +769,7 @@ msr -z "justTestArgs $*" --verbose 2>&1 | msr -t "..." -o "..." -PIC
 
 ```bash
 # Filter process list with colors (Windows PowerShell example)
-pwsh -Command "Get-Process" | msr -t "pattern" --colors "t=Yellow,e=Green"
+pwsh -Command "Get-Process" | msr -t "\bTargetProcess\b" --colors "t=Yellow,e=Green"
 
 # Monitor and highlight specific processes
 ps aux | msr -x "$ProcessName" --colors "Cyan" -P -T 3 -M
@@ -782,11 +782,11 @@ ps aux | msr -x "$ProcessName" --colors "Cyan" -P -T 3 -M
 msr -z "command" -XM
 
 # Verify exit code after execution
-msr -p file.txt -t "error" -X -V ne0  # Stop on non-zero return
-msr -p file.txt -t "error" -X -V lt0  # Stop on negative return
+msr -p file.txt -t "\berror\b" -X -V ne0  # Stop on non-zero return
+msr -p file.txt -t "\berror\b" -X -V lt0  # Stop on negative return
 
 # Output to stderr while preserving colors
-msr -rp . -f "\.log$" -t "error" --to-stderr --keep-color
+msr -rp . -f "\.log$" -t "\berror\b" --to-stderr --keep-color
 ```
 
 ### Verbose Debugging Mode (`--verbose`)
@@ -841,16 +841,16 @@ Quick reference:
 
 ```bash
 # Customize colors
-msr -rp . -f "\.cs$" -t "error" --colors "t=Red,e=Green,d=Cyan"
+msr -rp . -f "\.cs$" -t "\berror\b" --colors "t=Red,e=Green,d=Cyan"
 
 # Disable colors for piping (safe on all platforms, keeps summary on stderr)
-msr -rp . -f "\.log$" -t "error" -PIC | other-tool
+msr -rp . -f "\.log$" -t "\berror\b" -PIC | other-tool
 
 # Search UTF-16 files (shows BOM warning)
 msr -p file.txt -x "text"
 
 # Replace in UTF-16 files (requires --force, converts to UTF-8)
-msr -rp . -f "\.cs$" -t "old" -o "new" -RK --force
+msr -rp . -f "\.cs$" -t "\bOldSymbol\b" -o "NewSymbol" -RK --force
 ```
 
 ## Return Values and Exit Codes
@@ -870,17 +870,17 @@ msr returns useful values for scripts:
 
 ```bash
 # Check if pattern found (shell)
-msr -p file.txt -t "error" -l > /dev/null && echo "Found errors"
+msr -p file.txt -t "\berror\b" -l > /dev/null && echo "Found errors"
 
 # Check return value (batch)
-msr -p file.txt -t "error" -l > nul
+msr -p file.txt -t "\berror\b" -l > nul
 if %ERRORLEVEL% GTR 0 (echo Found %ERRORLEVEL% matches)
 
 # Use -H 0 to get count without any output (return value = match count)
-msr -p file.txt -t "error" -H 0 && echo "Match count: %ERRORLEVEL%"
+msr -p file.txt -t "\berror\b" -H 0 && echo "Match count: %ERRORLEVEL%"
 
 # Use -H 1 -J for pure existence check (stops at first match, fastest)
-msr -p file.txt -t "error" -H 1 -J && echo "Pattern found"
+msr -p file.txt -t "\berror\b" -H 1 -J && echo "Pattern found"
 ```
 
 ### Cross-Platform Exit Code Behavior
@@ -898,7 +898,7 @@ On non-Windows platforms (Linux/macOS/Cygwin/MinGW), shell exit codes are trunca
 
 ### Unexpected Matches?
 - Use `-c` to verify regex
-- Test regex with `-z`: `msr -z "test string" -t "your-regex"`
+- Test regex with `-z`: `msr -z "test string" -t "\byourRegex\b"`
 
 ### Files Not Updated?
 - Ensure you added `-R` flag

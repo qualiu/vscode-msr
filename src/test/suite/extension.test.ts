@@ -3,7 +3,7 @@ import { before } from 'mocha';
 // as well as import your extension to test it
 import * as vscode from 'vscode';
 import { checkConfigKeysInDoc, checkDuplicateDescription, validateRegexPatterns } from './configAndDocTest';
-import { testForLoopCmdAlias, testLinuxGeneralCmdAlias, testLinuxGeneralCmdAliasScript, testWindowsGeneralCmdAlias, testWindowsGeneralCmdAliasScript } from './cookCmdAliasTest';
+import { testForLoopCmdAlias, testEscapePercentForWindowsScript, testGitFormatPercentInScripts, testLinuxGeneralCmdAlias, testLinuxGeneralCmdAliasScript, testWindowsGeneralCmdAlias, testWindowsGeneralCmdAliasScript } from './cookCmdAliasTest';
 import { testCmdTerminalWithBackSlash, testCmdTerminalWithForwardSlash, testLinuxTerminal, testNotSkipDotPaths, testOmitExemptions } from './gitIgnoreTest';
 import { testHasSpecificDefinitionConfig, testShouldGenerateDefinitionAlias, testRgfindAliasGeneration } from './cookCmdAliasTest';
 import { testEscapeRegex, testEscapeRegexForFindingCommands, testSpecialCaseReplacing } from './utilsTest';
@@ -61,6 +61,8 @@ suite('Test-4: Cook each doskey/alias to a batch script file for Windows doskey'
     test('Test Linux alias of multiple scripts.', testLinuxGeneralCmdAlias);
     test('Test Linux alias of multiple scripts.', testLinuxGeneralCmdAliasScript);
     test('Test use "%%x" for looping variable "%x" when cooking doskey/alias to files on Windows.', testForLoopCmdAlias);
+    test('Test escape lone % to %% for batch script files (git format specifiers etc).', testEscapePercentForWindowsScript);
+    test('Test git format % properly escaped in script files but not in doskeys.', testGitFormatPercentInScripts);
 });
 
 suite('Test-5: Alias generation control for find-xxx-def and rgfind-xxx', () => {

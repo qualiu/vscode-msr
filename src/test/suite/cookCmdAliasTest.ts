@@ -1,5 +1,5 @@
 import * as assert from 'assert';
-import { replaceForLoopVariableForWindowsScript } from '../../commonAlias';
+import { replaceForLoopVariableForWindowsScript, escapePercentForWindowsScript } from '../../commonAlias';
 import { hasSpecificDefinitionConfig, shouldGenerateDefinitionAlias } from '../../configUtils';
 import { getCommandAliasMap } from '../../cookCommandAlias';
 import { TerminalType } from '../../enums';
@@ -216,6 +216,91 @@ export function testForLoopCmdAlias() {
     assert.strictEqual(result, expected || '');
     console.info('');
   });
+}
+
+// Test escapePercentForWindowsScript: Git format specifiers and other lone % must be doubled in .cmd scripts
+export function testEscapePercentForWindowsScript() {
+  const inputToExpectedMap = new Map<string, string>()
+    // Git format specifiers: %Y %m %d %H %M %S %z %ad %an %s should be doubled
+    .set(
+      String.raw`git --no-pager log --date=format-local:"%Y-%m-%d %H:%M:%S %z" --pretty=format:"%H %ad %an %s" --grep=%*`,
+      String.raw`git --no-pager log --date=format-local:"%%Y-%%m-%%d %%H:%%M:%%S %%z" --pretty=format:"%%H %%ad %%an %%s" --grep=%*`
+    )
+    // glcc-style: msr -o with git format inside, $* already replaced to %*
+    .set(
+      String.raw`git rev-parse --abbrev-ref HEAD | msr -t "(.+)" -o "git --no-pager log --date=format-local:\"%Y-%m-%d %H:%M:%S %z\" --pretty=format:\"%H %ad %an %s\" --name-only \1 %*" -XIM --to-stderr --keep-color`,
+      String.raw`git rev-parse --abbrev-ref HEAD | msr -t "(.+)" -o "git --no-pager log --date=format-local:\"%%Y-%%m-%%d %%H:%%M:%%S %%z\" --pretty=format:\"%%H %%ad %%an %%s\" --name-only \1 %*" -XIM --to-stderr --keep-color`
+    )
+    // %* and %1-%9 batch params must NOT be doubled
+    .set(
+      `msr -l --sz --wt -p %*`,
+      `msr -l --sz --wt -p %*`
+    )
+    .set(
+      `echo %1 %2 %~1 %~dp0`,
+      `echo %1 %2 %~1 %~dp0`
+    )
+    // %ENVVAR% matched pairs must NOT be doubled
+    .set(
+      String.raw`git config --global --get-all safe.directory | msr -x %USERPROFILE% -M`,
+      String.raw`git config --global --get-all safe.directory | msr -x %USERPROFILE% -M`
+    )
+    .set(
+      String.raw`echo %CD%\%USERNAME%`,
+      String.raw`echo %CD%\%USERNAME%`
+    )
+    // Already-doubled %% (for-loop vars) must NOT be re-doubled
+    .set(
+      `for /f "tokens=*" %%a in ('echo hello') do echo %%a`,
+      `for /f "tokens=*" %%a in ('echo hello') do echo %%a`
+    )
+    // Mixed: for-loop %%a + env vars + lone % (git format)
+    .set(
+      String.raw`for /f "tokens=*" %%a in ('git log') do echo %%a %USERPROFILE% %H %ad`,
+      String.raw`for /f "tokens=*" %%a in ('git log') do echo %%a %USERPROFILE% %%H %%ad`
+    )
+    // No % at all — unchanged
+    .set(
+      `echo hello world`,
+      `echo hello world`
+    )
+    ;
+
+  inputToExpectedMap.forEach((expected, input, _) => {
+    const result = escapePercentForWindowsScript(input);
+    console.info('Input    = ' + input);
+    console.info('Result   = ' + result);
+    console.info('Expected = ' + expected);
+    assert.strictEqual(result, expected);
+    console.info('');
+  });
+}
+
+// Test that glcc/glc/git-find-commit scripts have properly escaped % for git format specifiers
+export function testGitFormatPercentInScripts() {
+  const [map] = getCommandAliasMap(TerminalType.CMD, '', false, true);
+  const gitFormatAliases = ['glcc', 'glc', 'git-find-commit', 'git-find-content', 'git-find-creation', 'git-find-deletion', 'git-find-update'];
+  for (const name of gitFormatAliases) {
+    const alias = map.get(name) || '';
+    assert.ok(alias.length > 0, `Alias ${name} should exist`);
+    // Script must NOT have lone %Y, %m, %d, %H, %M, %S, %z, %ad, %an, %s (without preceding %)
+    // They must be doubled: %%Y, %%m, etc.
+    assert.ok(!(/(?<!%)%Y(?!%)/.test(alias)), `${name} script should have %%Y not %Y`);
+    assert.ok(!(/(?<!%)%H(?!%)/.test(alias.replace(/%H:/g, '%%H:'))), `${name} script should have %%H not %H in git format`);
+    assert.ok(alias.includes('%%Y'), `${name} script must contain %%Y for git --date format`);
+    assert.ok(alias.includes('%%ad'), `${name} script must contain %%ad for git --pretty format`);
+    console.info(`${name} script: git format % properly escaped to %%`);
+  }
+
+  // Verify doskey (non-script) still has single % (no doubling needed)
+  const [doskeyMap] = getCommandAliasMap(TerminalType.CMD, '', false, false);
+  for (const name of gitFormatAliases) {
+    const alias = doskeyMap.get(name) || '';
+    assert.ok(alias.length > 0, `Doskey ${name} should exist`);
+    assert.ok(alias.includes('%Y'), `Doskey ${name} must contain single %Y (not doubled)`);
+    assert.ok(!alias.includes('%%Y'), `Doskey ${name} must NOT contain %%Y`);
+    console.info(`${name} doskey: git format % correctly single (not doubled)`);
+  }
 }
 
 // Test hasSpecificDefinitionConfig function

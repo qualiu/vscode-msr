@@ -2,6 +2,12 @@
 
 All notable changes to this "vscode-msr" extension will be documented in this file.
 
+## [2.2.3]
+
+- Improved git-log aliases for `.cmd` script files: `glcc`, `glc`, `git-find-commit`, `git-find-content`, `git-find-log`, `git-find-creation`, `git-find-deletion`, `git-find-update`.
+- Improved `SkipDotFolders` logic for `.gitignore` handling.
+- Removed echo tip from `msr.powerShell.postInitTerminalCommandLine` default value.
+
 ## [2.2.2]
 
 - Improved `list-alias` + `use-alias`.

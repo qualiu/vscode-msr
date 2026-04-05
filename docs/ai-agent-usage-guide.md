@@ -113,26 +113,26 @@ Use the same 3-step pipeline for all replacements.
 
 ```bash
 # Use gfind-{ext} when language is known (most cases); use gfind-small only for unknown/mixed file types
-gfind-cs -t "OldName" -l -PC
-gfind-cs -t "OldName" -H 30 -C
+gfind-cs -t "\bOldSymbol\b" -l -PC
+gfind-cs -t "\bOldSymbol\b" -H 30 -C
 ```
 
 ### Step 2: Preview changes
 
 ```bash
-gfind-cs -t "OldName" -o "NewName" -j -C
+gfind-cs -t "\bOldSymbol\b" -o "NewSymbol" -j -C
 ```
 
 ### Step 3: Apply with safety
 
 ```bash
-gfind-cs -t "OldName" -o "NewName" -RK
+gfind-cs -t "\bOldSymbol\b" -o "NewSymbol" -RK
 ```
 
 Then verify residual hits:
 
 ```bash
-gfind-cs -t "OldName" -H 1 -J
+gfind-cs -t "\bOldSymbol\b" -H 1 -J
 ```
 
 For block-scoped replacement (INI/XML/YAML fragments), use `-b/-Q` patterns from [msr User Guide](msr-user-guide.md#block-matching-multi-line).
@@ -145,24 +145,24 @@ For block-scoped replacement (INI/XML/YAML fragments), use `-b/-Q` patterns from
 
 ```bash
 # existence
-msr -p file.py -t "pattern" -H 1 -J
+msr -p file.py -t "\bTargetSymbol\b" -H 1 -J
 
 # count mode (no matched line output)
-msr -p file.py -t "pattern" -H 0
+msr -p file.py -t "\bTargetSymbol\b" -H 0
 ```
 
 ### 2) Locate first, read second
 
 ```bash
-gfind-py -t "class OrderProcessor" -l -PC
-msr -p src/orders/processor.py -t "class OrderProcessor" -U 2 -D 25 -C
+gfind-py -t "class\s+TargetProcessor\b" -l -PC
+msr -p src/target/processor.py -t "class\s+TargetProcessor\b" -U 2 -D 25 -C
 ```
 
 ### 3) Noise control
 
 ```bash
 # Use gfind-{ext} for known language; gfind-small for broad/unknown file types
-gfind-py -t "pattern" --nt "^.{300,}$" -H 40 -C
+gfind-py -t "\bTargetSymbol\b" --nt "^.{300,}$" -H 40 -C
 ```
 
 ### 4) Keep outputs parse-friendly
@@ -186,7 +186,7 @@ msr -rp logs/ -f "\.log$" -t "(\w+Exception)" -PC | nin nul "(\w+Exception)" -pd
 ```bash
 git diff --name-only HEAD~1 | msr -t "\.(cs|java|ts|py)$" -PC > /tmp/scope.txt
 msr -w /tmp/scope.txt -t "\S\s+$" --no-check -l
-msr -w /tmp/scope.txt -t "deprecated_api" --no-check -H 1 -J
+msr -w /tmp/scope.txt -t "\bdeprecatedApi\b" --no-check -H 1 -J
 ```
 
 ### C) Time-window log drill-down

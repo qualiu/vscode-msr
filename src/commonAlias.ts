@@ -400,7 +400,69 @@ export function replaceArgForWindowsCmdAlias(body: string, writeToEachFile: bool
   body = writeToEachFile
     ? replaceForLoopVariableForWindowsScript(body)
     : replaceForLoopVariableForWindowsAlias(body);
+  if (writeToEachFile) {
+    body = escapePercentForWindowsScript(body);
+  }
   return body;
+}
+
+/**
+ * Escape lone % characters for Windows batch script files (.cmd).
+ *
+ * In batch scripts, CMD expands %VAR% env vars and %0-%9 params before
+ * any program runs. Git format specifiers like %Y, %H, %ad get consumed.
+ * Fix: double % that are NOT part of:
+ *   - Already doubled %% (for-loop vars after replaceForLoopVariableForWindowsScript)
+ *   - %* (all batch params)
+ *   - %0-%9 or %~... (batch param references like %1, %~dp0)
+ *   - %ENVVAR% (matched env var pairs intended for expansion)
+ */
+export function escapePercentForWindowsScript(cmd: string): string {
+  let result = '';
+  let i = 0;
+  while (i < cmd.length) {
+    if (cmd[i] !== '%') {
+      result += cmd[i];
+      i++;
+      continue;
+    }
+
+    // Already-doubled %% (e.g., for-loop vars %%a) — keep as-is
+    if (i + 1 < cmd.length && cmd[i + 1] === '%') {
+      result += '%%';
+      i += 2;
+      continue;
+    }
+
+    // %* (all batch params) — keep as-is
+    if (i + 1 < cmd.length && cmd[i + 1] === '*') {
+      result += '%*';
+      i += 2;
+      continue;
+    }
+
+    // %0-%9 or %~... (batch param references like %1, %~1, %~dp0) — keep as-is
+    const remaining = cmd.substring(i);
+    const paramMatch = remaining.match(/^%(~[a-z]*)?[0-9]/);
+    if (paramMatch) {
+      result += paramMatch[0];
+      i += paramMatch[0].length;
+      continue;
+    }
+
+    // %ENVVAR% (matched env var pair: %WORD_CHARS%) — keep as-is
+    const envVarMatch = remaining.match(/^%(\w+)%/);
+    if (envVarMatch) {
+      result += envVarMatch[0];
+      i += envVarMatch[0].length;
+      continue;
+    }
+
+    // All other lone %: double it for literal % in batch scripts
+    result += '%%';
+    i++;
+  }
+  return result;
 }
 
 // Generate rm-alias PowerShell command body (avoid $a,$b,$g,$l,$r,$t prefixed variables)

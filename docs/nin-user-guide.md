@@ -153,14 +153,14 @@ Output format: `[count]-[cumCount]([pct]%-[cumPct]%): [key]`
 ```bash
 nin error.log nul "^(\w+)" -pd --sum -C
 # Output:
-# 10-10(25.00%-25.00%): NullPointerException
-#  8-18(20.00%-45.00%): ConnectionTimeoutException
+# 10-10(25.00%-25.00%): ExceptionTypeA
+#  8-18(20.00%-45.00%): ExceptionTypeB
 #  6-24(15.00%-60.00%): IllegalArgumentException
 #  4-28(10.00%-70.00%): OutOfMemoryError
 #  3-31( 7.50%-77.50%): SocketException
 #  2-33( 5.00%-82.50%): NumberFormatException
-#  2-35( 5.00%-87.50%): ClassNotFoundException
-# Reading: "NullPointerException: 10 times (25%), cumulative 10 (25% of all)"
+#  2-35( 5.00%-87.50%): ExceptionTypeC
+# Reading: "ExceptionTypeA: 10 times (25%), cumulative 10 (25% of all)"
 #          "After top 7 items: cumulative 35, covering 87.5% of all errors"
 ```
 
@@ -564,7 +564,7 @@ if [ $? -eq 0 ]; then echo "Files have same keys"; fi
 
 ### Unexpected Results?
 - Use `-c` to see the command being executed
-- Test regex capture with: `msr -z "test line" -t "your-pattern"`
+- Test regex capture with: `msr -z "test line" -t "\byourPattern\b"`
 - Remember: capture group[1] is used as the key, not group[0]
 - If no capture group, whole line is used as key
 

@@ -19,7 +19,7 @@ export function comparePattern(parser: GitIgnore, rawPattern: string, expected: 
 
 export function testNotSkipDotPaths() {
   const parser = new GitIgnore('', true, true, '^\.(git|vscode)$', TerminalType.LinuxBash);
-  comparePattern(parser, '.sub-modules', String.raw``);
+  comparePattern(parser, '.sub-modules', String.raw`\.sub-modules`);
 }
 
 export function testOmitExemptions() {
@@ -82,9 +82,9 @@ export function testLinuxTerminal() {
   comparePattern(parser, '*.[1-9a-b]', String.raw`\.[1-9a-b]$`);
   comparePattern(parser, '*.[123ab][4-6cd]', String.raw`\.[123ab][4-6cd]$`);
   comparePattern(parser, '*.[1-3a-b][4-6cd][7-9ef]', String.raw`\.[1-3a-b][4-6cd][7-9ef]$`);
-  comparePattern(parser, '.*', String.raw``);
-  comparePattern(parser, '.Trash-*', String.raw``);// String.raw`\.Trash-[^/]*$`);
-  comparePattern(parser, '._*', String.raw``); // String.raw`\._[^/]*$`);
+  comparePattern(parser, '.*', String.raw`/\.`);
+  comparePattern(parser, '.Trash-*', String.raw`\.Trash-`);
+  comparePattern(parser, '._*', String.raw`\._`);
   comparePattern(parser, '*.~doc*', String.raw`\.~doc`); // String.raw`\.~doc[^/]*$`);
 }
 
@@ -142,9 +142,9 @@ export function testCmdTerminalWithBackSlash() {
   comparePattern(parser, '*.[1-9a-b]', String.raw`\.[1-9a-b]$`);
   comparePattern(parser, '*.[123ab][4-6cd]', String.raw`\.[123ab][4-6cd]$`);
   comparePattern(parser, '*.[1-3a-b][4-6cd][7-9ef]', String.raw`\.[1-3a-b][4-6cd][7-9ef]$`);
-  comparePattern(parser, '.*', String.raw``);
-  comparePattern(parser, '.Trash-*', String.raw``);
-  comparePattern(parser, '._*', String.raw``);
+  comparePattern(parser, '.*', String.raw`\\\.`);
+  comparePattern(parser, '.Trash-*', String.raw`\.Trash-`);
+  comparePattern(parser, '._*', String.raw`\._`);
   comparePattern(parser, '*.~doc*', String.raw`\.~doc`);
 }
 
@@ -202,8 +202,8 @@ export function testCmdTerminalWithForwardSlash() {
   comparePattern(parser, '*.[1-9a-b]', String.raw`\.[1-9a-b]$`);
   comparePattern(parser, '*.[123ab][4-6cd]', String.raw`\.[123ab][4-6cd]$`);
   comparePattern(parser, '*.[1-3a-b][4-6cd][7-9ef]', String.raw`\.[1-3a-b][4-6cd][7-9ef]$`);
-  comparePattern(parser, '.*', String.raw``);
-  comparePattern(parser, '.Trash-*', String.raw``);
-  comparePattern(parser, '._*', String.raw``);
+  comparePattern(parser, '.*', String.raw`/\.`);
+  comparePattern(parser, '.Trash-*', String.raw`\.Trash-`);
+  comparePattern(parser, '._*', String.raw`\._`);
   comparePattern(parser, '*.~doc*', String.raw`\.~doc`);
 }

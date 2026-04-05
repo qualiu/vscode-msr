@@ -56,13 +56,13 @@ Use this decision table to start from the most practical entry point:
 
 ```bash
 # Search/replace first
-msr -rp . -f "\.cs$" -t "old" -o "new"
+msr -rp . -f "\.cs$" -t "\bOldSymbol\b" -o "NewSymbol"
 
 # Set analysis first
 nin error.log nul "(\w+Exception)" -pd --sum -H 10
 
 # VS Code alias first (gfind-small covers all file types ≤1.6MB)
-gfind-small -t "TODO"
+gfind-small -t "\bTODO\b"
 ```
 
 ---
@@ -89,13 +89,13 @@ msr -rp . -f "\.txt$" -x "keyword" -PIC
 
 ```bash
 # Step 1: Preview (default — no -R, no file changes)
-msr -rp . -f "\.cs$" -t "oldName" -o "newName"
+msr -rp . -f "\.cs$" -t "\bOldSymbol\b" -o "NewSymbol"
 
 # Step 1b: Preview changes only (show ONLY lines that actually change)
-msr -rp . -f "\.cs$" -t "oldName" -o "newName" -j
+msr -rp . -f "\.cs$" -t "\bOldSymbol\b" -o "NewSymbol" -j
 
 # Step 2: Apply with backup (-R = replace, -K = backup)
-msr -rp . -f "\.cs$" -t "oldName" -o "newName" -RK
+msr -rp . -f "\.cs$" -t "\bOldSymbol\b" -o "NewSymbol" -RK
 ```
 
 **Key safety features:**
@@ -150,10 +150,10 @@ After installing the vscode-msr extension, open a terminal in VS Code:
 
 ```bash
 # Search Python files
-gfind-py -t "pattern"
+gfind-py -t "\bTargetSymbol\b"
 
 # Search across all file types (≤1.6MB, safe broad search)
-gfind-small -t "TODO"
+gfind-small -t "\bTODO\b"
 
 # Find class definitions
 gfind-cs-def MyClass

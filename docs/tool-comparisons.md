@@ -110,7 +110,7 @@ Detailed regex feature comparison between msr/nin and common CLI tools (grep, ri
 grep -r "pattern" . && echo "found"    # 0 means "found something"
 
 # msr: return value = actual MATCH COUNT
-msr -rp . -t "pattern" -H 0
+msr -rp . -t "\bTargetSymbol\b" -H 0
 # Returns: 0 = nothing found, 42 = found 42 matches, -1 = error
 # This enables: if ($LASTEXITCODE -gt 10) { "Too many matches!" }
 ```
@@ -122,7 +122,7 @@ msr -rp . -t "pattern" -H 0
 rg "pattern" --max-count 3        # Limits per file, still opens all files
 
 # msr: truly stops after N total matches across all files
-msr -rp . -f "\.log$" -t "CRITICAL" -H 3 -J
+msr -rp . -f "\.log$" -t "\bCRITICAL\b" -H 3 -J
 # Scans first 3 matches then exits immediately — critical for 100GB+ log dirs
 ```
 
@@ -148,7 +148,7 @@ msr -rp . -f "\.log$" -t "CRITICAL" -H 3 -J
 > - **Definition search**: msr handles `-t` match + `--nt` exclusion in a single pass; rg needs `rg | grep -v` pipe — msr **25% faster**
 > - **msr vs rg tradeoff**: rg is faster for raw full-text scan (multi-threaded); msr excels at path-scoped, definition, fast-exit, and replacement tasks
 
-> **Optimization parameters reference**: `-d` (directory name regex match), `--nd` (directory name regex exclusion), `--sp` (path must contain ALL texts, AND logic), `--xp` (exclude if path contains ANY text, OR logic), `-f` (filename pattern), `-x` (plain text AND filter), `-H N -J` (global fast exit after N matches). See [Performance Tuning](performance-tuning.md#optimization-decision-tree) for the optimization decision tree and parameter speedup reference.
+> **Optimization parameters reference**: `-d` (directory name regex match), `--sp` (path must contain ALL texts, AND logic), `--xp` (exclude if path contains ANY text, OR logic), `--nf` (safe filename regex exclude), `--pp` (safe full-path regex include), `--nd` / `--np` (regex exclusion, but may conflict with alias-built defaults), `-f` (filename pattern), `-x` (plain text AND filter), `-H N -J` (global fast exit after N matches). See [Performance Tuning](performance-tuning.md#optimization-decision-tree) for the optimization decision tree and parameter speedup reference.
 
 **Windows path separator note (practical):** see [msr and nin Shared Reference — Path Separator Compatibility on Windows](msr-nin-shared-reference.md#path-separator-compatibility-on-windows). `findstr` may still parse `/` as an option prefix, so forward-slash file paths are not consistently reliable there.
 
@@ -186,7 +186,7 @@ sed -i 's/old/new/' windows-file.txt
 # Result: all \r\n → \n (converted to system native LF)
 
 # msr on Windows converts LF to CRLF:
-msr -p unix-file.txt -t "old" -o "new" -R
+msr -p unix-file.txt -t "\bold\b" -o "new" -R
 # Result: all \n → \r\n (converted to system native CRLF)
 
 # Both tools write using the system's native line ending style, NOT preserving the original.
@@ -202,7 +202,7 @@ sed -i 's/old/new/' file.txt             # Linux (GNU)
 # These are incompatible! Scripts break when moving between platforms.
 
 # msr: identical command on all platforms
-msr -p file.txt -t "old" -o "new" -RK   # Works everywhere
+msr -p file.txt -t "\bOldSymbol\b" -o "NewSymbol" -RK   # Works everywhere
 ```
 
 ## msr vs awk
@@ -246,7 +246,7 @@ msr -p data.txt -t "(\d+\.?\d*)" -s "" -n -H 0 -C
 find . -name "*.cs" -mtime -7 | xargs grep -l "pattern"
 
 # msr: single command
-msr -rp . -f "\.cs$" --w1 7d -t "pattern" -l
+msr -rp . -f "\.cs$" --w1 7d -t "\bTargetSymbol\b" -l
 ```
 
 ## msr vs PowerShell Select-String
@@ -307,10 +307,10 @@ nin file1.txt file2.txt "^(\w+)" -u
 | ------------------------------------- | --------------------------------------------------------- |
 | `SELECT DISTINCT col FROM table`      | `nin file nul "^(\S+)" -u`                                |
 | `GROUP BY col ORDER BY COUNT(*) DESC` | `nin file nul "^(\S+)" -pd`                               |
-| `WHERE col NOT IN (SELECT ...)`       | `nin file1 file2 "regex"`                                 |
-| `INNER JOIN ON key`                   | `nin file1 file2 "regex" -m`                              |
-| `HAVING COUNT(*) >= N`                | `nin file nul "regex" -pd -k N`                           |
-| `TOP N`                               | `nin file nul "regex" -pd -H N`                           |
+| `WHERE col NOT IN (SELECT ...)`       | `nin file1 file2 "(regex)"`                               |
+| `INNER JOIN ON key`                   | `nin file1 file2 "(regex)" -m`                            |
+| `HAVING COUNT(*) >= N`                | `nin file nul "(regex)" -pd -k N`                         |
+| `TOP N`                               | `nin file nul "(regex)" -pd -H N`                         |
 | `PERCENTILE_CONT(0.99)`               | `msr -p file -t "(\d+)" -s "" -n -H 0 -C` (P99 in output) |
 
 ## find-xxx vs gfind-xxx (git-cached mode)
@@ -342,16 +342,16 @@ vscode-msr provides two sets of search aliases:
 
 ```bash
 # Small repos: gfind-xxx is faster
-gfind-ts -t "pattern"      # Uses cached git file list
+gfind-ts -t "\bTargetSymbol\b"      # Uses cached git file list
 
 # Large repos: find-xxx is more reliable
-find-cs -t "pattern"       # Directory traversal scales better
+find-cs -t "\bTargetSymbol\b"       # Directory traversal scales better
 
 # Definition search: use -ref with -x (more reliable than -def)
-gfind-py-ref MyClass -x class           # Reliable: find "class MyClass"
-gfind-cs-ref OrderService -x class -d Services   # With directory filter
-gfind-py -t "class\s+MyClass\b"         # Or use base alias with custom regex
-# gfind-py-def MyClass                  # May be slow or return 0 matches
+gfind-py-ref MyClass -x class                 # Reliable: find "class MyClass"
+gfind-cs-ref TargetService -x class -d Services   # With directory filter
+gfind-py -t "class\s+MyClass\b"               # Or use base alias with custom regex
+# gfind-py-def MyClass                        # May be slow or return 0 matches
 ```
 
 > **Technical note**: The `gfind-xxx` aliases read file lists from `git ls-files` cached output. For small repos, this avoids repeated file system traversal. For large repos, the overhead of parsing the cached list may exceed direct traversal time.
@@ -393,7 +393,7 @@ msr does not write the file if replacement produces identical content — preser
 Truly stops scanning after N matches across ALL files — critical for searching 100GB+ log directories:
 
 ```bash
-msr -rp /var/log -f "\.log$" -t "CRITICAL" -H 1 -J
+msr -rp /var/log -f "\.log$" -t "\bCRITICAL\b" -H 1 -J
 # Finds first CRITICAL and exits — doesn't scan remaining 50,000 log files
 ```
 

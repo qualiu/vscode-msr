@@ -2,6 +2,12 @@
 
 All notable changes to this "vscode-msr" extension will be documented in this file.
 
+## [2.2.4]
+
+- Auto-refresh alias scripts (including custom aliases) on `msr.*` config change.
+- `gfind-xxx`/`rgfind-xxx`: Drop redundant `Skip_Junk_Paths` filter that wrongly excluded `.gitignore` exemptions.
+- Use `command -v` instead of `which` in `~/.bashrc` injection to silence shell-startup stderr.
+
 ## [2.2.3]
 
 - Improved git-log aliases for `.cmd` script files: `glcc`, `glc`, `git-find-commit`, `git-find-content`, `git-find-log`, `git-find-creation`, `git-find-deletion`, `git-find-update`.

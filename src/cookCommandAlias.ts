@@ -236,8 +236,12 @@ function duplicateSearchFileCmdAlias(_repoFolder: string, terminalType: Terminal
       const tmpListFile = tmpRepoPathsEnvRef;
 
       // No inline cache check needed - update-repo-paths handles everything
+      // For gfind-*: git ls-files already honors .gitignore (including !exemptions),
+      // so the project-level Skip_Junk_Paths is redundant and can wrongly drop exempted files.
+      // Strip both literal (--np "regex") and env-var (%Skip_Junk_Name% "%Skip_Junk_Paths%" / !..! / $..) forms.
       let gitFindBody = findBody.replace(/(msr(\.exe)?) -rp\s+(".+?"|\S+)/, '$1 -w ' + tmpListFile)
-        .replace(/\s+(--nd|--np)\s+".+?"\s*/, ' ');
+        .replace(/\s+(--nd|--np)\s+".+?"\s*/, ' ')
+        .replace(/\s+(?:%Skip_Junk_Name%|!Skip_Junk_Name!|\$Skip_Junk_Name)\s+"(?:%Skip_Junk_Paths%|!Skip_Junk_Paths!|\$Skip_Junk_Paths)"\s*/, ' ');
 
       // Remove -W option for gfind-xxx: we use pushd to cd into gitRoot with relative path cache
       // so output paths will be naturally relative (no need for -W to output full paths)
@@ -973,19 +977,25 @@ export function cookCmdShortcutsOrFile(cookArgs: CookAliasArgs) {
     }
 
     const pathValue = isLinuxTerminalOnWindows ? '/usr/bin/:~:$PATH' : '$PATH:~';
-    const simpleCheck = `which msr >/dev/null || export PATH="${pathValue}"`;
-    const setEnvPath = `grep -E '^which msr.*?export PATH' ${rcName} >/dev/null || ( echo >> ${rcName} && echo '${simpleCheck}' >> ${rcName} )`;
+    const simpleCheck = `command -v msr >/dev/null || export PATH="${pathValue}"`;
+    const setEnvPath = `grep -E '^(which|command -v) msr.*?export PATH' ${rcName} >/dev/null || ( echo >> ${rcName} && echo '${simpleCheck}' >> ${rcName} )`;
     initLinuxCommands += setEnvPath + "\n";
     initLinuxCommands += `grep -E '^source ${defaultAliasPathForBash}' ${rcName} >/dev/null`
       + ` || ( echo >> ${rcName} && echo 'source ${defaultAliasPathForBash}' >> ${rcName} )`
       + "\n";
 
-    const checkUseAlias = `which use-this-alias`;
+    const checkUseAlias = `command -v use-this-alias`;
     const setPathCmd = `${checkUseAlias} >/dev/null || export PATH="$PATH:${defaultAdding}"`;
-    const checkAddAliasCmd = `grep -E '^${checkUseAlias}' ${rcName} >/dev/null`
+    const checkAddAliasCmd = `grep -E '^(which|command -v) use-this-alias' ${rcName} >/dev/null`
       + ` || ( echo >> ${rcName} && echo '${setPathCmd}' >> ${rcName} )`;
 
     initLinuxCommands += checkAddAliasCmd + "\n";
+
+    // Migrate legacy `which use-this-alias|msr` lines (which prints noisy "no xxx in PATH" to stderr) to `command -v`.
+    const migrateLegacyWhich = `command -v msr >/dev/null && msr -p ${rcName}`
+      + ` -t "^(\\s*)which(\\s+(?:use-this-alias|msr))(\\s|$)"`
+      + ` -o "\\1command -v\\2\\3" -R >/dev/null`;
+    initLinuxCommands += migrateLegacyWhich + "\n";
 
     if (isLinuxTerminalOnWindows && isBashTerminalType(terminalType)) {
       // Avoid msr.exe prior to msr.cygwin or msr.gcc48

@@ -56,6 +56,8 @@ export function activate(context: vscode.ExtensionContext) {
 			const config = vscode.workspace.getConfiguration('msr');
 			printConfigInfo(config);
 			updateGitIgnoreUsage();
+			// Refresh general single-script files (incl. user custom aliases like gfa) + project-specific alias file loaded by MSR-RUN-CMD via use-this-alias.
+			cookCmdShortcutsOrFile({ FilePath: DefaultWorkspaceFolder, WriteToEachFile: true, DumpOtherCmdAlias: true, OnlyCookFile: true, SilentAll: true } as CookAliasArgs);
 			cookCmdShortcutsOrFile({ FilePath: DefaultWorkspaceFolder, ForProject: true, SilentAll: true } as CookAliasArgs);
 		}
 	}));

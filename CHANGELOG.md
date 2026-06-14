@@ -2,6 +2,13 @@
 
 All notable changes to this "vscode-msr" extension will be documented in this file.
 
+## [2.2.5]
+
+- Fix AI Agent / non-UTF-8 Windows locale (ACP≠65001) failing to search CJK with `gfind-xxx`/`msr`/`nin`: accept the UTF-8-manifest-patched `msr.exe`/`nin.exe` as up-to-date (no false "new version" prompt), and document the `Repair-MsrNinUtf8ArgsOnWindowsNonUtf8Acp.ps1` fix in README.
+- Added Git diff aliases: `gdmt` (plain-text diff vs main/master) + `gdct` (plain-text diff vs current branch's remote).
+- Fixed `gdc`/`gdc-l` slash-eating by inlining the current branch name.
+- Auto-migrate legacy `which use-this-alias|msr` lines in `~/.bashrc` to `command -v` on Windows, silencing `which: no ... in (PATH)` stderr from non-interactive bash subprocesses (agents, tasks, tool calls).
+
 ## [2.2.4]
 
 - Auto-refresh alias scripts (including custom aliases) on `msr.*` config change.

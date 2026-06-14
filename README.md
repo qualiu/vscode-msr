@@ -62,6 +62,8 @@ See [Download Links](docs/download-links.md) for the full platform/architecture/
 
 ## Documentation
 
+> Windows non-UTF-8 locale (ACP≠65001)? Embed a UTF-8 manifest into `msr.exe`/`nin.exe` so CJK command-line patterns work without changing the system locale: [Repair-MsrNinUtf8ArgsOnWindowsNonUtf8Acp.ps1](https://github.com/qualiu/msrTools/blob/master/common/Repair-MsrNinUtf8ArgsOnWindowsNonUtf8Acp.ps1).
+
 ### Extension Guides
 
 | Document | Description |
@@ -331,9 +333,10 @@ Many other [**common shortcuts**](/src/commonAlias.ts) like (run `alias` to see 
 - Use [**gfind-xxx**](#try-to-use-gfind-xxx-instead-of-find-xxx-aliasdoskey) instead of **find-xxx** if warned [**exemptions**](#try-to-use-gfind-xxx-instead-of-find-xxx-aliasdoskey) when initializing new terminals.
 - You can search **in vscode terminal** then **click** the results to **open and locate** them.
 - You can also start [**code-mining**](#code-mining-without-or-with-little-knowledge) or [replacing files](#replace-file-text-with-preview-and-backup) out of vscode ([System terminals or other IDEs](#the-cookeddumped-aliasdoskey-can-be-used-in-many-ides-not-just-vscode)).
-  - Run **use-this-alias** to load alias/env for current git repo.
+  - The `gfind-*`/`find-*` script files need nothing extra (`gfind-*` read the `git ls-files` cache; `find-*` self-load env on first line). Run **use-this-alias** only to use **doskey-style** aliases or load env vars into the current shell interactively.
 - If using alias(like `find-spring-ref`) in a **nested command** (like `for/while-loop` or `command|pipe`), or **script files** (like `*.bat/cmd` or `*.sh`)
   - Use **full-name** (like `find-spring-ref.cmd`) or **full path** (like `~/cmdAlias/find-spring-ref`).
+- **Fix AI Agent cannot search Chinese (CJK) with `gfind-xxx`/`msr`/`nin` on Windows non-UTF-8 locale (ACP≠65001)**: command-line CJK patterns get truncated; embed a UTF-8 manifest into `msr.exe`/`nin.exe` to fix it: [Repair-MsrNinUtf8ArgsOnWindowsNonUtf8Acp.ps1](https://github.com/qualiu/msrTools/blob/master/common/Repair-MsrNinUtf8ArgsOnWindowsNonUtf8Acp.ps1).
 
 ### Custom Alias to Auto Sync Across Local and Remote SSH Hosts plus Docker Containers
 

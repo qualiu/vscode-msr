@@ -22,6 +22,16 @@ const DefaultNameSuffix = IsWindows ? (Is64BitOS ? '.exe' : '-Win32.exe')
     ? DefaultNonWindowsSuffix
     : (Is64BitOS ? '.gcc48' : '-i386.gcc48') // legacy naming
   );
+
+// Windows msr.exe/nin.exe patched with a UTF-8 manifest (<activeCodePage>UTF-8</activeCodePage>) so CJK
+// command-line args are not truncated by a non-UTF-8 ANSI code page. The patch changes the file checksum,
+// so treat these as equivalent-to-latest to avoid false "new version" prompts. Re-derive after any official
+// build bump (patched hash = patched stock binary), then append the new value here.
+// The patch is produced by: https://github.com/qualiu/msrTools/blob/master/common/Repair-MsrNinUtf8ArgsOnWindowsNonUtf8Acp.ps1
+const KnownExtraUpToDateExeMd5 = new Map<string, Set<string>>([
+  ['msr', new Set<string>(['15dad8157ffd6d6bb3c5d4d02769045e'])],
+  ['nin', new Set<string>(['547258a52990886c8bcd0654baec59cc'])],
+]);
 const TerminalTypeToSourceExtensionMap = new Map<TerminalType, string>()
   .set(TerminalType.CMD, '.exe')
   .set(TerminalType.PowerShell, DefaultNameSuffix)
@@ -484,7 +494,9 @@ export class ToolChecker {
         continue;
       }
 
-      if (currentMd5.toLowerCase() !== latestMd5.toLowerCase()) {
+      const acceptedAsLatest = currentMd5.toLowerCase() === latestMd5.toLowerCase()
+        || (IsWindows && (KnownExtraUpToDateExeMd5.get(pureExeName)?.has(currentMd5.toLowerCase()) ?? false));
+      if (!acceptedAsLatest) {
         oldExeNames.add(sourceExeName);
         outputKeyInfoByTime('Found new version of ' + sourceExeName + ' which md5 = ' + latestMd5 + ' , source-info = ' + sourceMd5FileUrl);
         outputKeyInfoByTime('Current ' + sourceExeName + ' md5 = ' + currentMd5 + ' , path = ' + exeName64bitToPathMap.get(pureExeName));

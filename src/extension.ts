@@ -19,6 +19,8 @@ import { getRepoFolderFromTerminalCreation, getTerminalInitialPath, getTerminalN
 import { MsrExe } from './toolSource';
 import { getElapsedSecondsToNow, getRepoFolderName, getRepoFolders, isWeeklyCheckTime, quotePaths, replaceSearchTextHolder, toPath } from './utils';
 import path = require('path');
+import fs = require('fs');
+import os = require('os');
 
 outputDebugByTime('Start loading extension and initialize ...');
 
@@ -48,6 +50,15 @@ export function activate(context: vscode.ExtensionContext) {
 	// The commandId parameter must match the command field in package.json
 
 	registerExtension(context);
+
+	// Silence noisy `which: no use-this-alias in (PATH...)` stderr from legacy injected lines
+	// in ~/.bashrc on Windows (Git Bash) for non-interactive bash subprocesses (agents, tasks,
+	// AI/automation tool calls) that never open a VS Code terminal and so never hit the
+	// terminal-bootstrap migration in cookCommandAlias.ts. Idempotent: matches only legacy
+	// `which` lines, writes only when something changes, fully swallowed on error.
+	if (IsWindows) {
+		setImmediate(migrateLegacyWhichInBashrc);
+	}
 
 	// Listening to configuration changes
 	context.subscriptions.push(vscode.workspace.onDidChangeConfiguration(e => {
@@ -162,6 +173,23 @@ export function activate(context: vscode.ExtensionContext) {
 		const [runCmdTerminal] = getRunCmdTerminalWithInfo();
 		asyncCheckAndDumpAliasToFiles(runCmdTerminal, forceCheck);
 	}, 2000);
+}
+
+function migrateLegacyWhichInBashrc() {
+	try {
+		const bashrcPath = path.join(os.homedir(), '.bashrc');
+		if (!fs.existsSync(bashrcPath)) {
+			return;
+		}
+		const original = fs.readFileSync(bashrcPath, 'utf8');
+		const replaced = original.replace(/^(\s*)which(\s+(?:use-this-alias|msr))(\s|$)/gm, '$1command -v$2$3');
+		if (replaced !== original) {
+			fs.writeFileSync(bashrcPath, replaced, 'utf8');
+			outputDebugByTime(`Migrated legacy 'which use-this-alias|msr' lines to 'command -v' in ${bashrcPath}`);
+		}
+	} catch {
+		// Best-effort migration; silently ignore (permission denied, etc.).
+	}
 }
 
 function updateGitIgnoreUsage() {

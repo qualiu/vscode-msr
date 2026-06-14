@@ -420,11 +420,11 @@ function showTipByCommand(terminal: vscode.Terminal | undefined, terminalType: T
     + ` Toggle-Enable/Disable finding definition`
     + ` + Adjust-Color + Fuzzy-Code-Mining + Hide/Show-Menus`
     + ` + Use git-ignore + Git operations: gdm-l / gdm-nt / gdm / gpm / gpc / gpc-sm for gfind-xxx.`
-    + ` ${CookCmdDocUrl} for Advanced/Menu/Mouse search + preview->replace.`
+    + ` ${CookCmdDocUrl} for Repair-CJK + Advanced/Menu/Mouse search + preview->replace.`
     + ` Outside terminals/IDEs: use-this-alias / out-fp / out-rp.`;
 
   const colorPattern = '~\\S+|\\d+|m*alias|doskey|find-\\S+|sort-\\S+|out-\\S+|gpc-?\\w*|git-\\S+|use-\\S+|msr.skip\\S+|\\S+-alias\\S*|other|mock|mingw'
-    + '|Toggle|Enable|Disable|Adjust-Color|Code-Mining|Hide|Show|Preview-|-Replace-|git-ignore|Advanced|Mouse';
+    + '|Toggle|Enable|Disable|Adjust-Color|Code-Mining|Hide|Show|Preview-|-Replace-|git-ignore|Repair-CJK|Advanced|Mouse';
 
   const newLine = isWindowsTerminal ? "\r\n" : "\n";
   const commentHead = newLine + (isWindowsTerminal ? "::" : "#") + " ";
